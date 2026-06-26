@@ -32,3 +32,60 @@ def test_atomic_write_no_partial_on_failure(tmp_path, monkeypatch):
 
     assert target.read_text(encoding="utf-8") == "keep"
     assert not list(tmp_path.glob(".*.tmp"))
+
+
+def test_load_toml_parses(tmp_path):
+    f = tmp_path / "m.toml"
+    f.write_text('schema_version = "1"\ncreated = "2026-06-26"\n', encoding="utf-8")
+    data = workspace.load_toml(f)
+    assert data["schema_version"] == "1"
+    assert data["created"] == "2026-06-26"
+
+
+def test_dump_toml_round_trips(tmp_path):
+    data = {
+        "schema_version": "1",
+        "created": "2026-06-26",
+        "workspace": {"default_model": "claude-sonnet-4-6"},
+        "wikis": {
+            "llm-systems": {
+                "path": "llm-systems",
+                "display_name": "LLM Systems",
+                "description": "research",
+                "model": "claude-opus-4-8",
+                "created": "2026-06-26",
+                "tags": ["research", "papers"],
+            },
+            "recipes": {
+                "path": "recipes",
+                "display_name": "Recipes",
+                "created": "2026-06-20",
+                "tags": [],
+            },
+        },
+    }
+    text = workspace.dump_toml(data)
+    reparsed = workspace.load_toml_str(text)
+    assert reparsed["wikis"]["llm-systems"]["model"] == "claude-opus-4-8"
+    assert reparsed["wikis"]["recipes"]["tags"] == []
+    assert reparsed["workspace"]["default_model"] == "claude-sonnet-4-6"
+
+
+def test_dump_toml_escapes_quotes():
+    data = {
+        "schema_version": "1",
+        "created": "2026-06-26",
+        "workspace": {"default_model": "x"},
+        "wikis": {
+            "w": {
+                "path": "w",
+                "display_name": 'he said "hi"',
+                "created": "2026-06-26",
+                "tags": [],
+            }
+        },
+    }
+    text = workspace.dump_toml(data)
+    assert '\\"' in text  # 引号被转义
+    reparsed = workspace.load_toml_str(text)
+    assert reparsed["wikis"]["w"]["display_name"] == 'he said "hi"'
