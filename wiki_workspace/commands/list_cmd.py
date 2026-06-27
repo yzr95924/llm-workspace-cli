@@ -19,7 +19,7 @@ def run(args):
     try:
         m = _common.load_manifest(args)
     except errors.CommandError as exc:
-        if args.json:
+        if getattr(args, "json", False):
             print(
                 errors.render_json_result(
                     exc.exit_code, [errors.ErrorRecord(exc.category, exc.message, exc.hint)]

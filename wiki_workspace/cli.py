@@ -14,26 +14,36 @@ def resolve_default_workspace():
 
 
 def build_parser():
-    p = argparse.ArgumentParser(prog="llmw", description="LLM Workspace CLI")
-    p.add_argument("--workspace", "-w", help="workspace 根目录")
-    p.add_argument("--json", action="store_true", help="结构化 JSON 输出")
-    p.add_argument("--quiet", "-q", action="store_true", help="抑制 WARN/INFO")
-    p.add_argument("--debug", action="store_true", help="调试输出")
+    # 全局 flag 经共享 parents 同时挂到主 parser 与每个子 parser，使 spec §3.1
+    # 的写法 `llmw init --workspace X`（flag 在子命令后）与 `llmw -w X init`
+    # （flag 在子命令前）都可用。default=SUPPRESS 是关键：子 parser 解析时若
+    # 用户没在该位置传该 flag，就不写入 namespace，从而不会用默认值覆盖主
+    # parser 已解析到的同名值（argparse 子 parser 默认会 clobber）。
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--workspace", "-w", default=argparse.SUPPRESS, help="workspace 根目录")
+    common.add_argument(
+        "--json", action="store_true", default=argparse.SUPPRESS, help="结构化 JSON 输出"
+    )
+    common.add_argument(
+        "--quiet", "-q", action="store_true", default=argparse.SUPPRESS, help="抑制 WARN/INFO"
+    )
+    common.add_argument("--debug", action="store_true", default=argparse.SUPPRESS, help="调试输出")
 
+    p = argparse.ArgumentParser(prog="llmw", description="LLM Workspace CLI", parents=[common])
     sub = p.add_subparsers(dest="command", metavar="<command>")
 
     # init
-    sp = sub.add_parser("init", help="初始化一个 workspace")
+    sp = sub.add_parser("init", help="初始化一个 workspace", parents=[common])
     sp.add_argument("--default-model", default="claude-sonnet-4-6")
     sp.set_defaults(func="init")
 
     # list
-    sp = sub.add_parser("list", help="列出 wiki")
+    sp = sub.add_parser("list", help="列出 wiki", parents=[common])
     sp.add_argument("--tag")
     sp.set_defaults(func="list")
 
     # add
-    sp = sub.add_parser("add", help="新建一个 wiki")
+    sp = sub.add_parser("add", help="新建一个 wiki", parents=[common])
     sp.add_argument("name")
     sp.add_argument("--display-name")
     sp.add_argument("--description")
@@ -44,19 +54,19 @@ def build_parser():
     sp.set_defaults(func="add")
 
     # remove
-    sp = sub.add_parser("remove", help="从 manifest 移除 wiki")
+    sp = sub.add_parser("remove", help="从 manifest 移除 wiki", parents=[common])
     sp.add_argument("name")
     sp.add_argument("--purge", action="store_true")
     sp.add_argument("--yes", "-y", action="store_true")
     sp.set_defaults(func="remove")
 
     # show
-    sp = sub.add_parser("show", help="显示单个 wiki 详情")
+    sp = sub.add_parser("show", help="显示单个 wiki 详情", parents=[common])
     sp.add_argument("name")
     sp.set_defaults(func="show")
 
     # config
-    sp = sub.add_parser("config", help="读写 wiki 配置")
+    sp = sub.add_parser("config", help="读写 wiki 配置", parents=[common])
     sp.add_argument("name")
     sp.add_argument("action", choices=["show", "get", "set", "unset"])
     sp.add_argument("key", nargs="?")
@@ -64,7 +74,7 @@ def build_parser():
     sp.set_defaults(func="config")
 
     # enter
-    sp = sub.add_parser("enter", help="在 wiki 上下文里启动 Claude Code")
+    sp = sub.add_parser("enter", help="在 wiki 上下文里启动 Claude Code", parents=[common])
     sp.add_argument("name")
     sp.add_argument("--model")
     sp.add_argument("--claude-md-check", choices=["warn", "fail", "skip"], default="warn")
