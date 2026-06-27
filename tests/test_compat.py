@@ -8,14 +8,14 @@ def test_find_skill_root_env_var(tmp_path, monkeypatch, fake_skill):
 
 def test_find_skill_root_sibling(tmp_path, monkeypatch, fake_skill):
     # workspace 在 tmp_path/ws，skill 同级在 tmp_path/llm-wiki-management（fake_skill 已是）
-    monkeypatch.delenv("LLMW_WIKI_MANAGEMENT_PATH", raising=False)
+    monkeypatch.delenv("LLM_WIKI_MANAGEMENT_PATH", raising=False)
     ws = tmp_path / "ws"
     ws.mkdir()
     assert _compat.find_skill_root(workspace_root=ws) == fake_skill.resolve()
 
 
 def test_find_skill_root_installed(tmp_path, monkeypatch, fake_skill):
-    monkeypatch.delenv("LLMW_WIKI_MANAGEMENT_PATH", raising=False)
+    monkeypatch.delenv("LLM_WIKI_MANAGEMENT_PATH", raising=False)
     installed = tmp_path / "home" / ".claude" / "skills" / "llm-wiki-management"
     installed.mkdir(parents=True)
     (installed / "SKILL.md").write_text("x", encoding="utf-8")
