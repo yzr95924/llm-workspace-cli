@@ -19,16 +19,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.6 已 EOL（2021-12）且不在现代 runner 镜像里、setup-python@v5 装不上；
-        # 代码按 py37 语法安全写成，3.7 即可证明向后兼容，3.11 覆盖现代。
-        # 详见 doc/plans/2026-06-26-llmw-v1.md「验证日志」。
-        python-version: ["3.7", "3.11"]
+        # 3.7 不在 setup-python 的 ubuntu-24.04（=ubuntu-latest）镜像里；ubuntu-22.04
+        # 虽有但 2026-09 起弃用。改用官方 python 容器提供真实 3.7/3.11 环境，不受
+        # runner 镜像变动影响。用 full 镜像（非 -slim）：3.7 基于 Debian Buster，
+        # 其 apt 仓库已归档下线（404），slim 需手动改源装 git；full 自带 git。
+        # 代码按 py37 语法安全写成，3.7 证明向后兼容，3.11 覆盖现代。
+        # 详见 doc/plans/2026-06-26-llmw-v1.md。
+        py: ["3.7", "3.11"]
+    container: python:${{ matrix.py }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      # 不装 [dev]（含 ruff）：ruff 在 3.7 上无法干净安装；lint 已由 lint job 覆盖。
-      # 钉 pytest<8：pytest 8 要求 py>=3.8，3.7 job 需回落到 7.x 且避免慢回溯。
+      # 不装 [dev]（含 ruff）：ruff 在 3.7 上装不干净；lint 已由 lint job 覆盖。
+      # 钉 pytest<8：pytest 8 要求 py>=3.8。
       - run: pip install -e . "pytest>=7,<8" "pytest-cov>=4"
       - run: pytest -q
