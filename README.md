@@ -1,6 +1,6 @@
 # llmw — LLM Workspace CLI
 
-管理一个由 [llm-wiki-management](https://github.com/yzr95924/llm-wiki-management) wiki 组成的 workspace。
+管理一个由 [llm-wiki-management](https://github.com/yzr95924/my_SKILL/tree/master/llm-wiki-management) wiki 组成的 workspace。
 
 ## 安装
 
