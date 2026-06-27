@@ -20,7 +20,7 @@ def _dump_section(buf, data, prefix):
             # array-of-tables: [[prefix.k]]
             for item in v:
                 buf.write(f"\n[[{prefix}{k}]]\n")
-                _dump_kv(buf, item)
+                _dump_kv(buf, item.items())
         else:
             scalars[k] = v
     _dump_kv(buf, scalars.items())
@@ -36,7 +36,10 @@ def _dump_kv(buf, items):
         elif isinstance(v, bool):
             buf.write(f"{k} = {str(v).lower()}\n")
         elif isinstance(v, list):
-            inner = ", ".join(f'"{x}"' if isinstance(x, str) else str(x) for x in v)
+            inner = ", ".join(
+                f'"{x}"' if isinstance(x, str) else (str(x).lower() if isinstance(x, bool) else str(x))
+                for x in v
+            )
             buf.write(f"{k} = [{inner}]\n")
         else:
             buf.write(f"{k} = {v}\n")
