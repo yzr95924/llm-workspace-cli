@@ -122,6 +122,27 @@ def add(
     if name in ws.wikis:
         raise WikiExists(f"wiki '{name}' 已存在")
 
+    # Phase 2: 校验 model_id 存在于 registry
+    if model is not None:
+        try:
+            from llmw.models.store import load as models_load, RegistryMissing
+            from llmw.errors import ModelNotInRegistry, ModelDefaultNotSet
+            try:
+                reg = models_load(workspace_root)
+            except RegistryMissing:
+                raise ModelDefaultNotSet(
+                    "workspace 还没有 registry, 无法校验 model",
+                    hint="先跑 `llmw model add --model-id ... --name ... --base-url ... --api-key ... --default` 至少一条",
+                )
+            if model not in reg.models:
+                raise ModelNotInRegistry(
+                    f"model_id '{model}' 不在 registry 中",
+                    hint="运行 `llmw model list` 查看可用 model_id",
+                )
+        except ImportError:
+            # models 包未实现（极端情况）——静默允许
+            pass
+
     wiki_dir = workspace_root / name
 
     # 非 TTY 下: 必须所有 metadata flag 齐
@@ -250,14 +271,22 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
     raw_count = sum(1 for _ in raw_p.rglob("*") if _.is_file()) if raw_p.is_dir() else 0
     wiki_count = sum(1 for _ in wiki_sub_p.rglob("*.md") if _.is_file()) if wiki_sub_p.is_dir() else 0
 
-    # 解析最终 model
-    final_model = (meta.model if meta else None) or ws.default_model
+    # 通过 resolve 拿最终 model + 来源
+    final_model = None
     model_source = None
-    if final_model:
-        if meta and meta.model:
-            model_source = "wiki.metadata.model"
-        elif ws.default_model:
-            model_source = "workspace.default_model"
+    try:
+        from llmw.models.resolve import resolve_for_wiki
+        m = resolve_for_wiki(workspace_root, name)
+        final_model = m.model_id
+        model_source = "wiki override" if (meta and meta.model) else "registry default"
+    except Exception:
+        # resolve 失败 → 维持向后兼容：旧逻辑
+        final_model = (meta.model if meta else None) or ws.default_model
+        if final_model:
+            if meta and meta.model:
+                model_source = "wiki.metadata.model"
+            elif ws.default_model:
+                model_source = "workspace.default_model"
 
     if as_json:
         out = {
@@ -348,6 +377,22 @@ def wiki_config_set(workspace_root: Path, name: str, key: str, value: str) -> No
         for t in new_tags:
             wiki_store.validate_tag(t)
         meta.tags = new_tags
+    elif key == "model":
+        from llmw.models.store import load as models_load, RegistryMissing
+        from llmw.errors import ModelNotInRegistry, ModelDefaultNotSet
+        try:
+            reg = models_load(workspace_root)
+        except RegistryMissing:
+            raise ModelDefaultNotSet(
+                "workspace 还没有 registry, 无法校验 model",
+                hint="先跑 `llmw model add ...` 至少一条",
+            )
+        if value not in reg.models:
+            raise ModelNotInRegistry(
+                f"model_id '{value}' 不在 registry 中",
+                hint="运行 `llmw model list` 查看可用 model_id",
+            )
+        meta.model = value or None
     else:
         setattr(meta, key, value or None)
     meta.bump()

@@ -9,7 +9,7 @@ from llmw.config import templates_dir
 from llmw.errors import InvalidTagValue, InvalidWikiName, SchemaVersionUnsupported
 from llmw.fsutil import atomic_write, now_iso8601
 
-SCHEMA_VERSION_SUPPORTED = 1
+SCHEMA_VERSION_SUPPORTED = 2
 NAME_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
 TAG_RE = re.compile(r"^[a-z0-9_-]{1,32}$")
 
