@@ -183,7 +183,10 @@ def model_add(
 
 
 def model_list(workspace_root: Path, as_json: bool = False) -> int:
-    reg = load(workspace_root)
+    reg = _load_lenient(workspace_root)
+    if reg.models and not any(m.is_default for m in reg.models.values()):
+        print("[llmw] (registry has no default — use `llmw model set-default --model-id <ID>` to enable enter)",
+              file=sys.stderr)
     if as_json:
         out = [
             {
@@ -213,7 +216,7 @@ def model_list(workspace_root: Path, as_json: bool = False) -> int:
 
 
 def model_show(workspace_root: Path, model_id: str, as_json: bool = False) -> None:
-    reg = load(workspace_root)
+    reg = _load_lenient(workspace_root)
     if model_id not in reg.models:
         raise ModelNotInRegistry(
             f"model_id '{model_id}' 不在 registry 中",

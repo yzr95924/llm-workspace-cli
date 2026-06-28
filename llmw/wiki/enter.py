@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from llmw._compat import TOMLDecodeError
-from llmw.errors import ClaudeNotFound, WikiDirMissing, WikiNotFound
+from llmw.errors import ClaudeNotFound, SchemaVersionUnsupported, WikiDirMissing, WikiNotFound
 from llmw.models.redact import redact_api_key
 from llmw.models.resolve import resolve_for_wiki
 from llmw.models.store import ModelEntry
@@ -100,9 +100,10 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
         if meta_p.is_file():
             try:
                 meta = wiki_load(wiki_path)
-            except (OSError, TOMLDecodeError) as e:
-                # 文件存在但读失败 / TOML 解析失败 → 软降级（不显示 source 详情）
-                # SchemaVersionUnsupported 不捕获：让用户看到 schema 不匹配的明确错误
+            except (OSError, TOMLDecodeError, SchemaVersionUnsupported) as e:
+                # 文件存在但读失败 / TOML 解析失败 / schema 不支持 → 软降级
+                # resolve 已经捕过 SchemaVersionUnsupported；这里再捕是为了让 dry-run
+                # 还能打印 resolved model / env overlay（schema 错误不该阻断预览）
                 print(
                     f"[llmw] warning: 无法读取 wiki_metadata.toml: {type(e).__name__}: {e}",
                     file=sys.stderr,

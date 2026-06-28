@@ -12,8 +12,15 @@ from llmw.errors import (
     GitUnavailable,
     InvalidConfigKey,
     KeyNotUnsettable,
+    ModelDefaultAmbiguous,
+    ModelDefaultNotSet,
+    ModelNotInRegistry,
+    RegistryMissing,
+    WikiDirMissing,
+    WikiNotFound,
     WorkspaceExists,
 )
+from llmw._compat import TOMLDecodeError
 from llmw.fsutil import now_iso8601
 from llmw.workspace import store as ws_store
 
@@ -269,7 +276,7 @@ def list_wikis(
                 if (meta and meta.model)
                 else "registry default",
             }
-        except Exception:
+        except (WikiNotFound, WikiDirMissing, ModelNotInRegistry, ModelDefaultNotSet, ModelDefaultAmbiguous, RegistryMissing, OSError, TOMLDecodeError):
             model_info = None
 
         rows.append(

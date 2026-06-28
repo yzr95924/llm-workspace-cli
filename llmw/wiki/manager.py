@@ -8,9 +8,11 @@ from typing import List, Optional
 from llmw.errors import (
     InvalidConfigKey, KeyNotUnsettable, MissingRequiredFlag,
     ModelDefaultAmbiguous, ModelDefaultNotSet, ModelNotInRegistry,
-    PurgeRequiresConfirmation, SetupFailed, SkillMissing, SkillScriptMissing,
+    PurgeRequiresConfirmation, SchemaVersionUnsupported, SetupFailed,
+    SkillMissing, SkillScriptMissing,
     WikiDirMissing, WikiExists, WikiNotFound,
 )
+from llmw._compat import TOMLDecodeError
 from llmw.models.resolve import resolve_for_wiki
 from llmw.models.store import RegistryMissing, load as models_load
 from llmw.config import skill_setup_script
@@ -258,7 +260,8 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
     if (wiki_path / "wiki_metadata.toml").is_file():
         try:
             meta = wiki_store.load(wiki_path)
-        except Exception:
+        except (OSError, TOMLDecodeError, SchemaVersionUnsupported) as e:
+            print(f"[llmw] warning: 无法读取 wiki_metadata.toml: {type(e).__name__}: {e}", file=sys.stderr)
             meta = None
 
     claude_md_p = wiki_path / "CLAUDE.md"

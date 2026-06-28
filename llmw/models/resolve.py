@@ -2,10 +2,13 @@
 
 设计 §9.4。被 enter / show / list / wiki config 校验共同消费。
 """
+import sys
 from pathlib import Path
 
+from llmw._compat import TOMLDecodeError
 from llmw.errors import (
-    ModelDefaultNotSet, ModelNotInRegistry, WikiDirMissing, WikiNotFound,
+    ModelDefaultNotSet, ModelNotInRegistry, SchemaVersionUnsupported,
+    WikiDirMissing, WikiNotFound,
 )
 from llmw.models import store as models_store
 from llmw.models.store import ModelEntry, RegistryMissing
@@ -43,8 +46,13 @@ def resolve_for_wiki(workspace_root: Path, wiki_name: str) -> ModelEntry:
         )
 
     meta = None
-    if (wiki_dir / "wiki_metadata.toml").is_file():
-        meta = wiki_store.load(wiki_dir)
+    meta_p = wiki_dir / "wiki_metadata.toml"
+    if meta_p.is_file():
+        try:
+            meta = wiki_store.load(wiki_dir)
+        except (SchemaVersionUnsupported, OSError, TOMLDecodeError) as e:
+            print(f"[llmw] warning: 无法读取 wiki_metadata.toml: {type(e).__name__}: {e}", file=sys.stderr)
+            meta = None
 
     try:
         reg = models_store.load(workspace_root)
