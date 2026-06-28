@@ -9,10 +9,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+from llmw._compat import TOMLDecodeError
 from llmw.errors import ClaudeNotFound, WikiDirMissing, WikiNotFound
 from llmw.models.redact import redact_api_key
 from llmw.models.resolve import resolve_for_wiki
 from llmw.models.store import ModelEntry
+from llmw.wiki.store import load as wiki_load
 from llmw.workspace import store as ws_store
 
 
@@ -29,6 +31,9 @@ def _resolve_wiki_path(workspace_root: Path, name: str) -> Path:
 def _read_system_prompt(wiki_path: Path):
     """读 CLAUDE.md 内容作为 system-prompt。
     缺失返回 (None, path)。空文件返回 ("", path)——按设计空 CLAUDE.md 仍传 ``--system-prompt ""``。
+
+    为什么读全文而不是 ``--system-prompt "$(cat CLAUDE.md)"``？
+    subprocess.run 不走 shell，$() 会作为字面量传给 claude；只能预先读出。
     """
     claude_md = wiki_path / "CLAUDE.md"
     if not claude_md.is_file():
@@ -91,12 +96,17 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
 
     # dry-run
     if dry_run:
-        from llmw.wiki.store import load as wiki_load
         meta = None
         if meta_p.is_file():
             try:
                 meta = wiki_load(wiki_path)
-            except Exception:
+            except (OSError, TOMLDecodeError) as e:
+                # 文件存在但读失败 / TOML 解析失败 → 软降级（不显示 source 详情）
+                # SchemaVersionUnsupported 不捕获：让用户看到 schema 不匹配的明确错误
+                print(
+                    f"[llmw] warning: 无法读取 wiki_metadata.toml: {type(e).__name__}: {e}",
+                    file=sys.stderr,
+                )
                 meta = None
         print(f"[llmw] workspace: {workspace_root}", file=sys.stdout)
         print(f"[llmw] wiki:      {name} ({wiki_path})", file=sys.stdout)
