@@ -37,7 +37,37 @@ def build_parser() -> argparse.ArgumentParser:
     p_list.add_argument("--tag", action="append", default=[], metavar="TAG",
                         help="仅列出含此 tag 的 wiki (可重复, AND 关系)")
 
-    # wiki 子命令见 Tasks 14 / 16
+    # ===== wiki 级 =====
+    p_wiki = sub.add_parser("wiki", help="wiki 子命令")
+    p_wiki.add_argument("--name", required=True, metavar="NAME",
+                        help="目标 wiki 名")
+    wiki_sub = p_wiki.add_subparsers(dest="wiki_action", metavar="ACTION")
+
+    # add
+    pw_add = wiki_sub.add_parser("add", help="新建 wiki")
+    pw_add.add_argument("--topic", default=None)
+    pw_add.add_argument("--display-name", default=None, dest="display_name")
+    pw_add.add_argument("--description", default=None)
+    pw_add.add_argument("--tag", action="append", default=[], dest="tags")
+    pw_add.add_argument("--model", default=None)
+    pw_add.add_argument("--no-setup", action="store_true", dest="no_setup")
+
+    # remove
+    pw_rm = wiki_sub.add_parser("remove", help="移除 wiki")
+    pw_rm.add_argument("--purge", action="store_true")
+    pw_rm.add_argument("--yes", "-y", action="store_true")
+
+    # show
+    pw_show = wiki_sub.add_parser("show", help="查看 wiki 详情")
+
+    # config (sub: get / set / unset)
+    pw_cfg = wiki_sub.add_parser("config", help="读写 wiki_metadata.toml")
+    pw_cfg.add_argument("cfg_action", nargs="?", default=None,
+                        choices=[None, "get", "set", "unset"])
+    pw_cfg.add_argument("cfg_key", nargs="?", default=None)
+    pw_cfg.add_argument("cfg_value", nargs="?", default=None)
+
+    # enter (Task 16)
 
     return parser
 
@@ -76,6 +106,39 @@ def main(argv=None) -> int:
         if args.command == "list":
             from llmw.workspace.manager import list_wikis
             return list_wikis(ws_root, as_json=args.json, tag_filter=args.tag or None)
+
+        if args.command == "wiki":
+            from llmw.wiki.manager import (
+                add as wiki_add, remove as wiki_rm, show as wiki_show,
+                wiki_config_get, wiki_config_set, wiki_config_unset,
+                wiki_config_interactive,
+            )
+            wa = args.wiki_action
+            if wa == "add":
+                wiki_add(
+                    ws_root, args.name,
+                    topic=args.topic, display_name=args.display_name,
+                    description=args.description, tags=args.tags or None,
+                    model=args.model, no_setup=args.no_setup,
+                )
+            elif wa == "remove":
+                wiki_rm(ws_root, args.name, purge=args.purge, yes=args.yes)
+            elif wa == "show":
+                wiki_show(ws_root, args.name, as_json=args.json)
+            elif wa == "config":
+                if args.cfg_action is None:
+                    wiki_config_interactive(ws_root, args.name)
+                elif args.cfg_action == "get":
+                    wiki_config_get(ws_root, args.name, args.cfg_key)
+                elif args.cfg_action == "set":
+                    wiki_config_set(ws_root, args.name, args.cfg_key, args.cfg_value)
+                elif args.cfg_action == "unset":
+                    wiki_config_unset(ws_root, args.name, args.cfg_key)
+            else:
+                print("[llmw] wiki 子命令需要 ACTION (add/remove/show/config/enter)",
+                      file=sys.stderr)
+                return 1
+            return 0
 
     except LlmwError as e:
         print(format_error(e, debug=args.debug), file=sys.stderr)
