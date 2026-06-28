@@ -116,6 +116,43 @@ test_wrapper_reports_when_repo_missing() {
   [ "$code" != 0 ] || { echo "      期望非零退出"; cat "$TMPHOME/bad.out"; exit 1; }
   assert_contains "$TMPHOME/bad.out" "仓库目录不存在"
 }
+test_uninstall_removes_wrapper() {
+  run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
+  assert_exists "$TMPHOME/.local/bin/llmw"
+  run_uninstall "$PYDIR:/usr/bin:/bin"
+  [ "$UNINST_CODE" = 0 ] || { cat "$TMPHOME/uninst.out"; exit 1; }
+  assert_not_exists "$TMPHOME/.local/bin/llmw"
+}
+test_uninstall_strips_marker_keeps_other_lines() {
+  printf 'alias x=1\n# my line\n' > "$TMPHOME/.zshrc"
+  run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
+  assert_contains "$TMPHOME/.zshrc" "# my line"
+  assert_contains "$TMPHOME/.zshrc" "# >>> llmw (managed by install.sh) >>>"
+  run_uninstall "$PYDIR:/usr/bin:/bin"
+  assert_not_contains "$TMPHOME/.zshrc" "# >>> llmw (managed by install.sh) >>>"
+  assert_not_contains "$TMPHOME/.zshrc" "# <<< llmw <<<"
+  assert_contains "$TMPHOME/.zshrc" "alias x=1"
+  assert_contains "$TMPHOME/.zshrc" "# my line"
+}
+test_uninstall_scans_all_candidate_rc() {
+  # 把 marker 块手动种到 install 不会选的 .bashrc，验证 uninstall 仍能清掉
+  cat > "$TMPHOME/.bashrc" <<'B'
+# >>> llmw (managed by install.sh) >>>
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) PATH="$HOME/.local/bin:$PATH"; export PATH ;;
+esac
+# <<< llmw <<<
+B
+  run_uninstall "$PYDIR:/usr/bin:/bin"
+  assert_not_contains "$TMPHOME/.bashrc" "# >>> llmw (managed by install.sh) >>>"
+}
+test_uninstall_idempotent() {
+  run_uninstall "$PYDIR:/usr/bin:/bin"   # 啥都没装
+  [ "$UNINST_CODE" = 0 ] || { cat "$TMPHOME/uninst.out"; exit 1; }
+  run_uninstall "$PYDIR:/usr/bin:/bin"   # 再跑一次
+  [ "$UNINST_CODE" = 0 ] || { cat "$TMPHOME/uninst.out"; exit 1; }
+}
 
 # ---- runner ----
 TESTS=(
@@ -128,6 +165,10 @@ TESTS=(
   test_reinstall_overwrites_wrapper
   test_install_fails_without_python3
   test_wrapper_reports_when_repo_missing
+  test_uninstall_removes_wrapper
+  test_uninstall_strips_marker_keeps_other_lines
+  test_uninstall_scans_all_candidate_rc
+  test_uninstall_idempotent
 )
 
 run_test() {
