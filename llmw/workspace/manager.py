@@ -1,4 +1,5 @@
 """workspace 级业务: init / config / list"""
+
 import shutil
 import subprocess
 import sys
@@ -7,7 +8,10 @@ from typing import List, Optional
 
 from llmw import __version__
 from llmw.errors import (
-    ConfigKeyMissing, GitUnavailable, InvalidConfigKey, KeyNotUnsettable,
+    ConfigKeyMissing,
+    GitUnavailable,
+    InvalidConfigKey,
+    KeyNotUnsettable,
     WorkspaceExists,
 )
 from llmw.fsutil import now_iso8601
@@ -15,14 +19,43 @@ from llmw.workspace import store as ws_store
 
 # config KEY 白名单: name -> (can_set, can_unset, type)
 CONFIG_KEYS = {
-    "default_model":     (True,  True,  str),
+    "default_model": (True, True, str),
     "templates_version": (False, False, str),  # 只读
-    "created_at":        (False, False, str),  # 只读
-    "schema_version":    (False, False, int),  # 只读
+    "created_at": (False, False, str),  # 只读
+    "schema_version": (False, False, int),  # 只读
 }
 
 
+# ===== workspace 级 .gitignore helper =====
+
+GITIGNORE_LINE = "workspace_models.toml"
+
+
+def _ensure_workspace_gitignore(workspace_root: Path) -> None:
+    """确保 workspace 级 .gitignore 包含 workspace_models.toml。
+    - 文件不存在 → 创建（带 llmw 标记段）
+    - 文件存在 → 若已有 workspace_models.toml 行，跳过；否则追加
+    """
+    gitignore = workspace_root / ".gitignore"
+    marker_start = "# >>> llmw (managed by llmw) >>>"
+    marker_end = "# <<< llmw <<<"
+    if gitignore.is_file():
+        text = gitignore.read_text(encoding="utf-8")
+        if GITIGNORE_LINE in text:
+            return
+        addition = f"\n{marker_start}\n{GITIGNORE_LINE}\n{marker_end}\n"
+        from llmw.fsutil import atomic_write
+
+        atomic_write(gitignore, text + addition)
+    else:
+        content = f"{marker_start}\n{GITIGNORE_LINE}\n{marker_end}\n"
+        from llmw.fsutil import atomic_write
+
+        atomic_write(gitignore, content)
+
+
 # ===== init =====
+
 
 def init(path: Path, git: bool = True) -> Path:
     """初始化 workspace 根。返回 path"""
@@ -40,19 +73,28 @@ def init(path: Path, git: bool = True) -> Path:
         try:
             subprocess.run(
                 ["git", "init", str(path)],
-                check=True, capture_output=True, text=True,
+                check=True,
+                capture_output=True,
+                text=True,
             )
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             raise GitUnavailable(f"git init 失败: {e}")
 
     ws_store.create_skeleton(path)
 
+    # 写 workspace 级 .gitignore（workspace 本身就是 git 仓）
+    _ensure_workspace_gitignore(path)
+
     print(f"[llmw] workspace 已初始化于 {path}", file=sys.stdout)
-    print(f"[llmw] cd {path} 后可用 `llmw wiki add <name>` 新建第一个 wiki", file=sys.stdout)
+    print(
+        f"[llmw] cd {path} 后可用 `llmw wiki add <name>` 新建第一个 wiki",
+        file=sys.stdout,
+    )
     return path
 
 
 # ===== config =====
+
 
 def _check_key(key: str) -> tuple:
     if key not in CONFIG_KEYS:
@@ -187,7 +229,10 @@ def config_interactive(workspace_root: Path) -> None:
 
 # ===== list =====
 
-def list_wikis(workspace_root: Path, as_json: bool = False, tag_filter: Optional[List[str]] = None) -> int:
+
+def list_wikis(
+    workspace_root: Path, as_json: bool = False, tag_filter: Optional[List[str]] = None
+) -> int:
     """返回 0; 输出由调用方决定 (stdout)"""
     ws = ws_store.load(workspace_root)
     rows = []
@@ -200,6 +245,7 @@ def list_wikis(workspace_root: Path, as_json: bool = False, tag_filter: Optional
             toml_p = wiki_path / "wiki_metadata.toml"
             if toml_p.is_file():
                 from llmw.wiki.store import load as wiki_load
+
                 try:
                     meta = wiki_load(wiki_path)
                 except Exception:
@@ -210,23 +256,47 @@ def list_wikis(workspace_root: Path, as_json: bool = False, tag_filter: Optional
             if not all(t in tags for t in tag_filter):
                 continue
 
-        rows.append({
-            "name": name,
-            "path": entry.path,
-            "exists": exists,
-            "display_name": meta.display_name if meta else "",
-            "tags": list(meta.tags) if meta else [],
-            "model": meta.model if meta else None,
-        })
+        # 通过 resolve 拿 model 来源（若失败则不阻断 list, 标为 <unresolved>）
+        model_info = None
+        try:
+            from llmw.models.resolve import resolve_for_wiki
+
+            entry_obj = resolve_for_wiki(workspace_root, name)
+            model_info = {
+                "model_id": entry_obj.model_id,
+                "name": entry_obj.name,
+                "source": "wiki override"
+                if (meta and meta.model)
+                else "registry default",
+            }
+        except Exception:
+            model_info = None
+
+        rows.append(
+            {
+                "name": name,
+                "path": entry.path,
+                "exists": exists,
+                "display_name": meta.display_name if meta else "",
+                "tags": list(meta.tags) if meta else [],
+                "model": model_info["model_id"]
+                if model_info
+                else (meta.model if meta else None),
+                "model_source": model_info["source"] if model_info else None,
+            }
+        )
 
     if as_json:
         import json
+
         out = [
             {
-                "name": r["name"], "path": r["path"],
+                "name": r["name"],
+                "path": r["path"],
                 "display_name": r["display_name"] or None,
                 "tags": r["tags"],
                 "model": r["model"],
+                "model_source": r["model_source"],
                 "wiki_dir_exists": r["exists"],
             }
             for r in rows
@@ -245,6 +315,13 @@ def list_wikis(workspace_root: Path, as_json: bool = False, tag_filter: Optional
         prefix = "⚠ " if not r["exists"] else "  "
         dn = r["display_name"] or "-"
         tags = ",".join(r["tags"]) or "-"
-        model = r["model"] or "-"
-        print(f"{prefix}{r['name'].ljust(name_w - 2)}  {r['path'].ljust(path_w)}  {dn}  {tags}  {model}")
+        if r["model"]:
+            model_cell = r["model"]
+            if r["model_source"]:
+                model_cell += f" ({r['model_source']})"
+        else:
+            model_cell = "-"
+        print(
+            f"{prefix}{r['name'].ljust(name_w - 2)}  {r['path'].ljust(path_w)}  {dn}  {tags}  {model_cell}"
+        )
     return 0
