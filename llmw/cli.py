@@ -55,6 +55,31 @@ def build_parser() -> argparse.ArgumentParser:
     p_list.add_argument("--tag", action="append", default=[], metavar="TAG",
                         help="仅列出含此 tag 的 wiki (可重复, AND 关系)")
 
+    # ===== model registry =====
+    p_model = sub.add_parser("model", help="workspace model registry", parents=[common])
+    model_sub = p_model.add_subparsers(dest="model_action", metavar="ACTION")
+
+    pm_add = model_sub.add_parser("add", help="新增 model 条目", parents=[common])
+    pm_add.add_argument("--model-id",  default=None, dest="model_id")
+    pm_add.add_argument("--name",      default=None)
+    pm_add.add_argument("--base-url",  default=None, dest="base_url")
+    pm_add.add_argument("--api-key",   default=None, dest="api_key")
+    pm_add.add_argument("--default",   action="store_true", dest="as_default")
+
+    pm_list = model_sub.add_parser("list", help="列出所有 model 条目", parents=[common])
+
+    pm_show = model_sub.add_parser("show", help="查看单条 model", parents=[common])
+    pm_show.add_argument("--model-id", required=True, dest="model_id")
+
+    pm_sd = model_sub.add_parser("set-default", help="标记默认 model", parents=[common])
+    pm_sd.add_argument("--model-id", required=True, dest="model_id")
+
+    pm_usd = model_sub.add_parser("unset-default", help="清空默认标记", parents=[common])
+
+    pm_rm = model_sub.add_parser("remove", help="删除 model 条目", parents=[common])
+    pm_rm.add_argument("--model-id", required=True, dest="model_id")
+    pm_rm.add_argument("--yes", "-y", action="store_true")
+
     # ===== wiki 级 =====
     p_wiki = sub.add_parser("wiki", help="wiki 子命令", parents=[common])
     p_wiki.add_argument("--name", required=True, metavar="NAME",
@@ -121,6 +146,35 @@ def main(argv=None) -> int:
                 config_set(ws_root, args.key, args.value)
             elif args.action == "unset":
                 config_unset(ws_root, args.key)
+            return 0
+
+        if args.command == "model":
+            from llmw.models.manager import (
+                model_add, model_list, model_show, model_set_default,
+                model_unset_default, model_remove,
+            )
+            ma = args.model_action
+            if ma == "add":
+                model_add(
+                    ws_root,
+                    model_id=args.model_id, name=args.name,
+                    base_url=args.base_url, api_key=args.api_key,
+                    as_default=args.as_default,
+                )
+            elif ma == "list":
+                return model_list(ws_root, as_json=getattr(args, "json", False))
+            elif ma == "show":
+                model_show(ws_root, args.model_id, as_json=getattr(args, "json", False))
+            elif ma == "set-default":
+                model_set_default(ws_root, args.model_id)
+            elif ma == "unset-default":
+                model_unset_default(ws_root)
+            elif ma == "remove":
+                model_remove(ws_root, args.model_id, yes=args.yes)
+            else:
+                print("[llmw] model 子命令需要 ACTION (add/list/show/set-default/unset-default/remove)",
+                      file=sys.stderr)
+                return 1
             return 0
 
         if args.command == "list":
