@@ -1,7 +1,7 @@
-"""wiki enter — 启动 Claude Code session (Phase 1 简化版: 不传 model, 不传 env)
+"""wiki enter — 启动 Claude Code session (Phase 2: 通过 resolve 拿 model, env overlay 注入 ANTHROPIC_*)
 
-来源: doc/design/03-wiki-enter.md。Phase 1 不读取/不解析/不传递 model 给
-claude 子进程，env 完全透传（不传 env= 参数）。
+来源: doc/design/03-wiki-enter.md + 09-workspace-model-registry.md §9.5。
+Phase 2 契约：env 不再完全透明——显式注入 ANTHROPIC_MODEL/BASE_URL/AUTH_TOKEN，其他从 os.environ 透传。
 """
 import os
 import shutil
@@ -10,6 +10,9 @@ import sys
 from pathlib import Path
 
 from llmw.errors import ClaudeNotFound, WikiDirMissing, WikiNotFound
+from llmw.models.redact import redact_api_key
+from llmw.models.resolve import resolve_for_wiki
+from llmw.models.store import ModelEntry
 from llmw.workspace import store as ws_store
 
 
@@ -25,11 +28,7 @@ def _resolve_wiki_path(workspace_root: Path, name: str) -> Path:
 
 def _read_system_prompt(wiki_path: Path):
     """读 CLAUDE.md 内容作为 system-prompt。
-
-    设计 03: “cat 原样交给 claude”——直接读文件内容传给 claude 子进程，
-    不走 shell 的 ``$(cat ...)``（subprocess.run 无 shell，字面量会是错的）。
-    返回 (content, claude_md_path)；缺失返回 (None, path)。
-    空文件返回 ("", path)——按设计空 CLAUDE.md 仍传 ``--system-prompt ""``。
+    缺失返回 (None, path)。空文件返回 ("", path)——按设计空 CLAUDE.md 仍传 ``--system-prompt ""``。
     """
     claude_md = wiki_path / "CLAUDE.md"
     if not claude_md.is_file():
@@ -38,15 +37,21 @@ def _read_system_prompt(wiki_path: Path):
 
 
 def _build_cmd(wiki_path: Path):
-    """构造 claude 子进程 argv（真实可执行版）。Phase 1 不传 model, 不传 env。
-
-    返回 (cmd, prompt)。prompt 为 None 表示 CLAUDE.md 缺失，不传 --system-prompt。
-    """
+    """构造 claude 子进程 argv。Phase 2 不变：--add-dir + 可选 --system-prompt。"""
     prompt, _ = _read_system_prompt(wiki_path)
     cmd = ["claude", "--add-dir", str(wiki_path)]
     if prompt is not None:
         cmd += ["--system-prompt", prompt]
     return cmd, prompt
+
+
+def _build_env_overlay(model: ModelEntry) -> dict:
+    """Phase 2：显式注入 3 个 ANTHROPIC_* env（其他 key 从 os.environ 透传）。"""
+    return {
+        "ANTHROPIC_MODEL":      model.model_id,
+        "ANTHROPIC_BASE_URL":   model.base_url,
+        "ANTHROPIC_AUTH_TOKEN": model.api_key,
+    }
 
 
 def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
@@ -78,9 +83,13 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
             hint="安装 Claude Code 或加到 PATH 后重试；可用 --dry-run 看命令",
         )
 
-    cmd, prompt = _build_cmd(wiki_path)
+    # Phase 2：通过 resolve 拿最终 model（失败会阻断 enter）
+    model = resolve_for_wiki(workspace_root, name)
 
-    # 打印 dry-run 信息
+    cmd, prompt = _build_cmd(wiki_path)
+    full_env = {**os.environ, **_build_env_overlay(model)}
+
+    # dry-run
     if dry_run:
         from llmw.wiki.store import load as wiki_load
         meta = None
@@ -89,21 +98,17 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
                 meta = wiki_load(wiki_path)
             except Exception:
                 meta = None
-        ws = ws_store.load(workspace_root)
         print(f"[llmw] workspace: {workspace_root}", file=sys.stdout)
         print(f"[llmw] wiki:      {name} ({wiki_path})", file=sys.stdout)
-        if meta and meta.model:
-            print(
-                f"[llmw] wiki.model: {meta.model} "
-                f"(note: Phase 1 不传递给 Claude Code)",
-                file=sys.stdout,
-            )
-        elif ws.default_model:
-            print(
-                f"[llmw] workspace.default_model: {ws.default_model} "
-                f"(note: Phase 1 不传递给 Claude Code)",
-                file=sys.stdout,
-            )
+        print(
+            f"[llmw] resolved model: {model.name} ({model.model_id})",
+            file=sys.stdout,
+        )
+        source = "wiki override" if (meta and meta.model) else "registry default"
+        print(f"[llmw] source: {source}", file=sys.stdout)
+        print(f"[llmw] ANTHROPIC_MODEL      = {model.model_id}", file=sys.stdout)
+        print(f"[llmw] ANTHROPIC_BASE_URL   = {model.base_url}", file=sys.stdout)
+        print(f"[llmw] ANTHROPIC_AUTH_TOKEN = {redact_api_key(model.api_key)}", file=sys.stdout)
         if claude_md.is_file():
             print(
                 f"[llmw] CLAUDE.md: ✓ found ({claude_md.stat().st_size} bytes)",
@@ -111,7 +116,6 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
             )
         else:
             print(f"[llmw] CLAUDE.md: ✗ missing", file=sys.stdout)
-        # 可读展示（shell 风格），而非把整份 CLAUDE.md 内容内联打印
         if prompt is not None:
             cmd_display = (
                 f'claude --add-dir {wiki_path} '
@@ -121,11 +125,12 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
             cmd_display = f'claude --add-dir {wiki_path}'
         print(f"[llmw] cmd:", file=sys.stdout)
         print(f"  {cmd_display}", file=sys.stdout)
-        print(f"[llmw] env: 继承当前 shell（CLI 不修改）", file=sys.stdout)
+        print(f"[llmw] env overlay: ANTHROPIC_MODEL/BASE_URL/AUTH_TOKEN（其他透传 os.environ）",
+              file=sys.stdout)
         print(f"[llmw] --dry-run: 未执行", file=sys.stdout)
         return 0
 
-    # 真正执行：env 完全透传（不传 env= 参数）
+    # 真正执行
     os.chdir(wiki_path)
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, env=full_env)
     return result.returncode
