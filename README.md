@@ -152,6 +152,40 @@ rm -rf "$TMPWS"
 
 每个 echo 出现 = 该步 happy path 通过。所有 `✓` 步骤都通过 = prototype 阶段验收。
 
+### Workspace Model Registry (Phase 2)
+
+```bash
+TMPWS=$(mktemp -d)
+export LLMW_WORKSPACE="$TMPWS"
+
+llmw init --path "$TMPWS" --no-git
+test -f "$TMPWS/.gitignore" && grep -q "workspace_models.toml" "$TMPWS/.gitignore"
+
+llmw model add --model-id minimax-m3 --name "MiniMax M3" \
+    --base-url "https://api.example.com" --api-key "sk-test-1234567890" --default
+test "$(stat -c '%a' "$TMPWS/workspace_models.toml")" = "600"
+
+llmw model list
+llmw model list --json | grep -q "sk-...7890"
+
+mkdir -p "$TMPWS/foo"
+echo "# schema" > "$TMPWS/foo/CLAUDE.md"
+cat > "$TMPWS/foo/wiki_metadata.toml" <<EOF
+schema_version = 2
+name = "foo"
+topic = "Foo"
+created_at = "2026-06-28T10:00:00Z"
+updated_at = "2026-06-28T10:00:00Z"
+display_name = ""
+description = ""
+tags = []
+EOF
+# 注册到 workspace.toml (实际用 llmw wiki add，这里 dry-run 校验)
+llmw wiki --name=foo enter --dry-run | grep -q "ANTHROPIC_MODEL"
+
+rm -rf "$TMPWS"
+```
+
 ## Phase 边界
 
 | 维度 | Phase 1（当前） | Phase 2（暂未做） |
