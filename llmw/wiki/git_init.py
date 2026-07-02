@@ -3,6 +3,7 @@
 默认不调 git; 只有 `llmw wiki add --git` 才走本模块.
 前置任一不通过 (git 二进制缺失 / 已在仓内) → 跳过 + warn,不阻断落盘.
 """
+
 import shutil
 import subprocess
 import sys
@@ -16,7 +17,9 @@ _GITKEEP_SUBDIRS = ["comparisons", "concepts", "entities", "sources", "syntheses
 
 def _run(cmd, *, cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
     """subprocess.run 包装: capture_output + text,失败由调用方处理"""
-    return subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True, check=check)
+    return subprocess.run(
+        cmd, cwd=str(cwd), capture_output=True, text=True, check=check
+    )
 
 
 def init(wiki_dir: Path) -> bool:
@@ -76,7 +79,9 @@ def init(wiki_dir: Path) -> bool:
         )
 
     # 6. git commit
-    r = _run(["git", "commit", "-m", "Initial wiki scaffold"], cwd=wiki_dir, check=False)
+    r = _run(
+        ["git", "commit", "-m", "Initial wiki scaffold"], cwd=wiki_dir, check=False
+    )
     if r.returncode != 0:
         raise SetupFailed(
             f"git commit 失败: {(r.stderr or '').strip()}",

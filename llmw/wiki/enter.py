@@ -122,9 +122,12 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
         print(f"[llmw] overlay file: {overlay_path}  {tag}", file=sys.stdout)
         print(f"[llmw]   ANTHROPIC_MODEL      = {model.name}", file=sys.stdout)
         print(f"[llmw]   ANTHROPIC_BASE_URL   = {model.base_url}", file=sys.stdout)
-        print(f"[llmw]   ANTHROPIC_AUTH_TOKEN = {redact_api_key(model.api_key)}", file=sys.stdout)
+        print(
+            f"[llmw]   ANTHROPIC_AUTH_TOKEN = {redact_api_key(model.api_key)}",
+            file=sys.stdout,
+        )
         # Habit template（非用户可配的代码内常量, 随 overlay 一同写入）
-        print(f"[llmw]   (habit template)", file=sys.stdout)
+        print("[llmw]   (habit template)", file=sys.stdout)
         # 用最长 key 长度对齐 value 列（habit template 组内对齐, 不与 model env 共享列）
         width = max(len(k) for k in overlay._HABIT_TEMPLATE)
         for k, v in overlay._HABIT_TEMPLATE.items():
@@ -145,7 +148,7 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
         print("[llmw] cmd:", file=sys.stdout)
         print(f"  {cmd_display}", file=sys.stdout)
         print(f"[llmw] env: LLM_WIKI_ROOT={wiki_path}", file=sys.stdout)
-        print(f"[llmw] --dry-run: 未执行", file=sys.stdout)
+        print("[llmw] --dry-run: 未执行", file=sys.stdout)
         return 0
 
     # 真正执行：lazy 写 overlay（Local 层）→ subprocess 透传 os.environ（无 env overlay，无 --setting-sources）

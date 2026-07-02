@@ -8,10 +8,18 @@ from typing import List, Optional
 
 from llmw import WIKI_SPEC_VERSION, __version__
 from llmw.errors import (
-    BackupFailed, InvalidConfigKey, KeyNotUnsettable, MissingRequiredFlag,
-    ModelDefaultAmbiguous, ModelDefaultNotSet, ModelNotInRegistry,
-    PurgeRequiresConfirmation, SchemaVersionUnsupported,
-    WikiDirMissing, WikiExists, WikiNotFound,
+    BackupFailed,
+    InvalidConfigKey,
+    KeyNotUnsettable,
+    MissingRequiredFlag,
+    ModelDefaultAmbiguous,
+    ModelDefaultNotSet,
+    ModelNotInRegistry,
+    PurgeRequiresConfirmation,
+    SchemaVersionUnsupported,
+    WikiDirMissing,
+    WikiExists,
+    WikiNotFound,
 )
 from llmw._compat import TOMLDecodeError
 from llmw.models.resolve import resolve_for_wiki
@@ -161,8 +169,11 @@ def add(
 
     # CLI 内联实现 wiki 骨架(spec 0.2.0 起取代原 setup_wiki.py subprocess)
     init_wiki.render_and_write(
-        wiki_dir, topic, date.today().isoformat(),
-        cli_version=__version__, spec_version=WIKI_SPEC_VERSION,
+        wiki_dir,
+        topic,
+        date.today().isoformat(),
+        cli_version=__version__,
+        spec_version=WIKI_SPEC_VERSION,
     )
 
     # 写 wiki_metadata.toml
@@ -204,7 +215,7 @@ def add(
     print(f"[llmw] wiki 已创建: {name} ({wiki_dir})", file=sys.stdout)
     if git and git_applied:
         print(
-            f"[llmw] 已 git init + commit (分支 main, 消息: Initial wiki scaffold)",
+            "[llmw] 已 git init + commit (分支 main, 消息: Initial wiki scaffold)",
             file=sys.stdout,
         )
     elif git and not git_applied:
@@ -212,8 +223,8 @@ def add(
         pass
     else:
         print(
-            f"[llmw] 未启用 git: 如需跟踪,手动 `git init && git add . && git commit "
-            f"-m 'Initial wiki scaffold'`;或下次 add 时加 --git",
+            "[llmw] 未启用 git: 如需跟踪,手动 `git init && git add . && git commit "
+            "-m 'Initial wiki scaffold'`;或下次 add 时加 --git",
             file=sys.stdout,
         )
     return wiki_dir
@@ -244,6 +255,7 @@ def _purge_with_backup(
     # .gitignore 写入失败不阻断备份(用户可手动 gitignore)。
     try:
         from llmw.workspace.manager import _ensure_workspace_gitignore
+
         _ensure_workspace_gitignore(workspace_root)
     except (OSError, ImportError):
         pass

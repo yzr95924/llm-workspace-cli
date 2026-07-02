@@ -40,6 +40,7 @@ class WikiExists(LlmwError):
 
 class WikiAlreadyInitialized(LlmwError):
     """spec §8: 目标目录已含 CLAUDE.md 或 wiki/index.md,拒绝覆盖"""
+
     exit_code = 1
     user_message = "wiki 目录已初始化"
 
@@ -99,6 +100,7 @@ class SkillMissing(LlmwError):
 
 class SetupFailed(LlmwError):
     """wiki 初始化失败:模板缺失、渲染异常、atomic_write 失败等"""
+
     exit_code = 2
     user_message = "wiki 初始化失败"
 
@@ -108,6 +110,7 @@ class BackupFailed(LlmwError):
 
     备份失败时不动 wiki;用户可加 --no-backup 跳过备份直接删。
     """
+
     exit_code = 2
     user_message = "wiki 备份失败"
 
