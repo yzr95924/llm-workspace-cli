@@ -1,0 +1,321 @@
+#compdef llmw
+# zsh completion for llmw
+# Install: 由 scripts/install.sh 自动 cp 到
+#   ~/.local/share/zsh/site-functions/_llmw
+# 并 prepend fpath 到 ~/.zshrc（带 marker 块幂等）。
+
+_llmw() {
+    local -a COMMON_OPTS
+    COMMON_OPTS=(
+        '--workspace=[workspace 根路径]:path:_directories'
+        '--json[输出 JSON 格式]'
+        '--debug[打印 traceback]'
+        '(--quiet -q)'{--quiet,-q}'[抑制 INFO]'
+    )
+
+    local -a TOP_CMDS
+    TOP_CMDS=(
+        'init:初始化 workspace'
+        'config:workspace.toml 读写'
+        'list:列出 wiki'
+        'model:workspace model registry'
+        'wiki:wiki 子命令'
+    )
+
+    _llmw_workspace() {
+        local ws=""
+        local -i i=1
+        while (( i < CURRENT )); do
+            local w=${words[$i]}
+            case "$w" in
+                --workspace=*) ws="${w#--workspace=}";;
+            esac
+            (( i++ ))
+        done
+        if [[ -z "$ws" ]]; then
+            ws="${LLMW_WORKSPACE:-$HOME/yzr_llm_wiki_workspace}"
+        fi
+        echo "$ws"
+    }
+
+    _llmw_wikis() {
+        local ws="$(_llmw_workspace)"
+        [[ -f "$ws/workspace.toml" ]] || return 0
+        grep -oE '^\[wikis\.[a-z0-9_-]+\]' "$ws/workspace.toml" 2>/dev/null \
+            | sed 's/^\[wikis\.//; s/\]$//'
+    }
+
+    _llmw_model_ids() {
+        local ws="$(_llmw_workspace)"
+        [[ -f "$ws/workspace_models.toml" ]] || return 0
+        grep -oE '^model_id[[:space:]]*=[[:space:]]*"[^"]+"' "$ws/workspace_models.toml" 2>/dev/null \
+            | sed -E 's/.*"([^"]+)".*/\1/'
+    }
+
+    local state ret=1
+    _arguments -C \
+        '1: :->cmd' \
+        '*:: :->args' \
+        "${COMMON_OPTS[@]}" && ret=0
+
+    case $state in
+        cmd)
+            _describe -t commands 'llmw command' TOP_CMDS
+            ;;
+        args)
+            local ctx_line=${words[2]}
+            case $ctx_line in
+                init)
+                    _arguments \
+                        '--path=[workspace 路径]:path:_directories' \
+                        '--display-name=[workspace 显示名]:display_name:' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    ;;
+                list)
+                    _arguments "${COMMON_OPTS[@]}" && ret=0
+                    ;;
+                config)
+                    _llmw_config && ret=0
+                    ;;
+                model)
+                    _llmw_model && ret=0
+                    ;;
+                wiki)
+                    _llmw_wiki && ret=0
+                    ;;
+            esac
+            ;;
+    esac
+    return ret
+}
+
+_llmw_config() {
+    local -a COMMON_OPTS
+    COMMON_OPTS=(
+        '--workspace=[workspace 根路径]:path:_directories'
+        '--json[输出 JSON 格式]'
+        '--debug[打印 traceback]'
+        '(--quiet -q)'{--quiet,-q}'[抑制 INFO]'
+    )
+    local -a CFG_ACTS CFG_KEYS
+    CFG_ACTS=(
+        'get:取值'
+        'set:设值'
+        'unset:清值'
+    )
+    CFG_KEYS=(
+        'default_model:默认 model_id'
+        'templates_version:templates 版本(只读)'
+        'created_at:创建时间(只读)'
+        'schema_version:schema 版本(只读)'
+    )
+    local state ret=1
+    _arguments -C \
+        '1: :->action' \
+        '*:: :->cfg_args' \
+        "${COMMON_OPTS[@]}" && ret=0
+    case $state in
+        action)
+            _describe -t actions 'config action' CFG_ACTS
+            ;;
+        cfg_args)
+            local act=${words[2]}
+            case $act in
+                get|unset)
+                    _describe -t keys 'config key' CFG_KEYS
+                    ;;
+                set)
+                    _arguments \
+                        '1:key:->set_key' \
+                        '2: : ' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    case $state in
+                        set_key)
+                            local -a SET_KEYS=('default_model:默认 model_id')
+                            _describe -t keys 'config key' SET_KEYS
+                            ;;
+                    esac
+                    ;;
+            esac
+            ;;
+    esac
+    return ret
+}
+
+_llmw_model() {
+    local -a COMMON_OPTS
+    COMMON_OPTS=(
+        '--workspace=[workspace 根路径]:path:_directories'
+        '--json[输出 JSON 格式]'
+        '--debug[打印 traceback]'
+        '(--quiet -q)'{--quiet,-q}'[抑制 INFO]'
+    )
+    local -a MODEL_ACTS
+    MODEL_ACTS=(
+        'add:新增 model 条目'
+        'list:列出所有 model 条目'
+        'show:查看单条 model'
+        'set-default:标记默认 model'
+        'unset-default:清空默认标记'
+        'remove:删除 model 条目'
+    )
+    local state ret=1
+    _arguments -C \
+        '1: :->action' \
+        '*:: :->model_args' \
+        "${COMMON_OPTS[@]}" && ret=0
+    case $state in
+        action)
+            _describe -t actions 'model action' MODEL_ACTS
+            ;;
+        model_args)
+            local act=${words[2]}
+            case $act in
+                add)
+                    _arguments \
+                        '--model-id=[registry slug]:model_id:' \
+                        '--name=[网关模型名]:name:' \
+                        '--base-url=[API base URL]:base_url:_urls' \
+                        '--api-key=[API key]:api_key:' \
+                        '--default[标记为默认]' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    ;;
+                list|unset-default)
+                    _arguments "${COMMON_OPTS[@]}" && ret=0
+                    ;;
+                show|set-default|remove)
+                    local mid_seen=0
+                    local -i i=3
+                    while (( i < CURRENT )); do
+                        case ${words[$i]} in
+                            --model-id=*) mid_seen=1;;
+                        esac
+                        (( i++ ))
+                    done
+                    if (( mid_seen )); then
+                        _arguments "${COMMON_OPTS[@]}" && ret=0
+                    else
+                        local -a RM_OPTS
+                        [[ "$act" == "remove" ]] && RM_OPTS=('(--yes -y)'{--yes,-y}'[跳过确认]')
+                        _arguments \
+                            '--model-id=[registry slug]:model_id:_llmw_model_ids' \
+                            "${RM_OPTS[@]}" \
+                            "${COMMON_OPTS[@]}" && ret=0
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
+    return ret
+}
+
+_llmw_wiki() {
+    local -a COMMON_OPTS
+    COMMON_OPTS=(
+        '--workspace=[workspace 根路径]:path:_directories'
+        '--json[输出 JSON 格式]'
+        '--debug[打印 traceback]'
+        '(--quiet -q)'{--quiet,-q}'[抑制 INFO]'
+    )
+    local -a WIKI_ACTS
+    WIKI_ACTS=(
+        'add:新建 wiki'
+        'remove:移除 wiki'
+        'show:查看 wiki 详情'
+        'config:读写 wiki_metadata.toml'
+        'enter:启动 Claude Code session'
+    )
+    local state ret=1
+    _arguments -C \
+        '1: :->action' \
+        '*:: :->wiki_args' \
+        "${COMMON_OPTS[@]}" && ret=0
+    case $state in
+        action)
+            local name_seen=0
+            local -i i=2
+            while (( i < CURRENT )); do
+                case ${words[$i]} in
+                    --name=*) name_seen=1;;
+                esac
+                (( i++ ))
+            done
+            if (( name_seen )); then
+                _describe -t actions 'wiki action' WIKI_ACTS
+            else
+                local -a WITH_NAME
+                WITH_NAME=(
+                    '--name=[目标 wiki 名]:name:_llmw_wikis'
+                )
+                _arguments "${WITH_NAME[@]}" '*:: :->wiki_args2' && ret=0
+                case $state in
+                    wiki_args2)
+                        _describe -t actions 'wiki action' WIKI_ACTS
+                        ;;
+                esac
+            fi
+            ;;
+        wiki_args)
+            local act=${words[2]}
+            case $act in
+                add)
+                    _arguments \
+                        '--topic=[wiki 主题]:topic:' \
+                        '--display-name=[显示名]:display_name:' \
+                        '--description=[描述]:description:' \
+                        '--tag=[tag (可重复)]:tag:' \
+                        '--model=[绑定的 model_id]:model_id:_llmw_model_ids' \
+                        '--git[opt-in: 初始化 git 仓]' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    ;;
+                remove)
+                    _arguments \
+                        '--purge[同时删除 wiki 子目录]' \
+                        '--no-backup[跳过 --purge 的备份步骤]' \
+                        '(--yes -y)'{--yes,-y}'[跳过确认]' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    ;;
+                show|config)
+                    local name_seen=0
+                    local -i i=2
+                    while (( i < CURRENT )); do
+                        case ${words[$i]} in
+                            --name=*) name_seen=1;;
+                        esac
+                        (( i++ ))
+                    done
+                    if (( name_seen )); then
+                        _arguments "${COMMON_OPTS[@]}" && ret=0
+                    else
+                        _arguments \
+                            '--name=[目标 wiki 名]:name:_llmw_wikis' \
+                            "${COMMON_OPTS[@]}" && ret=0
+                    fi
+                    ;;
+                enter)
+                    local name_seen=0
+                    local -i i=2
+                    while (( i < CURRENT )); do
+                        case ${words[$i]} in
+                            --name=*) name_seen=1;;
+                        esac
+                        (( i++ ))
+                    done
+                    if (( name_seen )); then
+                        _arguments \
+                            '--dry-run[仅打印 overlay 不启动 claude]' \
+                            "${COMMON_OPTS[@]}" && ret=0
+                    else
+                        _arguments \
+                            '--name=[目标 wiki 名]:name:_llmw_wikis' \
+                            '--dry-run[仅打印 overlay 不启动 claude]' \
+                            "${COMMON_OPTS[@]}" && ret=0
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
+    return ret
+}
+
+_llmw "$@"

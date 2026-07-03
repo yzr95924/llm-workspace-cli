@@ -80,12 +80,17 @@ test_marker_written_when_bin_not_in_path() {
   assert_contains "$TMPHOME/.zshrc" "# <<< llmw <<<"
   assert_contains "$TMPHOME/.zshrc" '$HOME/.local/bin'
 }
-test_no_marker_when_bin_in_path() {
-  run_install /bin/zsh "$TMPHOME/.local/bin:$PYDIR:/usr/bin:/bin"
+test_path_marker_written_to_all_shells() {
+  # 新设计：给所有候选 shell 的 rc 注册 PATH（与 completion 三套对称），各自语法。
+  # 以 rc marker 为准（旧 already 看 install 进程 PATH 的逻辑已移除——进程 PATH 不代表 rc 已配置，不可靠）。
+  run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
   [ "$INST_CODE" = 0 ] || { cat "$TMPHOME/inst.out"; exit 1; }
-  if [ -e "$TMPHOME/.zshrc" ]; then
-    assert_not_contains "$TMPHOME/.zshrc" "# >>> llmw (managed by install.sh) >>>"
-  fi
+  assert_contains "$TMPHOME/.bashrc"                  "# >>> llmw (managed by install.sh) >>>"
+  assert_contains "$TMPHOME/.zshrc"                   "# >>> llmw (managed by install.sh) >>>"
+  assert_contains "$TMPHOME/.config/fish/config.fish" "# >>> llmw (managed by install.sh) >>>"
+  # fish 用 fish 语法（set -gx），不是 bash 的 case/esac
+  assert_contains     "$TMPHOME/.config/fish/config.fish" "set -gx PATH"
+  assert_not_contains "$TMPHOME/.config/fish/config.fish" "esac"
 }
 test_install_idempotent_no_dup_marker() {
   run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
@@ -135,7 +140,7 @@ test_uninstall_strips_marker_keeps_other_lines() {
   assert_contains "$TMPHOME/.zshrc" "# my line"
 }
 test_uninstall_scans_all_candidate_rc() {
-  # 把 marker 块手动种到 install 不会选的 .bashrc，验证 uninstall 仍能清掉
+  # 把 marker 块手动种到 .bashrc，验证 uninstall 扫所有候选 rc 都能清（不止 install 写的那些）
   cat > "$TMPHOME/.bashrc" <<'B'
 # >>> llmw (managed by install.sh) >>>
 case ":$PATH:" in
@@ -160,7 +165,7 @@ TESTS=(
   test_wrapper_runs_help
   test_wrapper_embeds_repo
   test_marker_written_when_bin_not_in_path
-  test_no_marker_when_bin_in_path
+  test_path_marker_written_to_all_shells
   test_install_idempotent_no_dup_marker
   test_reinstall_overwrites_wrapper
   test_install_fails_without_python3

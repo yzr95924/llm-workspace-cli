@@ -24,7 +24,7 @@ git submodule update --init --recursive
 
 > 全程不动 `llmw/` 包本身、不碰 pip。Python 3.11+ 零第三方依赖；<3.11 运行时需 `pip install 'tomli>=1.1'`。
 
-卸载（只删 wrapper + PATH marker，**不删仓库、不删 workspace 数据**）：
+卸载（只删 wrapper + PATH marker + 已装 completion，**不删仓库、不删 workspace 数据**）：
 
 ```bash
 ./scripts/uninstall.sh
@@ -40,9 +40,46 @@ pip install -e .
 
 > 系统 Python（Homebrew 等 PEP 668 externally-managed）会拒绝全局 install，改用 `pip install -e . --user`、`pipx install -e .` 或先建 venv。
 
+## Shell Completion
+
+`./scripts/install.sh` 会按当前 `$SHELL`（bash / fish / zsh）自动装一份 shell completion：
+
+| Shell | 装到 | 加载机制 |
+|---|---|---|
+| bash | `~/.local/share/bash-completion/completions/llmw`（受 `XDG_DATA_HOME` 覆写） | bash-completion ≥2.0 自动接管，无需 source |
+| fish | `~/.config/fish/completions/llmw.fish` | fish 自动接管，无需 source |
+| zsh   | `~/.local/share/zsh/site-functions/_llmw` | 自动在 `~/.zshrc` prepend `fpath`（带 marker 块幂等），需 `source ~/.zshrc` 或重开终端 |
+
+补全覆盖：
+
+- **静态**：所有顶层子命令、`wiki`/`model` 子动作、`config` get/set/unset、全部 bool / 带值 flag
+- **动态**：`--name=<Tab>` 补当前 workspace 的 wiki 名（spawn `llmw --json list` 拿 JSON 抽 `name` 字段）；`--model-id=<Tab>` 同理（走 `llmw model --json list`）
+- **边界**：未初始化 workspace 时动态项静默返回（仅补静态）
+
+卸载（与 `uninstall.sh` 同包，幂等）：
+
+```bash
+rm -f ~/.local/share/bash-completion/completions/llmw
+rm -f ~/.config/fish/completions/llmw.fish
+rm -f ~/.local/share/zsh/site-functions/_llmw
+# zsh 还需手动删 ~/.zshrc 里的 fpath marker 块：
+#   # >>> llmw completion (managed by install.sh) >>>
+```
+
+手动 source（不走 install.sh 的场景）：
+
+```bash
+# bash
+source completions/llmw.bash
+# fish (复制到 fish 路径即可自动加载)
+cp completions/llmw.fish ~/.config/fish/completions/
+# zsh (需 fpath 已含仓库 completions/，或直接 source)
+fpath=(completions $fpath); autoload -U compinit && compinit
+```
+
 ## 快速上手
 
-> 参数风格约定：**带值 flag 统一用 `--flag=VALUE`**；bool flag（无值，如 `--json` `--purge` `--yes` `--git` `--dry-run`）保持位置写法；位置参数（`config KEY VALUE`）不变。
+> 参数风格约定：**带值 flag 一律用 `--flag=VALUE`**（`=` 连接，严谨无歧义；空格分隔的 `--flag VALUE` 会被拒绝并提示 `SpaceFormNotAllowed`）；前缀缩写（`--pref`）也已禁用，请用完整 flag 名。bool flag（无值，如 `--json` `--purge` `--yes` `--git` `--dry-run`）与位置参数（`config KEY VALUE`）不受影响。
 
 ```bash
 # 初始化 workspace（默认 ~/yzr_llm_wiki_workspace；init 不碰 git）
@@ -121,11 +158,11 @@ llmw wiki --name=llm-systems remove --purge --no-backup --yes  # 跳过备份，
 
 | 命令 | 作用 |
 | --- | --- |
-| `llmw wiki --name=X add [--topic=...] [--display-name=...] [--description=...] [--tag=TAG]... [--model=MODEL_ID] [--git]` | 新建 wiki；非 TTY 下 metadata flag 全必填；`--model` 必须在 registry 中；`--git` opt-in 初始化 wiki 子目录 git 仓（spec §7） |
-| `llmw wiki --name=X remove [--purge] [--no-backup] [--yes\|-y]` | 移除 wiki；`--purge` 同时删子目录（默认先备份到 `.llmw-trash/<name>-<ISO8601>/`）；`--no-backup` 跳过备份直接 rmtree |
-| `llmw wiki --name=X show [--json]` | 查看 wiki 详情（resolved model 来源 + api_key redact） |
-| `llmw wiki --name=X config [get\|set\|unset] [KEY] [VALUE]` | 读写 `wiki_metadata.toml`；无参数 + TTY 进交互模式 |
-| `llmw wiki --name=X enter [--dry-run]` | resolve_for_wiki → overlay.apply 写 `<wiki>/.claude/settings.local.json` → `claude --add-dir [--system-prompt]`（透传 `os.environ`，不传 `--setting-sources`） |
+| `llmw wiki --name=NAME add [--topic=TOPIC] [--display-name=DISPLAY_NAME] [--description=DESC] [--tag=TAG]... [--model=MODEL_ID] [--git]` | 新建 wiki；非 TTY 下 metadata flag 全必填；`--model` 必须在 registry 中；`--git` opt-in 初始化 wiki 子目录 git 仓（spec §7） |
+| `llmw wiki --name=NAME remove [--purge] [--no-backup] [--yes\|-y]` | 移除 wiki；`--purge` 同时删子目录（默认先备份到 `.llmw-trash/<name>-<ISO8601>/`）；`--no-backup` 跳过备份直接 rmtree |
+| `llmw wiki --name=NAME show [--json]` | 查看 wiki 详情（resolved model 来源 + api_key redact） |
+| `llmw wiki --name=NAME config [get\|set\|unset] [KEY] [VALUE]` | 读写 `wiki_metadata.toml`；无参数 + TTY 进交互模式 |
+| `llmw wiki --name=NAME enter [--dry-run]` | resolve_for_wiki → overlay.apply 写 `<wiki>/.claude/settings.local.json` → `claude --add-dir [--system-prompt]`（透传 `os.environ`，不传 `--setting-sources`） |
 
 `llmw wiki --name=X config` 合法 KEY（`llmw/wiki/manager.py:WIKI_CONFIG_KEYS`）：
 

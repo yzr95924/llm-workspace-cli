@@ -75,6 +75,19 @@ class MissingRequiredFlag(LlmwError):
     user_message = "非 TTY 下 metadata 字段缺 flag"
 
 
+class SpaceFormNotAllowed(LlmwError):
+    """CLI 参数风格约定: 带值 flag 必须 --flag=value, 不接受空格分隔的 --flag value"""
+
+    exit_code = 1
+    user_message = "参数风格不支持空格分隔"
+
+    def __init__(self, token: str):
+        super().__init__(
+            message=f"参数风格不支持空格分隔: {token} <VALUE>",
+            hint=f"请改用 = 连接: {token}=<VALUE>",
+        )
+
+
 class SchemaVersionUnsupported(LlmwError):
     exit_code = 1
     user_message = "schema_version 不被当前 CLI 支持"

@@ -4,67 +4,68 @@ import argparse
 import sys
 from pathlib import Path
 from llmw import __version__
-from llmw.errors import LlmwError, InternalError, format_error
+from llmw.errors import LlmwError, InternalError, SpaceFormNotAllowed, format_error
 
 
-# bool flag 白名单:这些 flag 不带值,只用位置写法 (argparse store_true / store_false)。
-# 不在白名单里的长选项 `--flag` 后面跟的值会被 _normalize_argv 自动改写为
-# `--flag=value` 形式（带 stderr hint），强制文档约定的 `=` 风格作为运行时唯一形态。
-# 新增 bool flag 时必须同步加入此表 + 注释对齐 add_argument 位置。
-_BOOL_FLAGS = frozenset(
-    {
-        # global (cli._common_flags)
-        "--json",
-        "--debug",
-        "--quiet",
-        "-q",
-        # llmw model add
-        "--default",
-        # llmw model remove / llmw wiki remove
-        "--yes",
-        "-y",
-        # llmw wiki add (spec §7 opt-in git init)
-        "--git",
-        # llmw wiki remove
-        "--purge",
-        "--no-backup",
-        # llmw wiki enter
-        "--dry-run",
-    }
-)
+# 参数风格：带值 flag 一律 `--flag=value`（= 连接），拒绝空格分隔的 `--flag value`。
+# 严谨、无歧义：带值 flag 与其值在同一 token 内绑定，不靠相邻位置隐式推断。
+# bool flag（store_true / store_false / count）不带值，不受此约束，保持原样。
+# 位置参数（config KEY VALUE 等子动作 / 自由值）不套用 = 约束。
+# 新增带值 flag 直接 `add_argument("--flag", ...)`——判定走 action 类型，无需维护白名单。
+# 新增 bool flag 直接 `add_argument(..., action="store_true"/"store_false")`。
+
+# 带值 action 类型（消费一个值的 option）：_StoreAction / _AppendAction。
+# bool / 计数 / version / help 类型 nargs=0，不消费值，不纳入。
+_VALUE_ACTION_TYPES = frozenset({"_StoreAction", "_AppendAction"})
+_SUBPARSERS_ACTION = "_SubParsersAction"
 
 
-def _normalize_argv(argv: list) -> tuple:
-    """把 `--flag VALUE` 自动改写为 `--flag=VALUE`,仅对带值 flag 生效。
-
-    改写规则:
-      - 只看长选项 (`--xxx`);短选项 (`-q` / `-y`) 保持原样。
-      - 已经带 `=` 的 (`--xxx=value`) 不动。
-      - 命中 `_BOOL_FLAGS` 的不动 (bool flag 不接值)。
-      - 下一个 argv token 以 `-` 开头的,不动 (避免吞掉后续 flag)。
-
-    返回 (新 argv, 改写次数)。
-    """
-    out: list = []
-    rewritten = 0
-    i = 0
-    n = len(argv)
-    while i < n:
-        tok = argv[i]
-        if (
-            tok.startswith("--")
-            and "=" not in tok
-            and tok not in _BOOL_FLAGS
-            and i + 1 < n
-            and not argv[i + 1].startswith("-")
-        ):
-            out.append(f"{tok}={argv[i + 1]}")
-            rewritten += 1
-            i += 2
+def _walk_parsers(parser):
+    """深度优先遍历 parser 及其所有（嵌套）子 parser，跳过已访问（防 parents 共享成环）。"""
+    seen = set()
+    stack = [parser]
+    while stack:
+        p = stack.pop()
+        pid = id(p)
+        if pid in seen:
             continue
-        out.append(tok)
-        i += 1
-    return out, rewritten
+        seen.add(pid)
+        yield p
+        for action in p._actions:
+            if action.__class__.__name__ == _SUBPARSERS_ACTION:
+                stack.extend(action.choices.values())
+
+
+def _collect_value_flags(parser):
+    """收集 parser 树内所有"带值 flag"的 -- 长选项名（精确字符串集合）。
+
+    bool flag（store_true / store_false / count）与短选项（-q / -y）不带值 / 不受 = 约束，不纳入。
+    """
+    names = set()
+    for p in _walk_parsers(parser):
+        for action in p._actions:
+            if (
+                action.option_strings
+                and action.__class__.__name__ in _VALUE_ACTION_TYPES
+            ):
+                names.update(o for o in action.option_strings if o.startswith("--"))
+    return names
+
+
+def _enforce_equals_form(parser, argv):
+    """强制带值 flag 用 `--flag=value`，拒绝空格分隔的 `--flag value`。
+
+    argparse 原生同时接受两种形式；本函数在 parse 前预扫描 argv——凡是带值 flag 以
+    裸 `--flag`（精确匹配、不带 =）形式出现，即试图用空格传值，抛 SpaceFormNotAllowed。
+    同时禁用前缀缩写（allow_abbrev=False），堵住 `--pref value` 缩写绕过路径。
+    bool flag / 未知 flag / 位置参数不受影响。
+    """
+    for p in _walk_parsers(parser):
+        p.allow_abbrev = False
+    value_flags = _collect_value_flags(parser)
+    for tok in argv:
+        if tok in value_flags:
+            raise SpaceFormNotAllowed(tok)
 
 
 def _common_flags() -> argparse.ArgumentParser:
@@ -224,18 +225,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
-    raw = list(argv) if argv is not None else sys.argv[1:]
-    normalized, rewritten = _normalize_argv(raw)
-    if rewritten:
-        print(
-            "[llmw] hint: 带值 flag 已自动改写为 `--flag=VALUE` 形式,"
-            "建议在脚本里直接用 `=` 连接 (避免每次启动都重写)",
-            file=sys.stderr,
-        )
+    argv = list(argv) if argv is not None else sys.argv[1:]
     parser = build_parser()
-    args = parser.parse_args(normalized)
-
+    args = None
     try:
+        _enforce_equals_form(parser, argv)
+        args = parser.parse_args(argv)
         if args.command == "init":
             from llmw.config import DEFAULT_WORKSPACE
             from llmw.workspace.manager import init as ws_init
