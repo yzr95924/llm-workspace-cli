@@ -130,7 +130,7 @@ class BackupFailed(LlmwError):
 
 class ClaudeNotFound(LlmwError):
     exit_code = 2
-    user_message = "claude 不在 PATH"
+    user_message = "agent CLI 不在 PATH"
 
 
 class PythonUnavailable(LlmwError):

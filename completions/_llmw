@@ -223,7 +223,7 @@ _llmw_wiki() {
         'remove:移除 wiki'
         'show:查看 wiki 详情'
         'config:读写 wiki_metadata.toml'
-        'enter:启动 Claude Code session'
+        'enter:启动 AI agent session'
     )
     local state ret=1
     _arguments -C \

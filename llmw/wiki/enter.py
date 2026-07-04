@@ -1,8 +1,11 @@
-"""wiki enter — 启动 Claude Code session
+"""wiki enter — 启动 AI agent session (默认 claude；workspace.toml#enter_cli=qodercli 切换)
 
 Phase 2 交付（§9.5）：resolved model 通过写 <wiki>/.claude/settings.local.json 的 env 块
 （Local 层，优先级 > User）交付，lazy on enter。不再注入 subprocess env、不再传
 --setting-sources——user 配置（~/.claude/settings.json）正常加载，overlay 在 Local 层稳赢。
+
+qodercli 路径（workspace.toml#enter_cli = "qodercli"）：跳过 overlay.apply / 不解析 model /
+不传 --system-prompt / 不写 .claude/——只把 wiki 目录传给 qodercli（qodercli 自读 AGENTS.md）。
 """
 
 import os
@@ -63,6 +66,15 @@ def _build_cmd(wiki_path: Path):
     return cmd, prompt
 
 
+def _build_cmd_qodercli(wiki_path: Path):
+    """构造 qodercli 子进程 argv：--add-dir。
+
+    qodercli 不读 .claude/settings.local.json，不依赖 model env 注入，不传 --system-prompt
+    （qodercli 自读 AGENTS.md）。返回 (cmd, prompt) 与 _build_cmd 同形以复用 call site。
+    """
+    return ["qodercli", "--add-dir", str(wiki_path)], None
+
+
 def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
     wiki_path = _resolve_wiki_path(workspace_root, name)
 
@@ -84,13 +96,53 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
     if not meta_p.is_file():
         print(f"[llmw] warning: wiki '{name}' 缺少 wiki_metadata.toml", file=sys.stderr)
 
-    # 检查 claude 在 PATH（dry-run 时跳过）
-    if not dry_run and shutil.which("claude") is None:
+    # 选 backend：workspace.toml#enter_cli；未设走 claude
+    ws = ws_store.load(workspace_root)
+    backend = ws.enter_cli or "claude"
+    agent_bin = "qodercli" if backend == "qodercli" else "claude"
+
+    # 检查 agent CLI 在 PATH（dry-run 时跳过）
+    if not dry_run and shutil.which(agent_bin) is None:
         raise ClaudeNotFound(
-            "claude 不在 PATH",
-            hint="安装 Claude Code 或加到 PATH 后重试；可用 --dry-run 看命令",
+            f"{agent_bin} 不在 PATH",
+            hint="安装或加到 PATH 后重试；可用 --dry-run 看命令",
         )
 
+    # qodercli 路径：跳过 resolve / overlay；只传目录
+    if backend == "qodercli":
+        cmd, prompt = _build_cmd_qodercli(wiki_path)
+
+        if dry_run:
+            print(f"[llmw] workspace: {workspace_root}", file=sys.stdout)
+            print(f"[llmw] wiki:      {name} ({wiki_path})", file=sys.stdout)
+            print(
+                "[llmw] backend:   qodercli (workspace.toml#enter_cli)",
+                file=sys.stdout,
+            )
+            print(
+                "[llmw] (qodercli 不读 .claude/settings.local.json；跳过 overlay.apply / resolve_for_wiki)",
+                file=sys.stdout,
+            )
+            if claude_md.is_file():
+                print(
+                    f"[llmw] CLAUDE.md: ✓ found ({claude_md.stat().st_size} bytes)",
+                    file=sys.stdout,
+                )
+            else:
+                print("[llmw] CLAUDE.md: ✗ missing", file=sys.stdout)
+            print("[llmw] cmd:", file=sys.stdout)
+            print(f"  qodercli --add-dir {wiki_path}", file=sys.stdout)
+            print(f"[llmw] env: LLM_WIKI_ROOT={wiki_path}", file=sys.stdout)
+            print("[llmw] --dry-run: 未执行", file=sys.stdout)
+            return 0
+
+        os.chdir(wiki_path)
+        # 注入 LLM_WIKI_ROOT,让 SKILL 在外部 session 也能定位当前 wiki
+        subprocess_env = {**os.environ, "LLM_WIKI_ROOT": str(wiki_path)}
+        result = subprocess.run(cmd, env=subprocess_env)
+        return result.returncode
+
+    # claude 路径（默认）：resolve → overlay → subprocess
     # Phase 2：通过 resolve 拿最终 model（失败会阻断 enter，在任何写盘之前）
     model = resolve_for_wiki(workspace_root, name)
 
@@ -112,6 +164,10 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
         overlay_path, would_write = overlay.inspect(wiki_path, model)
         print(f"[llmw] workspace: {workspace_root}", file=sys.stdout)
         print(f"[llmw] wiki:      {name} ({wiki_path})", file=sys.stdout)
+        print(
+            "[llmw] backend:   claude (默认)",
+            file=sys.stdout,
+        )
         print(
             f"[llmw] resolved model: {model.name} ({model.model_id})",
             file=sys.stdout,

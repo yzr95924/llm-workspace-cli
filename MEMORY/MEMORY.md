@@ -39,6 +39,7 @@
 
 - **用中文交流** — 全程中文，含回答里的小标题；别英文标题配中文正文的混排（术语/命令保留英文，如 `pre-push`）
 - **测试优先级低** — prototype 阶段不写自动化测试，跑通后补；agent 不主动加测试代码
+- **`enter_cli` 选 agent CLI** — workspace.toml 的 `enter_cli = "qodercli"` 走 qodercli（不写 overlay、不解析 model）；默认 `claude` 与现状一致
 
 ## 维护规则
 

@@ -125,7 +125,7 @@ complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subco
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "remove"   -d '移除 wiki'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "show"     -d '查看 wiki 详情'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "config"   -d '读写 wiki_metadata.toml'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "enter"    -d '启动 Claude Code session'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "enter"    -d '启动 AI agent session'
 
 # wiki --name（wiki 但未选 action 时；有动态值 → A 类，无 -r）
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'

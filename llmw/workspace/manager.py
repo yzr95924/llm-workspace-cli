@@ -29,10 +29,23 @@ from llmw.workspace import store as ws_store
 # config KEY 白名单: name -> (can_set, can_unset, type)
 CONFIG_KEYS = {
     "default_model": (True, True, str),
+    "enter_cli": (True, True, str),  # 白名单见 _check_enter_cli
     "templates_version": (False, False, str),  # 只读
     "created_at": (False, False, str),  # 只读
     "schema_version": (False, False, int),  # 只读
 }
+
+
+_ENTER_CLI_WHITELIST = frozenset({"claude", "qodercli"})
+
+
+def _check_enter_cli(value: str) -> None:
+    """enter_cli 白名单校验；非白名单值抛 InvalidConfigKey。"""
+    if value not in _ENTER_CLI_WHITELIST:
+        raise InvalidConfigKey(
+            f"enter_cli 值 '{value}' 不在白名单",
+            hint=f"可选: {', '.join(sorted(_ENTER_CLI_WHITELIST))}",
+        )
 
 
 # ===== workspace 级 .gitignore helper =====
@@ -320,6 +333,10 @@ def config_get(workspace_root: Path, key: Optional[str]) -> None:
             print(f"default_model = {ws.default_model}")
         else:
             print("# default_model: <unset>")
+        if ws.enter_cli is not None:
+            print(f"enter_cli = {ws.enter_cli}")
+        else:
+            print("# enter_cli: <unset> (= claude)")
         print(f"created_at = {ws.created_at}")
         print(f"templates_version = {ws.templates_version}")
         print(f"schema_version = {ws.schema_version}")
@@ -343,6 +360,8 @@ def config_set(workspace_root: Path, key: str, value: str) -> None:
     can_set, _, expected_type = _check_key(key)
     if not can_set:
         raise InvalidConfigKey(f"KEY '{key}' 不可 set（只读）")
+    if key == "enter_cli":
+        _check_enter_cli(value)
     ws = ws_store.load(workspace_root)
     setattr(ws, key, expected_type(value))
     ws_store.save(workspace_root, ws)

@@ -109,7 +109,7 @@ llmw wiki --name=llm-systems show
 # 编辑 metadata（交互模式）
 llmw wiki --name=llm-systems config
 
-# 启动 Claude Code session（核心命令；overlay 写 <wiki>/.claude/settings.local.json）
+# 启动 AI agent session（核心命令；默认 claude 走 overlay 写 <wiki>/.claude/settings.local.json；workspace.toml#enter_cli=qodercli 切换）
 llmw wiki --name=llm-systems enter
 # 先看命令再跑:
 llmw wiki --name=llm-systems enter --dry-run
@@ -139,9 +139,46 @@ llmw wiki --name=llm-systems remove --purge --no-backup --yes  # 跳过备份，
 | KEY | set | unset | 说明 |
 | --- | :-: | :-: | --- |
 | `default_model` | ✓ | ✓ | workspace 级兜底 model（Phase 2 后真正生效的是 registry 的 `is_default=true` 条目） |
+| `enter_cli` | ✓ | ✓ | 选 `wiki enter` 启动的 agent CLI；`claude` (默认) \| `qodercli`。详见 [切换 agent CLI](#切换-agent-cli) |
 | `templates_version` | ✗ | ✗ | 只读，编码双 spec 版本 |
 | `created_at` | ✗ | ✗ | 只读 |
 | `schema_version` | ✗ | ✗ | 只读 |
+
+### 切换 agent CLI
+
+`wiki enter` 默认走 Claude Code（`claude`），可通过 `workspace.toml#enter_cli`
+切换为 `qodercli` 等其它 agent CLI。配置项存于 workspace 根的
+`workspace.toml`，是 workspace 级开关——同一 workspace 下所有 wiki 共用。
+
+```bash
+# 切到 qodercli（不再走 Claude Code；不解析 model、不写 overlay）
+llmw config set enter_cli qodercli
+llmw config get enter_cli
+# qodercli
+
+# 之后所有 wiki enter 都走 qodercli：
+llmw wiki --name=<wiki> enter --dry-run   # 看到 backend: qodercli / qodercli --add-dir <wiki>
+llmw wiki --name=<wiki> enter
+
+# 回退默认
+llmw config unset enter_cli
+```
+
+字段语义与行为差异：
+
+| `enter_cli` | 命令 | model 解析 | overlay 写 `<wiki>/.claude/settings.local.json` | `--system-prompt` |
+| --- | --- | --- | --- | --- |
+| `claude`（默认） | `claude --add-dir <wiki>` | ✓ resolve_for_wiki | ✓ Local 层，env 块含 `ANTHROPIC_*` + habit template | ✓ 传 `<wiki>/CLAUDE.md` 内容 |
+| `qodercli` | `qodercli --add-dir <wiki>` | ✗ 跳过 | ✗ | ✗（qodercli 自读 `<wiki>/AGENTS.md`） |
+
+> qodercli 路径完全跳过 `llmw/models/overlay.py` 与
+> `llmw/models/resolve.py`：agent 自己处理模型配置与 schema 上下文。
+> `overlay-habit-template`（Claude-Code-specific habit env）与
+> `agent-settings-env-precedence`（Local > User settings 优先级）不适用于 qodercli。
+
+合法取值（白名单写在 `llmw/workspace/manager.py:_ENTER_CLI_WHITELIST`）：
+`claude` / `qodercli`。其它值 `config set` 时会被挡掉，提示
+`可选: claude, qodercli`，退出码 1。
 
 ### model registry（Phase 2，源数据 `workspace_models.toml`，不入 git）
 
@@ -162,7 +199,7 @@ llmw wiki --name=llm-systems remove --purge --no-backup --yes  # 跳过备份，
 | `llmw wiki --name=NAME remove [--purge] [--no-backup] [--yes\|-y]` | 移除 wiki；`--purge` 同时删子目录（默认先备份到 `.llmw-trash/<name>-<ISO8601>/`）；`--no-backup` 跳过备份直接 rmtree |
 | `llmw wiki --name=NAME show [--json]` | 查看 wiki 详情（resolved model 来源 + api_key redact） |
 | `llmw wiki --name=NAME config [get\|set\|unset] [KEY] [VALUE]` | 读写 `wiki_metadata.toml`；无参数 + TTY 进交互模式 |
-| `llmw wiki --name=NAME enter [--dry-run]` | resolve_for_wiki → overlay.apply 写 `<wiki>/.claude/settings.local.json` → `claude --add-dir [--system-prompt]`（透传 `os.environ`，不传 `--setting-sources`） |
+| `llmw wiki --name=NAME enter [--dry-run]` | 按 `workspace.toml#enter_cli` 选 agent CLI 启动 session；`claude`（默认）走 overlay + Local 层 settings.local.json 交付 model；`qodercli` 不读 `.claude/`，不交付 model env（详见 [切换 agent CLI](#切换-agent-cli)） |
 
 `llmw wiki --name=X config` 合法 KEY（`llmw/wiki/manager.py:WIKI_CONFIG_KEYS`）：
 
@@ -223,6 +260,9 @@ LLMW_WORKSPACE="$TMPWS" llmw config
 LLMW_WORKSPACE="$TMPWS" llmw config set default_model minimax-m3-1m
 LLMW_WORKSPACE="$TMPWS" llmw config get default_model
 LLMW_WORKSPACE="$TMPWS" llmw config unset default_model
+LLMW_WORKSPACE="$TMPWS" llmw config set enter_cli qodercli
+LLMW_WORKSPACE="$TMPWS" llmw config get enter_cli
+LLMW_WORKSPACE="$TMPWS" llmw config unset enter_cli
 
 # list (空)
 LLMW_WORKSPACE="$TMPWS" llmw list

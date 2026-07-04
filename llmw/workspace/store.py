@@ -29,6 +29,7 @@ class WorkspaceToml:
     created_at: str
     templates_version: str = "1"
     default_model: Optional[str] = None
+    enter_cli: Optional[str] = None  # "claude" (默认) | "qodercli"
     wikis: Dict[str, WikiEntry] = field(default_factory=dict)
 
     @property
@@ -63,6 +64,7 @@ def load(workspace_root: Path) -> WorkspaceToml:
         created_at=raw["created_at"],
         templates_version=raw.get("templates_version", "1"),
         default_model=raw.get("default_model"),
+        enter_cli=raw.get("enter_cli"),
         wikis=wikis,
     )
 
@@ -77,6 +79,8 @@ def save(workspace_root: Path, ws: WorkspaceToml) -> None:
     }
     if ws.default_model is not None:
         data["default_model"] = ws.default_model
+    if ws.enter_cli is not None and ws.enter_cli != "claude":
+        data["enter_cli"] = ws.enter_cli
 
     if ws.wikis:
         wiki_table = {}
