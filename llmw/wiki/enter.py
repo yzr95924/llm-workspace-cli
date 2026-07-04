@@ -5,7 +5,10 @@ Phase 2 交付（§9.5）：resolved model 通过写 <wiki>/.claude/settings.loc
 --setting-sources——user 配置（~/.claude/settings.json）正常加载，overlay 在 Local 层稳赢。
 
 qodercli 路径（workspace.toml#enter_cli = "qodercli"）：跳过 overlay.apply / 不解析 model /
-不传 --system-prompt / 不写 .claude/——只把 wiki 目录传给 qodercli（qodercli 自读 AGENTS.md）。
+不写 .claude/——只把 wiki 目录传给 qodercli（qodercli 自读 AGENTS.md）。
+
+claude 路径（默认）：同样只传 `--add-dir` 让 claude 自读 `<wiki>/CLAUDE.md`，不显式注入
+--system-prompt（避免与自读结果双计入、与 qodercli 行为对齐；cwd=wiki 子目录让自读稳）。
 """
 
 import os
@@ -38,39 +41,25 @@ def _resolve_wiki_path(workspace_root: Path, name: str) -> Path:
     return workspace_root / ws.wikis[name].path
 
 
-def _read_system_prompt(wiki_path: Path):
-    """读 CLAUDE.md 内容作为 system-prompt。
-    缺失返回 (None, path)。空文件返回 ("", path)——按设计空 CLAUDE.md 仍传 --system-prompt ""。
-
-    为什么读全文而不是 --system-prompt "$(cat CLAUDE.md)"？
-    subprocess.run 不走 shell，$() 会作为字面量传给 claude；只能预先读出。
-    """
-    claude_md = wiki_path / "CLAUDE.md"
-    if not claude_md.is_file():
-        return None, claude_md
-    return claude_md.read_text(encoding="utf-8"), claude_md
-
-
 def _build_cmd(wiki_path: Path):
-    """构造 claude 子进程 argv：--add-dir + 可选 --system-prompt。
+    """构造 claude 子进程 argv：仅 --add-dir，让 claude 自读 <wiki>/CLAUDE.md。
 
     不传 --setting-sources：claude 默认加载 user+project+local。cwd=wiki 子目录 → 读到
     <wiki>/.claude/settings.local.json（Local，优先级 > User）→ overlay 稳赢，user 配置同时
     加载。早期版本传 --setting-sources project,local 排除 user，是为防其 env 块盖掉优先级
     更低的 subprocess env overlay；现 overlay 已在 Local 层文件里，无需排除 user。
+
+    不传 --system-prompt：claude 会从 cwd + --add-dir 自动聚合 CLAUDE.md；显式注入会双计入
+    并让两 backend 行为分叉（qodercli 路径就不传）。
     """
-    prompt, _ = _read_system_prompt(wiki_path)
-    cmd = ["claude", "--add-dir", str(wiki_path)]
-    if prompt is not None:
-        cmd += ["--system-prompt", prompt]
-    return cmd, prompt
+    return ["claude", "--add-dir", str(wiki_path)], None
 
 
 def _build_cmd_qodercli(wiki_path: Path):
     """构造 qodercli 子进程 argv：--add-dir。
 
-    qodercli 不读 .claude/settings.local.json，不依赖 model env 注入，不传 --system-prompt
-    （qodercli 自读 AGENTS.md）。返回 (cmd, prompt) 与 _build_cmd 同形以复用 call site。
+    qodercli 不读 .claude/settings.local.json，不依赖 model env 注入（qodercli 自读 AGENTS.md）。
+    与 _build_cmd 同样只返 cmd，二者签名一致便于 call site 复用。
     """
     return ["qodercli", "--add-dir", str(wiki_path)], None
 
@@ -195,14 +184,8 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
             )
         else:
             print("[llmw] CLAUDE.md: ✗ missing", file=sys.stdout)
-        if prompt is not None:
-            cmd_display = (
-                f'claude --add-dir {wiki_path} --system-prompt "$(cat {claude_md})"'
-            )
-        else:
-            cmd_display = f"claude --add-dir {wiki_path}"
         print("[llmw] cmd:", file=sys.stdout)
-        print(f"  {cmd_display}", file=sys.stdout)
+        print(f"  claude --add-dir {wiki_path}", file=sys.stdout)
         print(f"[llmw] env: LLM_WIKI_ROOT={wiki_path}", file=sys.stdout)
         print("[llmw] --dry-run: 未执行", file=sys.stdout)
         return 0
