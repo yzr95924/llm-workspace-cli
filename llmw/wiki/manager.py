@@ -570,25 +570,36 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return
 
-    # 表格
-    print(f"NAME              {name}")
-    print(f"PATH              {wiki_path}")
-    print(f"TOPIC             {meta.topic if meta else '-'}")
-    print(f"DISPLAY_NAME      {meta.display_name if meta else '-'}")
-    print(f"DESCRIPTION       {meta.description if meta else '-'}")
-    print(f"TAGS              {','.join(meta.tags) if meta and meta.tags else '-'}")
+    # 表格: 收集 (label, value) 对, label 宽度 = max(len(label)), 统一对齐
+    created_line = meta.created_at if meta else "-"
+    updated_line = meta.updated_at if meta else "-"
     model_line = final_model or "-"
     if model_source:
         model_line += f"  (fallback: {model_source})"
-    print(f"MODEL             {model_line}")
-    print(f"CLAUDE_MD         {'✓ found' if claude_md_exists else '✗ missing'}")
-    print(f"WIKI_METADATA     {'✓ found' if meta else '✗ missing'}")
-    print(
-        f"RAW_DIR           {'✓ found' if raw_p.is_dir() else '✗ missing'} ({raw_count} files)"
-    )
-    print(
-        f"WIKI_DIR          {'✓ found' if wiki_sub_p.is_dir() else '✗ missing'} ({wiki_count} pages)"
-    )
+    rows = [
+        ("NAME", name),
+        ("PATH", str(wiki_path)),
+        ("TOPIC", meta.topic if meta else "-"),
+        ("DISPLAY_NAME", meta.display_name if meta else "-"),
+        ("DESCRIPTION", meta.description if meta else "-"),
+        ("TAGS", ",".join(meta.tags) if meta and meta.tags else "-"),
+        ("MODEL", model_line),
+        ("CREATED_AT", created_line),
+        ("UPDATED_AT", updated_line),
+        ("CLAUDE_MD", "✓ found" if claude_md_exists else "✗ missing"),
+        ("WIKI_METADATA", "✓ found" if meta else "✗ missing"),
+        (
+            "RAW_DIR",
+            f"{'✓ found' if raw_p.is_dir() else '✗ missing'} ({raw_count} files)",
+        ),
+        (
+            "WIKI_DIR",
+            f"{'✓ found' if wiki_sub_p.is_dir() else '✗ missing'} ({wiki_count} pages)",
+        ),
+    ]
+    label_w = max(len(label) for label, _ in rows)
+    for label, value in rows:
+        print(f"{label.ljust(label_w)}  {value}")
 
 
 # wiki config KEY 白名单
