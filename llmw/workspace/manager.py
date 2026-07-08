@@ -50,13 +50,18 @@ def _check_enter_cli(value: str) -> None:
 
 # ===== workspace 级 .gitignore helper =====
 
-# workspace 级 .gitignore managed block 内容（registry + overlay + trash 备份目录）
-# 单仓模型：wiki 是 workspace 直属子目录，*/.claude/settings.local.json 通配覆盖所有
-# wiki 的 overlay secret，不依赖 per-wiki .gitignore / wiki scaffold（见 §9.6）。
-# .llmw-trash/ 由 wiki remove --purge 写入,默认走备份路径(spec wiki-spec.md:14 "delete 带备份")
+# workspace 级 .gitignore managed block 内容（spec workspace-spec.md §10 v0.6.1 + llmw 自有 trash）
+# 前 3 行严格对齐 spec §10 v0.6.1（registry + Claude Code / Qoder IDE 项目级 overlay）。
+# 单仓模型：wiki 是 workspace 直属子目录，**/.<agent>/settings*.json 通配覆盖所有
+# wiki 的 overlay secret，不依赖 per-wiki .gitignore / wiki scaffold（见 §10）。
+# 0.5.0 加 .qoder，0.6.0 把 */ 改 **/（覆盖 workspace 根级），0.6.1 把 settings.local.json
+# 加宽到 settings*.json（含 settings.json / settings.<env>.json 等所有变体）。
+# 第 4 行 .llmw-trash/ 为 llmw 自有扩展（spec §10 字面未列）：wiki remove --purge
+# 写入的备份目录，spec 允许"至少包含"语义下保留以避免误提交（见 MEMORY 驳正条目）。
 GITIGNORE_LINES = (
     "workspace_models.toml",
-    "*/.claude/settings.local.json",
+    "**/.claude/settings*.json",
+    "**/.qoder/settings*.json",
     ".llmw-trash/",
 )
 
@@ -103,8 +108,8 @@ def _ensure_workspace_gitignore(workspace_root: Path) -> None:
     m = pattern.search(text)
     if m:
         if m.group(0) == block:
-            return  # 已是最新两行 block
-        new_text = pattern.sub(block, text)  # 老 block → 替换为两行
+            return  # 已是最新 block
+        new_text = pattern.sub(block, text)  # 老 block → 替换为最新
     else:
         # 无 block → 追加（保证前导换行 + 末尾换行）
         sep = "" if (text.endswith("\n") or not text) else "\n"
@@ -296,6 +301,7 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
         create_skeleton as create_models_skeleton,
         save as save_models,
     )
+
     save_models(path, create_models_skeleton(path))
 
     # spec §4 (0.4.0+): 先写 AGENTS.md (SSOT), 再写 CLAUDE.md (薄壳)
@@ -555,9 +561,7 @@ def list_wikis(
     dn_w = max(
         len(r["display_name"] or "-") for r in rows + [{"display_name": "DISPLAY_NAME"}]
     )
-    tags_w = max(
-        len(",".join(r["tags"]) or "-") for r in rows + [{"tags": ["TAGS"]}]
-    )
+    tags_w = max(len(",".join(r["tags"]) or "-") for r in rows + [{"tags": ["TAGS"]}])
     model_cells = []
     for r in rows:
         if r["model"]:
