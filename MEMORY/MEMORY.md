@@ -46,6 +46,8 @@
 - **workspace .gitignore managed block 多 1 行** — 实现 `_ensure_workspace_gitignore` 实际写 3 行（`workspace_models.toml` + `*/.claude/settings.local.json` + `.llmw-trash/`），spec §10 字面仅前 2 行；多出的 `.llmw-trash/` 是 `wiki remove --purge` 备份目录排除，spec 升级时一并对照
 - **workspace init 拒绝条件比 §12 字面更严** — `init` 对非空目录一律 `WorkspaceExists`（超集覆盖 §12 "workspace.toml 已存在"）；`wiki add` 对已存在目录走文件级 `check_not_initialized` 兜底（行为等价，路径不同）。功能更安全，spec 不变可接受
 - **workspace SKILL.md MEMORY 路径陈旧** — `my_SKILL/llm-workspace-management/SKILL.md` 5 处沿用 `<wiki>/wiki/MEMORY/>` 旧路径（行 161/169/237/335/369），应改 `<wiki>/MEMORY/>`（wiki-spec v0.10.0+）；llmw 按 wiki-spec §5 落盘不受影响，但 workspace `scan` / lint `memory-not-indexed` 会扫空目录——待 SKILL 维护方修
+- **wiki check_not_initialized 比 §8 字面多检 3 文件** — `init_wiki.py:check_not_initialized` 校验 6 文件（AGENTS.md / CLAUDE.md / wiki/index.md + MEMORY.md / tags.md / SCRIPTS.md），spec §8 字面仅前 3；多检属主动加严（`init_wiki.py:48` 注释自承「§8 总段『绝不允许覆盖已有 wiki』的精神扩展」），lint 不会误判
+- **wiki-spec.md §6 vs §13.4 内部不一致** — spec §6 字面写 `!raw/external/**/.symlink-anchor.json`（0.16.0- 老 JSON 形态），§13.4 写 `!raw/external/.symlink-anchor.toml`（0.17.0+ 新 TOML 形态）；llmw `fixtures/gitignore.txt` 选 §13.4 形态与 0.20.0 changelog 一致——待 SKILL owner 把 §6 改齐
 
 ## 维护规则
 

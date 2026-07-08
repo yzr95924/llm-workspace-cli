@@ -11,8 +11,10 @@ from llmw.errors import InvalidTagValue, InvalidWikiName, SchemaVersionUnsupport
 from llmw.fsutil import atomic_write, now_iso8601
 
 SCHEMA_VERSION_SUPPORTED = 2
-NAME_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
-TAG_RE = re.compile(r"^[a-z0-9_-]{1,32}$")
+# workspace-spec.md §15: wiki name 必须以 [a-z0-9] 起头,中间允许 [a-z0-9_-]
+# (model_id 形如 "claude-sonnet-4-6" 需 - 在中间;但 -/_ 作首字符会与目录/路径语义冲突)
+NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+TAG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
 
 
 @dataclass

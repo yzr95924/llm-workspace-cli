@@ -2,6 +2,7 @@
 
 import io
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict
@@ -15,7 +16,9 @@ from llmw.errors import (
     SchemaVersionUnsupported,
 )
 from llmw.fsutil import atomic_write, now_iso8601
-from llmw.wiki.store import NAME_RE  # 复用 ^[a-z0-9_-]{1,64}$
+# workspace-spec.md §15: model_id 允许 ^[a-z0-9_-]{1,64}$ (首字符可为 - 或 _),
+# 比 wiki name 的 NAME_RE 更宽松. 本地复刻,不再 import wiki.NAME_RE.
+MODEL_ID_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
 
 SCHEMA_VERSION_SUPPORTED = 2
 NAME_MAX_LEN = 128
@@ -47,7 +50,7 @@ class Registry:
 
 
 def validate_model_id(model_id: str) -> None:
-    if not NAME_RE.match(model_id):
+    if not MODEL_ID_RE.match(model_id):
         raise InvalidModelField(
             f"model_id '{model_id}' 非法: 仅允许小写字母 / 数字 / '-' / '_'，长度 1-64",
         )
