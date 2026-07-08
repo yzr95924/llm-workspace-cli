@@ -74,7 +74,7 @@ _llmw() {
     local TOP="init config list model wiki"
     local WIKI_ACTS="add remove rename show config enter"
     local MODEL_ACTS="add list show set-default unset-default remove"
-    local CFG_KEYS="default_model templates_version created_at schema_version"
+    local CFG_KEYS="default_model enter_cli templates_version created_at schema_version"
 
     COMPREPLY=()
 
@@ -129,9 +129,11 @@ _llmw() {
                         COMPREPLY=($(compgen -W "$CFG_KEYS" -- "$cur"))
                         ;;
                     set)
-                        # set <key> <value>: cword=2 -> key, cword=3 -> value (不补)
-                        if [ "$COMP_CWORD" -eq 2 ]; then
-                            COMPREPLY=($(compgen -W "default_model" -- "$cur"))
+                        # set <key> <value>: COMP_WORDS[0]=llmw, [1]=config, [2]=set,
+                        # [3]=key, [4]=value。cword=3 -> 补 key；cword=4 -> value 不补
+                        # （与 wiki config set 的 wiki_pos 索引语义对齐）
+                        if [ "$COMP_CWORD" -eq 3 ]; then
+                            COMPREPLY=($(compgen -W "default_model enter_cli" -- "$cur"))
                         fi
                         ;;
                 esac
