@@ -3,7 +3,7 @@
 import json
 import shutil
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
@@ -527,6 +527,15 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         if wiki_sub_p.is_dir()
         else 0
     )
+    # last_activity: 从 <wiki>/wiki/log.md mtime 派生 —— 不依赖 SKILL/CLI 配合,
+    # SKILL spec 强制 ingest/query/lint 后必须写 log.md,OS mtime 直接给真实活跃时刻。
+    # log.md 不存在 → None(降级为 "-");NFS 上 stat 安全(chmod 才会 silently fail)。
+    last_activity = None
+    log_md_p = wiki_sub_p / "log.md"
+    if log_md_p.is_file():
+        last_activity = datetime.fromtimestamp(
+            log_md_p.stat().st_mtime, tz=timezone.utc
+        ).isoformat()
 
     # 通过 resolve 拿最终 model + 来源
     final_model = None
@@ -563,6 +572,7 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
             "schema_version": meta.schema_version if meta else None,
             "created_at": meta.created_at if meta else None,
             "updated_at": meta.updated_at if meta else None,
+            "last_activity": last_activity,
             "existence": {
                 "claude_md": claude_md_exists,
                 "wiki_metadata_toml": meta is not None,
@@ -593,6 +603,7 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         ("MODEL", model_line),
         ("CREATED_AT", created_line),
         ("UPDATED_AT", updated_line),
+        ("LAST_ACTIVITY", last_activity or "-"),
         ("CLAUDE_MD", "✓ found" if claude_md_exists else "✗ missing"),
         ("WIKI_METADATA", "✓ found" if meta else "✗ missing"),
         (
