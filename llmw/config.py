@@ -69,7 +69,7 @@ def wiki_spec_templates_dir() -> Path:
 
     不存在 → 由调用方 raise SkillMissing
     """
-    return repo_root() / "my_SKILL" / "llm-wiki-management" / "references"
+    return repo_root() / "my_SKILL" / "yzr-llm-wiki-management" / "references"
 
 
 def workspace_spec_templates_dir() -> Path:
@@ -81,7 +81,7 @@ def workspace_spec_templates_dir() -> Path:
 
     不存在 → 由调用方 raise SkillMissing
     """
-    return repo_root() / "my_SKILL" / "llm-workspace-management" / "references"
+    return repo_root() / "my_SKILL" / "yzr-llm-workspace-management" / "references"
 
 
 def templates_dir() -> Path:

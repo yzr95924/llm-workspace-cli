@@ -1,6 +1,6 @@
 # llmw — Wiki Workspace CLI
 
-管理一个由 [`llm-wiki-management`](https://github.com/yzr95924/my_SKILL/tree/master/llm-wiki-management) skill 创建的 wiki 集合（一个 workspace = 一个 git 仓，含多个 wiki 子目录）。
+管理一个由 [`yzr-llm-wiki-management`](https://github.com/yzr95924/my_SKILL/tree/master/yzr-llm-wiki-management) skill 创建的 wiki 集合（一个 workspace = 一个 git 仓，含多个 wiki 子目录）。
 
 ## 安装
 
@@ -241,7 +241,7 @@ llm_workspace_cli/                # 仓库根
 └── pyproject.toml                # setuptools 配置（packages 含 llmw.models）
 ```
 
-> `templates/` 现在**只**承载 `wiki_metadata.toml.template`（实例化 `wiki add` 的初始 metadata）；wiki 内容骨架（`raw/`、`wiki/`、`<wiki>/CLAUDE.md`）由 `llmw/wiki/init_wiki.py` 读 `my_SKILL/llm-wiki-management/references/` 下的模板与 fixtures 渲染落盘（spec 0.2.0 起取代原 SKILL `setup_wiki.py`，spec 0.10.0/0.3.0 当前）。
+> `templates/` 现在**只**承载 `wiki_metadata.toml.template`（实例化 `wiki add` 的初始 metadata）；wiki 内容骨架（`raw/`、`wiki/`、`<wiki>/CLAUDE.md`）由 `llmw/wiki/init_wiki.py` 读 `my_SKILL/yzr-llm-wiki-management/references/` 下的模板与 fixtures 渲染落盘（spec 0.2.0 起取代原 SKILL `setup_wiki.py`，spec 0.10.0/0.3.0 当前）。
 
 ## Manual Smoke Test（prototype 阶段验收清单）
 

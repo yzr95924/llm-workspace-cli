@@ -160,7 +160,7 @@ def _write_workspace_agents_md(workspace_root: Path, display_name: str) -> None:
     except OSError as e:
         raise SetupFailed(
             f"读取 workspace AGENTS.md 模板失败: {e.filename}",
-            hint="检查 my_SKILL/llm-workspace-management/references/ 是否完整",
+            hint="检查 my_SKILL/yzr-llm-workspace-management/references/ 是否完整",
         )
 
     mapping = {
@@ -214,7 +214,7 @@ def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
     except OSError as e:
         raise SetupFailed(
             f"读取 workspace CLAUDE.md 模板失败: {e.filename}",
-            hint="检查 my_SKILL/llm-workspace-management/references/ 是否完整",
+            hint="检查 my_SKILL/yzr-llm-workspace-management/references/ 是否完整",
         )
 
     # spec §4: 薄壳仅替换 WORKSPACE_DISPLAY_NAME。残留占位符 = 模板漂移,assert 兜底。
@@ -261,7 +261,7 @@ def _write_workspace_memory_index(workspace_root: Path) -> None:
     except OSError as e:
         raise SetupFailed(
             f"读取 workspace MEMORY.md fixture 失败: {e.filename}",
-            hint="检查 my_SKILL/llm-workspace-management/references/fixtures/ 是否完整",
+            hint="检查 my_SKILL/yzr-llm-workspace-management/references/fixtures/ 是否完整",
         )
 
     (workspace_root / "MEMORY").mkdir(parents=True, exist_ok=True)

@@ -11,7 +11,7 @@ This file provides guidance to AI coding agents when working with code in this r
 - 一个 workspace = 一个目录 + `workspace.toml` + 多个 wiki 子目录
 - 每个 wiki = 一个子目录，含 `raw/` + `wiki/` + `CLAUDE.md` + `wiki_metadata.toml`
 - CLI **只**管元数据 + 启动 session；wiki 内部内容（ingest / lint / query）由
-  [`llm-wiki-management`](https://github.com/yzr95924/my_SKILL/tree/master/llm-wiki-management)
+  [`yzr-llm-wiki-management`](https://github.com/yzr95924/my_SKILL/tree/master/yzr-llm-wiki-management)
   skill 在 session 内负责
 - CLI 包 `llmw/` **绝不写** `raw/` 与 `wiki/` 下任何文件——这条不变量贯穿全仓
 
