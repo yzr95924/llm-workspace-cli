@@ -20,10 +20,12 @@ overlay.py:_HABIT_TEMPLATE），opencode 无对应机制，不写入。
 同源——网关说 Anthropic 协议（/v1/messages）。若网关改走 OpenAI 协议，把 _NPM_PACKAGE
 一行常量换成 @ai-sdk/openai-compatible。
 
-**limit.context = 1M**（`_CONTEXT_WINDOW`，习惯级常量，非用户可配）：自定义 provider
-不会被 models.dev 收录，opencode 无从得知 context window，必须显式声明才能管理上下文
-余量。只设 context 不设 output——output 缺省时 opencode 不下发 max_tokens 上限、走
-服务端默认；将来需要再加。若需按模型区分 context window，升级为 registry 字段。
+**limit = {context: 1M, output: 128K}**（`_CONTEXT_WINDOW` / `_MAX_OUTPUT`，习惯级常量，
+非用户可配）：自定义 provider 不会被 models.dev 收录，opencode 无从得知模型限额，必须
+显式声明才能管理上下文余量。**context 与 output 必须成对**——opencode schema 校验要求
+limit 块两键齐全，缺 output 直接拒载整个配置（2026-07-20 实测：Missing key
+provider.llmw.models.<name>.limit.output）。值对齐 opencode 内嵌 models.dev 数据的
+MiniMax-M3（context 1e6 / output 131072）；需按模型区分时升级为 registry 字段。
 
 **baseURL 需要 +/v1 规范化**（`_ai_sdk_base_url`，2026-07-19 对 MiniMax 网关实测）：
 registry 存的是 Claude Code 约定——请求 URL = ``{base_url}/v1/messages``（Claude Code
@@ -51,8 +53,11 @@ _NPM_PACKAGE = (
     "@ai-sdk/anthropic"  # 网关 = Anthropic 协议（与 ANTHROPIC_BASE_URL 同源）
 )
 _SCHEMA_URL = "https://opencode.ai/config.json"
-# 习惯级常量（非用户可配）：自定义 provider 不在 models.dev，须显式声明 context window
+# 习惯级常量（非用户可配）：自定义 provider 不在 models.dev，须显式声明限额；
+# context/output 须成对（opencode schema 强制，缺 output 拒载配置）；
+# 值对齐 opencode 内嵌 models.dev 的 MiniMax-M3（context 1e6 / output 131072）
 _CONTEXT_WINDOW = 1_000_000
+_MAX_OUTPUT = 131_072
 
 
 def _ai_sdk_base_url(base_url: str) -> str:
@@ -86,7 +91,7 @@ def render(model: ModelEntry) -> dict:
                 "models": {
                     model.name: {
                         "name": model.name,
-                        "limit": {"context": _CONTEXT_WINDOW},
+                        "limit": {"context": _CONTEXT_WINDOW, "output": _MAX_OUTPUT},
                     }
                 },
             }
