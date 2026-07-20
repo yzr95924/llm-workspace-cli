@@ -66,8 +66,9 @@ def _parse_bool(key: str, value: str) -> bool:
 
 # ===== workspace 级 .gitignore helper =====
 
-# workspace 级 .gitignore managed block 内容（spec workspace-spec.md §10 v0.6.1 + llmw 自有扩展）
-# 前 3 行严格对齐 spec §10 v0.6.1（registry + Claude Code / Qoder IDE 项目级 overlay）。
+# workspace 级 .gitignore managed block 内容（spec workspace-spec.md §10 v0.7.0 + llmw 自有扩展）
+# 前 3 行严格对齐 spec §10（registry + Claude Code / Qoder IDE 项目级 overlay；
+# §10 文本自 0.6.1 起未变，0.7.0 未触及）。
 # 单仓模型：wiki 是 workspace 直属子目录，**/.<agent>/settings*.json 通配覆盖所有
 # wiki 的 overlay secret，不依赖 per-wiki .gitignore / wiki scaffold（见 §10）。
 # 0.5.0 加 .qoder，0.6.0 把 */ 改 **/（覆盖 workspace 根级），0.6.1 把 settings.local.json

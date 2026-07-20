@@ -56,11 +56,11 @@ def _print_git_hint(wiki_dir: Path) -> None:
         file=sys.stdout,
     )
     print(
-        "[llmw]   git add . && git commit -m 'Initial wiki scaffold'",
+        '[llmw]   git add . && git commit -m "Initial wiki scaffold"',
         file=sys.stdout,
     )
     print(
-        "[llmw] .gitkeep 占位已放入空目录;后续 raw/ 真实文件由你 `git add` 纳入跟踪。",
+        "[llmw] .gitkeep 占位文件已放入空目录;后续 raw/ 真实文件由你 `git add` 后纳入跟踪。",
         file=sys.stdout,
     )
 

@@ -67,10 +67,9 @@ llmw.cli (argparse + 分派)
   │
   ├──▶ llmw.wiki.manager       ──▶ llmw.wiki.store       ──▶ <wiki>/wiki_metadata.toml
   │           │
-  │           ├─(add)──▶ llmw.wiki.init_wiki ──▶ <wiki>/raw/, <wiki>/wiki/, <wiki>/CLAUDE.md
-  │           │           (读 my_SKILL/.../references/ 下的模板与 fixtures)
-  │           │
-  │           └─(add --git)──▶ llmw.wiki.git_init ──▶ git init + .gitkeep + commit (spec §7)
+  │           └─(add)──▶ llmw.wiki.init_wiki ──▶ <wiki>/raw/, <wiki>/wiki/, <wiki>/CLAUDE.md
+  │                       (读 my_SKILL/.../references/ 下的模板与 fixtures；.gitkeep 无条件落盘
+  │                        + 手动 git hint，spec §7 红线：CLI 绝不碰 git)
   │
   ├──▶ llmw.models.manager     ──▶ llmw.models.store     ──▶ workspace_models.toml
   │           │                          │
@@ -94,13 +93,16 @@ llmw.cli (argparse + 分派)
 此处只列核心 3 条 + 指向 MEMORY 详述：
 
 1. **CLI 不写 wiki 内容**——只写 `workspace.toml` / `<wiki>/wiki_metadata.toml` /
-   `workspace_models.toml` + workspace `.gitignore`。`<wiki>/CLAUDE.md` / `wiki/index.md` /
-   `wiki/log.md` / `wiki/MEMORY/README.md` / `.gitignore` / 目录骨架 由 CLI 在 `add` 时内联生成——
-   读 SKILL 仓 `references/` 下的 `claude-md-template.md` 和 4 个 fixtures，按 `wiki-spec.md v0.3.0`
-   §1-§6 渲染。
+   `workspace_models.toml` + workspace `.gitignore`。`<wiki>/AGENTS.md` / `<wiki>/CLAUDE.md` /
+   `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` /
+   `.gitignore` / 目录骨架 由 CLI 在 `add` 时内联生成——读 SKILL 仓 `references/` 下的
+   `agents-md-template.md` + `claude-md-template.md` 两份模板和 6 个 fixtures，按
+   `wiki-spec.md v0.26.0` §1-§7 + §9.1 + §14 渲染。
 2. **CLI 内联实现 wiki 创建**（spec 0.2.0 起）：原 `my_SKILL/.../scripts/setup_wiki.py` 已删除；
-   CLI 通过 `llmw.wiki.init_wiki` 读 SKILL 仓 `references/claude-md-template.md` +
-   `references/fixtures/{index,log,memory-readme,gitignore}.txt` 作为字节金标准，占位符替换后落盘；
+   CLI 通过 `llmw.wiki.init_wiki` 读 SKILL 仓 `references/agents-md-template.md` +
+   `references/claude-md-template.md` +
+   `references/fixtures/{index.md,log.md,memory-index,tags.md,scripts.md,gitignore}.txt`
+   作为字节金标准，占位符替换后落盘；
    不复制 SKILL 运行时纪律（ingest / lint），只承担"出生形态"。SKILL 升级时 CLI 自动获益
    （`fixtures/README.md` 附录 A 的 `cmp -s` 比对保证字节一致）。
 3. **overlay 交付走 Local 层文件**——model 真相源是 `workspace_models.toml`，不依赖环境变量
@@ -125,9 +127,8 @@ CLI 内联 wiki 骨架的字节一致性保证）见设计文档与备份 CLAUDE
 | `llmw.workspace.store` | workspace.toml 读写 + schema 校验 | 不做 wiki 操作、不做 init 业务 |
 | `llmw.workspace.manager` | init/config/list 业务；init 写 workspace `.gitignore` | 不写 wiki 文件、不读 wiki_metadata.toml |
 | `llmw.wiki.store` | wiki_metadata.toml 读写 + schema v2 + 模板填充 | 不写 workspace.toml、不调 init_wiki |
-| `llmw.wiki.init_wiki` | 渲染骨架（spec §1-§6）；读 references/fixtures → atomic_write | 不写 wiki_metadata.toml、不进 wiki 业务流 |
-| `llmw.wiki.git_init` | `init`：spec §7 opt-in git 初始化（前置不通过则 warn 跳过） | 不写元数据 |
-| `llmw.wiki.manager` | add/remove/show/config 业务；add 调 init_wiki 与 git_init；校验 model_id | 不进 wiki 内部、不读 wiki/ 内容 |
+| `llmw.wiki.init_wiki` | 渲染骨架（spec §1-§7 + §9.1 + §14）；读 references/fixtures → atomic_write；.gitkeep 无条件落盘（§7 红线不碰 git） | 不写 wiki_metadata.toml、不进 wiki 业务流 |
+| `llmw.wiki.manager` | add/remove/show/config 业务；add 调 init_wiki + 打印手动 git hint；校验 model_id | 不进 wiki 内部、不读 wiki/ 内容 |
 | `llmw.wiki.enter` | 启动 session：resolve model → `overlay.apply` 写启动配置 → `_spawn` 收口（agent CLI 子进程透传 os.environ，或 byobu 开窗口） | 不写元数据 |
 | `llmw.wiki.byobu` | byobu/tmux 薄封装 + 开窗编排：固定 session `llm_workspace` 的 ensure/find(window_id)/select/create；仅 enter 调用 | 不写元数据、不读配置 |
 | `llmw.models.overlay` | `render`/`inspect`/`apply`：resolved ModelEntry → 启动配置 `env` 块；幂等合并 + chmod 600 | — |

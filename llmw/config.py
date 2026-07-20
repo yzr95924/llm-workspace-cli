@@ -64,8 +64,8 @@ def wiki_spec_templates_dir() -> Path:
     """SKILL 仓 references/ 目录路径(CLI 字节金标准的来源)
 
     包含:
-      - claude-md-template.md (CLAUDE.md 拷贝模板)
-      - fixtures/index.md.txt / log.md.txt / memory-readme.txt / gitignore.txt
+      - agents-md-template.md / claude-md-template.md (AGENTS.md SSOT / CLAUDE.md 薄壳模板)
+      - fixtures/{index.md,log.md,memory-index,tags.md,scripts.md,gitignore}.txt
 
     不存在 → 由调用方 raise SkillMissing
     """

@@ -43,10 +43,10 @@ _GITKEEP_DIRS = [Path("wiki") / d for d in _CONTENT_SUBDIRS] + [
 
 
 def check_not_initialized(wiki_dir: Path) -> None:
-    """spec §8: 5 类 CLI 落盘产物任一已存在 → 拒绝覆盖
+    """spec §8: 6 份 CLI 落盘产物任一已存在 → 拒绝覆盖
 
-    spec §8 表格列 CLAUDE.md + wiki/index.md 是必检;§8 总段"绝不允许覆盖已有 wiki"
-    的精神把范围扩到 MEMORY.md / tags.md / SCRIPTS.md。
+    spec §8 表格字面列 3 份(AGENTS.md / CLAUDE.md / wiki/index.md);§8 总段"绝不允许
+    覆盖已有 wiki"的精神把范围扩到 MEMORY.md / tags.md / SCRIPTS.md。
     必须在 mkdir 前调用,避免留下半成品目录.
     """
     files = [

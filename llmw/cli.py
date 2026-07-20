@@ -124,7 +124,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--display-name",
         default=None,
         dest="display_name",
-        help="workspace display name (写入 CLAUDE.md; 默认 'LLM Wiki Workspace')",
+        help="workspace display name (写入 AGENTS.md + CLAUDE.md; 默认 'LLM Wiki Workspace')",
     )
 
     p_config = sub.add_parser("config", help="workspace.toml 读写", parents=[common])
