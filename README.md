@@ -82,9 +82,9 @@ fpath=(completions $fpath); autoload -U compinit && compinit
 > 参数风格约定：**带值 flag 一律用 `--flag=VALUE`**（`=` 连接，严谨无歧义；空格分隔的 `--flag VALUE` 会被拒绝并提示 `SpaceFormNotAllowed`）；前缀缩写（`--pref`）也已禁用，请用完整 flag 名。bool flag（无值，如 `--json` `--purge` `--yes` `--git` `--dry-run`）与位置参数（`config KEY VALUE`）不受影响。
 
 ```bash
-# 初始化 workspace（默认 ~/yzr_llm_wiki_workspace；init 不碰 git）
+# 初始化 workspace（默认 ~/yzr-llm-wiki-workspace；init 不碰 git）
 llmw init
-cd ~/yzr_llm_wiki_workspace
+cd ~/yzr-llm-wiki-workspace
 
 # 先把要用的 model 注册到 workspace（Phase 2；--default 设默认 model）
 llmw model add \
@@ -130,7 +130,7 @@ llmw wiki --name=llm-systems remove --purge --no-backup --yes  # 跳过备份，
 
 | 命令 | 作用 |
 | --- | --- |
-| `llmw init [--path=PATH] [--display-name=NAME]` | 初始化 workspace；默认 PATH `~/yzr_llm_wiki_workspace`，不碰 git（允许在已有 git 空仓上 init） |
+| `llmw init [--path=PATH] [--display-name=NAME]` | 初始化 workspace；默认 PATH `~/yzr-llm-wiki-workspace`，不碰 git（允许在已有 git 空仓上 init） |
 | `llmw config [get\|set\|unset] [KEY] [VALUE]` | 读写 `workspace.toml`；无参数 + TTY 进交互模式，非 TTY 打印字段列表退出 0 |
 | `llmw list [--tag=TAG]...` | 列出 wiki（`--tag` 可重复，AND 关系） |
 

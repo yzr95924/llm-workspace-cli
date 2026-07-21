@@ -23,7 +23,7 @@ function __llmw_workspace
         if set -q LLMW_WORKSPACE
             set ws "$LLMW_WORKSPACE"
         else
-            set ws "$HOME/yzr_llm_wiki_workspace"
+            set ws "$HOME/yzr-llm-wiki-workspace"
         end
     end
     echo "$ws"

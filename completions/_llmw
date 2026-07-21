@@ -33,7 +33,7 @@ _llmw() {
             (( i++ ))
         done
         if [[ -z "$ws" ]]; then
-            ws="${LLMW_WORKSPACE:-$HOME/yzr_llm_wiki_workspace}"
+            ws="${LLMW_WORKSPACE:-$HOME/yzr-llm-wiki-workspace}"
         fi
         echo "$ws"
     }

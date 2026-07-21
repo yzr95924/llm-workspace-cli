@@ -30,7 +30,7 @@ _llmw() {
             --workspace=*) ws="${wi#--workspace=}" ;;
         esac
     done
-    [ -z "$ws" ] && ws="${LLMW_WORKSPACE:-$HOME/yzr_llm_wiki_workspace}"
+    [ -z "$ws" ] && ws="${LLMW_WORKSPACE:-$HOME/yzr-llm-wiki-workspace}"
 
     # 2. 抽前序 sub / sub_action（跳过 flag 及其值）
     sub=""

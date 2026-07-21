@@ -5,7 +5,7 @@ from pathlib import Path
 
 from llmw.errors import WorkspaceNotFound
 
-DEFAULT_WORKSPACE = Path.home() / "yzr_llm_wiki_workspace"
+DEFAULT_WORKSPACE = Path.home() / "yzr-llm-wiki-workspace"
 
 
 def resolve_workspace_root(
@@ -17,7 +17,7 @@ def resolve_workspace_root(
     优先级:
       1. explicit (--workspace flag)
       2. $LLMW_WORKSPACE env var
-      3. ~/yzr_llm_wiki_workspace (默认)
+      3. ~/yzr-llm-wiki-workspace (默认)
 
     解析后校验: 必须存在、是目录、含 workspace.toml。
     不存在 → WorkspaceNotFound

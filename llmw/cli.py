@@ -82,7 +82,7 @@ def _common_flags() -> argparse.ArgumentParser:
         "--workspace",
         metavar="PATH",
         default=argparse.SUPPRESS,
-        help="workspace 根路径 (默认: $LLMW_WORKSPACE 或 ~/yzr_llm_wiki_workspace)",
+        help="workspace 根路径 (默认: $LLMW_WORKSPACE 或 ~/yzr-llm-wiki-workspace)",
     )
     common.add_argument(
         "--json",
