@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-MEMORY 条目形式（完整 vs 短）的判别 + 写入纪律的权威约定。对齐 [`my_SKILL/yzr-llm-wiki-management` SKILL.md §4 Memory](https://github.com/yzr95924/my_SKILL/blob/master/yzr-llm-wiki-management/SKILL.md) 的"判别条目形式"规则，结合本仓特点做精简。
+MEMORY 条目形式（完整 vs 短）的判别 + 写入纪律的权威约定。对齐 [`yzr-SKILL/yzr-llm-wiki-management` SKILL.md §4 Memory](https://github.com/yzr95924/yzr-SKILL/blob/master/yzr-llm-wiki-management/SKILL.md) 的"判别条目形式"规则，结合本仓特点做精简。
 
 **Why:** `MEMORY/MEMORY.md` 被 `<workspace-root>/CLAUDE.md` 用 `@MEMORY/MEMORY.md` import 会话常驻——每条都进上下文。**裸行承载一句话事实**比让 agent 跳去 `Read` 整个 `<slug>.md` 文件快得多也省得多；但"将来怎么用 / 如何避免"等需要完整上下文的，短行承载不下。两类条目按颗粒度选，写错形式要么冗长占用上下文、要么太短丢失关键信息。此外，会话级 memory 副本（`~/.claude/projects/.../memory/`）随代码仓迁移 / 协作会失同步——所有项目级规则必须**只**放在本仓 `MEMORY/`，会话 memory 只留指针。
 

@@ -11,7 +11,7 @@ This file provides guidance to AI coding agents when working with code in this r
 - 一个 workspace = 一个目录 + `workspace.toml` + 多个 wiki 子目录
 - 每个 wiki = 一个子目录，含 `raw/` + `wiki/` + `CLAUDE.md` + `wiki_metadata.toml`
 - CLI **只**管元数据 + 启动 session；wiki 内部内容（ingest / lint / query）由
-  [`yzr-llm-wiki-management`](https://github.com/yzr95924/my_SKILL/tree/master/yzr-llm-wiki-management)
+  [`yzr-llm-wiki-management`](https://github.com/yzr95924/yzr-SKILL/tree/master/yzr-llm-wiki-management)
   skill 在 session 内负责
 - CLI 包 `llmw/` **绝不写** `raw/` 与 `wiki/` 下任何文件——这条不变量贯穿全仓
 
@@ -68,7 +68,7 @@ llmw.cli (argparse + 分派)
   ├──▶ llmw.wiki.manager       ──▶ llmw.wiki.store       ──▶ <wiki>/wiki_metadata.toml
   │           │
   │           └─(add)──▶ llmw.wiki.init_wiki ──▶ <wiki>/raw/, <wiki>/wiki/, <wiki>/CLAUDE.md
-  │                       (读 my_SKILL/.../references/ 下的模板与 fixtures；.gitkeep 无条件落盘
+  │                       (读 yzr-SKILL/.../references/ 下的模板与 fixtures；.gitkeep 无条件落盘
   │                        + 手动 git hint，spec §7 红线：CLI 绝不碰 git)
   │
   ├──▶ llmw.models.manager     ──▶ llmw.models.store     ──▶ workspace_models.toml
@@ -98,7 +98,7 @@ llmw.cli (argparse + 分派)
    `.gitignore` / 目录骨架 由 CLI 在 `add` 时内联生成——读 SKILL 仓 `references/` 下的
    `agents-md-template.md` + `claude-md-template.md` 两份模板和 6 个 fixtures，按
    `wiki-spec.md v0.26.0` §1-§7 + §9.1 + §14 渲染。
-2. **CLI 内联实现 wiki 创建**（spec 0.2.0 起）：原 `my_SKILL/.../scripts/setup_wiki.py` 已删除；
+2. **CLI 内联实现 wiki 创建**（spec 0.2.0 起）：原 `yzr-SKILL/.../scripts/setup_wiki.py` 已删除；
    CLI 通过 `llmw.wiki.init_wiki` 读 SKILL 仓 `references/agents-md-template.md` +
    `references/claude-md-template.md` +
    `references/fixtures/{index.md,log.md,memory-index,tags.md,scripts.md,gitignore}.txt`

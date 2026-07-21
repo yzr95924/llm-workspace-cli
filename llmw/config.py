@@ -55,7 +55,7 @@ def skill_setup_script() -> Path:
     """保留旧 API 以防有外部调用；返回 None 表示已废弃
 
     spec 0.2.0 起 wiki 创建由 CLI 内联实现(llmw.wiki.init_wiki),不再依赖
-    my_SKILL/.../scripts/setup_wiki.py。本函数保留以便旧代码导入不报错。
+    yzr-SKILL/.../scripts/setup_wiki.py。本函数保留以便旧代码导入不报错。
     """
     return None
 
@@ -69,7 +69,7 @@ def wiki_spec_templates_dir() -> Path:
 
     不存在 → 由调用方 raise SkillMissing
     """
-    return repo_root() / "my_SKILL" / "yzr-llm-wiki-management" / "references"
+    return repo_root() / "yzr-SKILL" / "yzr-llm-wiki-management" / "references"
 
 
 def workspace_spec_templates_dir() -> Path:
@@ -81,7 +81,7 @@ def workspace_spec_templates_dir() -> Path:
 
     不存在 → 由调用方 raise SkillMissing
     """
-    return repo_root() / "my_SKILL" / "yzr-llm-workspace-management" / "references"
+    return repo_root() / "yzr-SKILL" / "yzr-llm-workspace-management" / "references"
 
 
 def templates_dir() -> Path:

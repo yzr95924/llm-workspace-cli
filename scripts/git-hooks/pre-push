@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# pre-push 守卫：保证推送前 my_SKILL submodule 指向 .gitmodules 配置分支
-# （my_SKILL = master）的远端最新。
+# pre-push 守卫：保证推送前 yzr-SKILL submodule 指向 .gitmodules 配置分支
+# （yzr-SKILL = master）的远端最新。
 #
 # 为什么是"守卫"而非"自动提交"：pre-push 运行时，本次要推送的 commit 集合已确定，
 # 此时 fetch+update submodule 造成的指针 bump 是一处未提交改动，塞不进这次 push。
@@ -10,7 +10,7 @@
 # 启用：bash scripts/install-hooks.sh（设置 core.hooksPath 指向本目录）。
 set -euo pipefail
 
-SUBMODULE="my_SKILL"
+SUBMODULE="yzr-SKILL"
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"

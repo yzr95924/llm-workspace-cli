@@ -41,11 +41,11 @@
 - **用中文交流** — 全程中文，含回答里的小标题；别英文标题配中文正文的混排（术语/命令保留英文，如 `pre-push`）
 - **测试优先级低** — prototype 阶段不写自动化测试，跑通后补；agent 不主动加测试代码
 - **`enter_cli` 选 agent CLI** — workspace.toml 的 `enter_cli = "qodercli"` 走 qodercli（不写 overlay、不解析 model）；默认 `claude` 与现状一致
-- **my_SKILL 是 submodule** — 不要直接修改 `my_SKILL/` 目录，本地改动会被 `git submodule update` 覆盖；要改 upstream 去 `my_SKILL` 仓
+- **yzr-SKILL 是 submodule** — 不要直接修改 `yzr-SKILL/` 目录，本地改动会被 `git submodule update` 覆盖；要改 upstream 去 `yzr-SKILL` 仓
 - **enter 不传 --system-prompt** — claude/qodercli 都靠 `--add-dir` + cwd=wiki 让 agent 自读 `<wiki>/CLAUDE.md`（或 AGENTS.md）；不显式注入避免双计入 + 两 backend 行为对齐
 - **workspace .gitignore managed block 多 1 行** — 实现 `_ensure_workspace_gitignore` 实际写 3 行（`workspace_models.toml` + `*/.claude/settings.local.json` + `.llmw-trash/`），spec §10 字面仅前 2 行；多出的 `.llmw-trash/` 是 `wiki remove --purge` 备份目录排除，spec 升级时一并对照
 - **workspace init 拒绝条件比 §12 字面更严** — `init` 对非空目录一律 `WorkspaceExists`（超集覆盖 §12 "workspace.toml 已存在"）；`wiki add` 对已存在目录走文件级 `check_not_initialized` 兜底（行为等价，路径不同）。功能更安全，spec 不变可接受
-- **workspace SKILL.md MEMORY 路径陈旧** — `my_SKILL/yzr-llm-workspace-management/SKILL.md` 5 处沿用 `<wiki>/wiki/MEMORY/>` 旧路径（行 161/169/237/335/369），应改 `<wiki>/MEMORY/>`（wiki-spec v0.10.0+）；llmw 按 wiki-spec §5 落盘不受影响，但 workspace `scan` / lint `memory-not-indexed` 会扫空目录——待 SKILL 维护方修
+- **workspace SKILL.md MEMORY 路径陈旧** — `yzr-SKILL/yzr-llm-workspace-management/SKILL.md` 5 处沿用 `<wiki>/wiki/MEMORY/>` 旧路径（行 161/169/237/335/369），应改 `<wiki>/MEMORY/>`（wiki-spec v0.10.0+）；llmw 按 wiki-spec §5 落盘不受影响，但 workspace `scan` / lint `memory-not-indexed` 会扫空目录——待 SKILL 维护方修
 - **wiki check_not_initialized 比 §8 字面多检 3 文件** — `init_wiki.py:check_not_initialized` 校验 6 文件（AGENTS.md / CLAUDE.md / wiki/index.md + MEMORY.md / tags.md / SCRIPTS.md），spec §8 字面仅前 3；多检属主动加严（`init_wiki.py:48` 注释自承「§8 总段『绝不允许覆盖已有 wiki』的精神扩展」），lint 不会误判
 - **wiki-spec.md §6 vs §13.4 内部不一致** — spec §6 字面写 `!raw/external/**/.symlink-anchor.json`（0.16.0- 老 JSON 形态），§13.4 写 `!raw/external/.symlink-anchor.toml`（0.17.0+ 新 TOML 形态）；llmw `fixtures/gitignore.txt` 选 §13.4 形态与 0.20.0 changelog 一致——待 SKILL owner 把 §6 改齐
 - **workspace .gitignore 驳正（2026-07-08 / spec 0.5.0）** — 驳正上一条"managed block 多 1 行"条目：spec workspace-spec.md §10 v0.5.0 (2026-07-08) 已扩为 3 行模板（在原 2 行后追加 `*/.qoder/settings.local.json`，Qoder IDE 项目级 settings），原条目"spec §10 字面仅前 2 行"已过时。本仓 `_ensure_workspace_gitignore` 现写 4 行：spec 3 行 + `.llmw-trash/`（llmw 自有扩展，wiki remove --purge 备份目录，spec §10 字面未列但允许"至少包含"语义下保留）。老 workspace 升级：函数检测到旧 block 会替换为新 4 行。原条目按"不删既有"保留，仅追加驳正

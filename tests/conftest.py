@@ -2,7 +2,7 @@
 
 rename 测试只关心 workspace.toml + wiki 子目录 + wiki_metadata.toml;
 不需要 CLAUDE.md / wiki/ / raw/ 等 wiki 骨架(由 SKILL fixtures 渲染)。
-因此手工构造 fixture,不依赖 init_wiki.render_and_write(避免耦合 my_SKILL)。
+因此手工构造 fixture,不依赖 init_wiki.render_and_write(避免耦合 yzr-SKILL)。
 """
 
 from pathlib import Path
