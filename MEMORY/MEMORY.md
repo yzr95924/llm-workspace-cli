@@ -34,6 +34,10 @@
 - [model 操作不走环境变量](model-ops-no-env-vars.md) — model 配置只从 `workspace_models.toml` 读（绝不读 `os.environ` 当真相源）；`enter` 通过 Local 层（`settings.local.json`）交付 `ANTHROPIC_*`（值来自 registry）
 - [Overlay habit template](overlay-habit-template.md) — `llmw/models/overlay.py:_HABIT_TEMPLATE` 是代码内常量的"习惯级" env key（非用户可配），随 enter 一并写入 settings.local.json；加新 key = 改一行常量
 
+**外部调研 backlog**
+
+- [cc-switch-cli 可借鉴功能](cc-switch-inspire.md) — doctor env 冲突检查 / model check / wiki sessions+resume / 临时配置启动；附源码出处与不借鉴清单
+
 ### 短条目（reminder，无需 why+how 展开）
 
 无需独立文件：
