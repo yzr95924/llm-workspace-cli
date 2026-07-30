@@ -20,3 +20,9 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 llmw = ["../templates/*.template"]
+
+# ruff 全局排除 yzr-SKILL submodule (submodule 内部代码由 yzr-SKILL 仓维护,
+# llmw 仅消费其产物; 与本仓 spec/spec 合规无关, 扫了会让 CI 误报)。
+# 本地 ruff 与 CI 同样生效（CI 命令 `ruff check .` 从仓库根目录扫）。
+[tool.ruff]
+extend-exclude = ["yzr-SKILL"]

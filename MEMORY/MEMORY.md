@@ -76,3 +76,9 @@
 - **条目之间用 `[[slug]]` 互链**——读一条可跟随关联链接定位相关记忆
 
 完整约定见 [memory-entry-conventions](memory-entry-conventions.md)；持久化策略见 [memory-persistence-policy](memory-persistence-policy.md)。
+
+---
+
+## CI 实战沉淀
+
+- **push 前必跑 CI 三件套** — `ruff check .` + `ruff format --check .` + `python3 scripts/test/smoke_fixtures.py`，覆盖 CI 4 个 job（lint / test py3.7 / test py3.11 / fixtures-smoke）的本地等价检测；本地跑过再 push，避免红线后返工。CI 2026-07-30 实战(commit 3c7c7ac):yzr-SKILL submodule 内部代码 F401/UP032 误伤 lint（submodule 代码由 yzr-SKILL 仓维护、llmw 仅消费）→ 修复用 `pyproject.toml:[tool.ruff] extend-exclude=["yzr-SKILL"]` 全局排除，本地与 CI 一致生效；不放进 CI workflow 命令行（重复、易遗漏）
