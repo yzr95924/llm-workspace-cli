@@ -8,6 +8,12 @@ overlay 稳赢，且 user 配置（~/.claude/settings.json）正常加载。取�
 env 注入（优先级最低，会被 user env 块盖掉，曾靠 --setting-sources project,local 排除
 user 来规避，代价是丢 user 配置）。
 
+**ANTHROPIC_MODEL 视图化**（`_claude_anthropic_model`）——Claude Code 客户端的 1M
+context 启用约定是给模型名加 `[1m]` 后缀；registry.field `name` 只存裸 wire 格式
+（k3 / MiniMax-M3），由本路径按 `context_window` 字段权威声明自动加。客户端特定
+约定不耦合进 registry 数据——opencode 路径在 `_gateway_model_id` 内部剥后缀做
+wire 兼容，qodercli 不读 overlay。三种 backend 各自负责生成自己需要的视图。
+
 **Habit template**（`_HABIT_TEMPLATE`）——非用户可配的"习惯级" env key，统一随
 overlay 写入所有 wiki，确保跨 session 风格一致。增删改一律改本文件常量；不增 CLI
 命令、不入 registry / toml schema。详见 `MEMORY/overlay-habit-template.md`。
@@ -32,20 +38,42 @@ _HABIT_TEMPLATE: Dict[str, str] = {
     "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
 }
 
-# overlay 拥有（可覆盖）的 env key——其余 env key 与所有其他顶层 key 一律保留
-# ANTHROPIC_* 来自 model 字段，*_HABIT_TEMPLATE.keys() 来自代码内常量
-_OWNED = (
-    "ANTHROPIC_MODEL",
-    "ANTHROPIC_BASE_URL",
-    "ANTHROPIC_AUTH_TOKEN",
-    *_HABIT_TEMPLATE.keys(),
-)
+# Claude Code 1M context 命名约定：模型本身支持 1M 上下文时,Claude Code 客户端
+# 识别 `[1m]` 后缀启用 1M 上下文（context_window 仍由 registry 字段权威声明,
+# `[1m]` 仅是 Claude Code 客户端用于启用 1M 模式的 hint）。registry 字段
+# `name` 现在只存裸 wire 格式（k3 / MiniMax-M3）,由本路径自动按 context_window
+# 推断加上 `[1m]`,避免客户端特定约定耦合进 registry 数据。
+_CLAUDE_1M_CONTEXT_THRESHOLD = 1_000_000
+_CLAUDE_1M_SUFFIX = "[1m]"
+
+# overlay 拥有（可覆盖）的 env key 集合在 render 时由 expected.items() 隐含
+# 枚举（ANTHROPIC_MODEL + ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN +
+# *_HABIT_TEMPLATE.keys()）——_is_up_to_date 直接遍历 expected,无须
+# 额外的元组常量承载 owned 列表。
+
+
+def _claude_anthropic_model(name: str, context_window: int) -> str:
+    """registry.name(裸名, e.g. "k3") + context_window → ANTHROPIC_MODEL 值。
+
+    Claude Code 客户端的 1M context 启用约定是给模型名加 `[1m]` 后缀。本函数
+    按 context_window 字段权威声明自动加——避免把客户端特定约定耦合进 registry
+    数据(不同 agent 各自生成, claude 路径走本视图函数, opencode 路径在
+    `_gateway_model_id` 内部剥后缀做到 wire 兼容)。
+
+    边界:context_window >= 1M 且 name 不带 `[1m]` 后缀 → 自动加;否则原样
+    (允许 name 在过渡期带后缀,保留幂等)。
+    """
+    if context_window >= _CLAUDE_1M_CONTEXT_THRESHOLD and not name.endswith(
+        _CLAUDE_1M_SUFFIX
+    ):
+        return name + _CLAUDE_1M_SUFFIX
+    return name
 
 
 def _model_env(model: ModelEntry) -> dict:
     """ModelEntry → model 字段 env 块。CLI-controllable, 来源 registry 真相源。"""
     return {
-        "ANTHROPIC_MODEL": model.name,
+        "ANTHROPIC_MODEL": _claude_anthropic_model(model.name, model.context_window),
         "ANTHROPIC_BASE_URL": model.base_url,
         "ANTHROPIC_AUTH_TOKEN": model.api_key,
     }
@@ -54,11 +82,11 @@ def _model_env(model: ModelEntry) -> dict:
 def render(model: ModelEntry) -> dict:
     """ModelEntry + habit template → overlay env 块。
 
-    ANTHROPIC_MODEL 用 model.name（网关模型名，如 MiniMax-M3[1m]），不是 model_id
-    slug——网关只认 name。
+    ANTHROPIC_MODEL 走 `_claude_anthropic_model` 视图函数(裸名 + context_window
+    推断 `[1m]`)——registry.name 只存 wire 格式,客户端约定成本路径内部完成。
 
-    Habit template 永远是常量值，CLI 拥有所有权——用户手动改这些 key 会被下次 enter
-    reset 回常量值（与 ANTHROPIC_* 行为一致）。
+    Habit template 永远是常量值,CLI 拥有所有权——用户手动改这些 key 会被下次 enter
+    reset 回常量值(与 ANTHROPIC_* 行为一致)。
     """
     return {**_model_env(model), **_HABIT_TEMPLATE}
 

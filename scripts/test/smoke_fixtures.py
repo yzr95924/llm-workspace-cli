@@ -104,6 +104,7 @@ def main():
                 "--name=T",
                 "--base-url=https://x.com",
                 "--api-key=k",
+                "--context-window=200000",
                 "--default",
             ]
         )

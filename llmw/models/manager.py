@@ -22,6 +22,7 @@ from llmw.models.store import (
     save,
     validate_api_key,
     validate_base_url,
+    validate_context_window,
     validate_model_id,
     validate_name,
 )
@@ -52,6 +53,7 @@ def model_add(
     name: Optional[str] = None,
     base_url: Optional[str] = None,
     api_key: Optional[str] = None,
+    context_window: Optional[int] = None,
     as_default: bool = False,
 ) -> None:
     """新增 model 条目。字段校验 + 重复 model_id 检测。
@@ -67,6 +69,8 @@ def model_add(
         validate_base_url(base_url)
     if api_key is not None:
         validate_api_key(api_key)
+    if context_window is not None:
+        validate_context_window(context_window)
 
     # TTY 交互模式
     if sys.stdin.isatty():
@@ -95,6 +99,10 @@ def model_add(
             base_url = ask("base_url", "", validate_base_url)
         if api_key is None:
             api_key = ask("api_key", "", validate_api_key)
+        if context_window is None:
+            context_window = ask(
+                "context_window (整数 token)", "", validate_context_window
+            )
     else:
         missing = []
         if not model_id:
@@ -105,6 +113,8 @@ def model_add(
             missing.append("--base-url")
         if not api_key:
             missing.append("--api-key")
+        if context_window is None:
+            missing.append("--context-window")
         if missing:
             raise MissingRequiredFlag(
                 f"非 TTY 下 model add 缺 flag: {', '.join(missing)}",
@@ -130,6 +140,7 @@ def model_add(
         name=name,
         base_url=base_url,
         api_key=api_key,
+        context_window=context_window,
         is_default=False,
     )
     if as_default:
@@ -157,6 +168,7 @@ def model_list(workspace_root: Path, as_json: bool = False) -> int:
                 "name": m.name,
                 "base_url": m.base_url,
                 "api_key": redact_api_key(m.api_key),
+                "context_window": m.context_window,
                 "is_default": m.is_default,
             }
             for m in reg.models.values()
@@ -166,11 +178,13 @@ def model_list(workspace_root: Path, as_json: bool = False) -> int:
     if not reg.models:
         print("# (no models registered)")
         return 0
-    print(f"{'MODEL_ID'.ljust(20)}  {'NAME'.ljust(20)}  DEFAULT  BASE_URL  API_KEY")
+    print(
+        f"{'MODEL_ID'.ljust(20)}  {'NAME'.ljust(20)}  {'CONTEXT'.ljust(8)}  DEFAULT  BASE_URL  API_KEY"
+    )
     for m in sorted(reg.models.values(), key=lambda x: (not x.is_default, x.model_id)):
         star = "✓" if m.is_default else " "
         print(
-            f"{m.model_id.ljust(20)}  {m.name[:20].ljust(20)}  {star}      {m.base_url}  {redact_api_key(m.api_key)}"
+            f"{m.model_id.ljust(20)}  {m.name[:20].ljust(20)}  {str(m.context_window).ljust(8)}  {star}      {m.base_url}  {redact_api_key(m.api_key)}"
         )
     return 0
 
@@ -192,18 +206,20 @@ def model_show(workspace_root: Path, model_id: str, as_json: bool = False) -> No
             "name": m.name,
             "base_url": m.base_url,
             "api_key": redact_api_key(m.api_key),
+            "context_window": m.context_window,
             "is_default": m.is_default,
         }
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return
-    print(f"MODEL_ID      {m.model_id}")
-    print(f"NAME          {m.name}")
-    print(f"BASE_URL      {m.base_url}")
-    print(f"API_KEY       {redact_api_key(m.api_key)}")
-    print(f"IS_DEFAULT    {m.is_default}")
-    print(f"SCHEMA        v{reg.schema_version}")
-    print(f"CREATED_AT    {reg.created_at}")
-    print(f"UPDATED_AT    {reg.updated_at}")
+    print(f"MODEL_ID       {m.model_id}")
+    print(f"NAME           {m.name}")
+    print(f"BASE_URL       {m.base_url}")
+    print(f"API_KEY        {redact_api_key(m.api_key)}")
+    print(f"CONTEXT_WINDOW {m.context_window}")
+    print(f"IS_DEFAULT     {m.is_default}")
+    print(f"SCHEMA         v{reg.schema_version}")
+    print(f"CREATED_AT     {reg.created_at}")
+    print(f"UPDATED_AT     {reg.updated_at}")
 
 
 # ===== model_set_default =====

@@ -152,6 +152,13 @@ def build_parser() -> argparse.ArgumentParser:
     pm_add.add_argument("--name", default=None)
     pm_add.add_argument("--base-url", default=None, dest="base_url")
     pm_add.add_argument("--api-key", default=None, dest="api_key")
+    pm_add.add_argument(
+        "--context-window",
+        type=int,
+        default=None,
+        dest="context_window",
+        help="模型上下文窗口大小（整数 token, 1-10000000）,opencode 路径回写到 limit.context",
+    )
     pm_add.add_argument("--default", action="store_true", dest="as_default")
 
     model_sub.add_parser("list", help="列出所有 model 条目", parents=[common])
@@ -301,6 +308,7 @@ def main(argv=None) -> int:
                     name=args.name,
                     base_url=args.base_url,
                     api_key=args.api_key,
+                    context_window=args.context_window,
                     as_default=args.as_default,
                 )
             elif ma == "list":

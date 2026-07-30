@@ -127,7 +127,7 @@ metadata:
 ### 新增借鉴点：overlay 用户可配 snippet（演进 [[overlay-habit-template]]）
 
 - `_HABIT_TEMPLATE` 是代码常量、用户不可配；cc-switch 的 common snippet 是用户可配 + opt-in（`meta.apply_common_config`）+ 深合并（`services/common_config.rs:61-77 json_deep_merge`，snippet 在叶子冲突处覆盖 provider，`common_config.rs:406-418`）。
-- 演进形态：`workspace.toml` 加 `[overlay_snippet]` 表，`overlay.render` 深合并进 env 块。幂等合并逻辑（`overlay.py:_is_up_to_date` / `_OWNED`）已就绪。
+- 演进形态：`workspace.toml` 加 `[overlay_snippet]` 表，`overlay.render` 深合并进 env 块。幂等合并逻辑（`overlay.py:_is_up_to_date` / `render()` 输出的 expected 字典）已就绪。
 - **所有权分层（关键）**：snippet 用户拥有（不 reset），habit CLI 拥有（reset 回常量）——两者别混。
 
 ### "不借鉴"细化

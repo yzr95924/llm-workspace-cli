@@ -23,6 +23,8 @@ MODEL_ID_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
 
 SCHEMA_VERSION_SUPPORTED = 2
 NAME_MAX_LEN = 128
+CONTEXT_WINDOW_MIN = 1
+CONTEXT_WINDOW_MAX = 10_000_000  # 10M token 安全帽——主流模型远低于此
 
 
 @dataclass
@@ -33,6 +35,7 @@ class ModelEntry:
     name: str
     base_url: str
     api_key: str
+    context_window: int  # 必填（无 fallback）：opencode 路径需显式声明 limit.context
     is_default: bool = False
 
 
@@ -76,6 +79,17 @@ def validate_api_key(key: str) -> None:
         raise InvalidModelField("api_key 不能为空")
 
 
+def validate_context_window(n: int) -> None:
+    if not isinstance(n, int) or isinstance(n, bool):  # bool ⊆ int, 排除 True/False
+        raise InvalidModelField(
+            f"context_window 必须是整数: {n!r}",
+        )
+    if not (CONTEXT_WINDOW_MIN <= n <= CONTEXT_WINDOW_MAX):
+        raise InvalidModelField(
+            f"context_window 越界: {n} (要求 {CONTEXT_WINDOW_MIN}-{CONTEXT_WINDOW_MAX})",
+        )
+
+
 # ===== load =====
 
 
@@ -102,11 +116,18 @@ def load(workspace_root: Path) -> Registry:
 
     models: Dict[str, ModelEntry] = {}
     for entry in raw.get("models", []):
+        # context_window 必填——老仓库缺字段直接拒载,提示用户手动补
+        if "context_window" not in entry:
+            raise InvalidModelField(
+                f"model_id '{entry.get('model_id', '?')}' 缺 context_window 字段",
+                hint="手动编辑 workspace_models.toml,给每条模型补 context_window = <整数>",
+            )
         m = ModelEntry(
             model_id=entry["model_id"],
             name=entry["name"],
             base_url=entry["base_url"],
             api_key=entry["api_key"],
+            context_window=entry["context_window"],
             is_default=bool(entry.get("is_default", False)),
         )
         # 字段校验（抛 InvalidModelField）
@@ -114,6 +135,7 @@ def load(workspace_root: Path) -> Registry:
         validate_name(m.name)
         validate_base_url(m.base_url)
         validate_api_key(m.api_key)
+        validate_context_window(m.context_window)
         # 唯一性
         if m.model_id in models:
             raise ModelIdConflict(
@@ -156,6 +178,7 @@ def save(workspace_root: Path, reg: Registry) -> None:
             "name": m.name,
             "base_url": m.base_url,
             "api_key": m.api_key,
+            "context_window": m.context_window,
         }
         if m.is_default:
             d["is_default"] = True

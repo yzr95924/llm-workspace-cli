@@ -3,7 +3,7 @@
 import errno
 import json
 import sys
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
@@ -195,7 +195,10 @@ def add(
     init_wiki.render_and_write(
         wiki_dir,
         topic,
-        date.today().isoformat(),
+        # spec 0.28.0+: SETUP_DATE 走 YYYY-MM-DD HH:MM 粒度——fixtures/README.md 与
+        # references/canonical/{index,log}.md 的字节金标准 (HH:MM 14:30 示范);
+        # workspace 侧保持 YYYY-MM-DD (workspace-spec 0.7.1 §4 字面),不要照搬这里。
+        datetime.now().strftime("%Y-%m-%d %H:%M"),
         cli_version=__version__,
         spec_version=WIKI_SPEC_VERSION,
     )

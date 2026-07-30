@@ -26,12 +26,14 @@ attribution 标记)塞进去会污染 schema;放 per-workspace toml 又会让"�
   下次 `wiki enter` 自动同步到所有 wiki;老 wiki 因 `_is_up_to_date=False` 自动补齐。
 - **改 value**:同上,直接改字典值。下次 enter 自动覆盖老值(与 ANTHROPIC_* reset
   行为一致)。
-- **删 key**:从字典里删。下次 enter 自动从 settings.local.json 删除(因不在 `_OWNED`)。
+- **删 key**:从字典里删。下次 enter 自动从 settings.local.json 删除(因不在 render 输出的 expected.items() 隐含集合里)。
 - **想做 per-workspace 配置**:停下来——这违背模板初衷。要么改全局默认值,要么
   走 `wiki/.claude/settings.local.json` 的 `env` 块里手加(CLI 不动非 owned key)。
 - **想加 CLI flag / toml schema**:同上,停下来。template 是"非用户可配"语义。
 
-**所有权与 reset**:habit template key 与 ANTHROPIC_* 一同被 `_OWNED` 收编。用户
-手改 template key 会被下次 enter reset 回常量值——这是"强制习惯",非"建议"。
+**所有权与 reset**:habit template key 与 ANTHROPIC_* 由 `render()` 输出的
+`expected` 字典一并枚举,所有权集合就在 `expected.items()` 里(隐含,无单独的
+`_OWNED` 元组常量)。用户手改 template key 会被下次 enter reset 回常量值——
+这是"强制习惯",非"建议"。
 
 关联 [[model-ops-no-env-vars]] [[agent-settings-env-precedence]]。

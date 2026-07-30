@@ -20,12 +20,15 @@ overlay.py:_HABIT_TEMPLATE），opencode 无对应机制，不写入。
 同源——网关说 Anthropic 协议（/v1/messages）。若网关改走 OpenAI 协议，把 _NPM_PACKAGE
 一行常量换成 @ai-sdk/openai-compatible。
 
-**limit = {context: 1M, output: 128K}**（`_CONTEXT_WINDOW` / `_MAX_OUTPUT`，习惯级常量，
-非用户可配）：自定义 provider 不会被 models.dev 收录，opencode 无从得知模型限额，必须
-显式声明才能管理上下文余量。**context 与 output 必须成对**——opencode schema 校验要求
-limit 块两键齐全，缺 output 直接拒载整个配置（2026-07-20 实测：Missing key
-provider.llmw.models.<name>.limit.output）。值对齐 opencode 内嵌 models.dev 数据的
-MiniMax-M3（context 1e6 / output 131072）；需按模型区分时升级为 registry 字段。
+**limit = {context: registry.context_window, output: 128K}**（context 由 registry 字段
+驱动,output 仍习惯级 `_MAX_OUTPUT`）：自定义 provider 不会被 models.dev 收录，opencode
+无从得知模型限额,必须显式声明才能管理上下文余量。**context 与 output 必须成对**——
+opencode schema 校验要求 limit 块两键齐全,缺 output 直接拒载整个配置（2026-07-20 实测：
+Missing key provider.llmw.models.<name>.limit.output）。context_window 2026-07-30 起
+为 registry 必填字段（`ModelEntry.context_window: int`,无 fallback,缺字段 loader 抛
+InvalidModelField）——opencode 路径按模型输出限额,claude 路径不读(context 由 `[1m]` 后缀
+或 1M 约定传递）。output 保留习惯级常量,值对齐 opencode 内嵌 models.dev 的 MiniMax-M3
+(output 131072)；将来按模型区分时同样升级为 registry 字段。
 
 **models key 剥 `[...]` 后缀**（`_gateway_model_id`）：`[1m]` 是 Claude Code 侧的 1M
 context 命名约定，opencode/AI SDK 直连网关时不能照发——2026-07-20 四网关实测：
@@ -64,9 +67,9 @@ _NPM_PACKAGE = (
 )
 _SCHEMA_URL = "https://opencode.ai/config.json"
 # 习惯级常量（非用户可配）：自定义 provider 不在 models.dev，须显式声明限额；
-# context/output 须成对（opencode schema 强制，缺 output 拒载配置）；
-# 值对齐 opencode 内嵌 models.dev 的 MiniMax-M3（context 1e6 / output 131072）
-_CONTEXT_WINDOW = 1_000_000
+# output 须有（opencode schema 强制 context/output 成对，缺 output 拒载配置）；
+# 值对齐 opencode 内嵌 models.dev 的 MiniMax-M3（output 131072）。
+# context_window 2026-07-30 起为 registry 必填字段，不再走常量。
 _MAX_OUTPUT = 131_072
 
 
@@ -112,7 +115,10 @@ def render(model: ModelEntry) -> dict:
                 },
                 "models": {
                     model_id: {
-                        "limit": {"context": _CONTEXT_WINDOW, "output": _MAX_OUTPUT},
+                        "limit": {
+                            "context": model.context_window,
+                            "output": _MAX_OUTPUT,
+                        },
                     }
                 },
             }

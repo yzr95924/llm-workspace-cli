@@ -100,6 +100,3 @@ else:
     except ImportError as e:  # pragma: no cover
         raise ImportError("Python <3.11 需要 tomli 包: pip install 'tomli>=1.1'") from e
     toml_dump = _toml_dump  # noqa: F401
-
-
-PYTHON_VERSION = sys.version_info
