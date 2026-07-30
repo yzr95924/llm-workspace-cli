@@ -41,7 +41,7 @@ def _llmw(args):
         sys.stderr.write(proc.stdout)
         sys.stderr.write(proc.stderr)
         raise SystemExit(
-            "FAIL: llmw {} exit={}".format(" ".join(args), proc.returncode)
+            f"FAIL: llmw {' '.join(args)} exit={proc.returncode}"
         )
     return proc
 
@@ -58,7 +58,7 @@ def _detector_json(script, root):
     try:
         return json.loads(proc.stdout)
     except ValueError:
-        sys.stderr.write("探测器 JSON 解析失败 (exit={}):\n".format(proc.returncode))
+        sys.stderr.write(f"探测器 JSON 解析失败 (exit={proc.returncode}):\n")
         sys.stderr.write(proc.stdout)
         sys.stderr.write(proc.stderr)
         raise SystemExit(1)
@@ -71,24 +71,22 @@ def _assert_all_error_pass(script, root, label):
     """
     data = _detector_json(script, root)
     failed = [
-        "{} ({})".format(c["id"], c.get("file", "?"))
+        f"{c['id']} ({c.get('file', '?')})"
         for c in data["checks"]
         if c.get("severity") == "error" and c.get("passed") is False
     ]
     if failed:
-        sys.stderr.write("FAIL: {} 探测器 error check fail: {}\n".format(label, failed))
+        sys.stderr.write(f"FAIL: {label} 探测器 error check fail: {failed}\n")
         sys.stderr.write(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
         raise SystemExit(1)
-    print("[OK] {} 探测器：所有 error check pass".format(label))
+    print(f"[OK] {label} 探测器：所有 error check pass")
     return data
 
 
 def main():
     if not WS_CHECK.exists() or not WIKI_CHECK.exists():
         raise SystemExit(
-            "FAIL: yzr-SKILL 探测器缺失（{} / {}）——CI 未拉 submodule？".format(
-                WS_CHECK, WIKI_CHECK
-            )
+            f"FAIL: yzr-SKILL 探测器缺失（{WS_CHECK} / {WIKI_CHECK}）——CI 未拉 submodule？"
         )
 
     with tempfile.TemporaryDirectory(prefix="llmw-smoke-") as tmp:
@@ -133,7 +131,7 @@ def main():
             ids = {c["id"]: c.get("passed") for c in data["checks"]}
             if ids.get(check_id) is not True:
                 raise SystemExit(
-                    "FAIL: {} check 未 pass/缺失: {}".format(check_id, ids)
+                    f"FAIL: {check_id} check 未 pass/缺失: {ids}"
                 )
         print("[OK] 读取契约 check（E1/E2）passed=True")
 
