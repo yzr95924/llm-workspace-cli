@@ -25,4 +25,8 @@ llmw = ["../templates/*.template"]
 # llmw 仅消费其产物; 与本仓 spec/spec 合规无关, 扫了会让 CI 误报)。
 # 本地 ruff 与 CI 同样生效（CI 命令 `ruff check .` 从仓库根目录扫）。
 [tool.ruff]
+# ruff 新版默认开启 preview rules,会扫出 ~90 个新规则错误
+# (FA100/I001/UP032/RUF100 等),用于 CI lint 误伤修复。
+# 显式关闭 preview,锁住稳定规则集——本地 ruff 0.15.20 与 CI 最新版都生效。
+preview = false
 extend-exclude = ["yzr-SKILL"]
