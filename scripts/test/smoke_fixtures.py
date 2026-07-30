@@ -40,9 +40,7 @@ def _llmw(args):
     if proc.returncode != 0:
         sys.stderr.write(proc.stdout)
         sys.stderr.write(proc.stderr)
-        raise SystemExit(
-            f"FAIL: llmw {' '.join(args)} exit={proc.returncode}"
-        )
+        raise SystemExit(f"FAIL: llmw {' '.join(args)} exit={proc.returncode}")
     return proc
 
 
@@ -130,9 +128,7 @@ def main():
         ]:
             ids = {c["id"]: c.get("passed") for c in data["checks"]}
             if ids.get(check_id) is not True:
-                raise SystemExit(
-                    f"FAIL: {check_id} check 未 pass/缺失: {ids}"
-                )
+                raise SystemExit(f"FAIL: {check_id} check 未 pass/缺失: {ids}")
         print("[OK] 读取契约 check（E1/E2）passed=True")
 
     print("\nsmoke gate PASS")
