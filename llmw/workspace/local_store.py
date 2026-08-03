@@ -1,10 +1,14 @@
 """workspace_local.toml 读写 (主机相关运行时配置)
 
-承接原 workspace.toml 的三个运行时字段——``default_model`` / ``enter_cli`` /
-``enter_byobu``——它们描述"**这台主机**装了哪个 agent / 是否有 byobu / 默认用哪个
-model"，跨主机共用一个 git 跟踪的 workspace.toml 会互相覆盖产生 churn。schema v2 起
-从 workspace.toml (git 跟踪的结构数据) 拆出，落本文件，gitignored (workspace
-.gitignore managed block)。无 secret (api_key 在 workspace_models.toml)，不 chmod 600。
+承接原 workspace.toml 的两个运行时字段——``enter_cli`` / ``enter_byobu``——它们描述
+"**这台主机**装了哪个 agent / 是否有 byobu"，跨主机共用一个 git 跟踪的 workspace.toml
+会互相覆盖产生 churn。schema v2 起从 workspace.toml (git 跟踪的结构数据) 拆出，落本文件，
+gitignored (workspace .gitignore managed block)。无 secret (api_key 在
+workspace_models.toml)，不 chmod 600。
+
+(原 v1 的 ``default_model`` 字段在 schema v2 迁移时**静默丢弃**——它本就不在
+``resolve_for_wiki`` 解析路径里、仅 wiki show 兜底显示，是误导性死配置面；"默认 model"
+概念由 registry 的 ``is_default`` 单一表达。)
 
 与 workspace/store.py 风格对齐：dataclass + load/save/create_skeleton，原子写。
 load 文件缺失返回空骨架（不写盘）——与"运行时配置未设"同态，调用点免判空文件。
@@ -26,13 +30,12 @@ SCHEMA_VERSION_SUPPORTED = 1
 class WorkspaceLocal:
     """workspace_local.toml 解析结果 (主机相关运行时配置)。
 
-    三字段全可选 (None = 未设)：default_model / enter_cli / enter_byobu。
+    两字段全可选 (None = 未设)：enter_cli / enter_byobu。
     与 ``WorkspaceToml`` 正交——结构数据 (wiki 注册表 / schema 元信息) 仍在 workspace.toml。
     """
 
     schema_version: int
     created_at: str
-    default_model: Optional[str] = None
     enter_cli: Optional[str] = None  # "claude" (默认) | "qodercli" | "opencode"
     # True = wiki enter 在 byobu 固定 session (llm_workspace) 按 wiki 名开窗口；
     # None/False = 阻塞直启。session 名是代码常量 (llmw/wiki/byobu.py)，不可配。
@@ -42,7 +45,7 @@ class WorkspaceLocal:
 def load(workspace_root: Path) -> WorkspaceLocal:
     """从 <workspace_root>/workspace_local.toml 加载并校验。
 
-    文件不存在 → 返回空骨架 (三字段 None，schema_version 当前版本)。不写盘——
+    文件不存在 → 返回空骨架 (两字段 None，schema_version 当前版本)。不写盘——
     纯读路径 (如 ``enter``) 不会因读配置而落出空文件。
     """
     toml_path = workspace_root / "workspace_local.toml"
@@ -65,11 +68,12 @@ def load(workspace_root: Path) -> WorkspaceLocal:
 
     # 严格只吃真 TOML 布尔；手改成 "true"/"false" 字符串按 unset 处理
     # (防 Python bool("false") is True 陷阱把 byobu 模式静默打开，与 ws_store.load 一致)
+    # 注：老 local 文件可能残留 default_model 行 (schema v2 拆出时短暂存在过)——
+    # TOML 对未知 key 宽容，这里不读即静默忽略，不 bump schema_version。
     enter_byobu_raw = raw.get("enter_byobu")
     return WorkspaceLocal(
         schema_version=sv,
         created_at=raw.get("created_at", now_iso8601()),
-        default_model=raw.get("default_model"),
         enter_cli=raw.get("enter_cli"),
         enter_byobu=enter_byobu_raw if isinstance(enter_byobu_raw, bool) else None,
     )
@@ -86,8 +90,6 @@ def save(workspace_root: Path, wl: WorkspaceLocal) -> None:
         "schema_version": wl.schema_version,
         "created_at": wl.created_at,
     }
-    if wl.default_model is not None:
-        data["default_model"] = wl.default_model
     # enter_cli = "claude" 是默认值，不落盘 (行不存在即 claude)，与 store.py 旧逻辑一致
     if wl.enter_cli is not None and wl.enter_cli != "claude":
         data["enter_cli"] = wl.enter_cli

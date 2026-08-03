@@ -504,10 +504,6 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
     if name not in ws.wikis:
         raise WikiNotFound(f"wiki '{name}' 不在当前 workspace 中")
 
-    from llmw.workspace import local_store
-
-    local = local_store.load(workspace_root)
-
     wiki_path = workspace_root / ws.wikis[name].path
     meta = None
     if (wiki_path / "wiki_metadata.toml").is_file():
@@ -554,13 +550,11 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         ModelDefaultNotSet,
         ModelDefaultAmbiguous,
     ):
-        # resolve 失败 → 维持向后兼容：旧逻辑
-        final_model = (meta.model if meta else None) or local.default_model
+        # resolve 失败 → 退化：只能从 wiki_metadata.model 推断（不再有 workspace
+        # default_model 兜底——该字段已删，"默认 model" 由 registry is_default 表达）。
+        final_model = meta.model if meta else None
         if final_model:
-            if meta and meta.model:
-                model_source = "wiki.metadata.model"
-            elif local.default_model:
-                model_source = "workspace_local.default_model"
+            model_source = "wiki.metadata.model"
 
     if as_json:
         out = {

@@ -28,7 +28,6 @@ from llmw.workspace import store as ws_store
 
 # config KEY 白名单: name -> (can_set, can_unset, type)
 CONFIG_KEYS = {
-    "default_model": (True, True, str),  # → workspace_local.toml
     "enter_cli": (True, True, str),  # → workspace_local.toml；白名单见 _check_enter_cli
     "enter_byobu": (True, True, bool),  # → workspace_local.toml；值解析见 _parse_bool
     "templates_version": (False, False, str),  # 只读, workspace.toml
@@ -38,7 +37,7 @@ CONFIG_KEYS = {
 
 # 路由到 workspace_local.toml 的运行时配置 key (主机相关)。schema v2 起这些字段
 # 不再存于 workspace.toml (结构数据)；config get/set/unset 据 LOCAL_KEYS 决定落点。
-LOCAL_KEYS = frozenset({"default_model", "enter_cli", "enter_byobu"})
+LOCAL_KEYS = frozenset({"enter_cli", "enter_byobu"})
 
 
 _ENTER_CLI_WHITELIST = frozenset({"claude", "qodercli", "opencode"})
@@ -79,8 +78,8 @@ def _parse_bool(key: str, value: str) -> bool:
 # 加宽到 settings*.json（含 settings.json / settings.<env>.json 等所有变体）。
 # 后 3 行为 llmw 自有扩展（spec §10 字面未列，"至少包含"语义下保留以避免误提交，
 # 见 MEMORY 驳正条目）：
-# - workspace_local.toml  主机相关运行时配置 (default_model/enter_cli/enter_byobu，
-#                          schema v2 起从 workspace.toml 拆出；跨主机各异，必须本地化)
+# - workspace_local.toml  主机相关运行时配置 (enter_cli/enter_byobu，schema v2 起
+#                          从 workspace.toml 拆出；跨主机各异，必须本地化)
 # - .llmw-trash/          wiki remove --purge 写入的备份目录
 # - **/opencode.json      enter_cli=opencode 的 overlay 落盘（含明文 apiKey，与
 #                          settings*.json 同一安全模型，见 llmw/models/overlay_opencode.py）
@@ -375,10 +374,6 @@ def config_get(workspace_root: Path, key: Optional[str]) -> None:
     if key is None:
         # dump
         print(f"# workspace: {workspace_root}")
-        if local.default_model is not None:
-            print(f"default_model = {local.default_model}")
-        else:
-            print("# default_model: <unset>")
         if local.enter_cli is not None:
             print(f"enter_cli = {local.enter_cli}")
         else:

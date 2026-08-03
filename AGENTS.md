@@ -160,13 +160,15 @@ CLI 内联 wiki 骨架的字节一致性保证）见设计文档与备份 CLAUDE
 
 - **`<workspace>/workspace.toml`**：schema v2；`schema_version` / `created_at` /
   `templates_version`（只读）+ `[wikis.<name>]` 注册表。**只承载结构数据**——schema v2 起
-  运行时字段（`default_model` / `enter_cli` / `enter_byobu`）迁出到 `workspace_local.toml`
-  （见下）。老 v1 workspace 首次 `load` 自愈迁移（`store._migrate_v1_to_v2`，幂等）。
+  运行时字段（`enter_cli` / `enter_byobu`）迁出到 `workspace_local.toml`（见下）；
+  `default_model` 删除（不在 resolve 路径、误导性死配置面）。老 v1 workspace 首次 `load`
+  自愈迁移（`store._migrate_v1_to_v2`，幂等；`default_model` 静默丢弃）。
 - **`<workspace>/workspace_local.toml`**：schema v1；`schema_version` / `created_at`（只读）+
-  `default_model` / `enter_cli` / `enter_byobu`（可 set/unset）。**主机相关运行时配置**——
-  这三字段描述"这台主机装了哪个 agent / 是否有 byobu / 默认 model"，跨主机共用一个 git 仓会
-  互相覆盖产生 churn，故拆出本地化。**不入 git**（与 `workspace_models.toml` 同一 gitignore
-  managed block），无 secret 不 chmod 600。`enter` / `wiki show` / `config` 均从此读。
+  `enter_cli` / `enter_byobu`（可 set/unset）。**主机相关运行时配置**——这两字段描述"这台
+  主机装了哪个 agent / 是否有 byobu"，跨主机共用一个 git 仓会互相覆盖产生 churn，故拆出本地化。
+  **不入 git**（与 `workspace_models.toml` 同一 gitignore managed block），无 secret 不 chmod 600。
+  `enter` / `config` 均从此读。（原 v1 的 `default_model` 已删——不在 resolve 路径；"默认 model"
+  由 registry `is_default` 表达。）
 - **`<workspace>/workspace_models.toml`**（Phase 2）：schema v2；`schema_version` / `created_at` /
   `updated_at`（只读，CLI 自动 bump）+ `[[models]]` 数组，每条含 `model_id` / `name` / `base_url` /
   `api_key` / 可选 `is_default`。约束：model_id 唯一（`^[a-z0-9_-]{1,64}$`，复用 wiki NAME_RE），
