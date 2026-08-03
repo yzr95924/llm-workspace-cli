@@ -127,7 +127,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="workspace display name (写入 AGENTS.md + CLAUDE.md; 默认 'LLM Wiki Workspace')",
     )
 
-    p_config = sub.add_parser("config", help="workspace.toml 读写", parents=[common])
+    p_config = sub.add_parser(
+        "config",
+        help="workspace 配置读写 (workspace.toml + workspace_local.toml)",
+        parents=[common],
+    )
     p_config.add_argument(
         "action", nargs="?", default=None, choices=[None, "get", "set", "unset"]
     )
@@ -240,7 +244,7 @@ def build_parser() -> argparse.ArgumentParser:
     # enter
     pw_enter = wiki_sub.add_parser(
         "enter",
-        help="启动 AI agent session (默认 claude，workspace.toml#enter_cli 可切 qodercli/opencode；enter_byobu=true 时在 byobu 固定 session 开窗口)",
+        help="启动 AI agent session (默认 claude，workspace_local.toml#enter_cli 可切 qodercli/opencode；enter_byobu=true 时在 byobu 固定 session 开窗口)",
         parents=[common],
     )
     pw_enter.add_argument("--dry-run", action="store_true", dest="dry_run")

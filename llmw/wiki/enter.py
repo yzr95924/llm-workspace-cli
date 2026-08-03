@@ -1,4 +1,4 @@
-"""wiki enter — 启动 AI agent session (默认 claude；workspace.toml#enter_cli 切换 qodercli/opencode)
+"""wiki enter — 启动 AI agent session (默认 claude；workspace_local.toml#enter_cli 切换 qodercli/opencode)
 
 claude 路径（默认，Phase 2 交付 §9.5）：resolved model 通过写 <wiki>/.claude/settings.local.json
 的 env 块（Local 层，优先级 > User）交付，lazy on enter。不再注入 subprocess env、不再传
@@ -12,7 +12,7 @@ opencode 路径（enter_cli = "opencode"）：与 claude 同族——resolve_for
 qodercli 路径（enter_cli = "qodercli"）：跳过 overlay.apply / 不解析 model /
 不写 .claude/——只把 wiki 目录传给 qodercli（qodercli 自读 AGENTS.md）。
 
-byobu 窗口模式（workspace.toml#enter_byobu = true，与 backend 选择正交、三 backend 通用）：
+byobu 窗口模式（workspace_local.toml#enter_byobu = true，与 backend 选择正交、三 backend 通用）：
 agent 不再阻塞直启当前终端，改为在 byobu 固定 session `llm_workspace` 内按 wiki 名开窗口
 （llmw/wiki/byobu.py）——fire-and-forget：窗口建成即返回 0，不等 agent 退出、退出码不来自
 agent。已有同名窗口 → select-window 复用，不新建。最终 spawn 统一收口在 _spawn()。
@@ -89,13 +89,13 @@ def _spawn(
     wiki_path: Path,
     name: str,
     cmd: List[str],
-    ws: ws_store.WorkspaceToml,
+    enter_byobu: bool,
     dry_run: bool,
 ) -> int:
     """最终 spawn 收口（三 backend 共用）：enter_byobu 开 → byobu 窗口模式；关 → 阻塞直启。
 
-    byobu 模式（workspace.toml#enter_byobu = true）：fire-and-forget——窗口建成即返回 0，
-    不等 agent 退出、退出码不来自 agent。已有同名窗口 → select-window 复用，不新建。
+    byobu 模式（workspace_local.toml#enter_byobu = true）：fire-and-forget——窗口建成即
+    返回 0，不等 agent 退出、退出码不来自 agent。已有同名窗口 → select-window 复用，不新建。
 
     dry-run 打印 byobu 决策树但不探测 byobu/session 状态（与"dry-run 跳过 PATH 检查"
     同一约定：dry-run 零外部副作用）。
@@ -104,11 +104,11 @@ def _spawn(
         print("[llmw] cmd:", file=sys.stdout)
         print(f"  {' '.join(cmd)}", file=sys.stdout)
         print(f"[llmw] env: LLM_WIKI_ROOT={wiki_path}", file=sys.stdout)
-        if ws.enter_byobu:
+        if enter_byobu:
             session = byobu._BYOBU_SESSION
             quoted = " ".join(shlex.quote(a) for a in cmd)
             print(
-                "[llmw] spawn: byobu (workspace.toml#enter_byobu；fire-and-forget，"
+                "[llmw] spawn: byobu (workspace_local.toml#enter_byobu；fire-and-forget，"
                 "不等 agent 退出、退出码不来自 agent)",
                 file=sys.stdout,
             )
@@ -140,7 +140,7 @@ def _spawn(
         print("[llmw] --dry-run: 未执行", file=sys.stdout)
         return 0
 
-    if ws.enter_byobu:
+    if enter_byobu:
         if not byobu.byobu_available():
             raise ByobuNotFound(
                 "byobu-tmux 不在 PATH",
@@ -206,12 +206,17 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
     if not meta_p.is_file():
         print(f"[llmw] warning: wiki '{name}' 缺少 wiki_metadata.toml", file=sys.stderr)
 
-    # 选 backend：workspace.toml#enter_cli；未设（或手改出非法值）走 claude
-    ws = ws_store.load(workspace_root)
-    backend = ws.enter_cli or "claude"
+    # 选 backend：workspace_local.toml#enter_cli；未设（或手改出非法值）走 claude
+    from llmw.workspace import local_store
+
+    local = local_store.load(workspace_root)
+    backend = local.enter_cli or "claude"
     if backend not in ("claude", "qodercli", "opencode"):
-        backend = "claude"  # config set 有白名单；此处兜手改 workspace.toml 的越界值
+        backend = (
+            "claude"  # config set 有白名单；此处兜手改 workspace_local.toml 的越界值
+        )
     agent_bin = backend  # backend 值即二进制名
+    enter_byobu = bool(local.enter_byobu)
 
     # 检查 agent CLI 在 PATH（dry-run 时跳过）
     if not dry_run and shutil.which(agent_bin) is None:
@@ -228,7 +233,7 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
             print(f"[llmw] workspace: {workspace_root}", file=sys.stdout)
             print(f"[llmw] wiki:      {name} ({wiki_path})", file=sys.stdout)
             print(
-                "[llmw] backend:   qodercli (workspace.toml#enter_cli)",
+                "[llmw] backend:   qodercli (workspace_local.toml#enter_cli)",
                 file=sys.stdout,
             )
             print(
@@ -243,7 +248,7 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
             else:
                 print("[llmw] CLAUDE.md: ✗ missing", file=sys.stdout)
         # cmd/env/spawn 方式/未执行 由 _spawn 统一打印（dry-run）或执行（real）
-        return _spawn(wiki_path, name, cmd, ws, dry_run)
+        return _spawn(wiki_path, name, cmd, enter_byobu, dry_run)
 
     # claude（默认）/ opencode 路径：resolve → overlay → subprocess（两 backend 同族，
     # 只换 overlay 模块 / cmd / 展示文案）
@@ -253,7 +258,7 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
     if backend == "opencode":
         ov = overlay_opencode
         cmd, prompt = _build_cmd_opencode(wiki_path)
-        backend_label = "opencode (workspace.toml#enter_cli)"
+        backend_label = "opencode (workspace_local.toml#enter_cli)"
         context_file = wiki_path / "AGENTS.md"  # opencode 优先读 AGENTS.md
     else:
         ov = overlay
@@ -324,7 +329,7 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
         else:
             print(f"[llmw] {context_file.name}: ✗ missing", file=sys.stdout)
         # cmd/env/spawn 方式/未执行 由 _spawn 统一打印
-        return _spawn(wiki_path, name, cmd, ws, dry_run=True)
+        return _spawn(wiki_path, name, cmd, enter_byobu, dry_run=True)
 
     # opencode 路径特有：overlay 落盘含明文 apiKey，写盘前确保 workspace .gitignore 的
     # **/opencode.json 排除行就位（老 workspace 的 managed block 可能还是旧版少行）。
@@ -342,4 +347,4 @@ def enter(workspace_root: Path, name: str, dry_run: bool = False) -> int:
     # opencode.json）→ _spawn 收口（直启 = subprocess 透传 os.environ；
     # byobu = 开窗口，-e 注入 LLM_WIKI_ROOT）
     ov.apply(wiki_path, model)
-    return _spawn(wiki_path, name, cmd, ws, dry_run=False)
+    return _spawn(wiki_path, name, cmd, enter_byobu, dry_run=False)

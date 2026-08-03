@@ -92,8 +92,9 @@ llmw.cli (argparse + 分派)
 完整 7 条不变量维护在原 `CLAUDE.md`（迁移备份 `.migration-backup/CLAUDE.md.original`）。
 此处只列核心 3 条 + 指向 MEMORY 详述：
 
-1. **CLI 不写 wiki 内容**——只写 `workspace.toml` / `<wiki>/wiki_metadata.toml` /
-   `workspace_models.toml` + workspace `.gitignore`。`<wiki>/AGENTS.md` / `<wiki>/CLAUDE.md` /
+1. **CLI 不写 wiki 内容**——只写 `workspace.toml` / `workspace_local.toml` /
+   `<wiki>/wiki_metadata.toml` / `workspace_models.toml` + workspace `.gitignore`。
+   `<wiki>/AGENTS.md` / `<wiki>/CLAUDE.md` /
    `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` /
    `.gitignore` / 目录骨架 由 CLI 在 `add` 时内联生成——读 SKILL 仓 `references/` 下的
    `agents-md-template.md` + `claude-md-template.md` 两份模板和 6 个 fixtures，按
@@ -124,8 +125,9 @@ CLI 内联 wiki 骨架的字节一致性保证）见设计文档与备份 CLAUDE
 | `llmw.errors` | 自定义异常（按 exit_code 1/2/3 分层） | — |
 | `llmw.fsutil` | 原子写（tmp + fsync + rename）、ISO8601 时间 | — |
 | `llmw._compat` | tomllib (3.11+) / tomli (<3.11) 兼容层 + 手写 toml dump | — |
-| `llmw.workspace.store` | workspace.toml 读写 + schema 校验 | 不做 wiki 操作、不做 init 业务 |
-| `llmw.workspace.manager` | init/config/list 业务；init 写 workspace `.gitignore` | 不写 wiki 文件、不读 wiki_metadata.toml |
+| `llmw.workspace.store` | workspace.toml 读写 + schema 校验 (v2) + v1→v2 自愈迁移 | 不做 wiki 操作、不做 init 业务 |
+| `llmw.workspace.local_store` | workspace_local.toml 读写（主机相关运行时：default_model/enter_cli/enter_byobu） | 无 secret 不 chmod；不读 workspace.toml 结构数据 |
+| `llmw.workspace.manager` | init/config/list 业务；init 写 workspace `.gitignore`；config 路由 runtime key→local_store | 不写 wiki 文件、不读 wiki_metadata.toml |
 | `llmw.wiki.store` | wiki_metadata.toml 读写 + schema v2 + 模板填充 | 不写 workspace.toml、不调 init_wiki |
 | `llmw.wiki.init_wiki` | 渲染骨架（spec §1-§7 + §9.1 + §14）；读 references/fixtures → atomic_write；.gitkeep 无条件落盘（§7 红线不碰 git） | 不写 wiki_metadata.toml、不进 wiki 业务流 |
 | `llmw.wiki.manager` | add/remove/show/config 业务；add 调 init_wiki + 打印手动 git hint；校验 model_id | 不进 wiki 内部、不读 wiki/ 内容 |
@@ -154,10 +156,17 @@ CLI 内联 wiki 骨架的字节一致性保证）见设计文档与备份 CLAUDE
 
 ## 数据模型
 
-三份元数据文件，都走原子写（`fsutil.atomic_write` = `tmp + fsync + os.replace`）：
+四份元数据文件，都走原子写（`fsutil.atomic_write` = `tmp + fsync + os.replace`）：
 
-- **`<workspace>/workspace.toml`**：schema v1；`schema_version` / `created_at` / `templates_version`
-  （只读）+ `default_model` / `enter_cli` / `enter_byobu`（可 set/unset）+ `[wikis.<name>]` 注册表
+- **`<workspace>/workspace.toml`**：schema v2；`schema_version` / `created_at` /
+  `templates_version`（只读）+ `[wikis.<name>]` 注册表。**只承载结构数据**——schema v2 起
+  运行时字段（`default_model` / `enter_cli` / `enter_byobu`）迁出到 `workspace_local.toml`
+  （见下）。老 v1 workspace 首次 `load` 自愈迁移（`store._migrate_v1_to_v2`，幂等）。
+- **`<workspace>/workspace_local.toml`**：schema v1；`schema_version` / `created_at`（只读）+
+  `default_model` / `enter_cli` / `enter_byobu`（可 set/unset）。**主机相关运行时配置**——
+  这三字段描述"这台主机装了哪个 agent / 是否有 byobu / 默认 model"，跨主机共用一个 git 仓会
+  互相覆盖产生 churn，故拆出本地化。**不入 git**（与 `workspace_models.toml` 同一 gitignore
+  managed block），无 secret 不 chmod 600。`enter` / `wiki show` / `config` 均从此读。
 - **`<workspace>/workspace_models.toml`**（Phase 2）：schema v2；`schema_version` / `created_at` /
   `updated_at`（只读，CLI 自动 bump）+ `[[models]]` 数组，每条含 `model_id` / `name` / `base_url` /
   `api_key` / 可选 `is_default`。约束：model_id 唯一（`^[a-z0-9_-]{1,64}$`，复用 wiki NAME_RE），

@@ -28,13 +28,17 @@ from llmw.workspace import store as ws_store
 
 # config KEY 白名单: name -> (can_set, can_unset, type)
 CONFIG_KEYS = {
-    "default_model": (True, True, str),
-    "enter_cli": (True, True, str),  # 白名单见 _check_enter_cli
-    "enter_byobu": (True, True, bool),  # 值解析见 _parse_bool
-    "templates_version": (False, False, str),  # 只读
-    "created_at": (False, False, str),  # 只读
-    "schema_version": (False, False, int),  # 只读
+    "default_model": (True, True, str),  # → workspace_local.toml
+    "enter_cli": (True, True, str),  # → workspace_local.toml；白名单见 _check_enter_cli
+    "enter_byobu": (True, True, bool),  # → workspace_local.toml；值解析见 _parse_bool
+    "templates_version": (False, False, str),  # 只读, workspace.toml
+    "created_at": (False, False, str),  # 只读, workspace.toml
+    "schema_version": (False, False, int),  # 只读, workspace.toml
 }
+
+# 路由到 workspace_local.toml 的运行时配置 key (主机相关)。schema v2 起这些字段
+# 不再存于 workspace.toml (结构数据)；config get/set/unset 据 LOCAL_KEYS 决定落点。
+LOCAL_KEYS = frozenset({"default_model", "enter_cli", "enter_byobu"})
 
 
 _ENTER_CLI_WHITELIST = frozenset({"claude", "qodercli", "opencode"})
@@ -73,15 +77,18 @@ def _parse_bool(key: str, value: str) -> bool:
 # wiki 的 overlay secret，不依赖 per-wiki .gitignore / wiki scaffold（见 §10）。
 # 0.5.0 加 .qoder，0.6.0 把 */ 改 **/（覆盖 workspace 根级），0.6.1 把 settings.local.json
 # 加宽到 settings*.json（含 settings.json / settings.<env>.json 等所有变体）。
-# 后 2 行为 llmw 自有扩展（spec §10 字面未列，"至少包含"语义下保留以避免误提交，
+# 后 3 行为 llmw 自有扩展（spec §10 字面未列，"至少包含"语义下保留以避免误提交，
 # 见 MEMORY 驳正条目）：
-# - .llmw-trash/       wiki remove --purge 写入的备份目录
-# - **/opencode.json   enter_cli=opencode 的 overlay 落盘（含明文 apiKey，与
-#                      settings*.json 同一安全模型，见 llmw/models/overlay_opencode.py）
+# - workspace_local.toml  主机相关运行时配置 (default_model/enter_cli/enter_byobu，
+#                          schema v2 起从 workspace.toml 拆出；跨主机各异，必须本地化)
+# - .llmw-trash/          wiki remove --purge 写入的备份目录
+# - **/opencode.json      enter_cli=opencode 的 overlay 落盘（含明文 apiKey，与
+#                          settings*.json 同一安全模型，见 llmw/models/overlay_opencode.py）
 GITIGNORE_LINES = (
     "workspace_models.toml",
     "**/.claude/settings*.json",
     "**/.qoder/settings*.json",
+    "workspace_local.toml",
     ".llmw-trash/",
     "**/opencode.json",
 )
@@ -352,22 +359,32 @@ def _check_key(key: str) -> tuple:
     return CONFIG_KEYS[key]
 
 
+def _current_value(ws, local, key):
+    """从正确的源取 KEY 当前值：LOCAL_KEYS → workspace_local.toml，其余 → workspace.toml。"""
+    if key in LOCAL_KEYS:
+        return getattr(local, key, None)
+    return getattr(ws, key, None)
+
+
 def config_get(workspace_root: Path, key: Optional[str]) -> None:
-    """无 KEY: dump 整个 workspace.toml; 有 KEY: 打印该字段值"""
+    """无 KEY: dump (local 运行时 + workspace 结构); 有 KEY: 打印该字段值。"""
+    from llmw.workspace import local_store
+
     ws = ws_store.load(workspace_root)
+    local = local_store.load(workspace_root)
     if key is None:
         # dump
         print(f"# workspace: {workspace_root}")
-        if ws.default_model is not None:
-            print(f"default_model = {ws.default_model}")
+        if local.default_model is not None:
+            print(f"default_model = {local.default_model}")
         else:
             print("# default_model: <unset>")
-        if ws.enter_cli is not None:
-            print(f"enter_cli = {ws.enter_cli}")
+        if local.enter_cli is not None:
+            print(f"enter_cli = {local.enter_cli}")
         else:
             print("# enter_cli: <unset> (= claude)")
-        if ws.enter_byobu is not None:
-            print(f"enter_byobu = {str(ws.enter_byobu).lower()}")
+        if local.enter_byobu is not None:
+            print(f"enter_byobu = {str(local.enter_byobu).lower()}")
         else:
             print("# enter_byobu: <unset> (= false)")
         print(f"created_at = {ws.created_at}")
@@ -382,7 +399,7 @@ def config_get(workspace_root: Path, key: Optional[str]) -> None:
 
     if key not in CONFIG_KEYS:
         raise ConfigKeyMissing(f"KEY '{key}' 不存在")
-    val = getattr(ws, key, None)
+    val = _current_value(ws, local, key)
     if val is None:
         print("<unset>")
     elif isinstance(val, bool):
@@ -392,6 +409,9 @@ def config_get(workspace_root: Path, key: Optional[str]) -> None:
 
 
 def config_set(workspace_root: Path, key: str, value: str) -> None:
+    """所有可 set 的 KEY 都路由到 workspace_local.toml (结构 KEY 全只读)。"""
+    from llmw.workspace import local_store
+
     can_set, _, expected_type = _check_key(key)
     if not can_set:
         raise InvalidConfigKey(f"KEY '{key}' 不可 set（只读）")
@@ -399,24 +419,29 @@ def config_set(workspace_root: Path, key: str, value: str) -> None:
         _check_enter_cli(value)
     # bool 不能走 expected_type(value)——bool("false") is True
     parsed = _parse_bool(key, value) if expected_type is bool else expected_type(value)
-    ws = ws_store.load(workspace_root)
-    setattr(ws, key, parsed)
-    ws_store.save(workspace_root, ws)
+    local = local_store.load(workspace_root)
+    setattr(local, key, parsed)
+    local_store.save(workspace_root, local)
     print(f"✓ {key} = {value!r}", file=sys.stdout)
 
 
 def config_unset(workspace_root: Path, key: str) -> None:
+    """所有可 unset 的 KEY 都路由到 workspace_local.toml (结构 KEY 全只读)。"""
+    from llmw.workspace import local_store
+
     can_set, can_unset, _ = _check_key(key)
     if not can_unset:
         raise KeyNotUnsettable(f"KEY '{key}' 不可 unset")
-    ws = ws_store.load(workspace_root)
-    setattr(ws, key, None)
-    ws_store.save(workspace_root, ws)
+    local = local_store.load(workspace_root)
+    setattr(local, key, None)
+    local_store.save(workspace_root, local)
     print(f"✓ {key} unset", file=sys.stdout)
 
 
 def config_interactive(workspace_root: Path) -> None:
-    """TTY 下 `llmw config` 无参数进入; 非 TTY 打印字段列表后退出 0"""
+    """TTY 下 `llmw config` 无参数进入; 非 TTY 打印字段列表后退出 0。"""
+    from llmw.workspace import local_store
+
     if not sys.stdin.isatty():
         # 非 TTY: 打印字段列表 + 用法, 退出 0
         print("[llmw] config 子命令: get KEY / set KEY VALUE / unset KEY")
@@ -429,12 +454,13 @@ def config_interactive(workspace_root: Path) -> None:
         return
 
     ws = ws_store.load(workspace_root)
+    local = local_store.load(workspace_root)
     keys = list(CONFIG_KEYS.keys())
     while True:
-        print(f"\nworkspace 配置项 ({workspace_root}/workspace.toml):")
+        print("\nworkspace 配置项 (local 运行时 + workspace.toml 结构):")
         for i, key in enumerate(keys, 1):
             can_set, can_unset, _ = CONFIG_KEYS[key]
-            val = getattr(ws, key, None)
+            val = _current_value(ws, local, key)
             cur = repr(val) if val is not None else "<unset>"
             ro = " (只读)" if not can_set else ""
             print(f"  {i}. {key}{ro}    当前: {cur}")
@@ -465,7 +491,7 @@ def config_interactive(workspace_root: Path) -> None:
                 return
             continue
 
-        cur = getattr(ws, key, None) or ""
+        cur = _current_value(ws, local, key) or ""
         prompt = "输入新值（回车跳过 / '-' 清空）: "
         try:
             new_val = input(prompt).strip()
@@ -475,10 +501,10 @@ def config_interactive(workspace_root: Path) -> None:
             pass  # 跳过
         elif new_val == "-":
             config_unset(workspace_root, key)
-            ws = ws_store.load(workspace_root)
+            local = local_store.load(workspace_root)  # 编辑只动 local
         else:
             config_set(workspace_root, key, new_val)
-            ws = ws_store.load(workspace_root)
+            local = local_store.load(workspace_root)
 
         try:
             again = input("继续编辑？[Y/n]: ").strip().lower()

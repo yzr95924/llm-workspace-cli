@@ -504,6 +504,10 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
     if name not in ws.wikis:
         raise WikiNotFound(f"wiki '{name}' 不在当前 workspace 中")
 
+    from llmw.workspace import local_store
+
+    local = local_store.load(workspace_root)
+
     wiki_path = workspace_root / ws.wikis[name].path
     meta = None
     if (wiki_path / "wiki_metadata.toml").is_file():
@@ -551,12 +555,12 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         ModelDefaultAmbiguous,
     ):
         # resolve 失败 → 维持向后兼容：旧逻辑
-        final_model = (meta.model if meta else None) or ws.default_model
+        final_model = (meta.model if meta else None) or local.default_model
         if final_model:
             if meta and meta.model:
                 model_source = "wiki.metadata.model"
-            elif ws.default_model:
-                model_source = "workspace.default_model"
+            elif local.default_model:
+                model_source = "workspace_local.default_model"
 
     if as_json:
         out = {

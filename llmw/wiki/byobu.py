@@ -1,6 +1,6 @@
 """wiki enter 的 byobu 窗口模式 — 固定 session llm_workspace 内按 wiki 名开窗口
 
-workspace.toml#enter_byobu = true 时，enter 不再阻塞直启 agent CLI，改为在 byobu
+workspace_local.toml#enter_byobu = true 时，enter 不再阻塞直启 agent CLI，改为在 byobu
 固定 session 里开窗口（fire-and-forget）。本模块是 byobu/tmux 的薄封装 + 开窗编排，
 只被 llmw/wiki/enter.py 调用；不写元数据、不读配置。
 
