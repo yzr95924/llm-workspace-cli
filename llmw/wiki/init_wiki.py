@@ -8,11 +8,12 @@ fixtures 是 CLI 字节级金标准(fixtures/README.md 附录 A):
 落盘 8 件产物(spec 0.11.0 AGENTS.md SSOT 拆出):
   AGENTS.md, CLAUDE.md(薄壳), .gitignore, wiki/index.md, wiki/log.md,
   MEMORY/MEMORY.md, wiki/tags.md, scripts/SCRIPTS.md
-子目录: raw/{articles,assets}, wiki/{5 类内容页}, MEMORY/, scripts/
+子目录: raw/{articles,assets,discussions}, wiki/{5 类内容页}, MEMORY/, scripts/
 
 git 红线(spec §7, 0.16.0+): CLI 绝不碰 git——init 仅落盘目录树 + .gitkeep 占位
-+ 打印手动 hint;所有 git 操作由用户自行触发。.gitkeep 无条件落盘(7 个空目录:
-5 内容页 + raw/articles + raw/assets),便于用户后续 `git add .` 跟踪空目录。
++ 打印手动 hint;所有 git 操作由用户自行触发。.gitkeep 无条件落盘(8 个空目录:
+5 内容页 + raw/articles + raw/assets + raw/discussions),便于用户后续 `git add .`
+跟踪空目录。
 """
 
 import re
@@ -32,11 +33,18 @@ _CONTENT_SUBDIRS = [
     "sources",
     "syntheses",
 ]
-_RAW_SUBDIRS = ["articles", "assets"]
+# raw/ 默认子目录(字母序):
+#   articles / assets —— 始终预建(spec §1 默认占位)
+#   discussions       —— 预建(spec §15 协作草稿层):用户高频用,预建免去手动 mkdir;
+#                        .gitkeep 不被 .gitignore 排除,git 正常跟踪。
+# raw/external/ **不**在此列:spec §13 按需建(接入外部仓 + anchor.toml 时才存在),
+# 且 .gitignore 的 `raw/external/*` 规则会吃掉 .gitkeep——预建对 git 不可见(实测)。
+_RAW_SUBDIRS = ["articles", "assets", "discussions"]
 
-# spec §7 step 3 (0.15.0+): 需要 .gitkeep 占位的空目录——5 内容页子目录 + raw 两个默认
-# 子目录。MEMORY/ 与 scripts/ 不需要(各有真实索引文件 MEMORY.md / SCRIPTS.md 让目录被
-# git 跟踪)。.gitkeep 无条件落盘(不 gated on --git),纯目录树下无害。
+# spec §7 step 3 (0.15.0+): 需要 .gitkeep 占位的空目录——5 内容页子目录 + raw 三个默认
+# 子目录(articles/assets/discussions)。MEMORY/ 与 scripts/ 不需要(各有真实索引文件
+# MEMORY.md / SCRIPTS.md 让目录被 git 跟踪)。.gitkeep 无条件落盘(不 gated on --git),
+# 纯目录树下无害。
 _GITKEEP_DIRS = [Path("wiki") / d for d in _CONTENT_SUBDIRS] + [
     Path("raw") / d for d in _RAW_SUBDIRS
 ]
