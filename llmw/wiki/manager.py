@@ -45,7 +45,7 @@ def _wiki_abs(workspace_root: Path, name: str) -> Path:
 def _print_git_hint(wiki_dir: Path) -> None:
     """spec §7 (0.16.0+) git 红线: CLI 不碰 git——落盘后打印手动 hint,让用户自行决定。
 
-    .gitkeep 占位文件已在 init_wiki.render_and_write 无条件落盘(7 个空目录);
+    .gitkeep 占位文件已在 init_wiki.render_and_write 无条件落盘(8 个空目录);
     用户 `git add .` 时空目录自然纳入跟踪。
     """
     print(f"[llmw] wiki 已落盘为纯目录树: {wiki_dir}", file=sys.stdout)

@@ -1,5 +1,5 @@
 """wiki 仓初始化: 读 SKILL 仓 references/ 下的模板与 fixtures,
-按 wiki-spec.md v0.29.0 §1-§7 + §9.1 + §14 把 wiki 仓"出生形态"落盘.
+按 wiki-spec.md v0.30.0 §1-§7 + §9.1 + §14 把 wiki 仓"出生形态"落盘.
 
 CLI 内联实现(spec 0.2.0 起 wiki 创建归 CLI 负责,SKILL 仓只管运行时纪律).
 fixtures 是 CLI 字节级金标准(fixtures/README.md 附录 A):
@@ -93,7 +93,7 @@ def render_and_write(
     cli_version: str,
     spec_version: str,
 ) -> None:
-    """按 wiki-spec.md v0.29.0 落盘 wiki 仓骨架.
+    """按 wiki-spec.md v0.30.0 落盘 wiki 仓骨架.
 
     Args:
         wiki_dir: wiki 仓根目录 (含路径名);调用方应已 mkdir 此目录.
@@ -178,7 +178,7 @@ def render_and_write(
     ):
         d.mkdir(parents=True, exist_ok=True)
 
-    # spec §7 step 3 (0.16.0+): .gitkeep 无条件落盘——7 个空目录占位,便于用户后续
+    # spec §7 step 3 (0.16.0+): .gitkeep 无条件落盘——8 个空目录占位,便于用户后续
     # `git add .` 跟踪。touch 是幂等 best-effort:目录已建,空文件无害;失败不阻断落盘。
     for rel in _GITKEEP_DIRS:
         try:
