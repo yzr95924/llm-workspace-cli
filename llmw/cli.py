@@ -1,6 +1,7 @@
 """argparse 顶层 + 全局 flag + 子命令分派"""
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from llmw import __version__
@@ -147,6 +148,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="仅列出含此 tag 的 wiki (可重复, AND 关系)",
     )
 
+    p_status = sub.add_parser(
+        "status",
+        help="一屏查看所有运行中的 wiki agent session（tmux 窗口实时枚举）",
+        parents=[common],
+    )
+    p_status.add_argument(
+        "--tmux",
+        action="store_true",
+        help="输出单行 ●N（运行中窗口数），存在 dead 窗口时后缀 ✗M；供 byobu 状态条集成",
+    )
+
     # ===== model registry =====
     p_model = sub.add_parser("model", help="workspace model registry", parents=[common])
     model_sub = p_model.add_subparsers(dest="model_action", metavar="ACTION")
@@ -244,10 +256,32 @@ def build_parser() -> argparse.ArgumentParser:
     # enter
     pw_enter = wiki_sub.add_parser(
         "enter",
-        help="启动 AI agent session (默认 claude，workspace_local.toml#enter_cli 可切 qodercli/opencode；enter_byobu=true 时在 byobu 固定 session 开窗口)",
+        help="启动 AI agent session (默认 claude，workspace_local.toml#enter_cli 可切 qodercli/opencode；在当前 tmux session 开窗口，不在 tmux 内 → 兜底 llm_workspace + attach)",
         parents=[common],
     )
     pw_enter.add_argument("--dry-run", action="store_true", dest="dry_run")
+    pw_enter.add_argument(
+        "--window-suffix",
+        default=None,
+        dest="window_suffix",
+        metavar="SUFFIX",
+        help="并行窗口后缀：拼接为 <wiki>-<suffix>（缺省 main）；传了才新开，不传恒为复用跳转",
+    )
+
+    # stop
+    pw_stop = wiki_sub.add_parser(
+        "stop",
+        help="终止 wiki 的 agent session 窗口（kill-window；候选 >1 需 --window-suffix 消歧）",
+        parents=[common],
+    )
+    pw_stop.add_argument(
+        "--window-suffix",
+        default=None,
+        dest="window_suffix",
+        metavar="SUFFIX",
+        help="只匹配 <wiki>-<suffix> 窗口（缺省 = 所有该 wiki 的带标窗口）",
+    )
+    pw_stop.add_argument("--yes", "-y", action="store_true")
 
     return parser
 
@@ -269,6 +303,39 @@ def main(argv=None) -> int:
                 display_name=args.display_name or "LLM Wiki Workspace",
             )
             return 0
+
+        if args.command == "status":
+            # status 不内在依赖 workspace（真相源是 tmux server）——提到
+            # resolve_workspace_root 之前分派；R8：默认路径解析失败且有带标窗口时
+            # 降级孤儿清理模式（显式 --workspace/$LLMW_WORKSPACE 失败保持硬报错，
+            # 防 typo 路径 + 习惯性回 y 误杀活窗口）
+            from llmw.config import DEFAULT_WORKSPACE, resolve_workspace_root
+            from llmw.errors import WorkspaceNotFound
+            from llmw.wiki.status import status as wiki_status, status_orphan
+
+            try:
+                ws_root = resolve_workspace_root(getattr(args, "workspace", None))
+            except WorkspaceNotFound as e:
+                explicit = getattr(args, "workspace", None) or os.environ.get(
+                    "LLMW_WORKSPACE"
+                )
+                if explicit:
+                    if not Path(explicit).exists():
+                        e.hint = (e.hint or "") + (
+                            "；若 workspace 已删除，不带 --workspace 运行 `llmw status`"
+                            " 可交互清理 tmux 残留 session"
+                        )
+                    raise
+                return status_orphan(
+                    DEFAULT_WORKSPACE.resolve(),
+                    e,
+                    as_json=getattr(args, "json", False),
+                    tmux_line=args.tmux,
+                )
+            return wiki_status(
+                as_json=getattr(args, "json", False),
+                tmux_line=args.tmux,
+            )
 
         # 下列命令需要先解析 workspace_root
         from llmw.config import resolve_workspace_root
@@ -402,10 +469,24 @@ def main(argv=None) -> int:
             elif wa == "enter":
                 from llmw.wiki.enter import enter as wiki_enter
 
-                return wiki_enter(ws_root, args.name, dry_run=args.dry_run)
+                return wiki_enter(
+                    ws_root,
+                    args.name,
+                    dry_run=args.dry_run,
+                    window_suffix=args.window_suffix,
+                )
+            elif wa == "stop":
+                from llmw.wiki.manager import stop as wiki_stop
+
+                return wiki_stop(
+                    ws_root,
+                    args.name,
+                    window_suffix=args.window_suffix,
+                    yes=args.yes,
+                )
             else:
                 print(
-                    "[llmw] wiki 子命令需要 ACTION (add/remove/rename/show/config/enter)",
+                    "[llmw] wiki 子命令需要 ACTION (add/remove/rename/show/config/enter/stop)",
                     file=sys.stderr,
                 )
                 return 1

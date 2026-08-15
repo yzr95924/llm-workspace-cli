@@ -120,7 +120,7 @@ metadata:
 
 - **有界解析早停（必抄）**：cc-switch 在 `session_manager/mod.rs:87-90`（常量 200 条 / 1MiB 总 / 16KiB 单条）+ `:107-133`（`SessionMessageBatchBuilder::push` 在保留每条前检查，超限 `ControlFlow::Break` 让 reader 立刻停）。**绝不**"读完整文件再 truncate"——这是处理巨量历史的底线。Python 用计数器 + break + UTF-8 边界回退。
 - **跨 backend 抽象用"约定式自由函数 + 中央 dict 分派"，非 trait/ABC**：cc-switch `session_manager/providers/mod.rs` 全文 7 行 `pub mod`，中央 `match provider_id`（`session_manager/mod.rs:238-248`）分派；每个 adapter 暴露同名函数集（`scan_sessions`/`load_messages`/`delete_session` 等）+ `PROVIDER_ID` 常量，无 trait。**与 llmw 现有 `overlay.py`/`overlay_opencode.py` 平行模块风格一致**，且适配 Python（无 trait；Protocol 偏静态）。新加 backend = 建 `session/providers/<name>.py` + 加一个 dict 臂，不碰继承链。
-- **`resume_cmd` 下沉各 provider + 复用 `_spawn`**：各 adapter 自带 `resume_command` 字段（`SessionMeta`，claude=`claude --resume {id}` @ `providers/claude.rs:460`，opencode=`opencode session resume {id}`），上层不关心动词差异。llmw 落地时复用 `llmw/wiki/enter.py:_spawn` 的 byobu/直启收口 + backend 分派。
+- **`resume_cmd` 下沉各 provider + 复用 `_spawn`**：各 adapter 自带 `resume_command` 字段（`SessionMeta`，claude=`claude --resume {id}` @ `providers/claude.rs:460`，opencode=`opencode session resume {id}`），上层不关心动词差异。llmw 落地时复用 `llmw/wiki/enter.py:_spawn` 的窗口 spawn 收口 + backend 分派。
 - **缓存策略**：cc-switch 旁路 SQLite（`session_manager/scan_cache_store.rs`，按 `(mtime_ns, size)` 指纹 memoize 解析结果）对 llmw **过重**。内核——"解析文件→meta"当纯函数、`(mtime_ns, size)` 为 key memoize、指纹不变复用——llmw 可用 `~/.cache/llmw/session-meta.json`（JSON dict）复刻；MVP **可不缓存**（claude 单 wiki session 文件数通常个位数，远小于 cc-switch 的 17000+）。**即便 Python 标准库自带 sqlite3 也不引入**（守零 DB 定位）。
 - **delete 路径穿越护栏**：cc-switch `session_manager/mod.rs:717-722` 把 root 与 source 都 `canonicalize`，source 必须以 provider root 为前缀。llmw 若做 `session delete` 需同款护栏 + `--yes`。
 

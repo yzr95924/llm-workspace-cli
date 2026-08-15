@@ -1,11 +1,11 @@
 """workspace.toml 读写 + schema 校验
 
 schema v2: workspace.toml 只承载**结构数据** (schema 元信息 + wiki 注册表)。
-原 v1 的三个运行时字段 (default_model / enter_cli / enter_byobu) 是主机相关配置——
-``enter_cli`` / ``enter_byobu`` v2 起迁出到 workspace_local.toml (见
-llmw/workspace/local_store.py)；``default_model`` 静默丢弃 (不在 resolve 路径、
-误导性死配置面，"默认 model" 由 registry ``is_default`` 表达)。老 v1 workspace 首次
-load 自动迁移 (自愈、幂等，见 ``_migrate_v1_to_v2``)。
+原 v1 的运行时字段是主机相关配置：``enter_cli`` v2 起迁出到 workspace_local.toml
+(见 llmw/workspace/local_store.py)；``enter_byobu`` / ``default_model`` 静默丢弃
+(enter_byobu 设计 doc/session-visibility-design.md §2.5 删除；default_model 不在
+resolve 路径、误导性死配置面，"默认 model" 由 registry ``is_default`` 表达)。
+老 v1 workspace 首次 load 自动迁移 (自愈、幂等，见 ``_migrate_v1_to_v2``)。
 """
 
 import io
@@ -34,8 +34,8 @@ class WikiEntry:
 class WorkspaceToml:
     """workspace.toml 解析结果 (schema v2: 结构数据 only)
 
-    v2 起不再含运行时字段——``enter_cli`` / ``enter_byobu`` 迁出到
-    ``workspace_local.toml`` (见 local_store.py)；``default_model`` 删除 (见
+    v2 起不再含运行时字段——``enter_cli`` 迁出到 ``workspace_local.toml``
+    (见 local_store.py)；``enter_byobu`` / ``default_model`` 删除 (见
     ``_migrate_v1_to_v2``)。
     """
 
@@ -105,14 +105,16 @@ def save(workspace_root: Path, ws: WorkspaceToml) -> None:
 
 
 def _migrate_v1_to_v2(workspace_root: Path, raw_v1: dict) -> None:
-    """workspace.toml schema v1 → v2: 把 enter_cli / enter_byobu 抽到
-    workspace_local.toml，workspace.toml 重写为 v2。
+    """workspace.toml schema v1 → v2: 把 enter_cli 抽到 workspace_local.toml，
+    workspace.toml 重写为 v2。
 
     - v1 的 ``default_model`` 字段**静默丢弃**——它不在 ``resolve_for_wiki`` 解析路径
       (仅 wiki show 兜底显示)，是无功能的误导性配置面；"默认 model" 由 registry 的
       ``is_default`` 单一表达。
+    - v1 的 ``enter_byobu`` 字段**静默丢弃**（设计 doc/session-visibility-design.md
+      §2.5 已删除该配置——窗口路径全环境成立，直启模式无存在场景）。
     - merge 不覆盖：local 已有值 (用户可能已在另一台机配过) 优先，仅填空。
-    - 空值不落 local 文件：v1 两字段全 unset 时不创建 workspace_local.toml。
+    - 空值不落 local 文件：v1 字段 unset 时不创建 workspace_local.toml。
     - 写 local 前确保 gitignore 含 ``workspace_local.toml`` 排除行 (否则 secret/隐私
       配置可能被误提交)。
 
@@ -122,10 +124,8 @@ def _migrate_v1_to_v2(workspace_root: Path, raw_v1: dict) -> None:
     from llmw.workspace import local_store
     from llmw.workspace.manager import _ensure_workspace_gitignore
 
-    # 抽出 v1 运行时字段 (bool 严格校验，与 load 旧逻辑一致)
+    # 抽出 v1 运行时字段
     enter_cli = raw_v1.get("enter_cli")
-    enter_byobu_raw = raw_v1.get("enter_byobu")
-    enter_byobu = enter_byobu_raw if isinstance(enter_byobu_raw, bool) else None
 
     # 写 local 前确保 gitignore 就位
     _ensure_workspace_gitignore(workspace_root)
@@ -134,10 +134,8 @@ def _migrate_v1_to_v2(workspace_root: Path, raw_v1: dict) -> None:
     local = local_store.load(workspace_root)
     if enter_cli is not None and local.enter_cli is None:
         local.enter_cli = enter_cli
-    if enter_byobu is not None and local.enter_byobu is None:
-        local.enter_byobu = enter_byobu
     # 仅当确有运行时值才落 local 文件 (避免空文件)
-    if local.enter_cli or local.enter_byobu:
+    if local.enter_cli:
         local_store.save(workspace_root, local)
 
     # workspace.toml 重写为 v2 (drop 3 运行时字段)

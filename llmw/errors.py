@@ -98,6 +98,44 @@ class InvalidWikiName(LlmwError):
     user_message = "wiki 名格式非法"
 
 
+class InvalidWindowSuffix(LlmwError):
+    """R1: enter --window-suffix / stop --window-suffix 非法（窗口名拼接失败）"""
+
+    exit_code = 1
+    user_message = "window suffix 非法"
+
+
+class WindowBackendMismatch(LlmwError):
+    """R2: enter 复用判定命中带标活窗但 @llmw_backend 与当前 backend 不符。
+
+    复用它会吞掉用户"切换 agent"的意图——拒绝并提示先 stop 或 --window-suffix。
+    """
+
+    exit_code = 1
+    user_message = "窗口正在运行不同的 agent backend"
+
+
+class NoRunningSession(LlmwError):
+    """R6: wiki stop 无候选窗口"""
+
+    exit_code = 1
+    user_message = "没有运行中的 session"
+
+
+class MultipleRunningSessions(LlmwError):
+    """R6: wiki stop 候选 >1 且未给 --window-suffix 消歧"""
+
+    exit_code = 1
+    user_message = "存在多个运行中的 session，需要 --window-suffix 消歧"
+
+
+class StopRequiresConfirmation(LlmwError):
+    """R6: 非 TTY 下 wiki stop 需要 --yes 确认"""
+
+    exit_code = 1
+    user_message = "非 TTY 下 stop 需要 --yes 确认"
+
+
 class InvalidTagValue(LlmwError):
     exit_code = 1
     user_message = "tag 值非法"

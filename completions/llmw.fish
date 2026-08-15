@@ -67,12 +67,13 @@ end
 
 # 通用 / 顶级
 set -l COMMON -l workspace -l json -l debug -l quiet -s q
-set -l TOP_CMDS init config list model wiki -l help -l version
+set -l TOP_CMDS init config list status model wiki -l help -l version
 
 # ===== 顶层 =====
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "init"     -d '初始化 workspace'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "config"   -d 'workspace.toml 读写'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "list"     -d '列出 wiki'
+complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "status"   -d '查看运行中的 wiki agent session'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "model"    -d 'workspace model registry'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "wiki"     -d 'wiki 子命令'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -l help         -d '显示帮助'
@@ -93,6 +94,9 @@ complete -c llmw -n "__fish_seen_subcommand_from init" -a "--display-name=" -f -
 # list 子命令 flag（--tag free-form → B 类）
 complete -c llmw -n "__fish_seen_subcommand_from list" -a "--tag=" -f -d '仅列出含此 tag (可重复, AND 关系)'
 
+# status 子命令 flag（--tmux 是 bool）
+complete -c llmw -n "__fish_seen_subcommand_from status" -l tmux -d '输出单行 ●N [✗M]（供状态条集成）'
+
 # ===== config 子命令 =====
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from get set unset" -f -a "get"    -d '取值'
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from get set unset" -f -a "set"    -d '设值'
@@ -100,13 +104,11 @@ complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_sub
 
 complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "default_model"        -d '默认 model_id'
 complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "enter_cli"           -d 'agent CLI (claude|qodercli|opencode)'
-complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "enter_byobu"         -d 'byobu 窗口模式 (true|false)'
 complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "templates_version"    -d 'templates 版本(只读)'
 complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "created_at"           -d '创建时间(只读)'
 complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "schema_version"       -d 'schema 版本(只读)'
 complete -c llmw -n "__fish_seen_subcommand_from config set"       -f -a "default_model"        -d '默认 model_id'
 complete -c llmw -n "__fish_seen_subcommand_from config set"       -f -a "enter_cli"           -d 'agent CLI (claude|qodercli|opencode)'
-complete -c llmw -n "__fish_seen_subcommand_from config set"       -f -a "enter_byobu"         -d 'byobu 窗口模式 (true|false)'
 
 # ===== model 子命令 =====
 set -l MODEL_ACTS add list show set-default unset-default remove
@@ -134,13 +136,14 @@ complete -c llmw -n "__llmw_subact model show set-default remove" -l model-id -f
 complete -c llmw -n "__llmw_subact model remove" -l yes -s y -d '跳过确认'
 
 # ===== wiki 子命令 =====
-set -l WIKI_ACTS add remove rename show config enter
+set -l WIKI_ACTS add remove rename show config enter stop
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "add"      -d '新建 wiki'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "remove"   -d '移除 wiki'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "rename"   -d '重命名 wiki (目录 + 索引 + metadata)'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "show"     -d '查看 wiki 详情'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "config"   -d '读写 wiki_metadata.toml'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "enter"    -d '启动 AI agent session'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "stop"     -d '终止 wiki 的 agent 窗口'
 
 # wiki --name（wiki 但未选 action 时；有动态值 → A 类，无 -r）
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'
@@ -179,6 +182,12 @@ complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcomman
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from config; and __fish_seen_subcommand_from get set unset" -f -a "tags"         -d 'tags (可重复)'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from config; and __fish_seen_subcommand_from get set unset" -f -a "model"        -d '绑定的 model_id'
 
-# wiki enter（--name 有动态值 → A 类，无 -r；--dry-run 是 bool）
+# wiki enter（--name 有动态值 → A 类，无 -r；--dry-run / --window-suffix 是 bool / B 类）
 complete -c llmw -n "__llmw_subact wiki enter" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'
 complete -c llmw -n "__llmw_subact wiki enter" -l dry-run -d '仅打印 overlay 不启动 claude'
+complete -c llmw -n "__llmw_subact wiki enter" -a "--window-suffix=" -f -d '并行窗口后缀（拼接为 <wiki>-<suffix>）'
+
+# wiki stop（--name 有动态值 → A 类，无 -r；--window-suffix B 类；--yes bool）
+complete -c llmw -n "__llmw_subact wiki stop" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'
+complete -c llmw -n "__llmw_subact wiki stop" -a "--window-suffix=" -f -d '只匹配 <wiki>-<suffix> 窗口'
+complete -c llmw -n "__llmw_subact wiki stop" -l yes -s y -d '跳过确认'

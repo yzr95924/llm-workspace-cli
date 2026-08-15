@@ -18,6 +18,7 @@ _llmw() {
         'init:初始化 workspace'
         'config:workspace.toml 读写'
         'list:列出 wiki'
+        'status:查看运行中的 wiki agent session'
         'model:workspace model registry'
         'wiki:wiki 子命令'
     )
@@ -76,6 +77,11 @@ _llmw() {
                         '--tag=[仅列出含此 tag (可重复, AND 关系)]:tag:' \
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;
+                status)
+                    _arguments \
+                        '--tmux[输出单行 ●N [✗M]（供状态条集成）]' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    ;;
                 config)
                     _llmw_config && ret=0
                     ;;
@@ -108,7 +114,6 @@ _llmw_config() {
     CFG_KEYS=(
         'default_model:默认 model_id'
         'enter_cli:agent CLI (claude|qodercli|opencode)'
-        'enter_byobu:byobu 窗口模式 (true|false)'
         'templates_version:templates 版本(只读)'
         'created_at:创建时间(只读)'
         'schema_version:schema 版本(只读)'
@@ -135,7 +140,7 @@ _llmw_config() {
                         "${COMMON_OPTS[@]}" && ret=0
                     case $state in
                         set_key)
-                            local -a SET_KEYS=('default_model:默认 model_id' 'enter_cli:agent CLI (claude|qodercli|opencode)' 'enter_byobu:byobu 窗口模式 (true|false)')
+                            local -a SET_KEYS=('default_model:默认 model_id' 'enter_cli:agent CLI (claude|qodercli|opencode)')
                             _describe -t keys 'config key' SET_KEYS
                             ;;
                     esac
@@ -229,6 +234,7 @@ _llmw_wiki() {
         'show:查看 wiki 详情'
         'config:读写 wiki_metadata.toml'
         'enter:启动 AI agent session'
+        'stop:终止 wiki 的 agent 窗口'
     )
     local state ret=1
     _arguments -C \
@@ -366,11 +372,35 @@ _llmw_wiki() {
                     if (( name_seen )); then
                         _arguments \
                             '--dry-run[仅打印 overlay 不启动 claude]' \
+                            '--window-suffix=[并行窗口后缀（拼接为 <wiki>-<suffix>）]:suffix:' \
                             "${COMMON_OPTS[@]}" && ret=0
                     else
                         _arguments \
                             '--name=[目标 wiki 名]:name:_llmw_wikis' \
                             '--dry-run[仅打印 overlay 不启动 claude]' \
+                            '--window-suffix=[并行窗口后缀（拼接为 <wiki>-<suffix>）]:suffix:' \
+                            "${COMMON_OPTS[@]}" && ret=0
+                    fi
+                    ;;
+                stop)
+                    local name_seen=0
+                    local -i i=2
+                    while (( i < CURRENT )); do
+                        case ${words[$i]} in
+                            --name=*) name_seen=1;;
+                        esac
+                        (( i++ ))
+                    done
+                    if (( name_seen )); then
+                        _arguments \
+                            '--window-suffix=[只匹配 <wiki>-<suffix> 窗口]:suffix:' \
+                            '(--yes -y)'{--yes,-y}'[跳过确认]' \
+                            "${COMMON_OPTS[@]}" && ret=0
+                    else
+                        _arguments \
+                            '--name=[目标 wiki 名]:name:_llmw_wikis' \
+                            '--window-suffix=[只匹配 <wiki>-<suffix> 窗口]:suffix:' \
+                            '(--yes -y)'{--yes,-y}'[跳过确认]' \
                             "${COMMON_OPTS[@]}" && ret=0
                     fi
                     ;;

@@ -48,8 +48,8 @@ bash scripts/test/test_install_uninstall.sh
 
 ### 手动 smoke 验收
 
-完整脚本见 `README.md` 的 **Manual Smoke Test** 章节（包含 Phase 1 + Phase 2 model registry 两段）。
-每个命令至少跑一遍 happy path，所有 `✓` 通过 = prototype 阶段验收。
+无固定脚本——按需对改动命令跑 happy path；session-visibility 相关自测点见
+`doc/session-visibility-design.md` §5（正常 1-7 / 异常 8-14）。
 
 ## 架构
 
@@ -79,7 +79,11 @@ llmw.cli (argparse + 分派)
   │           │
   │           └─▶ llmw.models.overlay (apply / inspect) → 写 wiki 启动配置（Local 层）
   │           │
-  │           └─▶ subprocess(agent CLI 命令，透传 os.environ)
+  │           └─▶ llmw.wiki.byobu.spawn_window（当前 tmux session 开窗/复用 + 打标；
+  │               dead 残留自动收尸后新开；不在 tmux 内 → 兜底 llm_workspace + attach）──▶ tmux 窗口表
+  │
+  ├──▶ llmw.wiki.status        ──▶ llmw.wiki.byobu.list_windows（实时枚举带标窗口；workspace 缺失默认路径 → R8 孤儿清理模式）
+  ├──▶ llmw.wiki.stop          ──▶ llmw.wiki.byobu.list_windows + kill_window
   │
   └──▶ llmw.wiki.show / llmw.workspace.list  ──▶ resolve_for_wiki  (展示 model 来源)
 ```
@@ -121,18 +125,20 @@ CLI 内联 wiki 骨架的字节一致性保证）见设计文档与备份 CLAUDE
 | 子包 | 职责 | 不做什么 |
 | --- | --- | --- |
 | `llmw.cli` | argparse + 全局 flag + 分派 | 不含业务逻辑 |
+| `llmw.backends` | backend 单一真源：`KNOWN_BACKENDS`（enter_cli 白名单 / 打标 / 校验共用）+ `STATE_PATTERNS`（status 的 STATE 模式注册表）+ `match_working`/`match_waiting`；加新 agent 只改此文件 | 不写盘、不做 tmux IO |
 | `llmw.config` | workspace 路径解析、SKILL 脚本路径、模板目录定位 | 不解析 workspace.toml |
 | `llmw.errors` | 自定义异常（按 exit_code 1/2/3 分层） | — |
 | `llmw.fsutil` | 原子写（tmp + fsync + rename）、ISO8601 时间 | — |
 | `llmw._compat` | tomllib (3.11+) / tomli (<3.11) 兼容层 + 手写 toml dump | — |
 | `llmw.workspace.store` | workspace.toml 读写 + schema 校验 (v2) + v1→v2 自愈迁移 | 不做 wiki 操作、不做 init 业务 |
-| `llmw.workspace.local_store` | workspace_local.toml 读写（主机相关运行时：default_model/enter_cli/enter_byobu） | 无 secret 不 chmod；不读 workspace.toml 结构数据 |
+| `llmw.workspace.local_store` | workspace_local.toml 读写（主机相关运行时：enter_cli） | 无 secret 不 chmod；不读 workspace.toml 结构数据 |
 | `llmw.workspace.manager` | init/config/list 业务；init 写 workspace `.gitignore`；config 路由 runtime key→local_store | 不写 wiki 文件、不读 wiki_metadata.toml |
 | `llmw.wiki.store` | wiki_metadata.toml 读写 + schema v2 + 模板填充 | 不写 workspace.toml、不调 init_wiki |
 | `llmw.wiki.init_wiki` | 渲染骨架（spec §1-§7 + §9.1 + §14）；读 references/fixtures → atomic_write；.gitkeep 无条件落盘（§7 红线不碰 git） | 不写 wiki_metadata.toml、不进 wiki 业务流 |
-| `llmw.wiki.manager` | add/remove/show/config 业务；add 调 init_wiki + 打印手动 git hint；校验 model_id | 不进 wiki 内部、不读 wiki/ 内容 |
-| `llmw.wiki.enter` | 启动 session：resolve model → `overlay.apply` 写启动配置 → `_spawn` 收口（agent CLI 子进程透传 os.environ，或 byobu 开窗口） | 不写元数据 |
-| `llmw.wiki.byobu` | byobu/tmux 薄封装 + 开窗编排：固定 session `llm_workspace` 的 ensure/find(window_id)/select/create；仅 enter 调用 | 不写元数据、不读配置 |
+| `llmw.wiki.manager` | add/remove/show/config/stop 业务；add 调 init_wiki + 打印手动 git hint；校验 model_id；stop 枚举带标窗口 + kill-window（R6） | 不进 wiki 内部、不读 wiki/ 内容 |
+| `llmw.wiki.enter` | 启动 session：resolve model → `overlay.apply` 写启动配置 → `byobu.spawn_window` 收口（当前 session 开窗/复用 + 打标；dead 残留自动收尸后新开；不在 tmux 内 → 兜底 session + attach） | 不写元数据 |
+| `llmw.wiki.byobu` | byobu/tmux 薄封装 + 开窗编排四原语：spawn/复用/打标/枚举（`spawn_window` 四条件复用——窗口名+`@llmw_wiki`+`@llmw_backend`+非 dead，backend 不符拒绝 enter，dead 命中收尸后新开——+ R3 打标；`list_windows` 实时枚举返回 `WindowRow` NamedTuple；窗口名 R1 拼接校验）；enter/status/stop 共用 | 不写元数据、不读配置 |
+| `llmw.wiki.status` | `llmw status`：枚举带标窗口 → WIKI/WINDOW/SESSION/BACKEND/STATE/UPTIME/IDLE 表（dead 行 `✗ exited`；STATE=dead→假活 `⚠ shell`→capture-pane 模式匹配 working/waiting→unknown；actionable-first 排序）+ `--json`（`state` 为 ASCII 稳定值 `dead/shell/working/waiting/unknown` + `backend`）+ `--tmux`（`●N [✗M]`）；R8：workspace 缺失（默认路径）时降级孤儿清理模式——warning + 列表 + TTY 确认后逐窗 kill（`--json`/`--tmux`/非 TTY 只打 hint 不动手） | 主路径不写盘、不 kill 窗口（看归看，关归 stop；R8 孤儿清理是唯一经确认的破例） |
 | `llmw.models.overlay` | `render`/`inspect`/`apply`：resolved ModelEntry → 启动配置 `env` 块；幂等合并 + chmod 600 | — |
 | `llmw.models.overlay_opencode` | 与 overlay 平行：resolved ModelEntry → `<wiki>/opencode.json`（`provider.llmw` + 顶层 `model`；baseURL +`/v1` 规范化） | — |
 | `llmw.models.store` | workspace_models.toml 读写 + schema v2 + 字段校验 + chmod 600 | 不做 CRUD 业务、不做 resolve |
@@ -162,9 +168,10 @@ CLI 内联 wiki 骨架的字节一致性保证）见设计文档与备份 CLAUDE
   `templates_version`（只读）+ `[wikis.<name>]` 注册表。只承载结构数据（运行时配置在
   `workspace_local.toml`）。老 schema 首次 `load` 自愈迁移（`store._migrate_v1_to_v2`，幂等）。
 - **`<workspace>/workspace_local.toml`**：schema v1；`schema_version` / `created_at`（只读）+
-  `enter_cli` / `enter_byobu`（可 set/unset）。主机相关运行时配置——跨主机共用一个 git 仓
+  `enter_cli`（可 set/unset）。主机相关运行时配置——跨主机共用一个 git 仓
   会互相覆盖产生 churn，故拆出本地化。**不入 git**（与 `workspace_models.toml` 同一 gitignore
   managed block），无 secret 不 chmod 600。`enter` / `config` 均从此读。
+  （`enter_byobu` 已删除——窗口路径全环境成立，直启模式无存在场景；老文件残留键 load 静默忽略。）
 - **`<workspace>/workspace_models.toml`**（Phase 2）：schema v2；`schema_version` / `created_at` /
   `updated_at`（只读，CLI 自动 bump）+ `[[models]]` 数组，每条含 `model_id` / `name` / `base_url` /
   `api_key` / 可选 `is_default`。约束：model_id 唯一（`^[a-z0-9_-]{1,64}$`，复用 wiki NAME_RE），

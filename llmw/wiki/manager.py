@@ -1,15 +1,18 @@
-"""wiki 级业务: add / remove / show / config / rename"""
+"""wiki 级业务: add / remove / rename / show / config / stop"""
 
 import errno
 import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from llmw import WIKI_SPEC_VERSION, __version__
+from llmw._compat import TOMLDecodeError
 from llmw.errors import (
     BackupFailed,
+    ByobuCommandFailed,
+    ByobuNotFound,
     InvalidConfigKey,
     InvalidWikiName,
     KeyNotUnsettable,
@@ -17,17 +20,19 @@ from llmw.errors import (
     ModelDefaultAmbiguous,
     ModelDefaultNotSet,
     ModelNotInRegistry,
+    MultipleRunningSessions,
+    NoRunningSession,
     PurgeRequiresConfirmation,
     SchemaVersionUnsupported,
+    StopRequiresConfirmation,
     WikiDirMissing,
     WikiExists,
     WikiNotFound,
 )
-from llmw._compat import TOMLDecodeError
 from llmw.models.resolve import resolve_for_wiki
 from llmw.models.store import RegistryMissing, load
 from llmw.fsutil import now_iso8601, safe_rmtree
-from llmw.wiki import init_wiki
+from llmw.wiki import byobu, init_wiki
 from llmw.wiki import store as wiki_store
 from llmw.workspace import store as ws_store
 
@@ -354,6 +359,94 @@ def remove(
     print(f"[llmw] wiki '{name}' 已取消注册{suffix}", file=sys.stdout)
 
 
+def stop(
+    workspace_root: Path,
+    name: str,
+    window_suffix: Optional[str] = None,
+    yes: bool = False,
+) -> int:
+    """R6 stop：kill 指定 wiki 的带标 agent 窗口（`llmw wiki --name=X stop`）。
+
+    候选 = `@llmw_wiki == X` 的带标窗口（再按拼接后窗口名 `<X>-<S>` 过滤）：
+
+    - 0 候选 → NoRunningSession（exit 1）
+    - N 候选且未给 --window-suffix → MultipleRunningSessions（exit 1，列出候选 + hint，
+      不做交互选择器——关是低频高危动作，显式消歧比选择器简单且脚本友好）
+    - 恰 1 候选 → TTY 确认 [y/N]（--yes 跳过，沿用 remove 惯例）→ kill-window
+
+    不查 workspace 注册表——窗口枚举是现实（wiki 目录已删但窗口还在跑，stop 也应能收尸）。
+    """
+    if not byobu.byobu_available():
+        raise ByobuNotFound(
+            "byobu-tmux 不在 PATH",
+            hint="安装 byobu（如 apt install byobu / brew install byobu）",
+        )
+    window_name = byobu.window_name_for(name, window_suffix) if window_suffix else None
+
+    candidates = [
+        r
+        for r in byobu.list_windows()
+        if r.wiki == name and (window_name is None or r.window_name == window_name)
+    ]
+    if not candidates:
+        raise NoRunningSession(
+            f"wiki '{name}' 没有运行中的 session",
+            hint="运行 `llmw status` 查看所有运行中的窗口",
+        )
+    if len(candidates) > 1:
+        listing = "\n".join(
+            f"  {r.window_name}  (session {r.session}, {r.window_id})"
+            for r in candidates
+        )
+        raise MultipleRunningSessions(
+            f"wiki '{name}' 有 {len(candidates)} 个运行中的窗口：\n{listing}",
+            hint="加 --window-suffix=SUFFIX 指定目标窗口（如 --window-suffix=ingest）",
+        )
+
+    row = candidates[0]
+    wid, wname, session = row.window_id, row.window_name, row.session
+    dead = row.dead == "1"
+
+    if not yes:
+        if not _confirm_stop(name, wname, dead):
+            print("[llmw] 取消")
+            return 0
+
+    if not byobu.kill_window(wid):
+        raise ByobuCommandFailed(
+            f"kill-window 失败 (window={wid})",
+            hint="窗口可能已被外部关闭；运行 `llmw status` 确认",
+        )
+    suffix_note = "（已退出残留）" if dead else ""
+    print(
+        f"[llmw] ✓ 已终止窗口 '{wname}' (session '{session}'){suffix_note}",
+        file=sys.stdout,
+    )
+    return 0
+
+
+def _confirm_stop(name: str, wname: str, dead: bool) -> bool:
+    """R6 确认块（T12 拆分）：非 TTY → StopRequiresConfirmation；TTY → [y/N]。"""
+    if not sys.stdin.isatty():
+        raise StopRequiresConfirmation(
+            "非 TTY 下 stop 需要 --yes 确认",
+            hint="加 --yes 或在 TTY 下手动确认",
+        )
+    status_desc = "清理已退出残留" if dead else "运行中 agent 将被终止"
+    try:
+        ans = (
+            input(
+                f"将 kill 窗口 '{wname}'（wiki '{name}'，{status_desc}），确认？[y/N]: "
+            )
+            .strip()
+            .lower()
+        )
+    except (EOFError, KeyboardInterrupt):
+        print()
+        ans = "n"
+    return ans in ("y", "yes")
+
+
 def rename(
     workspace_root: Path,
     old: str,
@@ -499,7 +592,11 @@ def rename(
         print(f"[llmw] wiki 已重命名: {old} → {new}", file=sys.stdout)
 
 
-def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
+def _show_collect(workspace_root: Path, name: str) -> Dict:
+    """show 的数据收集（T12 拆分）：metadata / 文件存在性 / 计数 / resolve model。
+
+    纯收集不渲染；resolve 失败 → 退化只用 wiki_metadata.model 推断来源。
+    """
     ws = ws_store.load(workspace_root)
     if name not in ws.wikis:
         raise WikiNotFound(f"wiki '{name}' 不在当前 workspace 中")
@@ -556,10 +653,33 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         if final_model:
             model_source = "wiki.metadata.model"
 
+    return {
+        "name": name,
+        "path": str(wiki_path),
+        "meta": meta,
+        "claude_md_exists": claude_md_exists,
+        "raw_p": raw_p,
+        "wiki_sub_p": wiki_sub_p,
+        "raw_count": raw_count,
+        "wiki_count": wiki_count,
+        "last_activity": last_activity,
+        "final_model": final_model,
+        "model_source": model_source,
+    }
+
+
+def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
+    d = _show_collect(workspace_root, name)
+    meta = d["meta"]
+    wiki_path = d["path"]
+    final_model = d["final_model"]
+    model_source = d["model_source"]
+    last_activity = d["last_activity"]
+
     if as_json:
         out = {
-            "name": name,
-            "path": str(wiki_path),
+            "name": d["name"],
+            "path": wiki_path,
             "topic": meta.topic if meta else None,
             "display_name": meta.display_name if meta else None,
             "description": meta.description if meta else None,
@@ -570,14 +690,14 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
             "created_at": meta.created_at if meta else None,
             "last_activity": last_activity,
             "existence": {
-                "claude_md": claude_md_exists,
+                "claude_md": d["claude_md_exists"],
                 "wiki_metadata_toml": meta is not None,
-                "raw_dir": raw_p.is_dir(),
-                "wiki_dir": wiki_sub_p.is_dir(),
+                "raw_dir": d["raw_p"].is_dir(),
+                "wiki_dir": d["wiki_sub_p"].is_dir(),
             },
             "counts": {
-                "raw_files": raw_count,
-                "wiki_pages": wiki_count,
+                "raw_files": d["raw_count"],
+                "wiki_pages": d["wiki_count"],
             },
         }
         print(json.dumps(out, ensure_ascii=False, indent=2))
@@ -589,8 +709,8 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
     if model_source:
         model_line += f"  (fallback: {model_source})"
     rows = [
-        ("NAME", name),
-        ("PATH", str(wiki_path)),
+        ("NAME", d["name"]),
+        ("PATH", wiki_path),
         ("TOPIC", meta.topic if meta else "-"),
         ("DISPLAY_NAME", meta.display_name if meta else "-"),
         ("DESCRIPTION", meta.description if meta else "-"),
@@ -598,15 +718,15 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         ("MODEL", model_line),
         ("CREATED_AT", created_line),
         ("LAST_ACTIVITY", last_activity or "-"),
-        ("CLAUDE_MD", "✓ found" if claude_md_exists else "✗ missing"),
+        ("CLAUDE_MD", "✓ found" if d["claude_md_exists"] else "✗ missing"),
         ("WIKI_METADATA", "✓ found" if meta else "✗ missing"),
         (
             "RAW_DIR",
-            f"{'✓ found' if raw_p.is_dir() else '✗ missing'} ({raw_count} files)",
+            f"{'✓ found' if d['raw_p'].is_dir() else '✗ missing'} ({d['raw_count']} files)",
         ),
         (
             "WIKI_DIR",
-            f"{'✓ found' if wiki_sub_p.is_dir() else '✗ missing'} ({wiki_count} pages)",
+            f"{'✓ found' if d['wiki_sub_p'].is_dir() else '✗ missing'} ({d['wiki_count']} pages)",
         ),
     ]
     label_w = max(len(label) for label, _ in rows)

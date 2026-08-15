@@ -15,7 +15,7 @@ _llmw() {
     # = 后，COMP_WORDS[COMP_CWORD] 是 "="）。规范化 cur 回 `--flag=` 形式以复用下方 --flag=*
     # 分支（返回裸 value，readline 自动附加到 = 后）。仅对带值 flag 触发，避免误伤 bool flag。
     case "$prev" in
-        --name|--model|--model-id|--workspace|--path|--topic|--display-name|--description|--tag|--base-url|--api-key)
+        --name|--model|--model-id|--workspace|--path|--topic|--display-name|--description|--tag|--base-url|--api-key|--window-suffix)
             case "$cur" in
                 "=") cur="${prev}=" ;;
                 =*)  cur="${prev}${cur}" ;;
@@ -71,10 +71,10 @@ _llmw() {
     }
 
     local COMMON="--workspace= --json --debug --quiet -q"
-    local TOP="init config list model wiki"
-    local WIKI_ACTS="add remove rename show config enter"
+    local TOP="init config list status model wiki"
+    local WIKI_ACTS="add remove rename show config enter stop"
     local MODEL_ACTS="add list show set-default unset-default remove"
-    local CFG_KEYS="default_model enter_cli enter_byobu templates_version created_at schema_version"
+    local CFG_KEYS="default_model enter_cli templates_version created_at schema_version"
 
     COMPREPLY=()
 
@@ -98,7 +98,7 @@ _llmw() {
             COMPREPLY=($(compgen -d -- "${cur#*=}"))
             return 0
             ;;
-        --topic=*|--display-name=*|--description=*|--tag=*|--base-url=*|--api-key=*|--new=*)
+        --topic=*|--display-name=*|--description=*|--tag=*|--base-url=*|--api-key=*|--new=*|--window-suffix=*)
             # 带值 flag 但值是 free-form；无候选
             COMPREPLY=()
             return 0
@@ -120,6 +120,9 @@ _llmw() {
         list)
             COMPREPLY=($(compgen -W "--tag= $COMMON" -- "$cur"))
             ;;
+        status)
+            COMPREPLY=($(compgen -W "--tmux $COMMON" -- "$cur"))
+            ;;
         config)
             if [ -z "$sub_action" ]; then
                 COMPREPLY=($(compgen -W "get set unset $COMMON" -- "$cur"))
@@ -133,7 +136,7 @@ _llmw() {
                         # [3]=key, [4]=value。cword=3 -> 补 key；cword=4 -> value 不补
                         # （与 wiki config set 的 wiki_pos 索引语义对齐）
                         if [ "$COMP_CWORD" -eq 3 ]; then
-                            COMPREPLY=($(compgen -W "default_model enter_cli enter_byobu" -- "$cur"))
+                            COMPREPLY=($(compgen -W "default_model enter_cli" -- "$cur"))
                         fi
                         ;;
                 esac
@@ -252,9 +255,25 @@ _llmw() {
                             i=$((i + 1))
                         done
                         if [ "$name_seen" -eq 1 ]; then
-                            COMPREPLY=($(compgen -W "--dry-run $COMMON" -- "$cur"))
+                            COMPREPLY=($(compgen -W "--dry-run --window-suffix= $COMMON" -- "$cur"))
                         else
-                            COMPREPLY=($(compgen -W "--name= --dry-run $COMMON" -- "$cur"))
+                            COMPREPLY=($(compgen -W "--name= --dry-run --window-suffix= $COMMON" -- "$cur"))
+                        fi
+                        ;;
+                    stop)
+                        # 检测 --name= 已传否（= 形式；空格形式被 CLI 拒，不认）
+                        local name_seen=0
+                        i=1
+                        while [ "$i" -lt "$COMP_CWORD" ]; do
+                            case "${COMP_WORDS[$i]}" in
+                                --name=*) name_seen=1 ;;
+                            esac
+                            i=$((i + 1))
+                        done
+                        if [ "$name_seen" -eq 1 ]; then
+                            COMPREPLY=($(compgen -W "--window-suffix= -y --yes $COMMON" -- "$cur"))
+                        else
+                            COMPREPLY=($(compgen -W "--name= --window-suffix= -y --yes $COMMON" -- "$cur"))
                         fi
                         ;;
                 esac
