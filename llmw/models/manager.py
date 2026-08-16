@@ -6,7 +6,9 @@ from pathlib import Path
 from typing import Optional
 
 from llmw.errors import (
+    LlmwError,
     MissingRequiredFlag,
+    ModelDefaultNotSet,
     ModelIdConflict,
     ModelIsDefault,
     ModelNotInRegistry,
@@ -18,6 +20,7 @@ from llmw.models.store import (
     Registry,
     RegistryMissing,
     create_skeleton,
+    delete as registry_delete,
     load,
     save,
     validate_api_key,
@@ -26,6 +29,26 @@ from llmw.models.store import (
     validate_model_id,
     validate_name,
 )
+
+
+# ===== registry 存在性校验（wiki 侧 add / config set / config interactive 共用）=====
+
+
+def require_model_in_registry(workspace_root: Path, model_id: str) -> None:
+    """断言 model_id 在 registry 中：不存在 → ModelNotInRegistry；registry 未建 →
+    ModelDefaultNotSet。wiki add 与 wiki config set 的校验统一走这里（单一文案/单一逻辑）。"""
+    try:
+        reg = load(workspace_root)
+    except RegistryMissing:
+        raise ModelDefaultNotSet(
+            "workspace 还没有 registry, 无法校验 model",
+            hint="先跑 `llmw model add --model-id=... --name=... --base-url=... --api-key=... --default` 至少一条",
+        )
+    if model_id not in reg.models:
+        raise ModelNotInRegistry(
+            f"model_id '{model_id}' 不在 registry 中",
+            hint="运行 `llmw model list` 查看可用 model_id",
+        )
 
 
 # ===== set_default（manager 层唯一保证 is_default 唯一的入口）=====
@@ -87,7 +110,9 @@ def model_add(
                 try:
                     validator(v) if v else None
                     return v or None
-                except Exception as e:
+                except LlmwError as e:
+                    # validator 全抛 LlmwError 子类（InvalidModelField 等）——只捕
+                    # LlmwError，避免非预期异常在此二次炸（裸 Exception + e.message）。
                     print(f"    [校验失败] {e.message}")
                     continue
 
@@ -290,8 +315,6 @@ def model_remove(workspace_root: Path, model_id: str, yes: bool = False) -> None
     save(workspace_root, reg)
     print(f"✓ model '{model_id}' 已删除", file=sys.stdout)
     if not reg.models:
-        # registry 变空 → 删除文件（避免空文件留在 .gitignore 列表里）
-        path = workspace_root / "workspace_models.toml"
-        if path.is_file():
-            path.unlink()
+        # registry 变空 → 删除文件（避免空文件留在 .gitignore 列表里）；走 store 层统一出口
+        registry_delete(workspace_root)
         print("[llmw] registry 已清空, 移除 workspace_models.toml", file=sys.stdout)

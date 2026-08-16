@@ -8,6 +8,11 @@ from llmw import __version__
 from llmw.errors import LlmwError, InternalError, SpaceFormNotAllowed, format_error
 
 
+def _flag(args, name: str):
+    """全局 flag 读取（default=SUPPRESS 的 parent 语义，见 _common_flags docstring）。"""
+    return getattr(args, name, False)
+
+
 # 参数风格：带值 flag 一律 `--flag=value`（= 连接），拒绝空格分隔的 `--flag value`。
 # 严谨、无歧义：带值 flag 与其值在同一 token 内绑定，不靠相邻位置隐式推断。
 # bool flag（store_true / store_false / count）不带值，不受此约束，保持原样。
@@ -15,10 +20,18 @@ from llmw.errors import LlmwError, InternalError, SpaceFormNotAllowed, format_er
 # 新增带值 flag 直接 `add_argument("--flag", ...)`——判定走 action 类型，无需维护白名单。
 # 新增 bool flag 直接 `add_argument(..., action="store_true"/"store_false")`。
 
-# 带值 action 类型（消费一个值的 option）：_StoreAction / _AppendAction。
-# bool / 计数 / version / help 类型 nargs=0，不消费值，不纳入。
-_VALUE_ACTION_TYPES = frozenset({"_StoreAction", "_AppendAction"})
-_SUBPARSERS_ACTION = "_SubParsersAction"
+
+# 带值 action 判定走公开 API（nargs），不依赖 argparse 私有类名（_StoreAction 等，
+# 版本升级可能改名导致判定静默失效）：
+#   - nargs != 0 → 消费值的 option（单值 None / 多值 int / 其余非零）
+#   - nargs == 0 → 不带值（store_true/false/count/version/help）
+# 子 parser 判定：nargs == argparse.PARSER（公开常量，_SubParsersAction 的专用值）。
+def _takes_value(action) -> bool:
+    return action.nargs != 0
+
+
+def _is_subparsers(action) -> bool:
+    return action.nargs == argparse.PARSER
 
 
 def _walk_parsers(parser):
@@ -33,7 +46,7 @@ def _walk_parsers(parser):
         seen.add(pid)
         yield p
         for action in p._actions:
-            if action.__class__.__name__ == _SUBPARSERS_ACTION:
+            if _is_subparsers(action):
                 stack.extend(action.choices.values())
 
 
@@ -45,10 +58,7 @@ def _collect_value_flags(parser):
     names = set()
     for p in _walk_parsers(parser):
         for action in p._actions:
-            if (
-                action.option_strings
-                and action.__class__.__name__ in _VALUE_ACTION_TYPES
-            ):
+            if action.option_strings and _takes_value(action):
                 names.update(o for o in action.option_strings if o.startswith("--"))
     return names
 
@@ -286,6 +296,39 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _cmd_status(args) -> int:
+    """status 分派：不内在依赖 workspace（真相源是 tmux server）——提到
+    resolve_workspace_root 之前分派；R8：默认路径解析失败且有带标窗口时降级孤儿清理
+    模式（显式 --workspace/$LLMW_WORKSPACE 失败保持硬报错，防 typo 路径 + 习惯性回 y
+    误杀活窗口）。
+    """
+    from llmw.config import DEFAULT_WORKSPACE, resolve_workspace_root
+    from llmw.errors import WorkspaceNotFound
+    from llmw.wiki.status import status as wiki_status, status_orphan
+
+    try:
+        resolve_workspace_root(_flag(args, "workspace"))  # 存在性检查：失败才进 R8 分支
+    except WorkspaceNotFound as e:
+        explicit = _flag(args, "workspace") or os.environ.get("LLMW_WORKSPACE")
+        if explicit:
+            if not Path(explicit).exists():
+                e.hint = (e.hint or "") + (
+                    "；若 workspace 已删除，不带 --workspace 运行 `llmw status`"
+                    " 可交互清理 tmux 残留 session"
+                )
+            raise
+        return status_orphan(
+            DEFAULT_WORKSPACE.resolve(),
+            e,
+            as_json=_flag(args, "json"),
+            tmux_line=args.tmux,
+        )
+    return wiki_status(
+        as_json=_flag(args, "json"),
+        tmux_line=args.tmux,
+    )
+
+
 def main(argv=None) -> int:
     argv = list(argv) if argv is not None else sys.argv[1:]
     parser = build_parser()
@@ -305,42 +348,12 @@ def main(argv=None) -> int:
             return 0
 
         if args.command == "status":
-            # status 不内在依赖 workspace（真相源是 tmux server）——提到
-            # resolve_workspace_root 之前分派；R8：默认路径解析失败且有带标窗口时
-            # 降级孤儿清理模式（显式 --workspace/$LLMW_WORKSPACE 失败保持硬报错，
-            # 防 typo 路径 + 习惯性回 y 误杀活窗口）
-            from llmw.config import DEFAULT_WORKSPACE, resolve_workspace_root
-            from llmw.errors import WorkspaceNotFound
-            from llmw.wiki.status import status as wiki_status, status_orphan
-
-            try:
-                ws_root = resolve_workspace_root(getattr(args, "workspace", None))
-            except WorkspaceNotFound as e:
-                explicit = getattr(args, "workspace", None) or os.environ.get(
-                    "LLMW_WORKSPACE"
-                )
-                if explicit:
-                    if not Path(explicit).exists():
-                        e.hint = (e.hint or "") + (
-                            "；若 workspace 已删除，不带 --workspace 运行 `llmw status`"
-                            " 可交互清理 tmux 残留 session"
-                        )
-                    raise
-                return status_orphan(
-                    DEFAULT_WORKSPACE.resolve(),
-                    e,
-                    as_json=getattr(args, "json", False),
-                    tmux_line=args.tmux,
-                )
-            return wiki_status(
-                as_json=getattr(args, "json", False),
-                tmux_line=args.tmux,
-            )
+            return _cmd_status(args)
 
         # 下列命令需要先解析 workspace_root
         from llmw.config import resolve_workspace_root
 
-        ws_root = resolve_workspace_root(getattr(args, "workspace", None))
+        ws_root = resolve_workspace_root(_flag(args, "workspace"))
 
         if args.command == "config":
             from llmw.workspace.manager import (
@@ -383,9 +396,9 @@ def main(argv=None) -> int:
                     as_default=args.as_default,
                 )
             elif ma == "list":
-                return model_list(ws_root, as_json=getattr(args, "json", False))
+                return model_list(ws_root, as_json=_flag(args, "json"))
             elif ma == "show":
-                model_show(ws_root, args.model_id, as_json=getattr(args, "json", False))
+                model_show(ws_root, args.model_id, as_json=_flag(args, "json"))
             elif ma == "set-default":
                 model_set_default(ws_root, args.model_id)
             elif ma == "unset-default":
@@ -405,7 +418,7 @@ def main(argv=None) -> int:
 
             return list_wikis(
                 ws_root,
-                as_json=getattr(args, "json", False),
+                as_json=_flag(args, "json"),
                 tag_filter=args.tag or None,
             )
 
@@ -452,11 +465,11 @@ def main(argv=None) -> int:
                     ws_root,
                     old=args.old,
                     new=args.new,
-                    as_json=getattr(args, "json", False),
-                    quiet=getattr(args, "quiet", False),
+                    as_json=_flag(args, "json"),
+                    quiet=_flag(args, "quiet"),
                 )
             elif wa == "show":
-                wiki_show(ws_root, args.name, as_json=getattr(args, "json", False))
+                wiki_show(ws_root, args.name, as_json=_flag(args, "json"))
             elif wa == "config":
                 if args.cfg_action is None:
                     wiki_config_interactive(ws_root, args.name)

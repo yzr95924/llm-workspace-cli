@@ -29,15 +29,20 @@ from llmw.errors import (
     WikiExists,
     WikiNotFound,
 )
+from llmw.models.manager import require_model_in_registry
 from llmw.models.resolve import resolve_for_wiki
-from llmw.models.store import RegistryMissing, load
 from llmw.fsutil import now_iso8601, safe_rmtree
 from llmw.wiki import byobu, init_wiki
 from llmw.wiki import store as wiki_store
 from llmw.workspace import store as ws_store
+from llmw.workspace.gitignore import ensure_workspace_gitignore
 
 
-def _wiki_abs(workspace_root: Path, name: str) -> Path:
+def resolve_wiki_path(workspace_root: Path, name: str) -> Path:
+    """查 workspace 注册表 → wiki 绝对路径；未注册 → WikiNotFound。
+
+    唯一实现（enter / remove / rename / show / config 共用），不各写一份。
+    """
     ws = ws_store.load(workspace_root)
     if name not in ws.wikis:
         raise WikiNotFound(
@@ -70,27 +75,9 @@ def _print_git_hint(wiki_dir: Path) -> None:
     )
 
 
-def _interactive_fill_metadata(workspace_root, wiki_dir, meta):
-    """交互填充 display_name / description / tags / model"""
-
-    def ask(label, cur):
-        suffix = " [当前: <未设置>]" if not cur else f" [当前: {cur!r}]"
-        try:
-            v = input(f"  {label}{suffix}: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            raise
-        return v
-
-    # display_name
-    v = ask("display_name", meta.display_name)
-    if v:
-        meta.display_name = v
-    # description
-    v = ask("description", meta.description)
-    if v:
-        meta.description = v
-    # tags
-    cur_tags = list(meta.tags)
+def _tags_submenu(cur_tags: List[str]) -> List[str]:
+    """tags 交互子菜单（a 添加 / r 移除 / s 替换 / d 完成）——add 交互与 wiki config
+    交互共用同一实现，避免双份拷贝漂移。返回编辑后的 tags 列表。"""
     while True:
         print(f"  tags [当前: {cur_tags}]: <a 添加 / r 移除 / s 替换 / d 完成>")
         try:
@@ -123,12 +110,47 @@ def _interactive_fill_metadata(workspace_root, wiki_dir, meta):
             cur_tags = new_tags
         elif op == "d":
             break
-    meta.tags = cur_tags
+    return cur_tags
 
-    # model
+
+def _interactive_fill_metadata(workspace_root, wiki_dir, meta):
+    """交互填充 display_name / description / tags / model
+
+    workspace_root 供 model 的 registry 存在性校验（与 config set 同逻辑）。
+    """
+
+    def ask(label, cur):
+        suffix = " [当前: <未设置>]" if not cur else f" [当前: {cur!r}]"
+        try:
+            v = input(f"  {label}{suffix}: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            raise
+        return v
+
+    # display_name
+    v = ask("display_name", meta.display_name)
+    if v:
+        meta.display_name = v
+    # description
+    v = ask("description", meta.description)
+    if v:
+        meta.description = v
+    # tags
+    meta.tags = _tags_submenu(list(meta.tags))
+
+    # model（与 config set 同校验：须在 registry 中；TTY 下不阻断 add，只警告——用户可稍后 config set）
     v = ask("model", meta.model or "")
     if v:
-        meta.model = v
+        try:
+            require_model_in_registry(workspace_root, v)
+        except (ModelNotInRegistry, ModelDefaultNotSet) as e:
+            print(
+                f"    [校验失败] {e.message}——model 字段未写入，稍后可用 "
+                f"`llmw wiki --name={meta.name} config set model=...` 补",
+                file=sys.stderr,
+            )
+        else:
+            meta.model = v
 
     meta.bump()
     wiki_store.save(wiki_dir, meta)
@@ -150,20 +172,9 @@ def add(
     if name in ws.wikis:
         raise WikiExists(f"wiki '{name}' 已存在")
 
-    # Phase 2: 校验 model_id 存在于 registry
+    # Phase 2: 校验 model_id 存在于 registry（统一走 require_model_in_registry）
     if model is not None:
-        try:
-            reg = load(workspace_root)
-        except RegistryMissing:
-            raise ModelDefaultNotSet(
-                "workspace 还没有 registry, 无法校验 model",
-                hint="先跑 `llmw model add --model-id=... --name=... --base-url=... --api-key=... --default` 至少一条",
-            )
-        if model not in reg.models:
-            raise ModelNotInRegistry(
-                f"model_id '{model}' 不在 registry 中",
-                hint="运行 `llmw model list` 查看可用 model_id",
-            )
+        require_model_in_registry(workspace_root, model)
 
     wiki_dir = workspace_root / name
 
@@ -269,13 +280,15 @@ def _purge_with_backup(
     """
     # 1. 确保 workspace .gitignore managed block 为最新版（含 .llmw-trash/ 排除行）
     # 老 workspace 的旧版 block（行数/内容不等）会被整体替换为当前 GITIGNORE_LINES。
-    # .gitignore 写入失败不阻断备份(用户可手动 gitignore)。
+    # .gitignore 写入失败不阻断备份（用户可手动 gitignore）——但打 warning，不静默。
     try:
-        from llmw.workspace.manager import _ensure_workspace_gitignore
-
-        _ensure_workspace_gitignore(workspace_root)
-    except (OSError, ImportError):
-        pass
+        ensure_workspace_gitignore(workspace_root)
+    except OSError as e:
+        print(
+            f"[llmw] warning: workspace .gitignore 更新失败: {e}——"
+            f"建议手动确保含 `.llmw-trash/` 排除行",
+            file=sys.stderr,
+        )
 
     if no_backup:
         safe_rmtree(wiki_path)
@@ -327,7 +340,7 @@ def remove(
     if name not in ws.wikis:
         raise WikiNotFound(f"wiki '{name}' 不在当前 workspace 中")
 
-    wiki_path = workspace_root / ws.wikis[name].path
+    wiki_path = resolve_wiki_path(workspace_root, name)
 
     if purge and not yes:
         if not sys.stdin.isatty():
@@ -405,7 +418,7 @@ def stop(
 
     row = candidates[0]
     wid, wname, session = row.window_id, row.window_name, row.session
-    dead = row.dead == "1"
+    dead = row.dead == byobu.DEAD_FLAG
 
     if not yes:
         if not _confirm_stop(name, wname, dead):
@@ -445,6 +458,23 @@ def _confirm_stop(name: str, wname: str, dead: bool) -> bool:
         print()
         ans = "n"
     return ans in ("y", "yes")
+
+
+def _restore_meta(meta, old: str, old_topic: str, wiki_dir: Path) -> None:
+    """rename 回滚辅助：meta.name/topic 恢复 + save。失败打 warning（回滚是 best-effort）。
+
+    注意先赋值再 save——若 save 失败，meta 在内存中已恢复但文件可能是改名后的值。
+    """
+    meta.name = old
+    meta.topic = old_topic
+    try:
+        wiki_store.save(wiki_dir, meta)
+    except OSError as rollback_err:
+        print(
+            f"[llmw] warning: 回滚 metadata 失败: {rollback_err}; "
+            f"{wiki_dir}/wiki_metadata.toml 可能停留在改名后的 name，请手动检查",
+            file=sys.stderr,
+        )
 
 
 def rename(
@@ -489,7 +519,7 @@ def rename(
     if new in ws.wikis:
         raise WikiExists(f"wiki '{new}' 已存在")
 
-    old_path = workspace_root / ws.wikis[old].path
+    old_path = resolve_wiki_path(workspace_root, old)
     new_path = workspace_root / new
     if new_path.exists():
         # 防 registry 与 fs 不一致 (残留空目录 / 手工 mkdir)
@@ -525,16 +555,7 @@ def rename(
         old_path.rename(new_path)
     except OSError as e:
         # 回滚 Phase 1: metadata 的 name/topic 恢复成 rename 前
-        try:
-            meta.name = old
-            meta.topic = old_topic
-            wiki_store.save(old_path, meta)
-        except OSError as rollback_err:
-            print(
-                f"[llmw] warning: 回滚 metadata 失败: {rollback_err}; "
-                f"{old_path}/wiki_metadata.toml 可能停留在 name={new}",
-                file=sys.stderr,
-            )
+        _restore_meta(meta, old, old_topic, old_path)
         if e.errno == errno.EXDEV:
             print(
                 "[llmw] hint: old/new 不在同一文件系统 (EXDEV); workspace 目录应位于"
@@ -552,9 +573,7 @@ def rename(
         # 回滚 Phase 2 + 1: fs rename 回来 + metadata 恢复
         try:
             new_path.rename(old_path)
-            meta.name = old
-            meta.topic = old_topic
-            wiki_store.save(old_path, meta)
+            _restore_meta(meta, old, old_topic, old_path)
         except OSError as rollback_err:
             print(
                 f"[llmw] warning: 回滚失败: {rollback_err}; fs/registry 可能不一致, "
@@ -597,11 +616,7 @@ def _show_collect(workspace_root: Path, name: str) -> Dict:
 
     纯收集不渲染；resolve 失败 → 退化只用 wiki_metadata.model 推断来源。
     """
-    ws = ws_store.load(workspace_root)
-    if name not in ws.wikis:
-        raise WikiNotFound(f"wiki '{name}' 不在当前 workspace 中")
-
-    wiki_path = workspace_root / ws.wikis[name].path
+    wiki_path = resolve_wiki_path(workspace_root, name)
     meta = None
     if (wiki_path / "wiki_metadata.toml").is_file():
         try:
@@ -734,18 +749,18 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         print(f"{label.ljust(label_w)}  {value}")
 
 
-# wiki config KEY 白名单
+# wiki config KEY 白名单: name -> (can_set, can_unset)
 WIKI_CONFIG_KEYS = {
-    "display_name": (True, True, str),
-    "description": (True, True, str),
-    "tags": (True, True, list),
-    "model": (True, True, str),
+    "display_name": (True, True),
+    "description": (True, True),
+    "tags": (True, True),
+    "model": (True, True),
     # name / topic / schema_version / created_at / updated_at 全部只读
 }
 
 
 def wiki_config_get(workspace_root: Path, name: str, key: Optional[str]) -> None:
-    wiki_dir = _wiki_abs(workspace_root, name)
+    wiki_dir = resolve_wiki_path(workspace_root, name)
     meta = wiki_store.load(wiki_dir)
     if key is None:
         # dump
@@ -769,10 +784,16 @@ def wiki_config_get(workspace_root: Path, name: str, key: Optional[str]) -> None
 def wiki_config_set(workspace_root: Path, name: str, key: str, value: str) -> None:
     if key not in WIKI_CONFIG_KEYS:
         raise InvalidConfigKey(f"KEY '{key}' 不在 wiki 白名单")
-    can_set, _, _ = WIKI_CONFIG_KEYS[key]
+    can_set, _ = WIKI_CONFIG_KEYS[key]
     if not can_set:
         raise InvalidConfigKey(f"KEY '{key}' 不可 set（只读）")
-    wiki_dir = _wiki_abs(workspace_root, name)
+    if not value:
+        # 空值语义与 unset 冲突（set 的 "" 若落盘为 None 会写出非法 TOML）——拒绝并指路
+        raise InvalidConfigKey(
+            f"KEY '{key}' 的 set 值不能为空",
+            hint=f"清空该字段请用 `llmw wiki --name={name} config unset {key}`",
+        )
+    wiki_dir = resolve_wiki_path(workspace_root, name)
     meta = wiki_store.load(wiki_dir)
     if key == "tags":
         new_tags = [t.strip() for t in value.split(",") if t.strip()]
@@ -780,21 +801,10 @@ def wiki_config_set(workspace_root: Path, name: str, key: str, value: str) -> No
             wiki_store.validate_tag(t)
         meta.tags = new_tags
     elif key == "model":
-        try:
-            reg = load(workspace_root)
-        except RegistryMissing:
-            raise ModelDefaultNotSet(
-                "workspace 还没有 registry, 无法校验 model",
-                hint="先跑 `llmw model add ...` 至少一条",
-            )
-        if value not in reg.models:
-            raise ModelNotInRegistry(
-                f"model_id '{value}' 不在 registry 中",
-                hint="运行 `llmw model list` 查看可用 model_id",
-            )
-        meta.model = value or None
+        require_model_in_registry(workspace_root, value)
+        meta.model = value
     else:
-        setattr(meta, key, value or None)
+        setattr(meta, key, value)
     meta.bump()
     wiki_store.save(wiki_dir, meta)
     print(f"✓ {key} 已更新", file=sys.stdout)
@@ -803,10 +813,10 @@ def wiki_config_set(workspace_root: Path, name: str, key: str, value: str) -> No
 def wiki_config_unset(workspace_root: Path, name: str, key: str) -> None:
     if key not in WIKI_CONFIG_KEYS:
         raise InvalidConfigKey(f"KEY '{key}' 不在 wiki 白名单")
-    can_set, can_unset, _ = WIKI_CONFIG_KEYS[key]
+    can_set, can_unset = WIKI_CONFIG_KEYS[key]
     if not can_unset:
         raise KeyNotUnsettable(f"KEY '{key}' 不可 unset")
-    wiki_dir = _wiki_abs(workspace_root, name)
+    wiki_dir = resolve_wiki_path(workspace_root, name)
     meta = wiki_store.load(wiki_dir)
     if key == "tags":
         meta.tags = []
@@ -821,7 +831,7 @@ def wiki_config_unset(workspace_root: Path, name: str, key: str) -> None:
 
 def wiki_config_interactive(workspace_root: Path, name: str) -> None:
     """wiki config 无参数: 默认就是交互模式（不要求 TTY）"""
-    wiki_dir = _wiki_abs(workspace_root, name)
+    wiki_dir = resolve_wiki_path(workspace_root, name)
     meta = wiki_store.load(wiki_dir)
     keys = list(WIKI_CONFIG_KEYS.keys())
     while True:
@@ -845,42 +855,8 @@ def wiki_config_interactive(workspace_root: Path, name: str) -> None:
             continue
 
         if key == "tags":
-            # 子菜单: a / r / s
-            cur_tags = list(meta.tags)
-            while True:
-                print(f"  当前 tags: {cur_tags}")
-                print("  a) 添加 tag\n  r) 移除 tag\n  s) 替换全部 tags")
-                try:
-                    op = input("操作 [a/r/s/q]: ").strip().lower()
-                except (EOFError, KeyboardInterrupt):
-                    break
-                if op == "a":
-                    t = input("新 tag: ").strip()
-                    if t:
-                        wiki_store.validate_tag(t)
-                        if t not in cur_tags:
-                            cur_tags.append(t)
-                elif op == "r":
-                    if not cur_tags:
-                        print("(空)")
-                        continue
-                    for i2, t in enumerate(cur_tags):
-                        print(f"  {i2 + 1}. {t}")
-                    try:
-                        idx2 = int(input("移除编号: ").strip()) - 1
-                        if 0 <= idx2 < len(cur_tags):
-                            cur_tags.pop(idx2)
-                    except (ValueError, EOFError, KeyboardInterrupt):
-                        pass
-                elif op == "s":
-                    t = input("全部 tags (逗号分隔): ").strip()
-                    new_tags = [x.strip() for x in t.split(",") if x.strip()]
-                    for x in new_tags:
-                        wiki_store.validate_tag(x)
-                    cur_tags = new_tags
-                else:
-                    break
-            meta.tags = cur_tags
+            # 子菜单与 add 交互共用（_tags_submenu），一处实现两处行为
+            meta.tags = _tags_submenu(list(meta.tags))
         elif key == "model":
             # model 是 registry 引用, 必须校验存在; 失败则提示重试, 不退出交互
             # （与 wiki_config_set 行为一致, 但交互式走重试而非 raise, 避免丢失已填字段）
@@ -896,17 +872,12 @@ def wiki_config_interactive(workspace_root: Path, name: str) -> None:
                     meta.model = None
                     break
                 try:
-                    reg = load(workspace_root)
-                except RegistryMissing:
-                    print(
-                        "    [校验失败] workspace 还没有 registry, 先 `llmw model add ...` 至少一条"
-                    )
+                    require_model_in_registry(workspace_root, new_v)
+                except ModelDefaultNotSet as e:
+                    print(f"    [校验失败] {e.message}")
                     continue
-                if new_v not in reg.models:
-                    avail = ", ".join(reg.models) or "(空)"
-                    print(
-                        f"    [校验失败] model_id '{new_v}' 不在 registry 中（可用: {avail}）"
-                    )
+                except ModelNotInRegistry as e:
+                    print(f"    [校验失败] {e.message}")
                     continue
                 meta.model = new_v
                 break

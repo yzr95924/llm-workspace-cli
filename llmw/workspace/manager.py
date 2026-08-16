@@ -8,16 +8,16 @@ from typing import List, Optional
 
 from llmw import WORKSPACE_SPEC_VERSION, __version__
 from llmw._compat import TOMLDecodeError
-from llmw.backends import KNOWN_BACKENDS
+from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
 from llmw.config import workspace_spec_templates_dir
 from llmw.errors import (
-    ConfigKeyMissing,
     InvalidConfigKey,
     KeyNotUnsettable,
     ModelDefaultAmbiguous,
     ModelDefaultNotSet,
     ModelNotInRegistry,
     RegistryMissing,
+    SchemaVersionUnsupported,
     SetupFailed,
     SkillMissing,
     WikiDirMissing,
@@ -26,6 +26,7 @@ from llmw.errors import (
 )
 from llmw.fsutil import atomic_write
 from llmw.workspace import store as ws_store
+from llmw.workspace.gitignore import ensure_workspace_gitignore
 
 # config KEY 白名单: name -> (can_set, can_unset, type)
 CONFIG_KEYS = {
@@ -68,84 +69,6 @@ def _parse_bool(key: str, value: str) -> bool:
     )
 
 
-# ===== workspace 级 .gitignore helper =====
-
-# workspace 级 .gitignore managed block 内容（spec workspace-spec.md §10 v0.7.0 + llmw 自有扩展）
-# 前 3 行严格对齐 spec §10（registry + Claude Code / Qoder IDE 项目级 overlay；
-# §10 文本自 0.6.1 起未变，0.7.0 未触及）。
-# 单仓模型：wiki 是 workspace 直属子目录，**/.<agent>/settings*.json 通配覆盖所有
-# wiki 的 overlay secret，不依赖 per-wiki .gitignore / wiki scaffold（见 §10）。
-# 0.5.0 加 .qoder，0.6.0 把 */ 改 **/（覆盖 workspace 根级），0.6.1 把 settings.local.json
-# 加宽到 settings*.json（含 settings.json / settings.<env>.json 等所有变体）。
-# 后 3 行为 llmw 自有扩展（spec §10 字面未列，"至少包含"语义下保留以避免误提交，
-# 见 MEMORY 驳正条目）：
-# - workspace_local.toml  主机相关运行时配置 (enter_cli，schema v2 起从 workspace.toml
-#                          拆出；跨主机各异，必须本地化)
-# - .llmw-trash/          wiki remove --purge 写入的备份目录
-# - **/opencode.json      enter_cli=opencode 的 overlay 落盘（含明文 apiKey，与
-#                          settings*.json 同一安全模型，见 llmw/models/overlay_opencode.py）
-GITIGNORE_LINES = (
-    "workspace_models.toml",
-    "**/.claude/settings*.json",
-    "**/.qoder/settings*.json",
-    "workspace_local.toml",
-    ".llmw-trash/",
-    "**/opencode.json",
-)
-
-# spec §10: workspace .gitignore 的通用忽略段（OS / 编辑器 / Obsidian / 临时）。
-# 全新 init 时与 managed block 一同落盘；已有 .gitignore 时不追加（尊重外部来源）。
-_GITIGNORE_COMMON = """\
-# OS / 编辑器
-.DS_Store
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Obsidian 配置（保留 vault 内容）
-.obsidian/workspace*
-.obsidian/cache
-
-# 临时文件
-*.tmp
-*.bak
-"""
-
-
-def _ensure_workspace_gitignore(workspace_root: Path) -> None:
-    """确保 workspace 级 .gitignore 含 llmw managed block + 通用忽略段（spec §10）。
-
-    - 文件不存在 → 创建（managed block + OS / Obsidian / 临时通用段）
-    - 文件存在 → 仅更新 managed marker 区间（secret 排除行），通用段不动
-      （已有 .gitignore 视为用户/外部来源，不覆盖其内容）
-    """
-    gitignore = workspace_root / ".gitignore"
-    marker_start = "# >>> llmw (managed by llmw) >>>"
-    marker_end = "# <<< llmw <<<"
-    block = marker_start + "\n" + "\n".join(GITIGNORE_LINES) + "\n" + marker_end
-
-    if not gitignore.is_file():
-        atomic_write(gitignore, block + "\n\n" + _GITIGNORE_COMMON)
-        return
-
-    text = gitignore.read_text(encoding="utf-8")
-    pattern = re.compile(
-        re.escape(marker_start) + r".*?" + re.escape(marker_end), re.DOTALL
-    )
-    m = pattern.search(text)
-    if m:
-        if m.group(0) == block:
-            return  # 已是最新 block
-        new_text = pattern.sub(block, text)  # 老 block → 替换为最新
-    else:
-        # 无 block → 追加（保证前导换行 + 末尾换行）
-        sep = "" if (text.endswith("\n") or not text) else "\n"
-        tail = "" if text.endswith("\n") else "\n"
-        new_text = text + sep + block + tail
-    atomic_write(gitignore, new_text)
-
-
 # ===== init =====
 
 
@@ -155,7 +78,7 @@ def _is_effectively_empty(path: Path) -> bool:
     允许在已有的 git 空仓上 init。git init 本身幂等，重跑无害。
 
     .gitignore 也忽略：它是 git 工作流的常规伴随文件，且正是 init 自身
-    （_ensure_workspace_gitignore）会写/维护的文件。若不忽略，llmw 写出的 .gitignore
+    （ensure_workspace_gitignore）会写/维护的文件。若不忽略，llmw 写出的 .gitignore
     会反过来挡住自身的 re-init（自反矛盾）。
     """
     ignored = {".git", ".gitignore"}
@@ -321,7 +244,7 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
     ws_store.create_skeleton(path)
 
     # 写 workspace 级 .gitignore（spec §10：无论是否启用 git 都生成，便于后续补 git）
-    _ensure_workspace_gitignore(path)
+    ensure_workspace_gitignore(path)
 
     # spec §3: workspace init 时刻创建空 workspace_models.toml 骨架
     # （含 schema_version=2 + 空 models=[]；save 内置 chmod 600 + NFS 跳过）
@@ -378,7 +301,7 @@ def config_get(workspace_root: Path, key: Optional[str]) -> None:
         if local.enter_cli is not None:
             print(f"enter_cli = {local.enter_cli}")
         else:
-            print("# enter_cli: <unset> (= claude)")
+            print(f"# enter_cli: <unset> (= {DEFAULT_BACKEND})")
         print(f"created_at = {ws.created_at}")
         print(f"templates_version = {ws.templates_version}")
         print(f"schema_version = {ws.schema_version}")
@@ -390,7 +313,7 @@ def config_get(workspace_root: Path, key: Optional[str]) -> None:
         return
 
     if key not in CONFIG_KEYS:
-        raise ConfigKeyMissing(f"KEY '{key}' 不存在")
+        raise InvalidConfigKey(f"KEY '{key}' 不在白名单")
     val = _current_value(ws, local, key)
     if val is None:
         print("<unset>")
@@ -509,11 +432,14 @@ def config_interactive(workspace_root: Path) -> None:
 # ===== list =====
 
 
-def list_wikis(
-    workspace_root: Path, as_json: bool = False, tag_filter: Optional[List[str]] = None
-) -> int:
-    """返回 0; 输出由调用方决定 (stdout)"""
-    ws = ws_store.load(workspace_root)
+def _gather_wiki_rows(
+    workspace_root: Path, ws, tag_filter: Optional[List[str]]
+) -> List[dict]:
+    """list 数据聚合：遍历 registry + 读 wiki metadata + resolve model + 派生 last_activity。
+
+    meta 读取失败（文件损坏等）→ warning + 降级空元数据（列表仍完整，不因单个 wiki
+    损坏而整体失败）——与 _show_collect 同一降级模式。
+    """
     rows = []
     for name in sorted(ws.wikis.keys()):
         entry = ws.wikis[name]
@@ -527,7 +453,12 @@ def list_wikis(
 
                 try:
                     meta = wiki_load(wiki_path)
-                except Exception:
+                except (OSError, TOMLDecodeError, SchemaVersionUnsupported) as e:
+                    print(
+                        f"[llmw] warning: 无法读取 {name} 的 wiki_metadata.toml: "
+                        f"{type(e).__name__}: {e}",
+                        file=sys.stderr,
+                    )
                     meta = None
 
         if tag_filter:
@@ -584,31 +515,30 @@ def list_wikis(
                 "last_activity": last_activity,
             }
         )
+    return rows
 
-    if as_json:
-        import json
 
-        out = [
-            {
-                "name": r["name"],
-                "path": r["path"],
-                "display_name": r["display_name"] or None,
-                "tags": r["tags"],
-                "model": r["model"],
-                "model_source": r["model_source"],
-                "wiki_dir_exists": r["exists"],
-                "last_activity": r["last_activity"],
-            }
-            for r in rows
-        ]
-        print(json.dumps(out, ensure_ascii=False, indent=2))
-        return 0
+def _render_list_json(rows: List[dict]) -> None:
+    import json
 
-    # 表格
-    if not rows:
-        print("# (no wikis registered)")
-        return 0
-    # meta 缺失时时间列用 "-" 占位, 保持列对齐
+    out = [
+        {
+            "name": r["name"],
+            "path": r["path"],
+            "display_name": r["display_name"] or None,
+            "tags": r["tags"],
+            "model": r["model"],
+            "model_source": r["model_source"],
+            "wiki_dir_exists": r["exists"],
+            "last_activity": r["last_activity"],
+        }
+        for r in rows
+    ]
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
+
+def _render_list_table(rows: List[dict]) -> None:
+    """表格：列宽 = max(内容 + 表头)；meta 缺失时时间列用 "-" 占位，保持列对齐。"""
     created_cells = [r["created_at"] or "-" for r in rows]
     last_activity_cells = [r["last_activity"] or "-" for r in rows]
     name_w = max(len(r["name"]) for r in rows + [{"name": "NAME"}])
@@ -648,4 +578,21 @@ def list_wikis(
             f"{last_act.ljust(last_activity_w)}  "
             f"{dn.ljust(dn_w)}  {tags.ljust(tags_w)}  {model_cell.ljust(model_w)}"
         )
+
+
+def list_wikis(
+    workspace_root: Path, as_json: bool = False, tag_filter: Optional[List[str]] = None
+) -> int:
+    """返回 0; 输出由调用方决定 (stdout)。聚合与渲染分离（_gather_wiki_rows + _render_*）。"""
+    ws = ws_store.load(workspace_root)
+    rows = _gather_wiki_rows(workspace_root, ws, tag_filter)
+
+    if as_json:
+        _render_list_json(rows)
+        return 0
+
+    if not rows:
+        print("# (no wikis registered)")
+        return 0
+    _render_list_table(rows)
     return 0

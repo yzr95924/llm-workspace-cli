@@ -29,32 +29,24 @@ from pathlib import Path
 from typing import List, Optional
 
 from llmw._compat import TOMLDecodeError
+from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
 from llmw.errors import (
     ByobuNotFound,
     ClaudeNotFound,
     SchemaVersionUnsupported,
     WikiDirMissing,
-    WikiNotFound,
 )
 from llmw.models import overlay, overlay_opencode
 from llmw.models.redact import redact_api_key
 from llmw.models.resolve import resolve_for_wiki
 from llmw.wiki import byobu
+from llmw.wiki.manager import resolve_wiki_path
 from llmw.wiki.store import load as wiki_load
-from llmw.workspace import store as ws_store
+from llmw.workspace import local_store
+from llmw.workspace.gitignore import ensure_workspace_gitignore
 
 
-def _resolve_wiki_path(workspace_root: Path, name: str) -> Path:
-    ws = ws_store.load(workspace_root)
-    if name not in ws.wikis:
-        raise WikiNotFound(
-            f"wiki '{name}' 不在当前 workspace 中",
-            hint="运行 `llmw list` 查看已注册 wiki",
-        )
-    return workspace_root / ws.wikis[name].path
-
-
-def _build_cmd(wiki_path: Path):
+def _build_cmd(wiki_path: Path) -> List[str]:
     """构造 claude 子进程 argv：仅 --add-dir，让 claude 自读 <wiki>/CLAUDE.md。
 
     不传 --setting-sources：claude 默认加载 user+project+local。cwd=wiki 子目录 → 读到
@@ -65,26 +57,25 @@ def _build_cmd(wiki_path: Path):
     不传 --system-prompt：claude 会从 cwd + --add-dir 自动聚合 CLAUDE.md；显式注入会双计入
     并让两 backend 行为分叉（qodercli 路径就不传）。
     """
-    return ["claude", "--add-dir", str(wiki_path)], None
+    return ["claude", "--add-dir", str(wiki_path)]
 
 
-def _build_cmd_qodercli(wiki_path: Path):
+def _build_cmd_qodercli(wiki_path: Path) -> List[str]:
     """构造 qodercli 子进程 argv：--add-dir。
 
     qodercli 不读 .claude/settings.local.json，不依赖 model env 注入（qodercli 自读 AGENTS.md）。
-    与 _build_cmd 同样只返 cmd，二者签名一致便于 call site 复用。
     """
-    return ["qodercli", "--add-dir", str(wiki_path)], None
+    return ["qodercli", "--add-dir", str(wiki_path)]
 
 
-def _build_cmd_opencode(wiki_path: Path):
+def _build_cmd_opencode(wiki_path: Path) -> List[str]:
     """构造 opencode 子进程 argv：位置参数 project dir（等价 claude --add-dir 的角色）。
 
     opencode 启动后从 cwd 向上自读 AGENTS.md（wiki 骨架含 AGENTS.md，opencode 优先读它、
     CLAUDE.md 兜底）。模型由 <wiki>/opencode.json 顶层 model key 指定（overlay_opencode
     交付），不传 -m——-m 只是"选择已配置 provider/model"，provider 定义仍靠 overlay 文件。
     """
-    return ["opencode", str(wiki_path)], None
+    return ["opencode", str(wiki_path)]
 
 
 def _spawn(
@@ -114,7 +105,7 @@ def _spawn(
         print(
             f"[llmw] window: {window_name}（作用域 = 当前 tmux session；"
             "不在 tmux 内 → 兜底 "
-            f"{byobu._BYOBU_SESSION} + attach）",
+            f"{byobu.BYOBU_SESSION} + attach）",
             file=sys.stdout,
         )
         print(
@@ -141,7 +132,7 @@ def _spawn(
     if cur is not None:
         session, ensure = cur, False
     else:
-        session, ensure = byobu._BYOBU_SESSION, True
+        session, ensure = byobu.BYOBU_SESSION, True
 
     created, _, collected = byobu.spawn_window(
         byobu.SpawnSpec(
@@ -187,7 +178,7 @@ def enter(
     dry_run: bool = False,
     window_suffix: Optional[str] = None,
 ) -> int:
-    wiki_path = _resolve_wiki_path(workspace_root, name)
+    wiki_path = resolve_wiki_path(workspace_root, name)
 
     if not wiki_path.is_dir():
         raise WikiDirMissing(
@@ -207,21 +198,18 @@ def enter(
     if not meta_p.is_file():
         print(f"[llmw] warning: wiki '{name}' 缺少 wiki_metadata.toml", file=sys.stderr)
 
-    # 选 backend：workspace_local.toml#enter_cli；未设 → claude。
-    # 手改出非法值（config set 有白名单挡着，兜手改文件）→ warning + 回退 claude——
+    # 选 backend：workspace_local.toml#enter_cli；未设 → DEFAULT_BACKEND（backends.py 真源）。
+    # 手改出非法值（config set 有白名单挡着，兜手改文件）→ warning + 回退默认——
     # 静默降级会吞掉用户意图（巡检 #7：本项目卖点是可见性，自己不该静默）。
-    from llmw.backends import KNOWN_BACKENDS
-    from llmw.workspace import local_store
-
     local = local_store.load(workspace_root)
-    backend = local.enter_cli or "claude"
+    backend = local.enter_cli or DEFAULT_BACKEND
     if backend not in KNOWN_BACKENDS:
         print(
             f"[llmw] warning: workspace_local.toml#enter_cli 值 '{backend}' 不在白名单，"
-            f"已回退 claude（可选: {', '.join(sorted(KNOWN_BACKENDS))}）",
+            f"已回退 {DEFAULT_BACKEND}（可选: {', '.join(sorted(KNOWN_BACKENDS))}）",
             file=sys.stderr,
         )
-        backend = "claude"
+        backend = DEFAULT_BACKEND
     agent_bin = backend  # backend 值即二进制名
 
     # 环境检查（步骤 5；dry-run 跳过）：byobu-tmux + agent CLI 都必须在 PATH——
@@ -252,60 +240,43 @@ def enter(
 
     if backend == "opencode":
         ov = overlay_opencode
-        cmd, prompt = _build_cmd_opencode(wiki_path)
+        cmd = _build_cmd_opencode(wiki_path)
         backend_label = "opencode (workspace_local.toml#enter_cli)"
         context_file = wiki_path / "AGENTS.md"  # opencode 优先读 AGENTS.md
     else:
         ov = overlay
-        cmd, prompt = _build_cmd(wiki_path)
+        cmd = _build_cmd(wiki_path)
         backend_label = "claude (默认)"
         context_file = claude_md
 
-    # dry-run
     if dry_run:
-        meta = None
-        if meta_p.is_file():
-            try:
-                meta = wiki_load(wiki_path)
-            except (OSError, TOMLDecodeError, SchemaVersionUnsupported) as e:
-                # resolve 已捕过 SchemaVersionUnsupported；这里再捕让 dry-run 还能打印 overlay
-                print(
-                    f"[llmw] warning: 无法读取 wiki_metadata.toml: {type(e).__name__}: {e}",
-                    file=sys.stderr,
-                )
-                meta = None
-        _print_dry_run_model_backends(
+        return _enter_dry_run(
+            workspace_root,
+            name,
+            wiki_path,
+            meta_p,
             backend,
             ov,
             model,
-            meta,
-            workspace_root,
-            wiki_path,
             context_file,
-            name,
             backend_label,
-        )
-        # cmd/env/spawn 方式/未执行 由 _spawn 统一打印（dry-run）或执行（real）
-        return _spawn(
-            wiki_path,
-            name,
-            _window_name(name, window_suffix),
             cmd,
-            backend,
-            dry_run=True,
+            window_suffix,
         )
 
     # opencode 路径特有：overlay 落盘含明文 apiKey，写盘前确保 workspace .gitignore 的
     # **/opencode.json 排除行就位（老 workspace 的 managed block 可能还是旧版少行）。
-    # 与 wiki remove --purge 升级 .llmw-trash/ 行同一先例（llmw/wiki/manager.py:262）；
-    # gitignore 写入失败不阻断 enter（用户可手动 gitignore）。dry-run 不写盘，不做。
+    # 与 wiki remove --purge 升级 .llmw-trash/ 行同一先例（llmw/wiki/manager.py）。
+    # gitignore 写入失败不阻断 enter（用户可手动 gitignore）——但打 warning，不静默。
     if backend == "opencode":
         try:
-            from llmw.workspace.manager import _ensure_workspace_gitignore
-
-            _ensure_workspace_gitignore(workspace_root)
-        except OSError:
-            pass
+            ensure_workspace_gitignore(workspace_root)
+        except OSError as e:
+            print(
+                f"[llmw] warning: workspace .gitignore 更新失败: {e}——"
+                f"建议手动确保含 `**/opencode.json` 排除行",
+                file=sys.stderr,
+            )
 
     # 真正执行：步骤 6b lazy 写 overlay（claude=Local 层 settings.local.json；
     # opencode=项目级 opencode.json）→ _spawn 收口（当前 session 开窗/兜底 attach）
@@ -317,6 +288,52 @@ def enter(
         cmd,
         backend,
         dry_run=False,
+    )
+
+
+def _enter_dry_run(
+    workspace_root: Path,
+    name: str,
+    wiki_path: Path,
+    meta_p: Path,
+    backend: str,
+    ov,
+    model,
+    context_file: Path,
+    backend_label: str,
+    cmd: List[str],
+    window_suffix: Optional[str],
+) -> int:
+    """claude/opencode 路径的 dry-run 分支：打印决策树后由 _spawn 统一收尾。"""
+    meta = None
+    if meta_p.is_file():
+        try:
+            meta = wiki_load(wiki_path)
+        except (OSError, TOMLDecodeError, SchemaVersionUnsupported) as e:
+            # resolve 已捕过 SchemaVersionUnsupported；这里再捕让 dry-run 还能打印 overlay
+            print(
+                f"[llmw] warning: 无法读取 wiki_metadata.toml: {type(e).__name__}: {e}",
+                file=sys.stderr,
+            )
+            meta = None
+    _print_dry_run_model_backends(
+        backend,
+        ov,
+        model,
+        meta,
+        workspace_root,
+        wiki_path,
+        context_file,
+        name,
+        backend_label,
+    )
+    return _spawn(
+        wiki_path,
+        name,
+        _window_name(name, window_suffix),
+        cmd,
+        backend,
+        dry_run=True,
     )
 
 
@@ -333,7 +350,7 @@ def _enter_qodercli(
     dry-run 打印专属决策；cmd/env/spawn 方式/未执行 由 _spawn 统一打印（dry-run）
     或执行（real）。
     """
-    cmd, _ = _build_cmd_qodercli(wiki_path)
+    cmd = _build_cmd_qodercli(wiki_path)
 
     if dry_run:
         print(f"[llmw] workspace: {workspace_root}", file=sys.stdout)
@@ -379,6 +396,9 @@ def _print_dry_run_model_backends(
     内容不变：workspace/wiki/backend/resolved model/source/overlay 文件（含
     will-write 判定）+ backend 专属 env 行（opencode=provider 块 / claude=ANTHROPIC_*
     + habit template，api_key 过 redact）+ context 文件存在性。
+
+    **展示字段一律取自 ov.render(model) 输出**——render 改字段 dry-run 自动跟随，
+    不手抄 overlay 内部逻辑（避免"展示与实现耦合"漂移）。
     """
     overlay_path, would_write = ov.inspect(wiki_path, model)
     print(f"[llmw] workspace: {workspace_root}", file=sys.stdout)
@@ -392,33 +412,40 @@ def _print_dry_run_model_backends(
     print(f"[llmw] source: {source}", file=sys.stdout)
     tag = "(will write)" if would_write else "(up to date, skip)"
     print(f"[llmw] overlay file: {overlay_path}  {tag}", file=sys.stdout)
+    expected = ov.render(model)
     if backend == "opencode":
-        pid = overlay_opencode._PROVIDER_ID
+        pid = overlay_opencode.PROVIDER_ID
+        prov = expected["provider"][pid]
+        print(f"[llmw]   provider.{pid}.npm     = {prov['npm']}", file=sys.stdout)
         print(
-            f"[llmw]   provider.{pid}.npm     = {overlay_opencode._NPM_PACKAGE}",
+            f"[llmw]   provider.{pid}.baseURL = {prov['options']['baseURL']}",
             file=sys.stdout,
         )
         print(
-            f"[llmw]   provider.{pid}.baseURL = {overlay_opencode._ai_sdk_base_url(model.base_url)}",
+            f"[llmw]   provider.{pid}.apiKey  = {redact_api_key(prov['options']['apiKey'])}",
             file=sys.stdout,
         )
-        print(
-            f"[llmw]   provider.{pid}.apiKey  = {redact_api_key(model.api_key)}",
-            file=sys.stdout,
-        )
-        print(f"[llmw]   model                 = {pid}/{model.name}", file=sys.stdout)
+        print(f"[llmw]   model                 = {expected['model']}", file=sys.stdout)
     else:
-        print(f"[llmw]   ANTHROPIC_MODEL      = {model.name}", file=sys.stdout)
-        print(f"[llmw]   ANTHROPIC_BASE_URL   = {model.base_url}", file=sys.stdout)
         print(
-            f"[llmw]   ANTHROPIC_AUTH_TOKEN = {redact_api_key(model.api_key)}",
+            f"[llmw]   ANTHROPIC_MODEL      = {expected['ANTHROPIC_MODEL']}",
             file=sys.stdout,
         )
-        # Habit template（非用户可配的代码内常量, 随 overlay 一同写入）
+        print(
+            f"[llmw]   ANTHROPIC_BASE_URL   = {expected['ANTHROPIC_BASE_URL']}",
+            file=sys.stdout,
+        )
+        print(
+            f"[llmw]   ANTHROPIC_AUTH_TOKEN = {redact_api_key(expected['ANTHROPIC_AUTH_TOKEN'])}",
+            file=sys.stdout,
+        )
+        # Habit template（非用户可配的代码内常量, 随 overlay 一同写入）——render 输出
+        # 中 ANTHROPIC_* 之外的 key 即 habit template
+        habit = {k: v for k, v in expected.items() if not k.startswith("ANTHROPIC_")}
         print("[llmw]   (habit template)", file=sys.stdout)
         # 用最长 key 长度对齐 value 列（habit template 组内对齐, 不与 model env 共享列）
-        width = max(len(k) for k in overlay._HABIT_TEMPLATE)
-        for k, v in overlay._HABIT_TEMPLATE.items():
+        width = max(len(k) for k in habit)
+        for k, v in habit.items():
             print(f"[llmw]     {k:{width}s} = {v}", file=sys.stdout)
     if context_file.is_file():
         print(

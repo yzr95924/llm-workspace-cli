@@ -45,6 +45,10 @@ _STATE_DISPLAY = {
     "unknown": "?",
 }
 
+# 假活判定集合（唯一消费方是本模块 STATE 判定——故归此处，不占 byobu 的 tmux IO 边界）：
+# 带标窗口但前台进程是 shell = agent 已退出/崩溃但窗口残留（R5 STATE ②）
+_SHELL_CMDS = frozenset({"fish", "bash", "zsh", "sh", "dash", "ash"})
+
 # 表格排序：actionable first（waiting/假活最前 → working/unknown → dead 最后）
 _STATE_ORDER = {"shell": 0, "waiting": 0, "working": 1, "unknown": 1, "dead": 2}
 
@@ -54,7 +58,7 @@ def _classify_state(d: Dict) -> str:
     if d["dead"]:
         return "dead"
     pcmd = (d.get("pcmd") or "").lower()
-    if pcmd in byobu._SHELL_CMDS:
+    if pcmd in _SHELL_CMDS:
         return "shell"
     tail = byobu.capture_pane_tail(d["window_id"])
     if match_working(tail, d.get("backend")):

@@ -70,12 +70,12 @@ def load(workspace_root: Path) -> WorkspaceToml:
         wikis[name] = WikiEntry(
             name=name,
             path=info["path"],
-            created_at=info["created_at"],
+            created_at=info.get("created_at", ""),
         )
 
     return WorkspaceToml(
         schema_version=sv,
-        created_at=raw["created_at"],
+        created_at=raw.get("created_at", ""),
         templates_version=raw.get("templates_version", "1"),
         wikis=wikis,
     )
@@ -119,16 +119,16 @@ def _migrate_v1_to_v2(workspace_root: Path, raw_v1: dict) -> None:
       配置可能被误提交)。
 
     自愈迁移：老 workspace 首次 ``load`` 即触发，幂等 (迁完 schema_version=2，下次
-    load 走 v2 分支不再进)。lazy import 避免 store ↔ manager / local_store 循环。
+    load 走 v2 分支不再进)。lazy import 避免 store ↔ local_store 循环。
     """
     from llmw.workspace import local_store
-    from llmw.workspace.manager import _ensure_workspace_gitignore
+    from llmw.workspace.gitignore import ensure_workspace_gitignore
 
     # 抽出 v1 运行时字段
     enter_cli = raw_v1.get("enter_cli")
 
     # 写 local 前确保 gitignore 就位
-    _ensure_workspace_gitignore(workspace_root)
+    ensure_workspace_gitignore(workspace_root)
 
     # merge 进 local (不覆盖已有)
     local = local_store.load(workspace_root)

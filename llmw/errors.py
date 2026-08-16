@@ -65,11 +65,6 @@ class KeyNotUnsettable(LlmwError):
     user_message = "KEY 不可 unset"
 
 
-class ConfigKeyMissing(LlmwError):
-    exit_code = 1
-    user_message = "config get KEY 不存在"
-
-
 class MissingRequiredFlag(LlmwError):
     exit_code = 1
     user_message = "非 TTY 下 metadata 字段缺 flag"
@@ -91,6 +86,13 @@ class SpaceFormNotAllowed(LlmwError):
 class SchemaVersionUnsupported(LlmwError):
     exit_code = 1
     user_message = "schema_version 不被当前 CLI 支持"
+
+
+class WikiMetadataCorrupt(LlmwError):
+    """wiki_metadata.toml 结构不符 schema（必填字段缺失等）——exit 1 用户可修，不归内部错误。"""
+
+    exit_code = 1
+    user_message = "wiki_metadata.toml 损坏或不完整"
 
 
 class InvalidWikiName(LlmwError):

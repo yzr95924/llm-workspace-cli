@@ -10,7 +10,6 @@ DEFAULT_WORKSPACE = Path.home() / "yzr-llm-wiki-workspace"
 
 def resolve_workspace_root(
     explicit: str = None,
-    cwd: Path = None,
 ) -> Path:
     """解析 workspace 根路径
 
@@ -49,15 +48,6 @@ def package_root() -> Path:
 def repo_root() -> Path:
     """返回仓库根 (package_root 的父目录)"""
     return package_root().parent
-
-
-def skill_setup_script() -> Path:
-    """保留旧 API 以防有外部调用；返回 None 表示已废弃
-
-    spec 0.2.0 起 wiki 创建由 CLI 内联实现(llmw.wiki.init_wiki),不再依赖
-    yzr-SKILL/.../scripts/setup_wiki.py。本函数保留以便旧代码导入不报错。
-    """
-    return None
 
 
 def wiki_spec_templates_dir() -> Path:

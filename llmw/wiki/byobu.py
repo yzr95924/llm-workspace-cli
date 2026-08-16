@@ -67,7 +67,7 @@ import shlex
 import shutil
 import subprocess
 import time
-from typing import Dict, List, NamedTuple, Optional, Tuple
+from typing import Dict, List, NamedTuple, Optional, Set, Tuple
 
 from llmw.errors import (
     ByobuCommandFailed,
@@ -76,7 +76,11 @@ from llmw.errors import (
 )
 
 _BYOBU_BIN = "byobu-tmux"
-_BYOBU_SESSION = "llm_workspace"  # 兜底 session 名（代码常量，不可配）
+# 兜底 session 名（代码常量，不可配）：enter 不在 tmux 内时的落点，status/enter 共享
+BYOBU_SESSION = "llm_workspace"
+
+# pane_dead 格式变量的字面量（_LIST_FORMAT 的 #{pane_dead}）：消费端统一引此，不裸比较 "1"
+DEAD_FLAG = "1"
 
 # 最近一次失败命令的 stderr（单线程 CLI 无并发问题；供异常消息诊断——
 # 关键失败的真实报错要能上抛，不能只靠 returncode 猜）
@@ -130,10 +134,6 @@ class SpawnSpec(NamedTuple):
     env: Dict[str, str]
     backend: str
     ensure: bool = False
-
-
-# 假活判定：带标窗口但前台进程是 shell = agent 已退出/崩溃但窗口残留（R5 STATE ②）
-_SHELL_CMDS = frozenset({"fish", "bash", "zsh", "sh", "dash", "ash"})
 
 
 def byobu_available() -> bool:
@@ -331,12 +331,18 @@ def list_windows() -> List[WindowRow]:
     逐 session 枚举（`list-sessions` + 每 session `list-windows -t`）——
     2026-08-15 起取代 2.9+ 的 `list-windows -a`，行为全版本一致（设计 §2.4 R5）。
     session 在两次调用间消失 → 该次调用失败 → 跳过不报错（快照语义）。
+    **按 window_id 去重**（linked/grouped session，`new-session -t <base>` 无 -s 时
+    tmux 自动建 `<base>-<n>` 共享窗口）：窗口是 tmux 唯一实体（window_id 全局唯一），
+    linked session 只是同一窗口在多 session 可见——逐 session 枚举会重复返回同一
+    窗口，导致 status 重复行 / stop 误报 MultipleRunningSessions。保留首个枚举到的
+    session（list-sessions 按创建序），后续同 id 行丢弃。
     10 字段（含 @llmw_backend / pane_current_command，见 _LIST_FORMAT）。
     """
     p = _run(["list-sessions", "-F", "#{session_name}"])
     if p.returncode != 0:
         return []
     rows: List[WindowRow] = []
+    seen: Set[str] = set()
     for sname in p.stdout.splitlines():
         q = _run(["list-windows", "-t", sname, "-F", _LIST_FORMAT])
         if q.returncode != 0:
@@ -345,7 +351,11 @@ def list_windows() -> List[WindowRow]:
             parts = line.split("\t")
             if len(parts) < len(WindowRow._fields):
                 continue
-            rows.append(WindowRow(*parts[: len(WindowRow._fields)]))
+            row = WindowRow(*parts[: len(WindowRow._fields)])
+            if row.window_id in seen:
+                continue  # linked/grouped session 重复 → 只保留首个
+            seen.add(row.window_id)
+            rows.append(row)
     return rows
 
 

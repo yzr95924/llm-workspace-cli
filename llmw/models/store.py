@@ -1,7 +1,6 @@
 """workspace_models.toml 读写 + 字段校验 + chmod 600"""
 
 import io
-import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -15,7 +14,7 @@ from llmw.errors import (
     RegistryMissing,
     SchemaVersionUnsupported,
 )
-from llmw.fsutil import atomic_write, now_iso8601
+from llmw.fsutil import atomic_write, chmod_600, now_iso8601
 
 # workspace-spec.md §15: model_id 允许 ^[a-z0-9_-]{1,64}$ (首字符可为 - 或 _),
 # 比 wiki name 的 NAME_RE 更宽松. 本地复刻,不再 import wiki.NAME_RE.
@@ -154,8 +153,8 @@ def load(workspace_root: Path) -> Registry:
     # 是否需要 default 由消费方判断（如 resolve_for_wiki 的 fallback）。
     return Registry(
         schema_version=sv,
-        created_at=raw["created_at"],
-        updated_at=raw["updated_at"],
+        created_at=raw.get("created_at", ""),
+        updated_at=raw.get("updated_at", ""),
         models=models,
     )
 
@@ -190,11 +189,17 @@ def save(workspace_root: Path, reg: Registry) -> None:
     toml_dump(data, buf)
     atomic_write(toml_path, buf.getvalue())
     # 安全：registry 含 api_key，强制 600
-    try:
-        os.chmod(toml_path, 0o600)
-    except OSError:
-        # NFS / 某些 FS 不支持 chmod；best-effort
-        pass
+    chmod_600(toml_path)
+
+
+def delete(workspace_root: Path) -> None:
+    """删除 workspace_models.toml（registry 变空时的收尾，经 store 层统一出口）。
+
+    manager 不直接碰文件系统删除——文件删除策略（如未来加备份）收敛在 store。
+    """
+    toml_path = workspace_root / "workspace_models.toml"
+    if toml_path.is_file():
+        toml_path.unlink()
 
 
 # ===== 初始化 / 创建 =====

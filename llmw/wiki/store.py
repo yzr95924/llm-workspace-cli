@@ -7,7 +7,12 @@ from typing import List, Optional
 
 from llmw._compat import toml_loads, toml_dump
 from llmw.config import templates_dir
-from llmw.errors import InvalidTagValue, InvalidWikiName, SchemaVersionUnsupported
+from llmw.errors import (
+    InvalidTagValue,
+    InvalidWikiName,
+    SchemaVersionUnsupported,
+    WikiMetadataCorrupt,
+)
 from llmw.fsutil import atomic_write, now_iso8601
 
 SCHEMA_VERSION_SUPPORTED = 2
@@ -59,6 +64,14 @@ def load(wiki_dir: Path) -> WikiMetadata:
         raise SchemaVersionUnsupported(
             f"wiki_metadata.toml schema_version={sv} 不被支持 (当前 CLI 仅支持 v{SCHEMA_VERSION_SUPPORTED})",
             hint="升级 CLI 或手动迁移",
+        )
+    # 必填字段缺失 → 类型化错误（exit 1），不裸抛 KeyError（exit 3 内部错误）。
+    # 字段级 schema 校验收敛在 store 层（AGENTS.md 边界：manager/resolve 不重新校验）。
+    missing = [k for k in ("name", "topic", "created_at", "updated_at") if k not in raw]
+    if missing:
+        raise WikiMetadataCorrupt(
+            f"wiki_metadata.toml 缺必填字段: {', '.join(missing)}",
+            hint="手动补字段，或重新 `llmw wiki --name=<name> add`（备份后）",
         )
     return WikiMetadata(
         schema_version=sv,

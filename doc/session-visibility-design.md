@@ -172,7 +172,13 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
   #{window_activity} #{pane_dead} #{pane_dead_time} #{@llmw_wiki} #{@llmw_started}
   #{@llmw_backend} #{pane_current_command}'`(10 字段;原 `list-windows -a` 是 2.9+,
   逐 session 用远古原语,行为全版本一致;session 在两次调用间消失 → 跳过不报错,
-  快照语义)。过滤 `@llmw_wiki` 非空行。
+  快照语义)。过滤 `@llmw_wiki` 非空行。**linked/grouped session 去重**(2026-08-16):
+  `new-session -t <base>` 不带 `-s` 时 tmux 自动建 `<base>-<n>` linked session,
+  与 base 共享全部窗口——逐 session 枚举会把同一窗口重复返回(window_id 全局唯一,
+  窗口是 tmux 唯一实体),导致 status 重复行 / stop 误报 MultipleRunningSessions。
+  `list_windows()` 按 `window_id` 去重,保留首个枚举到的 session(list-sessions 按
+  创建序)。llmw 自身不创建 linked session(`new-session -s <显式名>` / `new-window`
+  `-t <session>:`),此为外部产物(用户手动 / 其它工具),防御性处理。
   列:WIKI / WINDOW / SESSION / BACKEND / STATE / UPTIME / IDLE。
   时间格式统一:<60s → `now`;<60min → `Nm`;<24h → `Nh`;否则 `Nd`。
   dead 行:IDLE 列显示 `✗ exited <Nd ago>`,UPTIME 停表——数据源 `pane_dead_time`,

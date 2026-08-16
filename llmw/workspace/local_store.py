@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Optional
 
 from llmw._compat import toml_loads, toml_dump
+from llmw.backends import DEFAULT_BACKEND
 from llmw.errors import SchemaVersionUnsupported
 from llmw.fsutil import atomic_write, now_iso8601
 
@@ -37,7 +38,9 @@ class WorkspaceLocal:
 
     schema_version: int
     created_at: str
-    enter_cli: Optional[str] = None  # "claude" (默认) | "qodercli" | "opencode"
+    enter_cli: Optional[str] = (
+        None  # DEFAULT_BACKEND (claude) | "qodercli" | "opencode"
+    )
 
 
 def load(workspace_root: Path) -> WorkspaceLocal:
@@ -84,8 +87,8 @@ def save(workspace_root: Path, wl: WorkspaceLocal) -> None:
         "schema_version": wl.schema_version,
         "created_at": wl.created_at,
     }
-    # enter_cli = "claude" 是默认值，不落盘 (行不存在即 claude)，与 store.py 旧逻辑一致
-    if wl.enter_cli is not None and wl.enter_cli != "claude":
+    # enter_cli = 默认 backend 时不落盘 (行不存在即默认)，与 store.py 旧逻辑一致
+    if wl.enter_cli is not None and wl.enter_cli != DEFAULT_BACKEND:
         data["enter_cli"] = wl.enter_cli
 
     buf = io.StringIO()

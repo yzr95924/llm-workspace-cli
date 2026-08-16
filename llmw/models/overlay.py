@@ -20,12 +20,11 @@ overlay 写入所有 wiki，确保跨 session 风格一致。增删改一律改�
 """
 
 import json
-import os
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 from llmw.errors import OverlayFileUnparseable
-from llmw.fsutil import atomic_write
+from llmw.fsutil import atomic_write, chmod_600, load_json_optional
 from llmw.models.store import ModelEntry
 
 # Habit template: 习惯级 env key 的代码内常量（非用户可配）
@@ -95,13 +94,11 @@ def _load_existing(path: Path) -> Optional[dict]:
     """读现有 settings.local.json。不存在 → None；JSON 非法 → OverlayFileUnparseable。
 
     绝不 clobber 损坏文件：解析失败直接抛，调用方阻断，由用户手动修复。
+    IO 骨架共享 fsutil.load_json_optional（文件级语义），业务异常在此包装。
     """
-    if not path.is_file():
-        return None
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except json.JSONDecodeError as e:
+        return load_json_optional(path)
+    except ValueError as e:
         raise OverlayFileUnparseable(
             f"{path} 不是合法 JSON: {e}",
             hint="手动修复或删除该文件后重试；CLI 不会覆盖损坏文件",
@@ -148,8 +145,6 @@ def apply(wiki_dir: Path, model: ModelEntry) -> Path:
 
     path.parent.mkdir(parents=True, exist_ok=True)
     atomic_write(path, json.dumps(data, ensure_ascii=False, indent=2))
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass  # NFS 等不支持 chmod，best-effort（同 registry）
+    # 安全：overlay 含明文 api_key，强制 600（NFS best-effort）
+    chmod_600(path)
     return path

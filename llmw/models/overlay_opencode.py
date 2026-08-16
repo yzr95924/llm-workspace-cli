@@ -52,16 +52,16 @@ MiniMax-M3[1m] 推理均已对真实 gateway 端到端验证通过。
 """
 
 import json
-import os
 from pathlib import Path
 from typing import Optional, Tuple
 
 from llmw.errors import OverlayFileUnparseable
-from llmw.fsutil import atomic_write
+from llmw.fsutil import atomic_write, chmod_600, load_json_optional
 from llmw.models.store import ModelEntry
 
-# provider id / npm 包 / $schema：代码内常量（非用户可配），增删改一律改这里
-_PROVIDER_ID = "llmw"
+# provider id / npm 包 / $schema：代码内常量（非用户可配），增删改一律改这里。
+# PROVIDER_ID 公开——enter 的 dry-run 展示引用它；npm / schema 保持私有（模块内使用）。
+PROVIDER_ID = "llmw"
 _NPM_PACKAGE = (
     "@ai-sdk/anthropic"  # 网关 = Anthropic 协议（与 ANTHROPIC_BASE_URL 同源）
 )
@@ -106,7 +106,7 @@ def render(model: ModelEntry) -> dict:
     model_id = _gateway_model_id(model.name)
     return {
         "provider": {
-            _PROVIDER_ID: {
+            PROVIDER_ID: {
                 "npm": _NPM_PACKAGE,
                 "name": "llmw registry",
                 "options": {
@@ -123,7 +123,7 @@ def render(model: ModelEntry) -> dict:
                 },
             }
         },
-        "model": f"{_PROVIDER_ID}/{model_id}",
+        "model": f"{PROVIDER_ID}/{model_id}",
     }
 
 
@@ -131,13 +131,11 @@ def _load_existing(path: Path) -> Optional[dict]:
     """读现有 opencode.json。不存在 → None；JSON 非法 → OverlayFileUnparseable。
 
     绝不 clobber 损坏文件：解析失败直接抛，调用方阻断，由用户手动修复。
+    IO 骨架共享 fsutil.load_json_optional（文件级语义），业务异常在此包装。
     """
-    if not path.is_file():
-        return None
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except json.JSONDecodeError as e:
+        return load_json_optional(path)
+    except ValueError as e:
         raise OverlayFileUnparseable(
             f"{path} 不是合法 JSON: {e}",
             hint="手动修复或删除该文件后重试；CLI 不会覆盖损坏文件（注意 llmw 只读写严格 JSON，不支持 JSONC 注释）",
@@ -152,7 +150,7 @@ def _is_up_to_date(data: Optional[dict], expected: dict) -> bool:
     if not isinstance(provider, dict):
         return False
     return (
-        provider.get(_PROVIDER_ID) == expected["provider"][_PROVIDER_ID]
+        provider.get(PROVIDER_ID) == expected["provider"][PROVIDER_ID]
         and data.get("model") == expected["model"]
     )
 
@@ -188,13 +186,11 @@ def apply(wiki_dir: Path, model: ModelEntry) -> Path:
     provider = data.get("provider")
     if not isinstance(provider, dict):
         provider = {}
-    provider[_PROVIDER_ID] = expected["provider"][_PROVIDER_ID]
+    provider[PROVIDER_ID] = expected["provider"][PROVIDER_ID]
     data["provider"] = provider
     data["model"] = expected["model"]
 
     atomic_write(path, json.dumps(data, ensure_ascii=False, indent=2))
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass  # NFS 等不支持 chmod，best-effort（同 registry）
+    # 安全：overlay 含明文 apiKey，强制 600（NFS best-effort）
+    chmod_600(path)
     return path
