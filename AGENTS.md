@@ -102,7 +102,7 @@ llmw.cli (argparse + 分派)
    `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` /
    `.gitignore` / 目录骨架 由 CLI 在 `add` 时内联生成——读 SKILL 仓 `references/` 下的
    `agents-md-template.md` + `claude-md-template.md` 两份模板和 6 个 fixtures，按
-   `wiki-spec.md v0.26.0` §1-§7 + §9.1 + §14 渲染。
+    `wiki-spec.md v0.34.0` §1-§7 + §9.1 + §14 渲染。
 2. **CLI 内联实现 wiki 创建**（spec 0.2.0 起）：原 `yzr-SKILL/.../scripts/setup_wiki.py` 已删除；
    CLI 通过 `llmw.wiki.init_wiki` 读 SKILL 仓 `references/agents-md-template.md` +
    `references/claude-md-template.md` +
