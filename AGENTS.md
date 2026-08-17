@@ -174,7 +174,8 @@ CLI 内联 wiki 骨架的字节一致性保证）见设计文档与备份 CLAUDE
   （`enter_byobu` 已删除——窗口路径全环境成立，直启模式无存在场景；老文件残留键 load 静默忽略。）
 - **`<workspace>/workspace_models.toml`**（Phase 2）：schema v2；`schema_version` / `created_at` /
   `updated_at`（只读，CLI 自动 bump）+ `[[models]]` 数组，每条含 `model_id` / `name` / `base_url` /
-  `api_key` / 可选 `is_default`。约束：model_id 唯一（`^[a-z0-9_-]{1,64}$`，复用 wiki NAME_RE），
+  `api_key` / `context_window`（必填整数，无 fallback）/ 可选 `is_default`。约束：model_id 唯一
+  （`^[a-z0-9_-]{1,64}$`，复用 wiki NAME_RE），
   `is_default` 全局至多 1 条。**不入 git**——`init` 时通过 workspace `.gitignore`（带
   `>>> llmw (managed by llmw) <<<` 标记段）自动排除。
 - **`<wiki>/wiki_metadata.toml`**：schema v2；`schema_version` / `name` / `topic` / `created_at` /
