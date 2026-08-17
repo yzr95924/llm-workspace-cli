@@ -19,6 +19,10 @@ tmux 窗口表即注册表，枚举即现实——无心跳、无轮询、无僵
 - **一律调 ``byobu-tmux``**（/usr/bin/byobu 的 symlink）：byobu 启动脚本经 argv[0]
   强制 BYOBU_BACKEND=tmux（盖过 ~/.byobu/backend 配置）；带参数调用时
   ``exec tmux -u -f <byobu tmuxrc> "$@"`` 全透传（/usr/bin/byobu:258-267）。
+- **byobu wrapper 污染 stdout**（2026-08-17 实测，byobu 5.73）：每次调用无条件向
+  stdout 前置一段 OSC 终端标题（``\x1b]0;user@host (ip) - byobu\x07``，
+  /usr/bin/byobu:99 的 printf）——所有 ``-p`` / ``-P -F`` / ``list-*`` 输出解析
+  全建立在 stdout 纯净假设上，_run() 统一剥离（见 _run docstring）。
 - **窗口 target 一律用 ``#{window_id}``（@N），不用名字**——wiki NAME_RE 允许纯数字
   名（如 123），``select-window -t session:123`` 有 name/index 解析歧义。
 - **session target 一律用 ``<name>:``（显式冒号段）**——target-window 类命令
@@ -89,6 +93,12 @@ _LAST_STDERR = ""
 # R1: suffix 校验（wiki 名由 NAME_RE 保证；suffix 是 enter 新入口的输入）
 _SUFFIX_RE = re.compile(r"^[a-z0-9_-]{1,16}$")
 _WINDOW_NAME_MAX = 40
+
+# byobu wrapper 的 stdout 污染（byobu 5.73 实测）：每次调用无条件前置 OSC 终端标题
+# （\x1b]0;user@host (ip) - byobu\x07，/usr/bin/byobu:99 的 printf）——所有
+# -p / -P -F / list-* 输出解析都建立在 stdout 纯净假设上，_run() 统一剥离。
+# 只剥 OSC 标题序列（\x1b] ... BEL 或 ST 结束），不动其它 ANSI（TUI 内容的颜色等）。
+_OSC_RE = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")
 
 # 枚举格式（R5，2026-08-15 扩展为 10 字段）：status 实时枚举的字段集合；
 # @llmw_wiki / @llmw_started / @llmw_backend 为打标；pane_current_command 供
@@ -166,6 +176,13 @@ def _run(args: List[str]) -> "subprocess.CompletedProcess[str]":
     stderr 可能有杂讯——不作为失败判据，仅供上层拼错误提示。
     失败时把 stderr 摘要记入 _LAST_STDERR，供异常消息带上真实报错（如
     ``create window failed: index 1 in use``——数字 session 名的经典歧义）。
+
+    **stdout 统一剥离 OSC 序列**：byobu 5.73（2014）的 wrapper 每次调用无条件向
+    stdout 前置 ``\x1b]0;user@host (ip) - byobu\x07`` 终端标题（/usr/bin/byobu:99）——
+    不做清洗的话，``display-message -p`` / ``new-window -P -F`` / ``list-*`` 的
+    首行会带不可见前缀，current_session/_window_id 解析出脏名字（含 ``.``/括号，
+    tmux 拒绝）导致 enter/status 全链路失败。此处在收口剥离，全部消费者受益；
+    _LAST_STDERR 同洗（hint 不再夹带不可见转义）。
     """
     global _LAST_STDERR
     p = subprocess.run(
@@ -174,8 +191,9 @@ def _run(args: List[str]) -> "subprocess.CompletedProcess[str]":
         text=True,
         check=False,
     )
+    p.stdout = _OSC_RE.sub("", p.stdout)
     if p.returncode != 0:
-        _LAST_STDERR = p.stderr.strip()
+        _LAST_STDERR = _OSC_RE.sub("", p.stderr).strip()
     return p
 
 
