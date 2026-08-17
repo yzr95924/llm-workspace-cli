@@ -1,0 +1,18 @@
+# OS / 编辑器
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Obsidian 配置（保留 vault 内容）
+.obsidian/workspace*
+.obsidian/cache
+
+# 临时文件
+*.tmp
+*.bak
+
+# 外部代码仓 symlink（详见 §13）
+raw/external/*
+!raw/external/.symlink-anchor.toml

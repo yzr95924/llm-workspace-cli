@@ -11,8 +11,8 @@ This file provides guidance to AI coding agents when working with code in this r
 - 一个 workspace = 一个目录 + `workspace.toml` + 多个 wiki 子目录
 - 每个 wiki = 一个子目录，含 `raw/` + `wiki/` + `CLAUDE.md` + `wiki_metadata.toml`
 - CLI **只**管元数据 + 启动 session；wiki 内部内容（ingest / lint / query）由
-  [`yzr-llm-wiki-management`](https://github.com/yzr95924/yzr-SKILL/tree/master/yzr-llm-wiki-management)
-  skill 在 session 内负责
+  [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm_workspace_cli/tree/master/yzr-llm-wiki-management)
+  skill 在 session 内负责（2026-08-18 起 skill 与 CLI 同仓）
 - CLI 包 `llmw/` **绝不写** `raw/` 与 `wiki/` 下任何文件——这条不变量贯穿全仓
 
 ## 常用命令
@@ -68,7 +68,7 @@ llmw.cli (argparse + 分派)
   ├──▶ llmw.wiki.manager       ──▶ llmw.wiki.store       ──▶ <wiki>/wiki_metadata.toml
   │           │
   │           └─(add)──▶ llmw.wiki.init_wiki ──▶ <wiki>/raw/, <wiki>/wiki/, <wiki>/CLAUDE.md
-  │                       (读 yzr-SKILL/.../references/ 下的模板与 fixtures；.gitkeep 无条件落盘
+  │                       (读 yzr-llm-*/references/ 下的模板与 fixtures；.gitkeep 无条件落盘
   │                        + 手动 git hint，spec §7 红线：CLI 绝不碰 git)
   │
   ├──▶ llmw.models.manager     ──▶ llmw.models.store     ──▶ workspace_models.toml
@@ -102,8 +102,8 @@ llmw.cli (argparse + 分派)
    `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` /
    `.gitignore` / 目录骨架 由 CLI 在 `add` 时内联生成——读 SKILL 仓 `references/` 下的
    `agents-md-template.md` + `claude-md-template.md` 两份模板和 6 个 fixtures，按
-    `wiki-spec.md v0.34.0` §1-§7 + §9.1 + §14 渲染。
-2. **CLI 内联实现 wiki 创建**（spec 0.2.0 起）：原 `yzr-SKILL/.../scripts/setup_wiki.py` 已删除；
+    `wiki-spec.md v0.36.0` §1-§7 + §9.1 + §14 渲染。
+2. **CLI 内联实现 wiki 创建**（spec 0.2.0 起）：原 `setup_wiki.py` 已删除（skill 迁移时随之移除）；
    CLI 通过 `llmw.wiki.init_wiki` 读 SKILL 仓 `references/agents-md-template.md` +
    `references/claude-md-template.md` +
    `references/fixtures/{index.md,log.md,memory-index,tags.md,scripts.md,gitignore}.txt`
@@ -154,7 +154,7 @@ CLI 内联 wiki 骨架的字节一致性保证）见设计文档与备份 CLAUDE
 | --- | --- |
 | 0 | 成功 |
 | 1 | 用户错误（参数非法、wiki 不存在、registry 字段错误等） |
-| 2 | 环境错误（SKILL submodule 缺失、agent CLI 不在 PATH 等） |
+| 2 | 环境错误（SKILL 目录缺失、agent CLI 不在 PATH 等） |
 | 3 | 内部错误（未捕获异常） |
 
 错误格式化统一走 `llmw.errors.format_error`，格式 `[llmw] error: ...` / `[llmw] hint: ...`；

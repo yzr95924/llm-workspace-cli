@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """CI smoke gate：fresh llmw init + wiki → 两探测器 → 断言结构合规。
 
-兑现 [[check-fixtures-as-executable-truth]]：CLI 改坏骨架 / yzr-SKILL 改坏 fixtures
+兑现 [[check-fixtures-as-executable-truth]]：CLI 改坏骨架 / 两 SKILL 改坏 fixtures
 都让本 gate 红。双向覆盖。
 
 断言策略：两探测器所有 error 级 check passed=True（允许 skipped/null）。
-版本常量已对齐（CLI ``*_SPEC_VERSION`` = yzr-SKILL frontmatter），故**不忽略任何
-check**——版本漂移（CLI 忘 bump / yzr-SKILL 先 bump）也会被 gate 抓住，强制跨仓协调。
+版本常量与两 SKILL frontmatter 同仓，版本漂移（CLI 忘 bump / SKILL 先 bump）也会被
+gate 抓住。
 
 standalone，Python 3.7+（与项目最低支持版本对齐）。用法：``python3 scripts/test/smoke_fixtures.py``
 """
@@ -21,11 +21,10 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-SKILL = REPO / "yzr-SKILL"
 WS_CHECK = (
-    SKILL / "yzr-llm-workspace-management" / "scripts" / "check_workspace_fixtures.py"
+    REPO / "yzr-llm-workspace-management" / "scripts" / "check_workspace_fixtures.py"
 )
-WIKI_CHECK = SKILL / "yzr-llm-wiki-management" / "scripts" / "check_wiki_fixtures.py"
+WIKI_CHECK = REPO / "yzr-llm-wiki-management" / "scripts" / "check_wiki_fixtures.py"
 
 
 def _llmw(args):
@@ -84,7 +83,7 @@ def _assert_all_error_pass(script, root, label):
 def main():
     if not WS_CHECK.exists() or not WIKI_CHECK.exists():
         raise SystemExit(
-            f"FAIL: yzr-SKILL 探测器缺失（{WS_CHECK} / {WIKI_CHECK}）——CI 未拉 submodule？"
+            f"FAIL: 探测器缺失（{WS_CHECK} / {WIKI_CHECK}）——两 SKILL 目录未入库？"
         )
 
     with tempfile.TemporaryDirectory(prefix="llmw-smoke-") as tmp:

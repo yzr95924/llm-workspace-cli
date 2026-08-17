@@ -1,0 +1,9 @@
+---
+title: "{{TOPIC_NAME}} Log"
+type: log
+tags: [log]
+created: {{SETUP_DATE}}
+updated: {{SETUP_DATE}}
+---
+
+## [{{SETUP_DATE}}] setup | Initial scaffold by yzr-llm-wiki-management

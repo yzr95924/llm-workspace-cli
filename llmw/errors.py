@@ -148,7 +148,7 @@ class InvalidTagValue(LlmwError):
 
 class SkillMissing(LlmwError):
     exit_code = 2
-    user_message = "SKILL submodule 未初始化"
+    user_message = "SKILL 目录缺失（skill 随 CLI 同仓，仓库完整克隆即含）"
 
 
 class SetupFailed(LlmwError):

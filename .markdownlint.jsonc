@@ -6,5 +6,9 @@
     "line_length": 120,
     "tables": false,
     "code_blocks": false
-  }
+  },
+  // MD060 关闭 table-column-style 检查（随 2026-08-18 迁入的 yzr-llm-*/skill 文档：
+  // 其表格统一用标准 GFM 风格，数据行 `| cell |` 带空格 + 分隔行 `|---|` 紧凑，
+  // 与 yzr-SKILL 原 .markdownlint.jsonc 的 MD060:false 一致）。
+  "MD060": false
 }

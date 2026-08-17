@@ -104,14 +104,14 @@ def _write_workspace_agents_md(workspace_root: Path, display_name: str) -> None:
     if not refs.is_dir():
         raise SkillMissing(
             f"找不到 workspace SKILL references/ 目录: {refs}",
-            hint="运行 `git submodule update --init` 初始化 SKILL",
+            hint="检查 yzr-llm-*/references/ 是否完整（SKILL 随 CLI 同仓，仓库完整克隆即含）",
         )
     try:
         tmpl = (refs / "workspace-agents-md-template.md").read_text(encoding="utf-8")
     except OSError as e:
         raise SetupFailed(
             f"读取 workspace AGENTS.md 模板失败: {e.filename}",
-            hint="检查 yzr-SKILL/yzr-llm-workspace-management/references/ 是否完整",
+            hint="检查 yzr-llm-workspace-management/references/ 是否完整",
         )
 
     mapping = {
@@ -158,14 +158,14 @@ def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
     if not refs.is_dir():
         raise SkillMissing(
             f"找不到 workspace SKILL references/ 目录: {refs}",
-            hint="运行 `git submodule update --init` 初始化 SKILL",
+            hint="检查 yzr-llm-*/references/ 是否完整（SKILL 随 CLI 同仓，仓库完整克隆即含）",
         )
     try:
         tmpl = (refs / "workspace-claude-md-template.md").read_text(encoding="utf-8")
     except OSError as e:
         raise SetupFailed(
             f"读取 workspace CLAUDE.md 模板失败: {e.filename}",
-            hint="检查 yzr-SKILL/yzr-llm-workspace-management/references/ 是否完整",
+            hint="检查 yzr-llm-workspace-management/references/ 是否完整",
         )
 
     # spec §4: 薄壳仅替换 WORKSPACE_DISPLAY_NAME。残留占位符 = 模板漂移,assert 兜底。
@@ -205,14 +205,14 @@ def _write_workspace_memory_index(workspace_root: Path) -> None:
     if not refs.is_dir():
         raise SkillMissing(
             f"找不到 workspace SKILL references/ 目录: {refs}",
-            hint="运行 `git submodule update --init` 初始化 SKILL",
+            hint="检查 yzr-llm-*/references/ 是否完整（SKILL 随 CLI 同仓，仓库完整克隆即含）",
         )
     try:
         content = (refs / "fixtures" / "memory-index.txt").read_text(encoding="utf-8")
     except OSError as e:
         raise SetupFailed(
             f"读取 workspace MEMORY.md fixture 失败: {e.filename}",
-            hint="检查 yzr-SKILL/yzr-llm-workspace-management/references/fixtures/ 是否完整",
+            hint="检查 yzr-llm-workspace-management/references/fixtures/ 是否完整",
         )
 
     (workspace_root / "MEMORY").mkdir(parents=True, exist_ok=True)

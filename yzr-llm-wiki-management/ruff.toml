@@ -1,0 +1,28 @@
+# 迁移自 yzr-SKILL 根 pyproject.toml 的 ruff 配置（2026-08-18 随 skill 迁入 CLI 仓）。
+# 本 skill 脚本最低支持 Python 3.7（Optional/List 注解），行宽 120 与 references/ 的
+# .markdownlint.jsonc MD013 对齐。根配置只声明 preview=false + py37，此处补规则族与行宽。
+
+target-version = "py37"
+line-length = 120
+
+[lint]
+# 启用的规则族：
+# E/W = pycodestyle，F = pyflakes（未用 import / 未定义名），
+# I = isort（import 排序），B = flake8-bugbear（常见陷阱），
+# UP = pyupgrade（受 target-version=py37 约束，不会建议 PEP 585/604）。
+select = ["E", "W", "F", "I", "B", "UP"]
+ignore = [
+  # 与 ruff format 冲突的规则；让 formatter 决定行宽相关的换行。
+  "E501",
+  # 仓库脚本沿用 subprocess 的 universal_newlines=True / stdout/stderr=PIPE 写法
+  # （既有风格；py37 target 下 ruff 默认会建议替换为 text/capture_output，这里显式禁用）。
+  "UP021",
+  "UP022",
+]
+
+[lint.isort]
+known-first-party = ["scripts"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

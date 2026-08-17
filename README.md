@@ -1,18 +1,15 @@
 # llmw — Wiki Workspace CLI
 
-管理一个由 [`yzr-llm-wiki-management`](https://github.com/yzr95924/yzr-SKILL/tree/master/yzr-llm-wiki-management) skill 创建的 wiki 集合（一个 workspace = 一个 git 仓，含多个 wiki 子目录）。CLI 只管元数据与 session 启动；wiki 内容的 ingest / lint / query 由 skill 在 session 内负责。
+管理一个由 [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm_workspace_cli/tree/master/yzr-llm-wiki-management) skill 创建的 wiki 集合（一个 workspace = 一个 git 仓，含多个 wiki 子目录）。CLI 只管元数据与 session 启动；wiki 内容的 ingest / lint / query 由 skill 在 session 内负责。两 skill（`yzr-llm-wiki-management` / `yzr-llm-workspace-management`）与 CLI **同仓**（2026-08-18 起）。
 
 ## 安装
 
-### 1. 克隆仓库（含 submodule）
+### 1. 克隆仓库
 
 ```bash
 git clone https://github.com/yzr95924/llm_workspace_cli.git
 cd llm_workspace_cli
-git submodule update --init --recursive
 ```
-
-> ⚠ `git submodule update` 必须跑，否则 `wiki add` 报 `SkillMissing`。
 
 ### 2. 安装命令（推荐）
 
@@ -255,7 +252,7 @@ llmw wiki --name=<wiki> stop --yes        # 关窗口（多窗口时需 --window
 | --- | --- |
 | 0 | 成功 |
 | 1 | 用户错误（参数非法、wiki 不存在等） |
-| 2 | 环境错误（SKILL submodule 缺失、byobu-tmux / claude 不在 PATH 等） |
+| 2 | 环境错误（SKILL 目录缺失、byobu-tmux / claude 不在 PATH 等） |
 | 3 | 内部错误（未捕获异常） |
 
 ## 注意事项
@@ -272,5 +269,6 @@ llmw wiki --name=<wiki> stop --yes        # 关窗口（多窗口时需 --window
 - `llmw/` — Python 包：`cli.py` / `config.py` + `workspace/` / `wiki/` / `models/` 子包
 - `scripts/` — install / uninstall 脚本及其集成测试
 - `templates/` — 仅 `wiki_metadata.toml.template`（`wiki add` 实例化用）
-- `yzr-SKILL/` — git submodule：wiki 骨架字节金标准（未 init → `wiki add` 报 `SkillMissing`）
+- `yzr-llm-wiki-management/` — wiki 维护 skill（模板 + 探测器 + lint 脚本的字节金标准，随仓分发）
+- `yzr-llm-workspace-management/` — workspace 维护 skill（模板 + 探测器，随仓分发）
 - `MEMORY/` / `doc/` / `tests/` — 项目记忆 / 设计文档 / pytest（CI 跑 ruff + pytest，py3.7 / py3.11）

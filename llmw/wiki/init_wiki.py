@@ -103,7 +103,7 @@ def render_and_write(
         spec_version: llmw.WIKI_SPEC_VERSION,用于 AGENTS.md 占位符.
 
     Raises:
-        SkillMissing: SKILL submodule 的 references/ 目录不存在.
+        SkillMissing: SKILL 的 references/ 目录不存在.
         SetupFailed: 模板读取失败 / 占位符残留 / atomic_write 失败.
 
     Note:
@@ -114,7 +114,7 @@ def render_and_write(
     if not refs.is_dir():
         raise SkillMissing(
             f"找不到 SKILL references/ 目录: {refs}",
-            hint="运行 `git submodule update --init` 初始化 SKILL",
+            hint="检查 yzr-llm-wiki-management/references/ 是否完整（SKILL 随 CLI 同仓）",
         )
     fixtures = refs / "fixtures"
     if not fixtures.is_dir():
@@ -139,7 +139,7 @@ def render_and_write(
     except OSError as e:
         raise SetupFailed(
             f"读取模板失败: {e.filename}",
-            hint="检查 SKILL submodule 是否完整 (git submodule update --init)",
+            hint="检查 yzr-llm-wiki-management/references/ 是否完整（SKILL 随 CLI 同仓）",
         )
 
     mapping = {
