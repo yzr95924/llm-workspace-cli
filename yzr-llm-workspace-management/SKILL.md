@@ -118,10 +118,6 @@ workspace lint / 跨 wiki memory。
 `<wiki>/MEMORY/`（单 wiki 记忆归 `yzr-llm-wiki-management`）；同样禁止把跨 wiki 观察
 写到单 wiki MEMORY——按 [spec §9 scope 边界](references/workspace-spec.md#9-workspace-memoryskill-维护)。
 
-**作用域（scope）说明**：`<workspace>/AGENTS.md` / `CLAUDE.md` 仅约束**跨 wiki 工作**
-——当 agent cwd 在 `<wiki>/` 子目录内、改用 `yzr-llm-wiki-management` 时，本 skill 纪律
-（含跨 wiki MEMORY）**不**接管，由 `<wiki>/AGENTS.md` 单 wiki 纪律生效。
-
 ## 工作流 / 步骤
 
 ### 0. 启动检查
@@ -196,7 +192,7 @@ workspace lint / 跨 wiki memory。
   格式见 [spec §7](references/workspace-spec.md#7-cross_queriesskill-维护可选)）
 
 归档正文引用上游易变事实时过感知测试（漂移点规避）——规则 SSOT 见
-`yzr-llm-wiki-management` 的 `references/ingest-workflow.md` §七「正文引用的稳定性」。
+`yzr-llm-wiki-management` 的 `references/ingest-workflow.md`「正文引用的稳定性」节。
 
 ### 3. Link（跨 wiki 交叉引用）
 
@@ -267,7 +263,6 @@ MEMORY 是 agent 私有入口；`<workspace>/MEMORY/` 目录 + `MEMORY.md` 索�
 | --- | --- |
 | "wiki A 的 ingest 总是失败，因为 raw/ 里有特殊字符" | `<A>/MEMORY/ingest-special-char-pitfall.md`（单 wiki 经验） |
 | "用户偏好把所有 storage 相关放 A wiki，把 LLM 相关放 B wiki" | `<workspace>/MEMORY/user-storage-vs-llm-preference.md`（跨 wiki 偏好） |
-| "跨 wiki 综合答案：对比 A 与 B 的性能优化方法" | `<workspace>/cross_queries/perf-compare-a-b.md`（答案本身，不是 memory） |
 
 ### 6. Upgrade（升级 workspace 骨架）
 
@@ -310,17 +305,7 @@ skill 的 upgrade 工作流（按工作流名引用：走 `yzr-llm-wiki-manageme
    `huawei_storage_wiki/wiki/syntheses/raid-overview.md`？"
 5. 用户确认 → 走 `yzr-llm-wiki-management` 写 synthesis 页 + log 条目
 
-### 样例 2：跨 wiki 对比
-
-> 用户："`huawei_storage_wiki` 和 `test` wiki 在性能优化上有什么不同？"
-
-1. skill 读 INDEX.md → 两个 wiki 都在
-2. mode = **compare**（两个 wiki + "不同"）
-3. 分别转交 `yzr-llm-wiki-management` 给两个 wiki query："性能优化"
-4. 对比两份答案，按主题维度 diff（共识 / 分歧 / 一方独有）
-5. 询问是否归档为 `<workspace>/cross_queries/storage-vs-test-perf.md`（用户确认后写）
-
-### 样例 3：路由
+### 样例 2：路由
 
 > 用户："我刚下了一篇 LLM inference 论文，应该放哪个 wiki？"
 

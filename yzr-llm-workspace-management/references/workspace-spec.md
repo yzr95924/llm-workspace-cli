@@ -48,7 +48,6 @@
 - [§15 命名约束](#15-命名约束)
 - [§16 不在本 spec 范围内](#16-不在本-spec-范围内)
 - [§17 升级迁移（CLI 执行）](#17-升级迁移cli-执行)
-- [附录 A：CLI 实现自检建议](#附录-acli-实现自检建议)
 
 ## §1 目录结构
 
@@ -218,16 +217,9 @@
 > CLI 不参与 INDEX.md 的任何写入；skill 不依赖 CLI。
 
 - 路径：`<workspace-root>/INDEX.md`
-- frontmatter（**5 必填** + 推荐 `description`）：
-
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `title` | string | 是 | 推荐 `"Workspace Index"` |
-| `type` | enum | 是 | `workspace-index`（reserved，见 §13） |
-| `tags` | array | 是 | 推荐 `[workspace, index]` |
-| `created` | date (`YYYY-MM-DD`) | 是 | skill 首次创建时间 |
-| `updated` | date (`YYYY-MM-DD`) | 是 | skill 每次刷新时更新为今天 |
-| `description` | string | 否 | 一句话概述本 workspace 主题范围 |
+- frontmatter：通用 5 必填（规则见 §13）+ INDEX 特化：
+  - `type` = `workspace-index`（reserved，§13）
+  - `title` 推荐 `"Workspace Index"`；`tags` 推荐 `[workspace, index]`；`updated` 每次 skill 刷新时为今天
 
 - **正文骨架**：
 
@@ -263,11 +255,10 @@
   - YYYY-MM-DD: <event>
   ```
 
-- **生成流程**（skill `scan`）：
-  1. 读 `<workspace>/workspace.toml` 拿 `[wikis]` 注册表
-  2. 对每个 wiki，读 `<wiki>/wiki_metadata.toml` + `<wiki>/wiki/index.md` + 末条 `<wiki>/wiki/log.md` 条目
-  3. 按 wiki name 字母序聚合写入本文件
-  4. 原子写（POSIX `tmp + fsync + rename`）
+- **生成流程**（skill `scan`）：完整读取清单（含 AGENTS.md §0/§一 / raw 计数 / MEMORY 计数等 8 项）以
+  [SKILL.md §1](../SKILL.md#1-scan--refresh-index) 为准（操作层）；本节只列契约层字段
+  （workspace.toml `[wikis]` 注册表 + `<wiki>/wiki_metadata.toml` + `<wiki>/wiki/index.md` +
+  末条 `<wiki>/wiki/log.md` 条目）+ 原子写不变式（POSIX `tmp + fsync + rename`）+ 字母序聚合
 - **刷新时机**：每次 `scan` / `refresh-index`；大型 workspace 也可 `--quick` 只刷元数据层（不读 wiki/index.md）
 - **skill 写入场景**：`scan` / `refresh-index`
 - **CLI 写入场景**：**无**
@@ -335,18 +326,11 @@
 
 - 路径：`<workspace-root>/cross_queries/`
 - 文件命名：`<slug>.md`，kebab-case，约束见 §15
-- frontmatter（**5 必填** + 推荐 `description`）：
-
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `title` | string | 是 | 人类可读标题 |
-| `type` | enum | 是 | `cross-query`（reserved，见 §13） |
-| `tags` | array | 是 | 推荐 `[workspace, cross-query, <涉及 wiki 的 tag>...]` |
-| `created` | date | 是 | skill 写入日期 |
-| `updated` | date | 是 | skill 写入日期（首次创建时同 `created`） |
-| `description` | string | 否 | 一句话 |
-| `sources` | array | 是 | 引用的 wiki 内页路径数组（相对 workspace 根，如 `huawei_storage_wiki/wiki/sources/foo.md`） |
-| `wikis` | array | 是 | 涉及的 wiki 名列表 |
+- frontmatter：通用 5 必填（规则见 §13）+ cross_query 特化：
+  - `type` = `cross-query`（reserved，§13）
+  - `tags` 推荐 `[workspace, cross-query, <涉及 wiki 的 tag>...]`
+  - `sources`（array，**必填**）：引用的 wiki 内页路径数组（相对 workspace 根，如 `huawei_storage_wiki/wiki/sources/foo.md`）
+  - `wikis`（array，**必填**）：涉及的 wiki 名列表
 
 - **skill 写入场景**：`query` 输出用户确认归档时
 - **CLI 写入场景**：**无**
@@ -450,8 +434,7 @@
 
 - 路径：`<workspace-root>/MEMORY/<slug>.md`
 - 命名约束：kebab-case `^[a-z0-9][a-z0-9-]*$`，见 §15
-- frontmatter：**5 必填**（`title` / `type` / `created` / `updated` / `tags`）+ 推荐
-  `description` + 推荐 `wikis` 字段（涉及 wiki 名数组）
+- frontmatter：通用 5 必填（规则见 §13）+ 推荐 `description` / `wikis`（涉及 wiki 名数组）
 
 | `type` 取值 | 含义 |
 | --- | --- |
@@ -681,25 +664,3 @@ gitignore 骨架、MEMORY 索引骨架、workspace.toml 读取契约、模板零
   再 `--apply --yes` 重跑；`verify_failed` → 报告用户
 - **不**再手动重渲染 AGENTS.md / CLAUDE.md / .gitignore / MEMORY.md 或改 workspace.toml
 - wiki 侧版本落后（`wikis[].status` 相关）按提示走 wiki skill 的 upgrade 工作流
-
----
-
-## 附录 A：CLI 实现自检建议
-
-CLI 在生成完成后，可执行以下验证：
-
-1. **字节级对比**：`AGENTS.md` 与 §4 SSOT 模板字面一致 + `CLAUDE.md` 与薄壳模板字面一致（占位符
-   替换后）；`MEMORY/MEMORY.md` 与 `references/fixtures/memory-index.txt` 字节一致（无占位符，直接
-   `cmp`，流程同 wiki fixtures）；`.gitignore` 段结构由 `gitignore-skeleton` check 比对（完整字节 SSOT
-   在 CLI 代码，见 §10）。**`workspace.toml` + CLI 内部配置 toml 的字段 schema
-   不由本 spec 比对**——归 CLI SSOT（见 §2 / §3），CLI 是唯一写方、字段演进自保；SKILL 只 gate 读取
-   契约字段（`templates_version` / `[wikis].path/created_at`，由 `workspace-toml-reads-satisfied` check 校验）
-2. **结构性自检**：`<workspace>/` 含 §1 列出的所有顶层项（含 `MEMORY/MEMORY.md`）；`<wiki-name>/` 子目录按
-   wiki-spec §1 目录结构 落盘
-3. **拒绝性自检**：对已存在 workspace 重新初始化、向已存在目录注册 wiki、`AGENTS.md` / `CLAUDE.md`
-   已存在时初始化——都应非零退出（§12）
-4. **gitignored 自检**：敏感文件（模型注册表 + 各 IDE/agent 项目级 settings）被 `.gitignore` 排除；
-   具体清单与栅栏标记以 `gitignore-skeleton` check 为准（见 §10）
-5. **不变量自检**：init 完成后 `<workspace>/INDEX.md` / `STATS.md` / `LINT.md` / `cross_queries/`
-   **不存在**（CLI 不会创建它们；skill 在首次 `scan` 时按 §5–§8 约定建）；但 `<workspace>/MEMORY/`
-   **存在**且含 `MEMORY.md` 索引、无 `*.md` 经验条目（CLI init 按 §9 建骨架）

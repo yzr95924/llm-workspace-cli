@@ -13,8 +13,7 @@
 >
 > **读取机制（agent 中立）**：维护本 workspace 的 agent 应在每次跨 wiki 操作前读本文件。在 workspace
 > 根目录内工作时——经同目录薄壳 `CLAUDE.md`（`@AGENTS.md` 递归展开）自动加载，或被原生读 `AGENTS.md`
-> 的 agent 直读。在别处工作时由 skill 经 `$LLMW_WORKSPACE` 按需读取——**不依赖 symlink**，
-> 多终端 / 跨项目都能用。（薄壳 `CLAUDE.md` 仅服务于经薄壳加载的 agent，无独立纪律。）
+> 的 agent 直读。在别处工作时由 skill 经 `$LLMW_WORKSPACE` 按需读取。（薄壳 `CLAUDE.md` 仅服务于经薄壳加载的 agent，无独立纪律。）
 >
 > **作用域（scope）声明**：本文件（`AGENTS.md` + 同目录 `CLAUDE.md` 薄壳）**仅约束跨 wiki
 > 工作**——即 agent cwd 在 workspace 根目录或外部 cwd 下调用本 skill（跨 wiki 维护工作流）

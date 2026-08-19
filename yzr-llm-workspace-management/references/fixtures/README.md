@@ -1,8 +1,7 @@
 # Fixtures
 
-workspace CLI init 时落盘的 `<workspace>/MEMORY/MEMORY.md` 的**字节金标准**。与
-`yzr-llm-wiki-management` 的 fixtures 机制同构（兄弟 skill，同一套字节金标准约定；
-同仓后 fixtures 是唯一字节金标准，canonical/ 双份已删）。
+workspace CLI init 时落盘的 `<workspace>/MEMORY/MEMORY.md` 的**字节金标准**——与
+`yzr-llm-wiki-management` 的 fixtures 机制同构（兄弟 skill，同一套字节金标准约定）。
 
 ## 范围
 
