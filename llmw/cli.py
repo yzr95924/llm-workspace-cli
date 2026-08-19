@@ -188,7 +188,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_upgrade = sub.add_parser(
         "upgrade",
-        help="升级 workspace 所有 wiki 骨架（默认 dry-run；逐 wiki 跑 upgrade）",
+        help="升级 workspace 骨架 + 所有 wiki 骨架（默认 dry-run）",
         parents=[common],
     )
     p_upgrade.add_argument(
@@ -617,53 +617,110 @@ def main(argv=None) -> int:
 
         if args.command == "upgrade":
             from llmw.content import upgrade as _upgrade
+            from llmw.content import upgrade_workspace as _ws_upgrade
             from llmw.workspace import store as _ws_store
 
-            ws = _ws_store.load(ws_root)
-            wikis = getattr(ws, "wikis", {}) or {}
-            if not wikis:
-                print("[llmw] workspace 无已注册 wiki", file=sys.stderr)
-                return 0
             dry_run = not _flag(args, "apply")
             yes = _flag(args, "yes")
             as_json = _flag(args, "json")
-            aggregated = []
             worst_rc = 0
-            for name, entry in wikis.items():
-                wiki_root = (ws_root / getattr(entry, "path", "")).resolve()
-                if not wiki_root.is_dir():
-                    aggregated.append(
-                        {
-                            "wiki": name,
-                            "status": "not_found",
-                            "hint": f"{wiki_root} 不存在",
-                        }
-                    )
-                    worst_rc = max(worst_rc, 2)
-                    continue
-                # monkey-patch print → capture each wiki's output
-                import io as _io
 
-                buf = _io.StringIO()
-                old_stdout, old_stderr = sys.stdout, sys.stderr
+            # Phase 1: workspace 骨架
+            import io as _io
+
+            ws_buf = _io.StringIO()
+            old_stdout, old_stderr = sys.stdout, sys.stderr
+            try:
+                sys.stdout = ws_buf
+                sys.stderr = ws_buf
+                ws_rc = _ws_upgrade.run_workspace_upgrade(
+                    ws_root, dry_run=dry_run, yes=yes, as_json=as_json
+                )
+            finally:
+                sys.stdout, sys.stderr = old_stdout, old_stderr
+            ws_out_raw = ws_buf.getvalue()
+            ws_rc = max(ws_rc, 0)
+            worst_rc = max(worst_rc, ws_rc)
+
+            # workspace 3-terminal JSON：若 as_json 且 ws 阶段产出了 JSON → 解析一次
+            ws_result_obj = None
+            if as_json and ws_out_raw.strip():
                 try:
-                    sys.stdout = buf
-                    sys.stderr = buf
-                    rc = _upgrade.run_upgrade(
-                        wiki_root, dry_run=dry_run, yes=yes, as_json=as_json
+                    ws_result_obj = json.loads(ws_out_raw)
+                except Exception:
+                    ws_result_obj = None
+
+            # Phase 2: 逐 wiki
+            try:
+                ws_toml = _ws_store.load(ws_root)
+                wikis = getattr(ws_toml, "wikis", {}) or {}
+            except Exception as exc:
+                # 加载失败：workspace 骨架升级可能还在跑，记为 not_found 并收尾
+                wikis = {}
+                if as_json:
+                    aggregated_wikis = [
+                        {
+                            "status": "load_failed",
+                            "hint": f"workspace.toml 加载失败：{exc}",
+                        }
+                    ]
+                else:
+                    print(
+                        f"\n[llmw] warn: workspace.toml 加载失败：{exc}",
+                        file=sys.stderr,
                     )
-                finally:
-                    sys.stdout, sys.stderr = old_stdout, old_stderr
-                aggregated.append({"wiki": name, "output": buf.getvalue(), "exit": rc})
-                worst_rc = max(worst_rc, rc)
-            if as_json:
-                print(json.dumps({"wikis": aggregated}, indent=2, ensure_ascii=False))
             else:
-                for item in aggregated:
-                    print(f"\n=== {item['wiki']} ===")
-                    print(item.get("output", "").rstrip())
-                    if item.get("exit"):
-                        print(f"[exit {item['exit']}]")
+                aggregated_wikis = []  # type: list
+                for wiki_name, entry in wikis.items():
+                    wiki_root = (ws_root / getattr(entry, "path", "")).resolve()
+                    if not wiki_root.is_dir():
+                        aggregated_wikis.append(
+                            {
+                                "wiki": wiki_name,
+                                "status": "not_found",
+                                "hint": f"{wiki_root} 不存在",
+                            }
+                        )
+                        worst_rc = max(worst_rc, 2)
+                        continue
+                    buf = _io.StringIO()
+                    old_stdout, old_stderr = sys.stdout, sys.stderr
+                    try:
+                        sys.stdout = buf
+                        sys.stderr = buf
+                        rc = _upgrade.run_upgrade(
+                            wiki_root, dry_run=dry_run, yes=yes, as_json=as_json
+                        )
+                    finally:
+                        sys.stdout, sys.stderr = old_stdout, old_stderr
+                    aggregated_wikis.append(
+                        {"wiki": wiki_name, "output": buf.getvalue(), "exit": rc}
+                    )
+                    worst_rc = max(worst_rc, rc)
+
+            if as_json:
+                out = (
+                    {"workspace": ws_result_obj}
+                    if ws_result_obj is not None
+                    else {"workspace": {"raw": ws_out_raw}}
+                )
+                out["wikis"] = aggregated_wikis
+                print(json.dumps(out, indent=2, ensure_ascii=False))
+            else:
+                print("=== workspace ===")
+                print(ws_out_raw.rstrip())
+                if ws_rc:
+                    print(f"[exit {ws_rc}]")
+                if aggregated_wikis:
+                    for item in aggregated_wikis:
+                        if item.get("status") in ("not_found", "load_failed"):
+                            print(f"\n=== {item.get('wiki', '(workspace)')} ===")
+                            print(f"[{item['status']}] {item.get('hint', '')}")
+                            continue
+                        print(f"\n=== {item['wiki']} ===")
+                        print(item.get("output", "").rstrip())
+                        if item.get("exit"):
+                            print(f"[exit {item['exit']}]")
             return worst_rc
 
         if args.command == "config":
