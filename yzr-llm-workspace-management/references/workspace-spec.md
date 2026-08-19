@@ -84,7 +84,7 @@
 | `cross_queries/` | CLI **不写**（留空目录） | **skill**（跨 wiki 综合答案归档） | 类比 wiki 内的 `syntheses/` |
 | `LINT.md` | CLI **不写**（留空） | **skill**（lint 时写） | workspace 级 lint 报告（最近一次） |
 | `MEMORY/` | CLI 写（init 建空目录 + 写 MEMORY.md 索引） | **skill**（写 `*.md` 经验 + 同步 MEMORY.md 索引） | 跨 wiki agent 私有记忆 |
-| `<wiki-name>/` | CLI 写（按 wiki-spec §1 目录结构） | **CLI** 写元数据 + **skill**（或 `yzr-llm-wiki-management`）写内容 | 每个 wiki 是独立子仓 |
+| `<wiki-name>/` | CLI 写（按 wiki-spec §1 目录结构） | **CLI** 写元数据 + **skill**（或 `yzr-llm-wiki-management`）写内容 | wiki 是 workspace 仓内子目录（CLI 不碰 git，不独立成仓） |
 
 > **契约边界（不变量）**：spec 只对 **skill 有直接依赖**的根文件钉死名字——
 > skill **读** `workspace.toml`（读取契约字段见 §2）+ `AGENTS.md` / `CLAUDE.md`（用户宪法，skill 只读）；
@@ -417,9 +417,8 @@
 - lint `memory-not-indexed` 兜底——`MEMORY/*.md`（排除 `MEMORY.md`）未在索引列出时报该项；
   短条目无 `.md` 不进该检查
 - **内容来源 / 字面量**：[`references/fixtures/memory-index.txt`](fixtures/memory-index.txt)
-  （与 [`references/canonical/memory-index.md`](canonical/memory-index.md) 一致——MEMORY.md 无占位符，
-  fixtures 与 canonical 内容相同）。CLI init **逐字拷贝**生成 `<workspace>/MEMORY/MEMORY.md`——与
-  wiki-spec §5.1 走相同的 fixtures/canonical 字节金标准模式（无占位符字面量文件进 fixtures/canonical；
+  （MEMORY.md 无占位符，fixture 即字面量）。CLI init **逐字拷贝**生成 `<workspace>/MEMORY/MEMORY.md`——与
+  wiki-spec §5.1 走相同的 fixtures 字节金标准模式（无占位符字面量文件进 fixtures/；
   有占位符的 `AGENTS.md` / `CLAUDE.md` 模板仍在 references/ 根，走 §4 内容级验证）。初始索引为空，注释用纯文字
   描述格式，不含真实 `[](...)` 链接以免被未来 lint 当死链
 
@@ -657,7 +656,7 @@ MEMORY/MEMORY.md / workspace.toml `templates_version`）会有意识地保留旧
 CLI 在生成完成后，可执行以下验证：
 
 1. **字节级对比**：`AGENTS.md` 与 §4 SSOT 模板字面一致 + `CLAUDE.md` 与薄壳模板字面一致（占位符
-   替换后）；`MEMORY/MEMORY.md` 与 `references/canonical/memory-index.md` 字节一致（无占位符，直接
+   替换后）；`MEMORY/MEMORY.md` 与 `references/fixtures/memory-index.txt` 字节一致（无占位符，直接
    `cmp`，流程同 wiki fixtures）；`.gitignore` 段结构由 `gitignore-skeleton` check 比对（完整字节 SSOT
    在 CLI 代码，见 §10）。**`workspace.toml` + CLI 内部配置 toml 的字段 schema
    不由本 spec 比对**——归 CLI SSOT（见 §2 / §3），CLI 是唯一写方、字段演进自保；SKILL 只 gate 读取

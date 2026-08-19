@@ -24,7 +24,7 @@ standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 to
   `--apply` 以 stdout JSON 输出并 call 它的活）；standalone 调用方只能看到 stdout/JSON 报告。
 - 21 条 check（13 条结构探测 + 7 条骨架字段比对 + 1 条模板自检 `template-no-outbound-refs`）；
   下一个 wiki spec 升级只需新增 register 条目 / SKELETON_SPECS 描述符。骨架信号硬编码在
-  SKELETON_SPECS（与 references/canonical/ 一致，改 canonical 时手工同步描述符）；
+  SKELETON_SPECS（与 references/fixtures/ 一致，改 fixtures 时手工同步描述符）；
   唯独 .gitignore 走 references/fixtures/gitignore.txt 自动跟随。
 - `template-no-outbound-refs`（0.33.0+）：模板零出边引用是架构不变量（纪律正文唯一维护点 =
   模板；spec / SKILL.md / page-templates.md 单向指入模板），由该 check 机械强制。
@@ -805,17 +805,17 @@ def check_wiki_metadata_reads_satisfied(wiki_root: Path, info: Dict[str, str]) -
 
 
 # ============================================================================
-# 骨架字段级比对——gitignore 读 references/fixtures/（canonical 无 .gitignore）；
+# 骨架字段级比对——gitignore 读 references/fixtures/；
 # 其余骨架信号（frontmatter 键 / H1 / 说明块 / ## 标题）硬编码在 SKELETON_SPECS
-# 描述符里（与 canonical/*.md 一致），改 canonical 时手工同步描述符。
+# 描述符里（与 references/fixtures/*.txt 一致），改 fixtures 时手工同步描述符。
 # 纯骨架件（.gitignore/tags.md/SCRIPTS.md/MEMORY.md）全字段骨架比对；成长件
 # （index.md/log.md）只比结构必填（frontmatter 键 + H1 + 说明块），不动成长内容。
-# 只有 index.md.txt/log.md.txt 带占位符，故其余文件 canonical==fixtures 字节相同。
+# 只有 index.md.txt/log.md.txt 带占位符，其余文件 fixture 即字面量。
 # ============================================================================
 
 
 def _fixtures_dir() -> Path:
-    """references/fixtures/（带占位符模板；canonical 无 .gitignore，gitignore 走此）。"""
+    """references/fixtures/（带占位符模板；gitignore 走此）。"""
     return Path(__file__).resolve().parent.parent / "references" / "fixtures"
 
 
@@ -996,7 +996,7 @@ def _make_skeleton_check(spec: Dict[str, object]) -> Callable[[Path, Dict[str, s
         missing = _check_skeleton_signals(wiki_text, sigs)
         if missing:
             out["passed"] = False
-            out["expected"] = f"骨架信号对齐 references/canonical（或 fixtures/gitignore.txt）；详见 {rule_ref}"
+            out["expected"] = f"骨架信号对齐 references/fixtures/；详见 {rule_ref}"
             out["actual"] = "; ".join(missing)
         return out
 

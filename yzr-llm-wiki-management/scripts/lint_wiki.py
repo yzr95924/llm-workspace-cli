@@ -111,50 +111,23 @@ def _is_absolute_path(p: str) -> bool:
     return False
 
 
-# Wiki spec 当前版本（与 SKILL.md metadata.wiki_spec_version 同步）。
-# SSOT 仍是 SKILL.md；这里硬编码 + skill 升版本时同步改。
-# 详见 references/wiki-spec.md §10「版本钉死」。
-# 模块加载时 `_assert_spec_version_sync()` 会自动对照 SKILL.md frontmatter；
-# 失同步时打印 warning 到 stderr（不中断——vendored 副本布局不同时静默跳过）。
-CURRENT_WIKI_SPEC = "0.36.0"
-
-
-def _assert_spec_version_sync() -> None:
-    """运行时校验 CURRENT_WIKI_SPEC 与 SKILL.md metadata.wiki_spec_version 一致。
-
-    脚本常量是 SSOT 的副本（lint 的迁移目标 `to_version` 直接读这里），SKILL.md
-    frontmatter 是人读的真源——两边都改才不会漂移。本函数在模块 import 时跑一次，
-    不一致时给 stderr warning 提醒维护者修；vendored 副本 / 找不到 SKILL.md 时静默。
-    """
-    try:
-        skill_md = Path(__file__).resolve().parent.parent / "SKILL.md"
-    except (OSError, ValueError):
-        return
-    if not skill_md.is_file():
-        return
-    try:
-        # wiki_spec_version 在 frontmatter 的 metadata: 块下，行首有缩进；
-        # 正则允许前导空白。匹配失败时静默（vendored / 旧版本 SKILL.md 可能无此字段）。
-        m = re.search(
-            r"^[ \t]*wiki_spec_version:[ \t]*(\S+)[ \t]*$",
-            skill_md.read_text(encoding="utf-8"),
-            re.MULTILINE,
-        )
-    except OSError:
-        return
+# Wiki spec 当前版本——SSOT 是 SKILL.md metadata.wiki_spec_version（frontmatter），
+# 此处直接读取，不再维护常量副本（单仓后漂移源消失）。
+# 详见 references/wiki-spec.md §10「版本钉死」+ MEMORY/spec-version-bump-single-repo.md。
+def _load_current_spec() -> str:
+    """读同仓 SKILL.md metadata.wiki_spec_version；缺失即快速失败（同仓定位下恒存在）。"""
+    skill_md = Path(__file__).resolve().parent.parent / "SKILL.md"
+    m = re.search(
+        r"^[ \t]*wiki_spec_version:[ \t]*(\S+)[ \t]*$",
+        skill_md.read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
     if m is None:
-        return
-    declared = m.group(1).strip()
-    if declared != CURRENT_WIKI_SPEC:
-        sys.stderr.write(
-            f"[lint_wiki] WARNING: CURRENT_WIKI_SPEC ({CURRENT_WIKI_SPEC}) "
-            f"!= SKILL.md metadata.wiki_spec_version ({declared}). "
-            f"升 wiki spec 版本时需同步改脚本常量（SSOT = SKILL.md metadata，"
-            f"见 references/wiki-spec.md §10「版本钉死」）。\n"
-        )
+        raise RuntimeError(f"SKILL.md 缺 metadata.wiki_spec_version: {skill_md}")
+    return m.group(1).strip()
 
 
-_assert_spec_version_sync()
+CURRENT_WIKI_SPEC = _load_current_spec()
 
 # 已知 legacy pattern 的"pattern key"——为后续扩展预留，每个 key 是一类迁移动作。
 # rule_ref 是迁移依据的溯源指针；修复语义自含于 plan actions 的 remove/add_or_modify/to_action
@@ -2045,14 +2018,15 @@ def build_migration_plan(
                     }
                 )
             elif cid.endswith(("-skeleton", "-frontmatter-complete", "-init-rules-complete")):
-                # 0.20.0+ 骨架字段级比对 check（信号来自 references/canonical +
-                # references/fixtures/gitignore.txt；新增 *-skeleton 类 check 自动匹配此分支）
+                # 0.20.0+ 骨架字段级比对 check（信号来自 references/fixtures/；
+                # 新增 *-skeleton 类 check 自动匹配此分支）
                 fixtures_actions.append(
                     {
                         **base,
                         "type": "fixtures-fix-skeleton",
                         "to_action": (
-                            f"Edit {fpath}：按 references/canonical（或 fixtures/gitignore.txt）"
+                            f"Edit {fpath}：按 references/fixtures/（gitignore 见 "
+                            "fixtures/gitignore.txt）"
                             "补齐 expected 列出的缺失骨架字段（frontmatter 键 / H1 / 说明块 / "
                             "段标题 / .gitignore 段）。成长型内容（index 类别下条目 / log 历史 / "
                             "MEMORY 经验 / tag bullet）**不动**——只补结构骨架"

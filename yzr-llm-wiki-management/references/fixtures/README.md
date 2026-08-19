@@ -1,35 +1,19 @@
 # Fixtures
 
 CLI 实现 wiki 仓时落盘的 `wiki/index.md` / `wiki/log.md` / `wiki/tags.md`
-/ `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` / `.gitignore` 六个文件的**字面量金标准**。
+/ `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` / `.gitignore` 六个文件的**字节金标准**。
+同仓后 fixtures 是唯一字节金标准（跨仓时代的 `references/canonical/` 双份已删）。
 
 ## 用法
 
-CLI 实现时,把 fixtures 视为**带占位符的字节模板**,把 `references/canonical/` 视为
-**字节金标准**——CLI 用自己的 render 函数生成产物,写盘后做字节级比对（`cmp -s`）：
+CLI 把 fixtures 视为**带占位符的字节模板**：用用户传入的 mapping
+（`TOPIC_NAME` / `SETUP_DATE`）替换占位符后落盘。CLI 自身不做字节比对——完整 gate 走
+`scripts/test/smoke_fixtures.py`（CI 跑 real `llmw init` + `llmw wiki add` 后用
+`check_wiki_fixtures.py` 探测器断言 0 error）。
 
-```bash
-# 假设 CLI 把产物写到 $TMP/wiki/
-# canonical 路径 = yzr-llm-wiki-management/references/canonical/
-# fixture 路径  = yzr-llm-wiki-management/references/fixtures/
-
-cmp -s $TMP/wiki/index.md         canonical/index.md
-cmp -s $TMP/wiki/log.md            canonical/log.md
-cmp -s $TMP/wiki/tags.md           canonical/tags.md          # 裸 bullet 列表,无 frontmatter / 无占位符
-cmp -s $TMP/MEMORY/MEMORY.md       canonical/memory-index.md
-cmp -s $TMP/scripts/SCRIPTS.md     canonical/scripts.md       # 无 frontmatter / 无占位符,Markdown 结构走 canonical 留演化空间
-cmp -s $TMP/.gitignore             <fixture>/gitignore.txt    # .gitignore 纯文本常量,fixture 比对足够
-```
-
-> **注**：`scripts.md.txt` 与 `memory-index.txt` 是**无占位符**（直接落盘，与 canonical 字节相同）；
-> `index.md.txt` / `log.md.txt` 带占位符（渲染后 ≠ canonical）。不要从"fixture 都带占位符"推导。
-> 分组见 §fixture 取值约定。
-
-任何一个不一致 → CLI 实现有 bug,应 fail 退出。
-
-> **术语**：fixtures 是**模板**(带 `{{TOPIC_NAME}}` / `{{SETUP_DATE}}` 占位符),
-> canonical 是**渲染后字面量**(用锚点 mapping `{TOPIC_NAME: "Test", SETUP_DATE: "2026-06-28 14:30"}`
-> 把 fixtures 跑一遍的产物,作为本 skill 字节金标准)。CLI 升级 / fixture 变更时,重新生成 canonical/。
+> **注**：`scripts.md.txt` / `memory-index.txt` / `tags.md.txt` 是**无占位符**（直接落盘，
+> fixture 即字面量）；`index.md.txt` / `log.md.txt` 带占位符（渲染后 ≠ fixture）。
+> 不要从"fixture 都带占位符"推导。
 
 ## fixture 与 spec 的关系
 
@@ -74,7 +58,7 @@ wiki 根有两份模板产物：**`AGENTS.md`（SSOT）** 由 CLI 拷 `reference
 **`CLAUDE.md`（薄壳）** 由 CLI 拷 `references/claude-md-template.md`。两者都**不在**本目录 fixture 覆盖范围
 （fixture 只覆盖 CLI init 时刻的"成品"，AGENTS.md / CLAUDE.md 是模板替换产物）。
 
-> **注**：AGENTS.md 虽不进 fixtures/canonical 字节比对，但**有独立的运行时同步检查**——
+> **注**：AGENTS.md 虽不进 fixtures 字节比对，但**有独立的运行时同步检查**——
 > `check_wiki_fixtures.py` 的 `agents-md-template-sync` 从 wiki §八 提取 4 个变量值反向渲染
 > `references/agents-md-template.md`，与 wiki 实际 AGENTS.md 字节比对（spec §10.1）。机制同源：
 > 都建立在"AGENTS.md = 模板 + 4 个占位符替换"这一事实上；区别只在本目录管 **init 时刻**、
@@ -94,15 +78,9 @@ CLI 替换后做内容级验证（不能用 fixture 字节比对）：
 1. AGENTS.md 的 4 个 `{{...}}` 占位符 + 薄壳 CLAUDE.md 的 `{{TOPIC_NAME}}` **全部被替换**——`grep -c '{{' AGENTS.md CLAUDE.md` 应为 0
 2. 生成的 AGENTS.md §八 "Wiki Spec 版本" 与本 skill `metadata.wiki_spec_version` 一致
 
-## 字节级一致性证据(渲染后)
+## 字节级一致性证据
 
-fixtures 是**模板**;CLI 渲染后产物与 `references/canonical/` 下的字面量文件**字节级一致**。
-canonical/ 下的字面量文件是把 mapping 喂 `{TOPIC_NAME: "Test", SETUP_DATE: "2026-06-28 14:30"}` 后
-渲染产物的副本,作为本 skill 字节金标准。
-
-CLI 升级 / fixture 变更时,跑附录 A 自检:用锚点 mapping render → cmp canonical → 不一致 = CLI / fixture 有 bug。
-
-## 清理时机
-
-`canonical/` 下的字面量文件是本 skill 的**字节金标准**,`fixtures/` 是**带占位符的字节模板**。
-**不要删除**任一目录——前者是字节防线的最后一道,后者是占位符替换的源材料。
+用固定测试 mapping `{TOPIC_NAME: "Test", SETUP_DATE: "2026-06-28 14:30"}` 渲染 fixtures 即得
+原 canonical/ 字面量——`test_check_wiki_fixtures.py` 的 `_fixture()` 与
+`scripts/test/smoke_fixtures.py` 的探测器断言共同保证：CLI 或 fixture 任一改坏，
+CI 立即红。

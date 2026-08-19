@@ -308,5 +308,5 @@ spec §13 相关，详见 lint_wiki.py `check_external_symlinks` docstring。）
   MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
   wiki_metadata.toml）的合规性：
   **`metadata.fixtures_check_count`** 条 check（13 条结构探测 + 7 条骨架字段比对，后者读
-  `references/canonical/` + `references/fixtures/gitignore.txt` 作 SSOT）；语义合并走 §五
+  `references/fixtures/` 作 SSOT）；语义合并走 §五
   由 LLM 判断——脚本不替代人。常规 lint 另跑 `check_spec_version`（§二前置）报版本漂移 warn

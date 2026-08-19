@@ -23,7 +23,7 @@ wiki-spec 0.11.0 + workspace-spec 0.4.0 起：wiki / workspace 产物的纪律�
 等维护时"索引会话常驻"收益消失。AGENTS.md SSOT + 薄壳后一套真源、双工具共存。
 
 **How to apply:** 改 wiki-spec 或 workspace-spec 的 SSOT 文件引用时，两 spec 是**对称设计**
-（wiki-spec §2 ↔ workspace-spec §4；模板 agents-md/claude-md 各两份；canonical/fixtures 各一套）——
-改一处要查另一处 + 两 SKILL.md + 模板 + canonical/fixtures 同步。`<wiki>/CLAUDE.md` 类引用现指薄壳，
+（wiki-spec §2 ↔ workspace-spec §4；模板 agents-md/claude-md 各两份；fixtures 各一套）——
+改一处要查另一处 + 两 SKILL.md + 模板 + fixtures 同步。`<wiki>/CLAUDE.md` 类引用现指薄壳，
 SSOT 语义一律 `AGENTS.md`；workspace skill 读 wiki 时读 `<wiki>/AGENTS.md`。
 关联 [[wiki-workspace-spec-type-coupling]]（type enum 耦合）。

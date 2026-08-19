@@ -21,7 +21,7 @@ SCRIPT_PATH = Path(__file__).resolve().parent / "check_workspace_fixtures.py"
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 AGENTS_TEMPLATE = (SKILL_ROOT / "references" / "workspace-agents-md-template.md").read_text(encoding="utf-8")
 CLAUDE_TEMPLATE = (SKILL_ROOT / "references" / "workspace-claude-md-template.md").read_text(encoding="utf-8")
-CANONICAL_MEMORY_INDEX = (SKILL_ROOT / "references" / "canonical" / "memory-index.md").read_text(encoding="utf-8")
+FIXTURES_MEMORY_INDEX = (SKILL_ROOT / "references" / "fixtures" / "memory-index.txt").read_text(encoding="utf-8")
 
 OLD_VERSION = "0.6.2"  # 真实历史版本——永远小于当前 target_spec
 
@@ -115,7 +115,7 @@ def build_workspace(root, agents_md=None, claude_md=None, gitignore=None, memory
         (root / ".gitignore").write_text(gitignore if gitignore is not None else CLEAN_GITIGNORE, encoding="utf-8")
     if memory_index is not False:
         (root / "MEMORY" / "MEMORY.md").write_text(
-            memory_index if memory_index is not None else CANONICAL_MEMORY_INDEX, encoding="utf-8"
+            memory_index if memory_index is not None else FIXTURES_MEMORY_INDEX, encoding="utf-8"
         )
     if workspace_toml is not False:
         (root / "workspace.toml").write_text(
@@ -284,7 +284,7 @@ class MemoryIndexSkeletonTest(unittest.TestCase):
         self.assertEqual(c["fix"]["type"], "workspace-fix-memory-index-init")
 
     def test_missing_index_heading_fails(self):
-        drifted = CANONICAL_MEMORY_INDEX.replace("## 索引", "## 条目")
+        drifted = FIXTURES_MEMORY_INDEX.replace("## 索引", "## 条目")
         with tempfile.TemporaryDirectory() as tmp:
             build_workspace(tmp, memory_index=drifted)
             code, report = run_check(tmp)
@@ -294,7 +294,7 @@ class MemoryIndexSkeletonTest(unittest.TestCase):
         self.assertEqual(c["fix"]["type"], "workspace-fix-memory-index-skeleton")
 
     def test_growth_entries_still_pass(self):
-        grown = CANONICAL_MEMORY_INDEX.replace(
+        grown = FIXTURES_MEMORY_INDEX.replace(
             "（暂无条目）", "- some-case — 一句话摘要 → [正文](some-case.md)\n- 一行短事实"
         )
         with tempfile.TemporaryDirectory() as tmp:
@@ -305,7 +305,7 @@ class MemoryIndexSkeletonTest(unittest.TestCase):
         self.assertIs(c["passed"], True)
 
     def test_frontmatter_in_memory_index_fails(self):
-        drifted = "---\ntitle: MEMORY\n---\n\n" + CANONICAL_MEMORY_INDEX
+        drifted = "---\ntitle: MEMORY\n---\n\n" + FIXTURES_MEMORY_INDEX
         with tempfile.TemporaryDirectory() as tmp:
             build_workspace(tmp, memory_index=drifted)
             code, report = run_check(tmp)

@@ -331,8 +331,7 @@
   **无**双写漂移 / L1 膨胀风险
 - MEMORY 沉淀自由增长——索引活在 `MEMORY/MEMORY.md` 单一真源，AGENTS.md 单行 `@import` 引用不占 L1
   词数预算，无需条数护栏
-- **字面量见 fixtures**：`references/fixtures/memory-index.txt`（与 `references/canonical/memory-index.md`
-  一致——MEMORY.md 无占位符，fixtures 与 canonical 内容相同）
+- **字面量见 fixtures**：`references/fixtures/memory-index.txt`（MEMORY.md 无占位符，fixture 即字面量）
 
 ### §5.2 MEMORY/*.md（非 MEMORY.md）
 
@@ -945,8 +944,8 @@ discussions/ 是 raw/ 总纪律的第二处例外——纪律型 skill 最怕"�
 CLI 在生成完成后，可执行以下验证：
 
 1. **字节级对比(渲染后)**:CLI 用一组固定测试值（主题名 / 创建日期等 per-wiki 变量取测试常量）渲染,
-   产物与本仓 `references/canonical/` 下对应文件**逐字一致**。
-   canonical/ 目录由本仓在每次 fixture 变更时手工生成（skill 维护者操作）。
+   产物与本仓 `references/fixtures/` 下对应文件（占位符按同组测试值替换后）**逐字一致**——
+   fixtures 是唯一字节金标准（跨仓时代的 canonical/ 双份已删）。
 2. **正则自检**：生成的 `wiki/log.md` 首条条目匹配 §4 正则
 3. **frontmatter 解析**：生成的 `wiki/index.md` / `wiki/log.md` 能被
    SKILL 的 frontmatter 解析器正确解析（MEMORY.md 无 frontmatter，不在此列）

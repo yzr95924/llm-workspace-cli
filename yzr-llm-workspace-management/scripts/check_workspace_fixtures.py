@@ -81,7 +81,7 @@ CHECK_REGISTRY = [
         "id": "memory-index-skeleton",
         "severity": "error",
         "rule_ref": "workspace-spec.md §9 + §17",
-        "desc": "MEMORY/MEMORY.md 无 frontmatter + 含 H1 / 说明块 / ## 索引（成长条目不动；缺失文件按 canonical 重建）",
+        "desc": "MEMORY/MEMORY.md 无 frontmatter + 含 H1 / 说明块 / ## 索引（成长条目不动；缺失文件按 fixtures/memory-index.txt 重建）",
     },
     {
         "id": "workspace-toml-templates-version-sync",
@@ -408,7 +408,7 @@ def check_gitignore_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str, o
 def check_memory_index_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
     """check#5: MEMORY/MEMORY.md 骨架（无 frontmatter + H1 + 说明块 + ## 索引）。
 
-    成长内容（## 索引 下的经验条目）不动；文件缺失按 references/canonical/memory-index.md 重建。
+    成长内容（## 索引 下的经验条目）不动；文件缺失按 references/fixtures/memory-index.txt 重建。
     """
     out = {"passed": True, "severity": "error", "file": "MEMORY/MEMORY.md"}  # type: Dict[str, object]
     text = _read_text(ws_root / "MEMORY" / "MEMORY.md")
@@ -418,7 +418,7 @@ def check_memory_index_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str
         out["actual"] = "MEMORY/MEMORY.md 不存在"
         out["fix"] = {
             "type": "workspace-fix-memory-index-init",
-            "to_action": "按 references/canonical/memory-index.md 逐字创建 MEMORY/MEMORY.md",
+            "to_action": "按 references/fixtures/memory-index.txt 逐字创建 MEMORY/MEMORY.md",
         }
         return out
 

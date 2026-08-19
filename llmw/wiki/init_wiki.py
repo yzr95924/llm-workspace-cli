@@ -1,9 +1,9 @@
-"""wiki 仓初始化: 读 SKILL 仓 references/ 下的模板与 fixtures,
-按 wiki-spec.md v0.34.0 §1-§7 + §9.1 + §14 把 wiki 仓"出生形态"落盘.
+"""wiki 仓初始化: 读同仓 yzr-llm-wiki-management/references/ 下的模板与 fixtures,
+按 wiki-spec.md §1-§7 + §9.1 + §14 把 wiki 仓"出生形态"落盘.
 
-CLI 内联实现(spec 0.2.0 起 wiki 创建归 CLI 负责,SKILL 仓只管运行时纪律).
-fixtures 是 CLI 字节级金标准(fixtures/README.md 附录 A):
-渲染后用 cmp -s 与 fixtures / canonical 比对,不一致 = CLI 实现 bug.
+CLI 内联实现(spec 0.2.0 起 wiki 创建归 CLI 负责,skill 只供 references 素材).
+fixtures 是 CLI 字节金标准;完整 gate 走 scripts/test/smoke_fixtures.py
+(CI 跑 real llmw init + wiki add 后用 check_wiki_fixtures.py 探测器断言)。
 
 落盘 8 件产物(spec 0.11.0 AGENTS.md SSOT 拆出):
   AGENTS.md, CLAUDE.md(薄壳), .gitignore, wiki/index.md, wiki/log.md,
@@ -93,7 +93,7 @@ def render_and_write(
     cli_version: str,
     spec_version: str,
 ) -> None:
-    """按 wiki-spec.md v0.34.0 落盘 wiki 仓骨架.
+    """按 wiki-spec.md 落盘 wiki 仓骨架.
 
     Args:
         wiki_dir: wiki 仓根目录 (含路径名);调用方应已 mkdir 此目录.
@@ -120,7 +120,7 @@ def render_and_write(
     if not fixtures.is_dir():
         raise SetupFailed(
             f"fixtures 目录缺失: {fixtures}",
-            hint="检查 SKILL 仓 references/fixtures/ 是否完整",
+            hint="检查 references/fixtures/ 是否完整",
         )
 
     # 读 8 份字面量源(spec §2 / §3 / §4 / §5.1 / §6 / §9.1 / §14)
@@ -152,7 +152,7 @@ def render_and_write(
     # 渲染(占位符替换 + assert 无残留)
     # 4 份有占位符: AGENTS.md (4) / CLAUDE.md 薄壳 (1) / index.md (2) / log.md (2)
     # 4 份无占位符少数派: memory-index / tags / scripts / gitignore
-    # (SKILL 仓 2026-07-02 修订后 fixture 已经不含占位符,无需 _substitute)
+    # (2026-07-02 修订后 fixture 已经不含占位符,无需 _substitute)
     try:
         agents_md = _substitute(agents_md_tmpl, mapping)
         claude_md = _substitute(claude_md_tmpl, mapping)
@@ -161,12 +161,10 @@ def render_and_write(
     except SetupFailed:
         raise
 
-    # 字节金标准自检不放在此处:fixtures/README.md 附录 A 用锚点 mapping
-    # {TOPIC_NAME: "Test", SETUP_DATE: "2026-06-28 14:30"} 渲染产物作 canonical,
-    # 用户态 mapping 不匹配,byte-cmp 会误伤。完整 gate 走
-    # scripts/test/smoke_fixtures.py(SKILL 侧 check_wiki_fixtures.py + workspace
-    # 探测器)——CI 跑 real llmw init + llmw wiki add 后用探测器断言 0 error,
-    # 等价于"产物满足 spec/canonical 字节契约"。
+    # 字节金标准自检不放在此处:fixtures 是带占位符模板,用户态 mapping 不匹配固定测试值,
+    # byte-cmp 会误伤。完整 gate 走 scripts/test/smoke_fixtures.py
+    # (check_wiki_fixtures.py + workspace 探测器)——CI 跑 real llmw init + llmw wiki add
+    # 后用探测器断言 0 error,等价于"产物满足 spec/fixtures 字节契约"。
 
     # 落盘顺序: 先建所有子目录, 再 .gitkeep 占位, 再 atomic_write 8 份字面量产物
     # MEMORY/ 0.10.0+ 起在 wiki 根,与 wiki/ 平级;scripts/ 0.9.0+ 必须始终创建

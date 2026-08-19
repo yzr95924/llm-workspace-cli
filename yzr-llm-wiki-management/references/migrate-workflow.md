@@ -125,8 +125,8 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
 > 本节只做 agent 视角的分类与指路，**不重抄字段名**（否则三处漂移）。
 
 升级 wiki spec 时，约定文件（fixtures）必须对齐当前 spec 的骨架。`check_wiki_fixtures.py`
-读 `references/canonical/` + `references/fixtures/gitignore.txt` 作 SSOT 做字段级骨架比对
-（改 fixtures → check 自动跟随）。
+读 `references/fixtures/` 作 SSOT 做字段级骨架比对（gitignore 见 `fixtures/gitignore.txt`，
+改 fixtures → check 自动跟随）。
 
 ### 模板渲染件（整文以模板为准）
 
@@ -144,9 +144,9 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
 | 文件 | 骨架信号源 | 成长内容（迁移**不动**） |
 | --- | --- | --- |
 | `.gitignore` | `fixtures/gitignore.txt` | 用户自定义新增规则 |
-| `MEMORY/MEMORY.md` | `canonical/memory-index.md` | `## 索引` 下经验条目 |
-| `scripts/SCRIPTS.md` | `canonical/scripts.md` | `## 索引` 下脚本段 |
-| `wiki/tags.md` | `canonical/tags.md` | tag bullet 列表（tags 无 `## 索引`，直接 bullet） |
+| `MEMORY/MEMORY.md` | `fixtures/memory-index.txt` | `## 索引` 下经验条目 |
+| `scripts/SCRIPTS.md` | `fixtures/scripts.md.txt` | `## 索引` 下脚本段 |
+| `wiki/tags.md` | `fixtures/tags.md.txt` | tag bullet 列表（tags 无 `## 索引`，直接 bullet） |
 
 → 升级时：脚本查 H1 + 说明块（`>` 引用）+ `## 索引`（tags 除外）+ `.gitignore` 段结构
 （OS/编辑器 + Obsidian + 临时文件 三段齐全，各 ≥1 规则）；缺则产 `fixtures-fix-skeleton`
@@ -168,12 +168,12 @@ ingest/query 流程维护，迁移不触及。
 容忍用户删自己不用的编辑器规则（只用 VSCode 的删 `.idea/`、纯 Linux 的删 `.DS_Store`）。
 临时文件段 `*.tmp` / `*.bak` 建议保留（`*.bak` 是 anchor 重写备份的中断保险，升级末尾
 step 8 会清）；`.migration-plan.json` 已不再产生（migrate 改 stdout 输出 plan，不落盘），
-canonical `fixtures/gitignore.txt` 已移除该行，老 wiki 留着也无害。
+`fixtures/gitignore.txt` 已移除该行，老 wiki 留着也无害。
 
 ### 权威源指针
 
 - 骨架信号定义：`scripts/check_wiki_fixtures.py` 的 `SKELETON_SPECS` + `CHECK_REGISTRY`
-- 字节金标准：`references/canonical/*.md`（`.gitignore` 见 `references/fixtures/gitignore.txt`）
+- 字节金标准：`references/fixtures/*.txt`（index/log 带占位符，按迁移锚点 mapping 渲染后比对；gitignore 见 `references/fixtures/gitignore.txt`）
 - 语义合并（跨条目归并）：见 §六
 
 ## 与现有 lint 检查的协同

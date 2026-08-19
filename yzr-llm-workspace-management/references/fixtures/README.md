@@ -1,8 +1,8 @@
 # Fixtures
 
-workspace CLI init 时落盘的 `<workspace>/MEMORY/MEMORY.md` 的**字面量金标准**。与
-`yzr-llm-wiki-management` SKILL.md 的 fixtures/canonical 机制同构
-（兄弟 skill，同一套字节金标准约定）。
+workspace CLI init 时落盘的 `<workspace>/MEMORY/MEMORY.md` 的**字节金标准**。与
+`yzr-llm-wiki-management` 的 fixtures 机制同构（兄弟 skill，同一套字节金标准约定；
+同仓后 fixtures 是唯一字节金标准，canonical/ 双份已删）。
 
 ## 范围
 
@@ -21,10 +21,8 @@ workspace CLI init 时落盘的 `<workspace>/MEMORY/MEMORY.md` 的**字面量金
 
 ## 用法
 
-CLI init 时把 `memory-index.txt` **逐字拷贝**为 `<workspace>/MEMORY/MEMORY.md`（无占位符）。字节级
-比对：落盘后 `cmp -s <workspace>/MEMORY/MEMORY.md ../canonical/memory-index.md`，不一致 = CLI bug。
-
-> `memory-index.txt` 与 `../canonical/memory-index.md` 内容相同（MEMORY.md 无占位符，两份只是机制上
-> 对齐 wiki 的 fixtures/canonical 双份）。
+CLI init 时把 `memory-index.txt` **逐字拷贝**为 `<workspace>/MEMORY/MEMORY.md`（无占位符）。
+完整 gate 走 `scripts/test/smoke_fixtures.py`（CI 跑 real `llmw init` 后用
+`check_workspace_fixtures.py` 探测器断言）。
 
 详细 schema + 维护纪律见 [`workspace-spec.md` §9](../workspace-spec.md#9-workspace-memoryskill-维护)。

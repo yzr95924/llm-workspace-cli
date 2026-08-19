@@ -3,7 +3,7 @@
 
 stdlib unittest + subprocess 调真实脚本（无 mock）：在 tmp 目录搭 scratch wiki
 （clean / 各类 drift），断言 --json 报告结构与 finding 内容。standalone——不依赖
-CLI / lint_wiki.py，只读本 skill 的模板 + canonical + fixtures。
+CLI / lint_wiki.py，只读本 skill 的模板 + fixtures。
 
 运行:
   python3 scripts/test_check_wiki_fixtures.py        # 在 skill 目录根或 scripts/ 下均可
@@ -21,7 +21,7 @@ from pathlib import Path
 SCRIPT_PATH = Path(__file__).resolve().parent / "check_wiki_fixtures.py"
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 AGENTS_TEMPLATE = (SKILL_ROOT / "references" / "agents-md-template.md").read_text(encoding="utf-8")
-CANONICAL_DIR = SKILL_ROOT / "references" / "canonical"
+FIXTURES_DIR = SKILL_ROOT / "references" / "fixtures"
 WIKI_GITIGNORE = (SKILL_ROOT / "references" / "fixtures" / "gitignore.txt").read_text(encoding="utf-8")
 
 OLD_VERSION = "0.25.0"  # 真实历史版本——永远小于当前 target_spec
@@ -79,8 +79,15 @@ def _wiki_metadata(missing=None):
     return "\n".join(f"{k} = {v}" for k, v in fields if k not in missing) + "\n"
 
 
-def _canonical(name):
-    return (CANONICAL_DIR / name).read_text(encoding="utf-8")
+# 锚点 mapping 渲染 fixtures = 原 canonical/ 字面量（canonical/ 已删，fixtures 是唯一字节金标准）
+FIXTURE_ANCHORS = {"TOPIC_NAME": "Test", "SETUP_DATE": "2026-06-28 14:30"}
+
+
+def _fixture(name):
+    text = (FIXTURES_DIR / f"{name}.txt").read_text(encoding="utf-8")
+    for key, value in FIXTURE_ANCHORS.items():
+        text = text.replace("{{" + key + "}}", value)
+    return text
 
 
 def build_wiki(
@@ -111,21 +118,21 @@ def build_wiki(
         )
     if index_md is not False:
         (root / "wiki" / "index.md").write_text(
-            index_md if index_md is not None else _canonical("index.md"), encoding="utf-8"
+            index_md if index_md is not None else _fixture("index.md"), encoding="utf-8"
         )
     if log_md is not False:
-        (root / "wiki" / "log.md").write_text(log_md if log_md is not None else _canonical("log.md"), encoding="utf-8")
+        (root / "wiki" / "log.md").write_text(log_md if log_md is not None else _fixture("log.md"), encoding="utf-8")
     if tags_md is not False:
         (root / "wiki" / "tags.md").write_text(
-            tags_md if tags_md is not None else _canonical("tags.md"), encoding="utf-8"
+            tags_md if tags_md is not None else _fixture("tags.md"), encoding="utf-8"
         )
     if memory_index is not False:
         (root / "MEMORY" / "MEMORY.md").write_text(
-            memory_index if memory_index is not None else _canonical("memory-index.md"), encoding="utf-8"
+            memory_index if memory_index is not None else _fixture("memory-index"), encoding="utf-8"
         )
     if scripts_md is not False:
         (root / "scripts" / "SCRIPTS.md").write_text(
-            scripts_md if scripts_md is not None else _canonical("scripts.md"), encoding="utf-8"
+            scripts_md if scripts_md is not None else _fixture("scripts.md"), encoding="utf-8"
         )
     return root
 
@@ -296,7 +303,7 @@ class SkeletonCheckTest(unittest.TestCase):
     """代表性骨架 / 结构 check 的反例（覆盖 SKELETON_SPECS 机制 + 结构 check）。"""
 
     def test_memory_index_frontmatter_fails(self):
-        drifted = "---\ntitle: MEMORY\n---\n\n" + _canonical("memory-index.md")
+        drifted = "---\ntitle: MEMORY\n---\n\n" + _fixture("memory-index")
         with tempfile.TemporaryDirectory() as tmp:
             build_wiki(tmp, memory_index=drifted)
             code, report = run_check(tmp)
