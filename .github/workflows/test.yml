@@ -15,7 +15,8 @@ jobs:
       - run: ruff check .
       # skill 零代码不变量：yzr-llm-*/ 下不得出现 .py（确定性代码全部归 llmw/content/）。
       # 两 SKILL 目录是纯文本（spec / 模板 / fixtures / 工作流散文）——代码回渗即红。
-      - run: find yzr-llm-wiki-management yzr-llm-workspace-management -name '*.py' | grep -q . && { echo 'FAIL: skill 目录出现 .py'; exit 1; } || true
+      - run: |
+          find yzr-llm-wiki-management yzr-llm-workspace-management -name '*.py' | grep -q . && { echo 'FAIL: skill 目录出现 .py'; exit 1; } || true
 
   test:
     runs-on: ubuntu-latest
