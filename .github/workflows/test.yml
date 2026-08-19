@@ -13,6 +13,9 @@ jobs:
       - run: pip install ruff==0.15.20
       - run: ruff format --check .
       - run: ruff check .
+      # skill 零代码不变量：yzr-llm-*/ 下不得出现 .py（确定性代码全部归 llmw/content/）。
+      # 两 SKILL 目录是纯文本（spec / 模板 / fixtures / 工作流散文）——代码回渗即红。
+      - run: find yzr-llm-wiki-management yzr-llm-workspace-management -name '*.py' | grep -q . && { echo 'FAIL: skill 目录出现 .py'; exit 1; } || true
 
   test:
     runs-on: ubuntu-latest
@@ -35,13 +38,14 @@ jobs:
       # import 期求值的注解破坏（如只在 3.9+ 可用的 dict[str,str]）；而 pytest 只 import
       # 被收集的测试文件，覆盖不到 llmw 全部子模块。
       - run: python -c "import importlib,pkgutil,llmw; [importlib.import_module(m.name) for m in pkgutil.walk_packages(llmw.__path__,'llmw.')]; print('import smoke OK')"
-      # 全仓 pytest：tests/（31 例）+ 两 SKILL 的 scripts/test_*.py（86 例）。
+      # 全仓 pytest：tests/（含搬入的 llmw.content 测试）。
       - run: pytest -q
 
-  # fresh init + wiki → 两探测器（本仓 yzr-llm-*/scripts/ 的 check_*_fixtures.py）→ 断言结构合规。
+  # fresh init + wiki → 两探测器（llmw.content 命令面：`llmw check-fixtures` /
+  # `llmw wiki --path=DIR check-fixtures`）→ 断言结构合规。
   # 双向覆盖：CLI 改坏骨架 / 两 SKILL 改坏 fixtures 都让本 job 红。兑现
   # 探测器作为「CLI 产物合规的可执行真源」（spec 与探测器不一致时以探测器为准）。
-  # 两 SKILL 与 CLI 同仓（2026-08-18 迁入），无 submodule 依赖。
+  # 两 SKILL 与 CLI 同仓，无 submodule 依赖。
   fixtures-smoke:
     runs-on: ubuntu-latest
     steps:

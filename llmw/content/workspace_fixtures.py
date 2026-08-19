@@ -38,6 +38,9 @@ import sys
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
+from llmw import WORKSPACE_SPEC_VERSION
+from llmw.config import workspace_spec_templates_dir
+
 ENV_WORKSPACE_ROOT = "LLMW_WORKSPACE"
 
 SEMVER_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
@@ -113,19 +116,8 @@ def _read_text(path: Path) -> Optional[str]:
 
 
 def _skill_spec_version() -> Optional[str]:
-    """读 SKILL.md metadata.workspace_spec_version（脚本相对路径）。
-
-    找不到 / 解析失败返 None——调用方用 --target-spec 显式传；该函数
-    只在缺省 --target-spec 时作为 fallback。
-    """
-    skill_md = Path(__file__).resolve().parent.parent / "SKILL.md"
-    if skill_md.is_file():
-        text = _read_text(skill_md)
-        if text is not None:
-            m = re.search(r"^[ \t]*workspace_spec_version:[ \t]*(\S+)[ \t]*$", text, re.MULTILINE)
-            if m:
-                return m.group(1).strip()
-    return None
+    """workspace spec 版本（SSOT = SKILL.md frontmatter，经 llmw.config 单源读取）。"""
+    return WORKSPACE_SPEC_VERSION
 
 
 def _compare_semver(a: Optional[str], b: Optional[str]) -> str:
@@ -196,7 +188,7 @@ def _render_agents_template(template: str, vars: Dict[str, Optional[str]], spec:
 
 def _agents_reference() -> Tuple[Optional[str], Path]:
     """读 references/workspace-agents-md-template.md（脚本相对路径）。"""
-    tpl_path = Path(__file__).resolve().parent.parent / "references" / "workspace-agents-md-template.md"
+    tpl_path = workspace_spec_templates_dir() / "workspace-agents-md-template.md"
     return _read_text(tpl_path), tpl_path
 
 
@@ -301,7 +293,7 @@ def check_claude_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
     spec 版本（版本在 AGENTS.md §六），故渲染稿与版本新旧无关。
     """
     out = {"passed": True, "severity": "error", "file": "CLAUDE.md"}  # type: Dict[str, object]
-    tpl_path = Path(__file__).resolve().parent.parent / "references" / "workspace-claude-md-template.md"
+    tpl_path = workspace_spec_templates_dir() / "workspace-claude-md-template.md"
     template = _read_text(tpl_path)
     if template is None:
         out["passed"] = None
@@ -576,7 +568,7 @@ def check_template_no_outbound_refs(ws_root: Path, info: Dict[str, str]) -> Dict
     skill 侧修复。
     """
     out = {"passed": True, "severity": "error", "file": "references/workspace-agents-md-template.md"}  # type: Dict[str, object]
-    template = _read_text(Path(__file__).resolve().parent.parent / "references" / "workspace-agents-md-template.md")
+    template = _read_text(workspace_spec_templates_dir() / "workspace-agents-md-template.md")
     if template is None:
         out["passed"] = None
         out["skipped"] = "references/workspace-agents-md-template.md 未找到（无法模板自检）"
@@ -676,7 +668,7 @@ def _format_human(report: Dict[str, object]) -> str:
     return "\n".join(lines)
 
 
-def main() -> int:
+def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="check_workspace_fixtures",
         description="检查已存在 workspace 的 fixtures 一致性（升级检查专用）",
@@ -688,7 +680,7 @@ def main() -> int:
         default=None,
         help="目标 workspace spec 版本（缺省读 SKILL.md metadata.workspace_spec_version）",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.workspace_root:
         ws_root = Path(args.workspace_root).expanduser().resolve()

@@ -47,15 +47,16 @@ import sys
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
-# 常量 SSOT 在 lint_wiki / log_format，import 不复制（同一 scripts/ 目录）。
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from lint_wiki import (  # noqa: E402
+# 常量 SSOT 在 wiki_lint / log_format，import 不复制。
+from llmw import WIKI_SPEC_VERSION
+from llmw.config import wiki_spec_templates_dir
+from llmw.content.log_format import LOG_LINE_RE  # noqa: E402
+from llmw.content.wiki_lint import (  # noqa: E402
     ANCHOR_FILENAME,
     EXTERNAL_SUBDIR,
     MEMORY_SUBDIR,
     SEMVER_RE,
 )
-from log_format import LOG_LINE_RE  # noqa: E402
 
 # -- 公开 check 注册表（顺序 = 输出顺序）--
 # 每条: severity (error/warn)、rule_ref（指向 spec/lint-checklist 段）、desc（人读摘要）
@@ -170,22 +171,8 @@ def _read_text(path: Path) -> Optional[str]:
 
 
 def _skill_spec_version() -> Optional[str]:
-    """读 SKILL.md metadata.wiki_spec_version（脚本相对路径）。
-
-    找不到 / 解析失败返 None——Standalone 调用方用 --target-spec 显式传；该函数
-    只在缺省 --target-spec 时作为 fallback。
-    """
-    # __file__ -> scripts/check_wiki_fixtures.py → ../SKILL.md
-    skill_md = Path(__file__).resolve().parent.parent / "SKILL.md"
-    if not skill_md.is_file():
-        return None
-    text = _read_text(skill_md)
-    if text is None:
-        return None
-    m = re.search(r"^[ \t]*wiki_spec_version:[ \t]*(\S+)[ \t]*$", text, re.MULTILINE)
-    if not m:
-        return None
-    return m.group(1).strip()
+    """wiki spec 版本（SSOT = SKILL.md frontmatter，经 llmw.config 单源读取）。"""
+    return WIKI_SPEC_VERSION
 
 
 def _compare_semver(a: Optional[str], b: Optional[str]) -> str:
@@ -364,7 +351,7 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
         out["passed"] = None
         out["skipped"] = "AGENTS.md 不存在"
         return out
-    template = _read_text(Path(__file__).resolve().parent.parent / "references" / "agents-md-template.md")
+    template = _read_text(wiki_spec_templates_dir() / "agents-md-template.md")
     if template is None:
         out["passed"] = None
         out["skipped"] = "references/agents-md-template.md 未找到（无法模板比对）"
@@ -444,7 +431,7 @@ def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Di
     机械强制；对每个 wiki 报告同一结果（模板是全局文件），违反时 error 逼 skill 侧修复。
     """
     out = {"passed": True, "severity": "error", "file": "references/agents-md-template.md"}  # type: Dict[str, object]
-    template = _read_text(Path(__file__).resolve().parent.parent / "references" / "agents-md-template.md")
+    template = _read_text(wiki_spec_templates_dir() / "agents-md-template.md")
     if template is None:
         out["passed"] = None
         out["skipped"] = "references/agents-md-template.md 未找到（无法模板自检）"
@@ -816,7 +803,7 @@ def check_wiki_metadata_reads_satisfied(wiki_root: Path, info: Dict[str, str]) -
 
 def _fixtures_dir() -> Path:
     """references/fixtures/（带占位符模板；gitignore 走此）。"""
-    return Path(__file__).resolve().parent.parent / "references" / "fixtures"
+    return wiki_spec_templates_dir() / "fixtures"
 
 
 def _load_fixture_text(name: str) -> Optional[str]:
@@ -1117,7 +1104,7 @@ def _format_human(report: Dict[str, object]) -> str:
     return "\n".join(lines)
 
 
-def main() -> int:
+def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="check_wiki_fixtures",
         description="检查已存在 wiki 的 fixtures 一致性（升级检查专用）",
@@ -1133,7 +1120,7 @@ def main() -> int:
         default=None,
         help="目标 wiki spec 版本（缺省读 SKILL.md metadata.wiki_spec_version）",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.wiki_root:
         wiki_root = Path(args.wiki_root).expanduser().resolve()

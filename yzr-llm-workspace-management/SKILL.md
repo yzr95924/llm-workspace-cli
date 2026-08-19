@@ -31,9 +31,10 @@ metadata:
 - **SKILL.md（本文）**——工作流 + 边界的"宪法"
 - **references/workspace-spec.md**——workspace 根 9 类文件的**归属 + skill 读取契约 + 安全约束**
   （toml 完整 schema 由 CLI 代码 SSOT，spec 不做权威定义）
-- **scripts/**——`check_workspace_fixtures.py`（**CLI 产物合规的可执行真源**：fixtures 一致性
-  检查，输出修复动作；spec 文档是它的说明，不一致时以探测器为准。亦作 migrate 探测器使用。
-  Python 3.7+；端到端测试 `test_check_workspace_fixtures.py`）
+- **确定性执行（归 llmw CLI，`llmw.content`）**——本 skill **零代码**。fixtures 一致性
+  检查收敛为 `llmw check-fixtures`（**CLI 产物合规的可执行真源**：输出带修复动作的 drift
+  报告；spec 文档是它的说明，不一致时以探测器为准。亦作 migrate 探测器使用。
+  Python 3.7+；端到端测试 `tests/test_content_workspace_fixtures.py`）
 
 ## 何时不使用
 
@@ -67,7 +68,7 @@ metadata:
   `yzr-llm-wiki-management` 的 ingest 流程，不直接写 wiki 文件）
 - **lint** → 写 `<workspace>/LINT.md`（最近一次报告，每次 lint 覆盖；格式见
   [spec §8](references/workspace-spec.md#8-lintmdskill-维护可选)）+ 对话中总结
-- **migrate** → 跑 `scripts/check_workspace_fixtures.py` 输出 drift 报告（每条 finding
+- **migrate** → 跑 `llmw check-fixtures` 输出 drift 报告（每条 finding
   带修复动作）；agent 按报告修复后的最新 spec 兼容 workspace；详见 §6 Migrate
 
 ## 执行原则 / 边界
@@ -285,7 +286,7 @@ spec §17.2）。**MEMORY 跨边界混淆**：本 skill **禁止**写
 **触发**："升级 workspace / 迁移 / 检查 workspace 版本 / 老格式 / spec 升级"；或 §1 scan
 版本比对发现 `templates_version` 落后。
 
-**职责切分**：`scripts/check_workspace_fixtures.py` = **探测器**（只扫不修，输出带 `fix`
+**职责切分**：`llmw check-fixtures`（`llmw.content`）= **探测器**（只扫不修，输出带 `fix`
 动作的 drift 报告；修复面恒定 ≤ 4 个结构文件、不落 plan 文件、零中间产物——机制见
 [spec §17.3](references/workspace-spec.md#173-检测与修复流程)）；agent（本节）= **修复者**，
 按报告 `fix` 动作执行，所有权开口严格按 [spec §17.2](references/workspace-spec.md#172-迁移例外所有权开口)；
@@ -297,9 +298,10 @@ spec §17.2）。**MEMORY 跨边界混淆**：本 skill **禁止**写
 1. **跑探测**：
 
    ```bash
-   python3 scripts/check_workspace_fixtures.py "$LLMW_WORKSPACE"
+   llmw check-fixtures
    ```
 
+   （workspace 由 `$LLMW_WORKSPACE` 或默认路径解析；`--workspace=PATH` 可显式指定）
    `--json` 供程序化消费；退出码 0 全过 / 1 有 error / 2 运行错误（check 清单见
    [spec §17.3](references/workspace-spec.md#173-检测与修复流程)）
 2. **dry-run 报告**（默认必走）：按 finding 分组列"哪些文件需改、依据报告 fix.to_action"；

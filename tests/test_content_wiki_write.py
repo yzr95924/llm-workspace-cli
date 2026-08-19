@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""test_wiki_write.py — wiki_write.py 端到端测试（机械字节写操作）
+"""test_content_wiki_write — llmw.content.wiki_write 端到端测试（机械字节写操作）
 
-stdlib unittest + subprocess 调真实脚本（无 mock）：在 tmp 目录搭最小 scratch wiki，
+stdlib unittest + subprocess 调真实模块（无 mock）：在 tmp 目录搭最小 scratch wiki，
 覆盖五个子命令的 round-trip 不变量——
-- `new` 产物必须过 lint_wiki.check_frontmatter（准入规则第 2 条：lint 可验证）
+- `new` 产物必须过 wiki_lint.check_frontmatter（准入规则第 2 条：lint 可验证）
 - `log` 产物必须被 LOG_LINE_RE 解析（含截断后 frontmatter 不动）
-- `memory` 产物必须过 lint_wiki.check_memory_index（memory-not-indexed 免疫）
+- `memory` 产物必须过 wiki_lint.check_memory_index（memory-not-indexed 免疫）
 - `index` 条目派生自页 frontmatter（title/description 复制防漂移）
 
 运行:
-  python3 scripts/test_wiki_write.py        # 在 skill 目录根或 scripts/ 下均可
+  pytest tests/test_content_wiki_write.py
 """
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -19,12 +20,14 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 
-SCRIPT_PATH = Path(__file__).resolve().parent / "wiki_write.py"
+from llmw.content.log_format import LOG_LINE_RE
+from llmw.content.wiki_lint import (
+    CURRENT_WIKI_SPEC,
+    check_frontmatter,
+    check_memory_index,
+)
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from lint_wiki import CURRENT_WIKI_SPEC, check_frontmatter, check_memory_index  # noqa: E402
-from log_format import LOG_LINE_RE  # noqa: E402
-
+REPO = Path(__file__).resolve().parents[1]
 INDEX_SKELETON = """---
 title: "Test Index"
 type: index
@@ -97,20 +100,25 @@ def _make_wiki(root, spec_version=None):
     (root / "wiki" / "index.md").write_text(INDEX_SKELETON, encoding="utf-8")
     (root / "wiki" / "log.md").write_text(LOG_SKELETON, encoding="utf-8")
     (root / "MEMORY" / "MEMORY.md").write_text(MEMORY_INDEX_SKELETON, encoding="utf-8")
-    (root / "MEMORY" / "existing-tip.md").write_text('---\ntitle: "Existing Tip"\n---\n', encoding="utf-8")
+    (root / "MEMORY" / "existing-tip.md").write_text(
+        '---\ntitle: "Existing Tip"\n---\n', encoding="utf-8"
+    )
     (root / "wiki" / "sources" / "alpha.md").write_text(
         '---\ntitle: "Alpha Source"\ndescription: "alpha 摘要"\ntype: source\n'
         "tags: [llm]\ncreated: 2026-06-28 14:30\nupdated: 2026-06-28 14:30\n"
         "sources:\n  - raw/articles/alpha.md\n---\n\n# Alpha Source\n",
         encoding="utf-8",
     )
-    (root / "raw" / "articles" / "alpha.md").write_text("# alpha raw\n", encoding="utf-8")
+    (root / "raw" / "articles" / "alpha.md").write_text(
+        "# alpha raw\n", encoding="utf-8"
+    )
     return root
 
 
 def _run(wiki_root, *args):
     return subprocess.run(
-        [sys.executable, str(SCRIPT_PATH), str(wiki_root)] + list(args),
+        [sys.executable, "-m", "llmw.content.wiki_write", str(wiki_root)] + list(args),
+        env=dict(os.environ, PYTHONPATH=str(REPO)),
         capture_output=True,
         text=True,
     )
@@ -141,17 +149,34 @@ class LogTests(unittest.TestCase):
         r = _run(self.root, "log", "--op", "ingest", "--title", "A", "--title", "B")
         self.assertEqual(r.returncode, 0, r.stderr)
         tail = self._log_text().splitlines()[-2:]
-        self.assertTrue(any(LOG_LINE_RE.match(ln) and ln.endswith("| A") for ln in tail))
-        self.assertTrue(any(LOG_LINE_RE.match(ln) and ln.endswith("| B") for ln in tail))
+        self.assertTrue(
+            any(LOG_LINE_RE.match(ln) and ln.endswith("| A") for ln in tail)
+        )
+        self.assertTrue(
+            any(LOG_LINE_RE.match(ln) and ln.endswith("| B") for ln in tail)
+        )
 
     def test_bulk(self):
-        r = _run(self.root, "log", "--op", "ingest", "--bulk", "--topic", "RL 综述", "--count", "5")
+        r = _run(
+            self.root,
+            "log",
+            "--op",
+            "ingest",
+            "--bulk",
+            "--topic",
+            "RL 综述",
+            "--count",
+            "5",
+        )
         self.assertEqual(r.returncode, 0, r.stderr)
         last = self._log_text().splitlines()[-1]
         self.assertIn("Bulk: RL 综述 (5 sources)", last)
 
     def test_truncation_keeps_frontmatter(self):
-        body = "\n".join(f"## [2026-06-01 {i // 60:02d}:{i % 60:02d}] ingest | entry-{i}" for i in range(52))
+        body = "\n".join(
+            f"## [2026-06-01 {i // 60:02d}:{i % 60:02d}] ingest | entry-{i}"
+            for i in range(52)
+        )
         log_path = self.root / "wiki" / "log.md"
         text = log_path.read_text(encoding="utf-8")
         frontmatter, _, rest = text.partition("\n---\n")
@@ -200,10 +225,15 @@ class IndexTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         text = self._index_text()
         sources_section = text.split("## Sources\n", 1)[1].split("\n## ")[0]
-        lines = [ln for ln in sources_section.splitlines() if ln.strip().startswith("- [")]
+        lines = [
+            ln for ln in sources_section.splitlines() if ln.strip().startswith("- [")
+        ]
         self.assertEqual(
             [ln for ln in lines if "Alpha Source" in ln or "Zeta Source" in ln],
-            ["- [Alpha Source](sources/alpha.md) — alpha 摘要", "- [Zeta Source](sources/zeta.md) — zeta 摘要"],
+            [
+                "- [Alpha Source](sources/alpha.md) — alpha 摘要",
+                "- [Zeta Source](sources/zeta.md) — zeta 摘要",
+            ],
         )
 
     def test_add_into_empty_section_removes_placeholder(self):
@@ -215,7 +245,9 @@ class IndexTests(unittest.TestCase):
         r = _run(self.root, "index", "add", "wiki/comparisons/a-vs-b.md")
         self.assertEqual(r.returncode, 0, r.stderr)
         text = self._index_text()
-        self.assertNotIn("_（暂无内容）_", text.split("## Comparisons\n", 1)[1].split("\n## ")[0])
+        self.assertNotIn(
+            "_（暂无内容）_", text.split("## Comparisons\n", 1)[1].split("\n## ")[0]
+        )
         self.assertIn("- [A vs B](comparisons/a-vs-b.md)", text)
 
     def test_add_duplicate_noop(self):
@@ -307,7 +339,9 @@ class NewTests(unittest.TestCase):
             "llm, transformer",
         )
         self.assertEqual(r.returncode, 0, r.stderr)
-        (self.root / "raw" / "articles" / "attention.md").write_text("# attention raw\n", encoding="utf-8")
+        (self.root / "raw" / "articles" / "attention.md").write_text(
+            "# attention raw\n", encoding="utf-8"
+        )
         page = self.root / "wiki" / "sources" / "attention.md"
         self.assertTrue(page.is_file())
         findings = check_frontmatter(self.root)
@@ -326,7 +360,9 @@ class NewTests(unittest.TestCase):
         self.assertIn("--sources", r.stderr)
 
     def test_new_bad_slug(self):
-        r = _run(self.root, "new", "--type", "concept", "--slug", "Bad Slug", "--title", "X")
+        r = _run(
+            self.root, "new", "--type", "concept", "--slug", "Bad Slug", "--title", "X"
+        )
         self.assertEqual(r.returncode, 2)
         r2 = _run(self.root, "new", "--type", "memory", "--slug", "x", "--title", "X")
         self.assertEqual(r2.returncode, 2)
@@ -348,7 +384,16 @@ class NewTests(unittest.TestCase):
         self.assertIn("已存在", r.stderr)
 
     def test_new_entity_without_sources_ok(self):
-        r = _run(self.root, "new", "--type", "entity", "--slug", "openai", "--title", "OpenAI")
+        r = _run(
+            self.root,
+            "new",
+            "--type",
+            "entity",
+            "--slug",
+            "openai",
+            "--title",
+            "OpenAI",
+        )
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue((self.root / "wiki" / "entities" / "openai.md").is_file())
 
@@ -363,7 +408,15 @@ class MemoryTests(unittest.TestCase):
 
     def test_memory_add_roundtrip_index_clean(self):
         r = _run(
-            self.root, "memory", "add", "--slug", "ocr-tips", "--title", "OCR Tips", "--index-line", "PDF 先转格式"
+            self.root,
+            "memory",
+            "add",
+            "--slug",
+            "ocr-tips",
+            "--title",
+            "OCR Tips",
+            "--index-line",
+            "PDF 先转格式",
         )
         self.assertEqual(r.returncode, 0, r.stderr)
         entry = self.root / "MEMORY" / "ocr-tips.md"
@@ -401,7 +454,9 @@ class VersionWarnTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("[WARN]", r.stderr)
         self.assertIn("0.27.1", r.stderr)
-        self.assertIn("| X", (self.root / "wiki" / "log.md").read_text(encoding="utf-8"))
+        self.assertIn(
+            "| X", (self.root / "wiki" / "log.md").read_text(encoding="utf-8")
+        )
 
     def test_current_version_no_warn(self):
         root2 = Path(self._tmp.name)

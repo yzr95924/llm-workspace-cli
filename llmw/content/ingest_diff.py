@@ -39,8 +39,7 @@ from pathlib import Path
 from typing import Dict, List, Set
 
 # log 行格式正则 + created/updated 时间解析 SSOT 来自 log_format 模块
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from log_format import LOG_INGEST_RE, parse_date_or_datetime  # noqa: E402
+from llmw.content.log_format import LOG_INGEST_RE, parse_date_or_datetime  # noqa: E402
 
 # 简易 YAML frontmatter 解析（不依赖 pyyaml，避免 setup 阶段的依赖膨胀）
 # 支持最常见的 key: value 形式（含数组、字符串）
@@ -200,7 +199,7 @@ def raw_newer_than_source(raw_path: Path, source_page: Path) -> bool:
     return raw_date > upd_date
 
 
-def main() -> int:
+def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         description="Find files in raw/ that need LLM attention (untracked or, with --check-stale, updated)."
     )
@@ -212,7 +211,7 @@ def main() -> int:
         action="store_true",
         help="额外检查已摄取文件：raw mtime 晚于 source 页 updated → 标记 stale-raw（待重新摄取）",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # 决定 wiki_root
     if args.wiki_root:

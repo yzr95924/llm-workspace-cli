@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""test_check_wiki_fixtures.py — check_wiki_fixtures.py 的端到端测试
+"""test_content_wiki_fixtures — llmw.content.wiki_fixtures 端到端测试
 
-stdlib unittest + subprocess 调真实脚本（无 mock）：在 tmp 目录搭 scratch wiki
+stdlib unittest + subprocess 调真实模块（无 mock）：在 tmp 目录搭 scratch wiki
 （clean / 各类 drift），断言 --json 报告结构与 finding 内容。standalone——不依赖
-CLI / lint_wiki.py，只读本 skill 的模板 + fixtures。
+CLI，只读 skill 侧模板 + fixtures。
 
 运行:
-  python3 scripts/test_check_wiki_fixtures.py        # 在 skill 目录根或 scripts/ 下均可
+  pytest tests/test_content_wiki_fixtures.py
 """
 
 import json
@@ -18,17 +18,21 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPT_PATH = Path(__file__).resolve().parent / "check_wiki_fixtures.py"
-SKILL_ROOT = Path(__file__).resolve().parent.parent
-AGENTS_TEMPLATE = (SKILL_ROOT / "references" / "agents-md-template.md").read_text(encoding="utf-8")
+REPO = Path(__file__).resolve().parents[1]
+SKILL_ROOT = REPO / "yzr-llm-wiki-management"
+AGENTS_TEMPLATE = (SKILL_ROOT / "references" / "agents-md-template.md").read_text(
+    encoding="utf-8"
+)
 FIXTURES_DIR = SKILL_ROOT / "references" / "fixtures"
-WIKI_GITIGNORE = (SKILL_ROOT / "references" / "fixtures" / "gitignore.txt").read_text(encoding="utf-8")
+WIKI_GITIGNORE = (SKILL_ROOT / "references" / "fixtures" / "gitignore.txt").read_text(
+    encoding="utf-8"
+)
 
 OLD_VERSION = "0.25.0"  # 真实历史版本——永远小于当前 target_spec
 
 
 def _target_spec():
-    """读 SKILL.md metadata.wiki_spec_version（与脚本同一 SSOT）。"""
+    """读 SKILL.md metadata.wiki_spec_version（与 llmw.config 同一 SSOT）。"""
     text = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
     m = re.search(r"^[ \t]*wiki_spec_version:[ \t]*(\S+)[ \t]*$", text, re.MULTILINE)
     if not m:
@@ -36,21 +40,7 @@ def _target_spec():
     return m.group(1).strip()
 
 
-def _fixtures_check_count():
-    """读 SKILL.md metadata.fixtures_check_count——check 注册数的 SSOT 声明（metadata 侧）。
-
-    代码侧真源是 CHECK_REGISTRY；本测试断言两侧一致（metadata 改动不改代码时测试 fail），
-    让"20/21"这类计数改动必须同时落 metadata + 代码。
-    """
-    text = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
-    m = re.search(r"^[ \t]*fixtures_check_count:[ \t]*(\S+)[ \t]*$", text, re.MULTILINE)
-    if not m:
-        raise AssertionError("SKILL.md 缺 metadata.fixtures_check_count")
-    return int(m.group(1).strip())
-
-
 TARGET_SPEC = _target_spec()
-FIXTURES_CHECK_COUNT = _fixtures_check_count()
 
 
 def _render_agents_md(topic="Test", date="2026-06-28", cli="0.1.0", spec=None):
@@ -109,51 +99,67 @@ def build_wiki(
     (root / "raw" / "articles").mkdir(parents=True, exist_ok=True)
     (root / "raw" / "assets").mkdir(parents=True, exist_ok=True)
     if agents_md is not False:
-        (root / "AGENTS.md").write_text(agents_md if agents_md is not None else _render_agents_md(), encoding="utf-8")
+        (root / "AGENTS.md").write_text(
+            agents_md if agents_md is not None else _render_agents_md(),
+            encoding="utf-8",
+        )
     if gitignore is not False:
-        (root / ".gitignore").write_text(gitignore if gitignore is not None else WIKI_GITIGNORE, encoding="utf-8")
+        (root / ".gitignore").write_text(
+            gitignore if gitignore is not None else WIKI_GITIGNORE, encoding="utf-8"
+        )
     if wiki_metadata is not False:
         (root / "wiki_metadata.toml").write_text(
-            wiki_metadata if wiki_metadata is not None else _wiki_metadata(), encoding="utf-8"
+            wiki_metadata if wiki_metadata is not None else _wiki_metadata(),
+            encoding="utf-8",
         )
     if index_md is not False:
         (root / "wiki" / "index.md").write_text(
             index_md if index_md is not None else _fixture("index.md"), encoding="utf-8"
         )
     if log_md is not False:
-        (root / "wiki" / "log.md").write_text(log_md if log_md is not None else _fixture("log.md"), encoding="utf-8")
+        (root / "wiki" / "log.md").write_text(
+            log_md if log_md is not None else _fixture("log.md"), encoding="utf-8"
+        )
     if tags_md is not False:
         (root / "wiki" / "tags.md").write_text(
             tags_md if tags_md is not None else _fixture("tags.md"), encoding="utf-8"
         )
     if memory_index is not False:
         (root / "MEMORY" / "MEMORY.md").write_text(
-            memory_index if memory_index is not None else _fixture("memory-index"), encoding="utf-8"
+            memory_index if memory_index is not None else _fixture("memory-index"),
+            encoding="utf-8",
         )
     if scripts_md is not False:
         (root / "scripts" / "SCRIPTS.md").write_text(
-            scripts_md if scripts_md is not None else _fixture("scripts.md"), encoding="utf-8"
+            scripts_md if scripts_md is not None else _fixture("scripts.md"),
+            encoding="utf-8",
         )
     return root
 
 
 def run_check(root, extra_args=None, env=None):
-    """跑脚本 --json，返回 (exit_code, report_dict)。"""
-    cmd = [sys.executable, str(SCRIPT_PATH)]
+    """跑 `python -m llmw.content.wiki_fixtures --json`，返回 (exit_code, report_dict)。"""
+    cmd = [sys.executable, "-m", "llmw.content.wiki_fixtures"]
     if root is not None:
         cmd.append(str(root))
     cmd.append("--json")
     cmd.extend(extra_args or [])
-    run_env = dict(os.environ)
+    run_env = dict(os.environ, PYTHONPATH=str(REPO))
     run_env.pop("LLM_WIKI_ROOT", None)
     if env:
         run_env.update(env)
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, env=run_env)
+    proc = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        env=run_env,
+    )
     try:
         report = json.loads(proc.stdout)
     except ValueError:
         raise AssertionError(
-            f"脚本未输出合法 JSON：exit={proc.returncode}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+            f"模块未输出合法 JSON：exit={proc.returncode}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
         ) from None
     return proc.returncode, report
 
@@ -162,7 +168,9 @@ def check_by_id(report, cid):
     for c in report["checks"]:
         if c["id"] == cid:
             return c
-    raise AssertionError(f"报告缺 check {cid}（实有: {[c['id'] for c in report['checks']]}）")
+    raise AssertionError(
+        f"报告缺 check {cid}（实有: {[c['id'] for c in report['checks']]}）"
+    )
 
 
 class CleanWikiTest(unittest.TestCase):
@@ -172,24 +180,29 @@ class CleanWikiTest(unittest.TestCase):
             build_wiki(tmp)
             code, report = run_check(tmp)
         self.assertEqual(report["target_spec"], TARGET_SPEC)
-        self.assertEqual(report["summary"]["error"], 0, f"clean wiki 不应有 error：{report['summary']}")
+        self.assertEqual(
+            report["summary"]["error"],
+            0,
+            f"clean wiki 不应有 error：{report['summary']}",
+        )
         for c in report["checks"]:
             self.assertIsNot(c["passed"], False, f"clean 下 {c['id']} 不应 fail：{c}")
 
-    def test_check_count_matches_metadata(self):
-        """check 总数 = SKILL.md metadata.fixtures_check_count（metadata 与代码两侧对账）。
+    def test_check_registry_self_consistent(self):
+        """CHECK_REGISTRY 与 CHECK_FUNCTIONS 两侧自洽（每注册 check 有实现函数）。
 
-        代码侧注册数变化（新增 / 删除 check）但 metadata 未同步 → 本测试 fail。
+        checks 已全搬进 CLI，代码侧是唯一真源——SKILL.md 的 fixtures_check_count 钉
+        （跨侧计数同步点）已删除；本测试守住注册表内部一致性 + 每条 check 有修复依据。
         """
-        with tempfile.TemporaryDirectory() as tmp:
-            build_wiki(tmp)
-            _, report = run_check(tmp)
-        self.assertEqual(
-            len(report["checks"]),
-            FIXTURES_CHECK_COUNT,
-            f"实际 check 数 {len(report['checks'])} != metadata.fixtures_check_count "
-            f"({FIXTURES_CHECK_COUNT})——改代码时需同步 SKILL.md frontmatter",
-        )
+        from llmw.content.wiki_fixtures import CHECK_FUNCTIONS, CHECK_REGISTRY
+
+        self.assertEqual(len(CHECK_REGISTRY), len(CHECK_FUNCTIONS))
+        registered_ids = {c["id"] for c in CHECK_REGISTRY}
+        func_ids = {cid for cid, _ in CHECK_FUNCTIONS}
+        self.assertEqual(registered_ids, func_ids)
+        for c in CHECK_REGISTRY:
+            self.assertTrue(c.get("rule_ref"), f"{c['id']} 缺 rule_ref")
+            self.assertTrue(c.get("desc"), f"{c['id']} 缺 desc")
 
 
 class WikiMetadataReadsSatisfiedTest(unittest.TestCase):
@@ -211,7 +224,9 @@ class WikiMetadataReadsSatisfiedTest(unittest.TestCase):
 
     def test_missing_multiple_fields_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
-            build_wiki(tmp, wiki_metadata=_wiki_metadata(missing={"name", "created_at"}))
+            build_wiki(
+                tmp, wiki_metadata=_wiki_metadata(missing={"name", "created_at"})
+            )
             code, report = run_check(tmp)
         self.assertEqual(code, 1)
         c = check_by_id(report, "wiki-metadata-reads-satisfied")
@@ -258,17 +273,15 @@ class TemplateNoOutboundRefsTest(unittest.TestCase):
     """模板零出边引用（架构不变量）——检测逻辑喂合成文本 + 端到端干净 pass。"""
 
     def _scan(self, text):
-        """直接调用脚本内的扫描函数（不改真实模板文件）。"""
-        sys.path.insert(0, str(SCRIPT_PATH.parent))
-        try:
-            from check_wiki_fixtures import _scan_template_outbound_refs
+        """直接调用模块内的扫描函数（不改真实模板文件）。"""
+        from llmw.content.wiki_fixtures import _scan_template_outbound_refs
 
-            return _scan_template_outbound_refs(text)
-        finally:
-            sys.path.remove(str(SCRIPT_PATH.parent))
+        return _scan_template_outbound_refs(text)
 
     def test_clean_text_no_hits(self):
-        self.assertEqual(self._scan("# 标题\n\n- 自包含措辞（见本文件顶部「关键」段）\n"), [])
+        self.assertEqual(
+            self._scan("# 标题\n\n- 自包含措辞（见本文件顶部「关键」段）\n"), []
+        )
 
     def test_skill_file_refs_detected(self):
         text = "见 `wiki-spec.md` §15 与 `page-templates.md` §一\n且 lint-checklist.md、SKILL.md、references/、yzr-llm-wiki-management、OKF 都算"

@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
 """
-lint_wiki.py — deterministic 健康检查
+wiki_lint — deterministic 健康检查（llmw wiki lint）
 
 跑 references/lint-checklist.md 的 §二（deterministic 全部项）+ external symlink 检查。
 半定性检查（§三，矛盾主张 / 缺失交叉引用等需理解语义的）由 agent 现场做。
 
 用法：
-  python3 lint_wiki.py [<WIKI_ROOT>] [--severity <LEVEL>] [--no-git] [--migrate-confidence]
-  python3 lint_wiki.py [<WIKI_ROOT>] --check-version [--json] [--apply]
+  llmw wiki lint --name=X | --path=DIR [--severity <LEVEL>] [--no-git]
+  llmw wiki lint --name=X | --path=DIR --check-version [--json] [--apply]
 
 --severity 过滤：error | warn | info | all（默认 all）
 --no-git 跳过 raw/ 的 git status 检查（CI 或裸仓场景）。默认**自动检测**：
   仅当 wiki 根目录在 git 仓内且 raw/ 被 git 跟踪时才跑 raw 不可变性检查；
   裸目录树 / 无 git / raw 未纳入 git → 自动跳过并打印提示（不报错，不阻断）。
---migrate-confidence 一次性迁移老 `confidence:` 字段（0.5.0 引入）到新
-  `reviewed` + `reviewed_at`。互斥模式，不做常规 lint。
-  已被 `--check-version --apply` 覆盖；保留仅供旧用法兼容。
---check-version 扫描当前 wiki 的 spec 版本（解析 CLAUDE.md §八 "Wiki Spec 版本"），
+--check-version 扫描当前 wiki 的 spec 版本（解析 AGENTS.md §八 "Wiki Spec 版本"），
   与本 skill metadata.wiki_spec_version 比对，列出老格式 legacy 现场。默认仅打印报告
    （不动任何文件）；加 `--apply` 把 migration plan 以 JSON 输出到 **stdout**（agent 直接
    消费，**不落盘**——升级全程 wiki 根无任何中间文件残留）供按 references/migrate-workflow.md
@@ -39,17 +36,14 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set
 
 # 复用 ingest_diff 的轻量 frontmatter 解析 + log_format 的日期解析 helper
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from ingest_diff import parse_frontmatter_simple  # noqa: E402
-from log_format import (
-    LOG_LINE_RE,  # noqa: E402
-    parse_date_or_datetime,  # noqa: E402
+from llmw.content.ingest_diff import parse_frontmatter_simple  # noqa: E402
+from llmw.content.log_format import (  # noqa: E402
+    LOG_LINE_RE,
+    parse_date_or_datetime,
 )
 
-# fixtures 一致性检查脚本——`--check-version` 自动调一次；
-# 其 JSON 输出并入 report["fixtures_check"] + plan["fixtures_actions"]。
-# standalone 调用方也可直接跑：scripts/check_wiki_fixtures.py <wiki_root> --json
-CHECK_FIXTURES_SCRIPT = "check_wiki_fixtures.py"  # 与本脚本同目录
+# fixtures 一致性检查——`--check-version` 自动调一次；结果并入
+# report["fixtures_check"] + plan["fixtures_actions"]（直接函数调用，非子进程）。
 
 VALID_TYPES = {
     "entity",
@@ -112,22 +106,11 @@ def _is_absolute_path(p: str) -> bool:
 
 
 # Wiki spec 当前版本——SSOT 是 SKILL.md metadata.wiki_spec_version（frontmatter），
-# 此处直接读取，不再维护常量副本（单仓后漂移源消失）。
+# 经 llmw/__init__ 单源读取，不再维护常量副本（单仓后漂移源消失）。
 # 详见 references/wiki-spec.md §10「版本钉死」+ MEMORY/spec-version-bump-single-repo.md。
-def _load_current_spec() -> str:
-    """读同仓 SKILL.md metadata.wiki_spec_version；缺失即快速失败（同仓定位下恒存在）。"""
-    skill_md = Path(__file__).resolve().parent.parent / "SKILL.md"
-    m = re.search(
-        r"^[ \t]*wiki_spec_version:[ \t]*(\S+)[ \t]*$",
-        skill_md.read_text(encoding="utf-8"),
-        re.MULTILINE,
-    )
-    if m is None:
-        raise RuntimeError(f"SKILL.md 缺 metadata.wiki_spec_version: {skill_md}")
-    return m.group(1).strip()
+from llmw import WIKI_SPEC_VERSION  # noqa: E402
 
-
-CURRENT_WIKI_SPEC = _load_current_spec()
+CURRENT_WIKI_SPEC = WIKI_SPEC_VERSION
 
 # 已知 legacy pattern 的"pattern key"——为后续扩展预留，每个 key 是一类迁移动作。
 # rule_ref 是迁移依据的溯源指针；修复语义自含于 plan actions 的 remove/add_or_modify/to_action
@@ -1096,7 +1079,7 @@ def check_quality_signals(wiki_root):
         # —— C. 迁移期检测 ——
         if "confidence" in fm:
             findings.append(
-                f"legacy-confidence-field: {rel} 含已退役 confidence 字段——请运行 lint_wiki.py --migrate-confidence"
+                f"legacy-confidence-field: {rel} 含已退役 confidence 字段——请运行 `llmw wiki lint --check-version --apply` 按 plan 修复"
             )
 
         # —— B. 认知质量信号 contested / contradictions ——
@@ -1427,94 +1410,6 @@ def severity_of(finding: str) -> str:
     return "info"
 
 
-def migrate_confidence(wiki_root: Path) -> int:
-    """0.5.0 → 0.7.0 一次性迁移：把老 confidence 字段转成新 reviewed + reviewed_at
-
-    行为：
-    - confidence: high → 写 reviewed: true + reviewed_at: <today>，移除 confidence
-    - confidence: medium / low / 其它 → 仅移除 confidence（默认未审核）
-    - 已含 reviewed / reviewed_at 字段的页面 → 跳过（migration-conflict），不覆盖人工决策
-
-    不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）。
-    不做常规 lint 检查（互斥模式）。
-    """
-    today = date.today().isoformat()
-    pages = find_md_files(wiki_root)
-    target_pages = []  # type: List[Path]
-    for sub in WIKI_SUBDIRS:
-        target_pages.extend(pages[sub])
-    for p in pages["memory"]:
-        if p.name == "MEMORY.md" and p.parent.name == MEMORY_SUBDIR:
-            continue
-        target_pages.append(p)
-
-    n_migrated = 0  # confidence: high → reviewed: true + reviewed_at
-    n_removed = 0  # confidence: medium/low/其它 → 仅移除
-    n_skipped = 0  # 冲突（已有 reviewed/reviewed_at）
-
-    for p in target_pages:
-        if not p.is_file():
-            continue
-        text = p.read_text(encoding="utf-8", errors="replace")
-        fm = parse_frontmatter_simple(text)
-        if "confidence" not in fm:
-            continue
-        rel = p.relative_to(wiki_root).as_posix()
-        conf_value = str(fm["confidence"]).strip().strip("\"'").lower()
-
-        # 冲突：已有 reviewed 字段——不覆盖人工决策
-        if "reviewed" in fm or "reviewed_at" in fm:
-            print(f"  [SKIP] {rel}: 已有 reviewed/reviewed_at 字段（migration-conflict）")
-            n_skipped += 1
-            continue
-
-        new_text = _migrate_confidence_in_text(text, conf_value, today)
-        if new_text == text:
-            continue
-        p.write_text(new_text, encoding="utf-8")
-        if conf_value == "high":
-            n_migrated += 1
-            print(f"  [MIGRATE] {rel}: confidence=high → reviewed=true reviewed_at={today}")
-        else:
-            n_removed += 1
-            print(f"  [REMOVE] {rel}: confidence={conf_value} → 移除 confidence 字段")
-
-    print()
-    print(f"Migration summary: {n_migrated} migrated, {n_removed} removed, {n_skipped} skipped (conflicts)")
-    return 0
-
-
-def _migrate_confidence_in_text(text: str, conf_value: str, today: str) -> str:
-    """修改单个文件的 frontmatter：移除 confidence 行；high 时在 updated 后插入 reviewed + reviewed_at
-
-    操作：line-by-line scan in frontmatter block。不引入额外缩进以保持简单，
-    复用现有 frontmatter 解析器期望的 `key: value` 单行格式。
-    """
-    fm_match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
-    if not fm_match:
-        return text
-    fm_text = fm_match.group(1)
-    body = text[fm_match.end() :]
-
-    new_lines = []  # type: List[str]
-    inserted_reviewed = False
-    for line in fm_text.splitlines():
-        # 移除 confidence 行（任意值，包括非法）
-        if re.match(r"^\s*confidence:\s*", line):
-            continue
-        new_lines.append(line)
-        # high → 在 updated 行之后插入 reviewed + reviewed_at
-        if not inserted_reviewed and conf_value == "high" and re.match(r"^\s*updated:\s*", line):
-            new_lines.append("reviewed: true")
-            new_lines.append("reviewed_at: " + today)
-            inserted_reviewed = True
-
-    new_fm = "\n".join(new_lines)
-    if not new_fm.endswith("\n"):
-        new_fm += "\n"
-    return "---\n" + new_fm + "---\n" + body
-
-
 # ---------------------------------------------------------------------------
 # --check-version：扫描 wiki 的 spec 版本 + 老格式 legacy 现场
 # 设计见 yzr-llm-wiki-management/docs/superpowers/specs/<date>-migrate-design.md
@@ -1594,33 +1489,17 @@ def check_spec_version(wiki_root: Path) -> List[str]:
 
 
 def _run_fixtures_check(wiki_root: Path) -> Dict[str, object]:
-    """调 scripts/check_wiki_fixtures.py 同仓子进程；返其 JSON 输出。
+    """直接调 wiki_fixtures.run_checks（非子进程）；返其报告 dict。
 
-    失败兜底：脚本找不到 / 跑挂时返空 dict（不带 'checks' 字段）—— caller 据此判断
-    「fixtures check 未跑」，不应阻 lint 主流程。subprocess 跑挂时把 stderr 回显到
-    本脚本 stderr（便于调试——不影响主报告）。
+    失败兜底：调用抛异常时返空 dict（不带 'checks' 字段）—— caller 据此判断
+    「fixtures check 未跑」，不应阻 lint 主流程。
     """
-    script_path = Path(__file__).resolve().parent / CHECK_FIXTURES_SCRIPT
-    if not script_path.is_file():
-        return {"skipped": True, "reason": f"{CHECK_FIXTURES_SCRIPT} not found at {script_path}"}
     try:
-        proc = subprocess.run(  # noqa: UP021
-            [sys.executable, str(script_path), str(wiki_root), "--json"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,  # noqa: UP022
-            timeout=30,
-        )
-    except (OSError, subprocess.TimeoutExpired) as e:
-        return {"skipped": True, "reason": f"{CHECK_FIXTURES_SCRIPT} exec failed: {e}"}
-    if proc.returncode not in (0, 1):  # 0 = pass, 1 = 有 finding
-        sys.stderr.write(f"[lint_wiki] fixtures check 非 0/1 退出: rc={proc.returncode}\n")
-        sys.stderr.write(proc.stderr)
-        return {"skipped": True, "reason": f"non-pass exit code {proc.returncode}"}
-    try:
-        return json.loads(proc.stdout)
-    except json.JSONDecodeError as e:
-        return {"skipped": True, "reason": f"invalid JSON from fixtures check: {e}"}
+        from llmw.content.wiki_fixtures import run_checks
+
+        return run_checks(wiki_root, CURRENT_WIKI_SPEC)
+    except Exception as e:  # noqa: BLE001
+        return {"skipped": True, "reason": f"fixtures check exec failed: {e}"}
 
 
 def _has_confidence_field(text: str) -> bool:
@@ -2090,8 +1969,8 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
         total_patterns += len(entries)  # type: ignore
     needs_migration = (comparison == "older") or (total_patterns > 0)
 
-    # 调一次 fixtures-check——子进程调 scripts/check_wiki_fixtures.py；
-    # 输出并入 report["fixtures_check"]。脚本跑挂时 fixtures_check 含 skipped=True，标识"未跑"。
+    # 调一次 fixtures-check——直接调 llmw.content 的 run_checks（同一进程）；
+    # 输出并入 report["fixtures_check"]。调用失败时 fixtures_check 含 skipped=True，标识"未跑"。
     fixtures_check = _run_fixtures_check(wiki_root)
     if not fixtures_check.get("skipped"):
         # 有 findings 时也可触发 needs_migration（fixture 不合规也算"待迁移"）
@@ -2224,7 +2103,7 @@ def _print_fixtures_check(fixtures_check: Dict[str, object], indent: str = "") -
             print(f"{indent}          rule: {rr}")
 
 
-def main() -> int:
+def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Deterministic health check for a local LLM wiki.")
     parser.add_argument("wiki_root", nargs="?", help="wiki 根目录；默认从 $LLM_WIKI_ROOT 读")
     parser.add_argument(
@@ -2232,14 +2111,9 @@ def main() -> int:
     )
     parser.add_argument("--no-git", action="store_true", help="跳过 raw/ 的 git status 检查")
     parser.add_argument(
-        "--migrate-confidence",
-        action="store_true",
-        help="一次性迁移老 confidence 字段到新 reviewed + reviewed_at（互斥模式，不做常规 lint）。已被 --check-version --apply 覆盖；保留仅供旧用法兼容。",
-    )
-    parser.add_argument(
         "--check-version",
         action="store_true",
-        help="扫描 wiki 的 spec 版本（CLAUDE.md §八）与已知 legacy 老格式现场；默认 dry-run。加 --apply 输出 migration plan（stdout JSON，不落盘），加 --json 输出机器可读 JSON。互斥模式。",
+        help="扫描 wiki 的 spec 版本（AGENTS.md §八）与已知 legacy 老格式现场；默认 dry-run。加 --apply 输出 migration plan（stdout JSON，不落盘），加 --json 输出机器可读 JSON。互斥模式。",
     )
     parser.add_argument(
         "--json",
@@ -2251,7 +2125,7 @@ def main() -> int:
         action="store_true",
         help="与 --check-version 联用：把 migration plan 以 JSON 输出到 stdout 供 agent 修复（不落盘）",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # `--no-git` 与"自动检测"叠加：传了 `--no-git` 就完全不检测；不传时
     # 脚本自动按 `.git/` 存在与否决定跑 / 跳。两种路径都允许，不强制用户
@@ -2269,10 +2143,6 @@ def main() -> int:
     if not (wiki_root / "wiki").is_dir():
         print(f"ERROR: {wiki_root}/wiki 不存在（wiki 还没 setup？）", file=sys.stderr)
         return 2
-
-    # --migrate-confidence 是互斥模式：跑迁移，不跑常规 lint
-    if args.migrate_confidence:
-        return migrate_confidence(wiki_root)
 
     # --check-version 是互斥模式：跑版本扫描，不跑常规 lint
     if args.check_version:

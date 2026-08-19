@@ -15,7 +15,7 @@ dependencies = [
 llmw = "llmw.cli:main"
 
 [tool.setuptools]
-packages = ["llmw", "llmw.workspace", "llmw.wiki", "llmw.models"]
+packages = ["llmw", "llmw.workspace", "llmw.wiki", "llmw.models", "llmw.content"]
 
 # ruff 全局配置：两 SKILL 目录（yzr-llm-wiki-management / yzr-llm-workspace-management）
 # 自带局部 ruff 配置（行宽 120 + 规则族），根配置只声明 target。

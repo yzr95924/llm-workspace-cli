@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""test_check_workspace_fixtures.py — check_workspace_fixtures.py 的端到端测试
+"""test_content_workspace_fixtures — llmw.content.workspace_fixtures 端到端测试
 
-stdlib unittest + subprocess 调真实脚本（无 mock）：在 tmp 目录搭 scratch workspace
+stdlib unittest + subprocess 调真实模块（无 mock）：在 tmp 目录搭 scratch workspace
 （clean / 老版 / 各类 drift），断言 --json 报告结构与 finding 内容。
 
 运行:
-  python3 scripts/test_check_workspace_fixtures.py        # 在 skill 目录根或 scripts/ 下均可
+  pytest tests/test_content_workspace_fixtures.py
 """
 
 import json
@@ -17,11 +17,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPT_PATH = Path(__file__).resolve().parent / "check_workspace_fixtures.py"
-SKILL_ROOT = Path(__file__).resolve().parent.parent
-AGENTS_TEMPLATE = (SKILL_ROOT / "references" / "workspace-agents-md-template.md").read_text(encoding="utf-8")
-CLAUDE_TEMPLATE = (SKILL_ROOT / "references" / "workspace-claude-md-template.md").read_text(encoding="utf-8")
-FIXTURES_MEMORY_INDEX = (SKILL_ROOT / "references" / "fixtures" / "memory-index.txt").read_text(encoding="utf-8")
+REPO = Path(__file__).resolve().parents[1]
+SKILL_ROOT = REPO / "yzr-llm-workspace-management"
+AGENTS_TEMPLATE = (
+    SKILL_ROOT / "references" / "workspace-agents-md-template.md"
+).read_text(encoding="utf-8")
+CLAUDE_TEMPLATE = (
+    SKILL_ROOT / "references" / "workspace-claude-md-template.md"
+).read_text(encoding="utf-8")
+FIXTURES_MEMORY_INDEX = (
+    SKILL_ROOT / "references" / "fixtures" / "memory-index.txt"
+).read_text(encoding="utf-8")
 
 OLD_VERSION = "0.6.2"  # 真实历史版本——永远小于当前 target_spec
 
@@ -72,7 +78,9 @@ OLD_AGENTS_MD = """# Old Workspace — LLM 维护守则
 def _target_spec():
     """读 SKILL.md metadata.workspace_spec_version（与脚本同一 SSOT）。"""
     text = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
-    m = re.search(r"^[ \t]*workspace_spec_version:[ \t]*(\S+)[ \t]*$", text, re.MULTILINE)
+    m = re.search(
+        r"^[ \t]*workspace_spec_version:[ \t]*(\S+)[ \t]*$", text, re.MULTILINE
+    )
     if not m:
         raise AssertionError("SKILL.md 缺 metadata.workspace_spec_version")
     return m.group(1).strip()
@@ -103,44 +111,67 @@ def _clean_workspace_toml(spec=None):
     )
 
 
-def build_workspace(root, agents_md=None, claude_md=None, gitignore=None, memory_index=None, workspace_toml=None):
+def build_workspace(
+    root,
+    agents_md=None,
+    claude_md=None,
+    gitignore=None,
+    memory_index=None,
+    workspace_toml=None,
+):
     """搭 scratch workspace；缺省 = clean 形态，传参覆盖单件（None=默认，False=不建）。"""
     root = Path(root)
     (root / "MEMORY").mkdir(parents=True, exist_ok=True)
     if agents_md is not False:
-        (root / "AGENTS.md").write_text(agents_md if agents_md is not None else _render_agents_md(), encoding="utf-8")
+        (root / "AGENTS.md").write_text(
+            agents_md if agents_md is not None else _render_agents_md(),
+            encoding="utf-8",
+        )
     if claude_md is not False:
-        (root / "CLAUDE.md").write_text(claude_md if claude_md is not None else _render_claude_md(), encoding="utf-8")
+        (root / "CLAUDE.md").write_text(
+            claude_md if claude_md is not None else _render_claude_md(),
+            encoding="utf-8",
+        )
     if gitignore is not False:
-        (root / ".gitignore").write_text(gitignore if gitignore is not None else CLEAN_GITIGNORE, encoding="utf-8")
+        (root / ".gitignore").write_text(
+            gitignore if gitignore is not None else CLEAN_GITIGNORE, encoding="utf-8"
+        )
     if memory_index is not False:
         (root / "MEMORY" / "MEMORY.md").write_text(
-            memory_index if memory_index is not None else FIXTURES_MEMORY_INDEX, encoding="utf-8"
+            memory_index if memory_index is not None else FIXTURES_MEMORY_INDEX,
+            encoding="utf-8",
         )
     if workspace_toml is not False:
         (root / "workspace.toml").write_text(
-            workspace_toml if workspace_toml is not None else _clean_workspace_toml(), encoding="utf-8"
+            workspace_toml if workspace_toml is not None else _clean_workspace_toml(),
+            encoding="utf-8",
         )
     return root
 
 
 def run_check(root, extra_args=None, env=None):
-    """跑脚本 --json，返回 (exit_code, report_dict)。"""
-    cmd = [sys.executable, str(SCRIPT_PATH)]
+    """跑 `python -m llmw.content.workspace_fixtures --json`，返回 (exit_code, report_dict)。"""
+    cmd = [sys.executable, "-m", "llmw.content.workspace_fixtures"]
     if root is not None:
         cmd.append(str(root))
     cmd.append("--json")
     cmd.extend(extra_args or [])
-    run_env = dict(os.environ)
+    run_env = dict(os.environ, PYTHONPATH=str(REPO))
     run_env.pop("LLMW_WORKSPACE", None)
     if env:
         run_env.update(env)
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, env=run_env)
+    proc = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        env=run_env,
+    )
     try:
         report = json.loads(proc.stdout)
     except ValueError:
         raise AssertionError(
-            f"脚本未输出合法 JSON：exit={proc.returncode}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+            f"模块未输出合法 JSON：exit={proc.returncode}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
         ) from None
     return proc.returncode, report
 
@@ -149,7 +180,9 @@ def check_by_id(report, cid):
     for c in report["checks"]:
         if c["id"] == cid:
             return c
-    raise AssertionError(f"报告缺 check {cid}（实有: {[c['id'] for c in report['checks']]}）")
+    raise AssertionError(
+        f"报告缺 check {cid}（实有: {[c['id'] for c in report['checks']]}）"
+    )
 
 
 class CleanWorkspaceTest(unittest.TestCase):
@@ -193,7 +226,9 @@ class AgentsVersionCheckTest(unittest.TestCase):
 
 class AgentsTemplateSyncTest(unittest.TestCase):
     def test_local_customization_fails_resync(self):
-        drifted = _render_agents_md() + "\n## 本地加的私货段\n\n- 某条本 workspace 特有纪律\n"
+        drifted = (
+            _render_agents_md() + "\n## 本地加的私货段\n\n- 某条本 workspace 特有纪律\n"
+        )
         with tempfile.TemporaryDirectory() as tmp:
             build_workspace(tmp, agents_md=drifted)
             code, report = run_check(tmp)
@@ -211,7 +246,9 @@ class AgentsTemplateSyncTest(unittest.TestCase):
         self.assertEqual(code, 1)
         ver = check_by_id(report, "agents-version-is-current")
         self.assertIs(ver["passed"], False)
-        self.assertEqual(ver["comparison"], "older", f"老 §六 散文行应 fallback 解析出 0.6.2：{ver}")
+        self.assertEqual(
+            ver["comparison"], "older", f"老 §六 散文行应 fallback 解析出 0.6.2：{ver}"
+        )
         sync = check_by_id(report, "agents-md-template-sync")
         self.assertIs(sync["passed"], False)
         self.assertEqual(sync["fix"]["type"], "workspace-fix-agents-md-resync")
@@ -241,7 +278,8 @@ class ClaudeMdTemplateSyncTest(unittest.TestCase):
 class GitignoreSkeletonTest(unittest.TestCase):
     def test_missing_section_fails(self):
         drifted = CLEAN_GITIGNORE.replace(
-            "# Obsidian 配置（保留 vault 内容）\n.obsidian/workspace*\n.obsidian/cache\n\n", ""
+            "# Obsidian 配置（保留 vault 内容）\n.obsidian/workspace*\n.obsidian/cache\n\n",
+            "",
         )
         with tempfile.TemporaryDirectory() as tmp:
             build_workspace(tmp, gitignore=drifted)
@@ -295,7 +333,8 @@ class MemoryIndexSkeletonTest(unittest.TestCase):
 
     def test_growth_entries_still_pass(self):
         grown = FIXTURES_MEMORY_INDEX.replace(
-            "（暂无条目）", "- some-case — 一句话摘要 → [正文](some-case.md)\n- 一行短事实"
+            "（暂无条目）",
+            "- some-case — 一句话摘要 → [正文](some-case.md)\n- 一行短事实",
         )
         with tempfile.TemporaryDirectory() as tmp:
             build_workspace(tmp, memory_index=grown)
@@ -337,7 +376,10 @@ class WorkspaceTomlVersionTest(unittest.TestCase):
 
     def test_missing_templates_version_fails_unknown(self):
         with tempfile.TemporaryDirectory() as tmp:
-            build_workspace(tmp, workspace_toml='schema_version = 1\ncreated_at = "2026-07-01T00:00:00"\n\n[wikis]\n')
+            build_workspace(
+                tmp,
+                workspace_toml='schema_version = 1\ncreated_at = "2026-07-01T00:00:00"\n\n[wikis]\n',
+            )
             code, report = run_check(tmp)
         # check#6（warn）对缺 templates_version 报 unknown 不阻断；但 workspace-toml-reads-satisfied
         # （error）也查 templates_version 缺失 → 整体 exit 1
@@ -357,7 +399,10 @@ class WorkspaceTomlReadsSatisfiedTest(unittest.TestCase):
         self.assertIs(c["passed"], True)
 
     def test_wiki_with_path_and_created_at_passes(self):
-        toml = _clean_workspace_toml() + '\n[wikis.alpha]\npath = "alpha"\ncreated_at = "2026-07-01T00:00:00"\n'
+        toml = (
+            _clean_workspace_toml()
+            + '\n[wikis.alpha]\npath = "alpha"\ncreated_at = "2026-07-01T00:00:00"\n'
+        )
         with tempfile.TemporaryDirectory() as tmp:
             build_workspace(tmp, workspace_toml=toml)
             code, report = run_check(tmp)
@@ -366,7 +411,10 @@ class WorkspaceTomlReadsSatisfiedTest(unittest.TestCase):
         self.assertIs(c["passed"], True, c)
 
     def test_wiki_missing_path_fails(self):
-        toml = _clean_workspace_toml() + '\n[wikis.alpha]\ncreated_at = "2026-07-01T00:00:00"\n'
+        toml = (
+            _clean_workspace_toml()
+            + '\n[wikis.alpha]\ncreated_at = "2026-07-01T00:00:00"\n'
+        )
         with tempfile.TemporaryDirectory() as tmp:
             build_workspace(tmp, workspace_toml=toml)
             code, report = run_check(tmp)
@@ -407,17 +455,15 @@ class TemplateNoOutboundRefsTest(unittest.TestCase):
     """模板零出边引用（架构不变量）——检测逻辑喂合成文本 + 端到端干净 pass。"""
 
     def _scan(self, text):
-        """直接调用脚本内的扫描函数（不改真实模板文件）。"""
-        sys.path.insert(0, str(SCRIPT_PATH.parent))
-        try:
-            from check_workspace_fixtures import _scan_template_outbound_refs
+        """直接调用模块内的扫描函数（不改真实模板文件）。"""
+        from llmw.content.workspace_fixtures import _scan_template_outbound_refs
 
-            return _scan_template_outbound_refs(text)
-        finally:
-            sys.path.remove(str(SCRIPT_PATH.parent))
+        return _scan_template_outbound_refs(text)
 
     def test_clean_text_no_hits(self):
-        self.assertEqual(self._scan("# 标题\n\n- 自包含措辞（见本文件顶部「关键」段）\n"), [])
+        self.assertEqual(
+            self._scan("# 标题\n\n- 自包含措辞（见本文件顶部「关键」段）\n"), []
+        )
 
     def test_skill_file_refs_detected(self):
         text = "见 `workspace-spec.md` §15 与 `workspace-claude-md-template.md`\n且 SKILL.md、references/、yzr-llm-workspace-management、yzr-llm-wiki-management 都算"
@@ -456,11 +502,15 @@ class CliBehaviorTest(unittest.TestCase):
 
     def test_missing_root_and_env_exit_2(self):
         proc = subprocess.run(
-            [sys.executable, str(SCRIPT_PATH), "--json"],
+            [sys.executable, "-m", "llmw.content.workspace_fixtures", "--json"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
-            env={k: v for k, v in os.environ.items() if k != "LLMW_WORKSPACE"},
+            env={
+                k: v
+                for k, v in dict(os.environ, PYTHONPATH=str(REPO)).items()
+                if k != "LLMW_WORKSPACE"
+            },
         )
         self.assertEqual(proc.returncode, 2)
 

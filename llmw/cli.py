@@ -169,6 +169,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="输出单行 ●N（运行中窗口数），存在 dead 窗口时后缀 ✗M；供 byobu 状态条集成",
     )
 
+    p_check_fixtures = sub.add_parser(
+        "check-fixtures",
+        help="workspace 级 fixtures 一致性检查（升级专用探测；dry-run）",
+        parents=[common],
+    )
+    p_check_fixtures.add_argument(
+        "--target-spec",
+        default=None,
+        help="目标 workspace spec 版本（缺省读 SKILL.md metadata.workspace_spec_version）",
+    )
+
     # ===== model registry =====
     p_model = sub.add_parser("model", help="workspace model registry", parents=[common])
     model_sub = p_model.add_subparsers(dest="model_action", metavar="ACTION")
@@ -207,6 +218,11 @@ def build_parser() -> argparse.ArgumentParser:
     # 这样保留 `wiki --name=X <action>` 旧语法 + 新 `wiki rename --old=... --new=...`。
     p_wiki = sub.add_parser("wiki", help="wiki 子命令", parents=[common])
     p_wiki.add_argument("--name", metavar="NAME", help="目标 wiki 名")
+    p_wiki.add_argument(
+        "--path",
+        metavar="DIR",
+        help="目标 wiki 根目录（直传，绕过 workspace 解析；供内容子命令，与 --name 二选一）",
+    )
     wiki_sub = p_wiki.add_subparsers(dest="wiki_action", metavar="ACTION")
 
     # add
@@ -293,6 +309,72 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pw_stop.add_argument("--yes", "-y", action="store_true")
 
+    # ---- 内容层子命令（确定性执行；flags 与行为真源在 llmw/content/* 的 main()）----
+    # --name/--path 由 CLI 解析出 wiki root，其余 flag 显式列出（--help 可发现），
+    # 组装 argv 转发给模块 main()——模块是 flag 行为唯一真源。
+    pw_lint = wiki_sub.add_parser(
+        "lint",
+        help="deterministic 健康检查（含 spec 版本 / legacy 现场探测）",
+        parents=[common],
+    )
+    pw_lint.add_argument(
+        "--severity",
+        choices=["error", "warn", "info", "all"],
+        default="all",
+        help="过滤输出严重性（默认 all）",
+    )
+    pw_lint.add_argument(
+        "--no-git", action="store_true", help="跳过 raw/ 的 git status 检查"
+    )
+    pw_lint.add_argument(
+        "--check-version",
+        action="store_true",
+        help="扫描 spec 版本 + legacy 现场（互斥模式；默认 dry-run）",
+    )
+    pw_lint.add_argument(
+        "--apply",
+        action="store_true",
+        help="与 --check-version 联用：把 migration plan 以 JSON 输出到 stdout",
+    )
+
+    pw_cf = wiki_sub.add_parser(
+        "check-fixtures",
+        help="wiki fixtures 一致性检查（升级专用探测；dry-run）",
+        parents=[common],
+    )
+    pw_cf.add_argument(
+        "--target-spec",
+        default=None,
+        help="目标 wiki spec 版本（缺省读 SKILL.md metadata.wiki_spec_version）",
+    )
+
+    pw_id = wiki_sub.add_parser(
+        "ingest-diff",
+        help="扫 raw/ 找需 LLM 关注的文件（untracked / stale-raw / log-only）",
+        parents=[common],
+    )
+    pw_id.add_argument(
+        "--relative", action="store_true", help="输出相对 wiki 根而非 raw/"
+    )
+    pw_id.add_argument(
+        "--check-stale",
+        action="store_true",
+        help="额外检查已摄取文件：raw mtime 晚于 source 页 updated → 标记 stale-raw",
+    )
+
+    pw_write = wiki_sub.add_parser(
+        "write",
+        help="机械字节写操作（log / index / touch / new / memory）",
+        parents=[common],
+    )
+    pw_write.add_argument(
+        "write_args",
+        nargs=argparse.REMAINDER,
+        metavar="...",
+        help="子命令参数（log --op=... / index add <page> / touch <page> / new --type=... / memory add ...），"
+        "透传给 llmw.content.wiki_write",
+    )
+
     return parser
 
 
@@ -329,6 +411,81 @@ def _cmd_status(args) -> int:
     )
 
 
+def _resolve_content_root(args) -> Path:
+    """内容层子命令的 wiki root 解析：--path 直传（不依赖 workspace）或 --name 经 workspace 解析。"""
+    from llmw.errors import MissingRequiredFlag, WikiNotFound
+    from llmw.workspace import store as ws_store
+
+    path = getattr(args, "path", None)
+    name = getattr(args, "name", None)
+    if path:
+        return Path(path).expanduser().resolve()
+    if name:
+        from llmw.config import resolve_workspace_root
+
+        ws_root = resolve_workspace_root(_flag(args, "workspace"))
+        ws = ws_store.load(ws_root)
+        entry = ws.wikis.get(name)
+        if entry is None:
+            raise WikiNotFound(
+                f"wiki '{name}' 不在 workspace 中",
+                hint="`llmw wiki add --name=NAME` 注册，或直接用 --path=DIR 指向 wiki 根目录",
+            )
+        return (ws_root / entry.path).resolve()
+    raise MissingRequiredFlag(
+        "内容子命令需要 --path=DIR 或 --name=NAME",
+        hint="--name 经 workspace 解析；--path 直传任意 wiki 根目录（未注册 wiki / 测试场景）",
+    )
+
+
+def _cmd_wiki_content(args) -> int:
+    """wiki 内容层子命令分派（lint / check-fixtures / ingest-diff / write）。
+
+    在 workspace 解析之前处理——--path 直传时不依赖 workspace。
+    """
+    from llmw.content import ingest_diff, wiki_fixtures, wiki_lint, wiki_write
+
+    root = _resolve_content_root(args)
+    wa = args.wiki_action
+
+    if wa == "lint":
+        argv = [str(root)]
+        if args.severity != "all":
+            argv += ["--severity", args.severity]
+        if args.no_git:
+            argv.append("--no-git")
+        if args.check_version:
+            argv.append("--check-version")
+        if _flag(args, "json"):
+            argv.append("--json")
+        if args.apply:
+            argv.append("--apply")
+        return wiki_lint.main(argv)
+
+    if wa == "check-fixtures":
+        argv = [str(root)]
+        if args.target_spec:
+            argv += ["--target-spec", args.target_spec]
+        if _flag(args, "json"):
+            argv.append("--json")
+        return wiki_fixtures.main(argv)
+
+    if wa == "ingest-diff":
+        argv = [str(root)]
+        if _flag(args, "json"):
+            argv.append("--json")
+        if args.relative:
+            argv.append("--relative")
+        if args.check_stale:
+            argv.append("--check-stale")
+        return ingest_diff.main(argv)
+
+    if wa == "write":
+        return wiki_write.main([str(root)] + args.write_args)
+
+    return 1
+
+
 def main(argv=None) -> int:
     argv = list(argv) if argv is not None else sys.argv[1:]
     parser = build_parser()
@@ -350,10 +507,29 @@ def main(argv=None) -> int:
         if args.command == "status":
             return _cmd_status(args)
 
+        # wiki 内容层子命令：--path 直传时不依赖 workspace，须在 workspace 解析前分派
+        if args.command == "wiki" and args.wiki_action in (
+            "lint",
+            "check-fixtures",
+            "ingest-diff",
+            "write",
+        ):
+            return _cmd_wiki_content(args)
+
         # 下列命令需要先解析 workspace_root
         from llmw.config import resolve_workspace_root
 
         ws_root = resolve_workspace_root(_flag(args, "workspace"))
+
+        if args.command == "check-fixtures":
+            from llmw.content import workspace_fixtures
+
+            argv = [str(ws_root)]
+            if args.target_spec:
+                argv += ["--target-spec", args.target_spec]
+            if _flag(args, "json"):
+                argv.append("--json")
+            return workspace_fixtures.main(argv)
 
         if args.command == "config":
             from llmw.workspace.manager import (

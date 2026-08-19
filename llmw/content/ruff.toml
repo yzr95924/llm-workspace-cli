@@ -1,0 +1,24 @@
+# llmw/content — 原两 skill scripts/ 迁入后的本地 ruff 配置。
+# 保持 120 行宽 + 严格规则族（与 skill 目录历史配置一致），避免对 6500 行既有代码
+# 产生无意义 reflow，也不牺牲 lint 严格度（仓根默认只开 E4/E7/E9/F）。
+# 仓内先例：两 SKILL 目录自带局部 ruff.toml。
+
+target-version = "py37"
+line-length = 120
+
+[lint]
+# E/W = pycodestyle，F = pyflakes，I = isort，B = flake8-bugbear，UP = pyupgrade
+# （受 target-version=py37 约束，不会建议 PEP 585/604）。
+select = ["E", "W", "F", "I", "B", "UP"]
+ignore = [
+  # 与 ruff format 冲突的规则；让 formatter 决定行宽相关的换行。
+  "E501",
+  # 沿用 subprocess.run 的 universal_newlines=True / stdout=PIPE 写法
+  # （既有风格；py37 target 下 ruff 默认会建议替换为 text/capture_output）。
+  "UP021",
+  "UP022",
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""test_lint_wiki.py — lint_wiki.py 的端到端测试（聚焦 check_related_links）
+"""test_content_wiki_lint — llmw.content.wiki_lint 端到端测试（聚焦 check_related_links）
 
-stdlib unittest + subprocess 调真实脚本（无 mock）：在 tmp 目录搭最小 scratch
+stdlib unittest + subprocess 调真实模块（无 mock）：在 tmp 目录搭最小 scratch
 wiki，断言 related / compared 字段的路径基准（spec §9「wiki 根相对」= **内容根
 `wiki/` 相对**）解析正确——spec 形式 `concepts/X.md` 命中真实文件时不报
 `related-broken-link`；真坏链接仍报。
@@ -13,16 +13,17 @@ wiki，断言 related / compared 字段的路径基准（spec §9「wiki 根相�
 前 test_spec_form_* / test_compared_field_* 失败，改后全绿。
 
 运行:
-  python3 scripts/test_lint_wiki.py        # 在 skill 目录根或 scripts/ 下均可
+  pytest tests/test_content_wiki_lint.py
 """
 
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPT_PATH = Path(__file__).resolve().parent / "lint_wiki.py"
+REPO = Path(__file__).resolve().parents[1]
 
 _INDEX_MD = """\
 ---
@@ -79,9 +80,11 @@ def build_minimal_wiki(root):
 
 
 def run_lint(root):
-    """跑 lint_wiki.py --no-git，返回 (exit_code, stdout)。"""
+    """跑 `python -m llmw.content.wiki_lint --no-git`，返回 (exit_code, stdout)。"""
+    env = dict(os.environ, PYTHONPATH=str(REPO))
     proc = subprocess.run(
-        [sys.executable, str(SCRIPT_PATH), str(root), "--no-git"],
+        [sys.executable, "-m", "llmw.content.wiki_lint", str(root), "--no-git"],
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         universal_newlines=True,
@@ -95,19 +98,25 @@ class RelatedLinksResolutionTest(unittest.TestCase):
         命中真实文件 wiki/concepts/beta.md 时，不应报 related-broken-link。"""
         with tempfile.TemporaryDirectory() as tmp:
             root = build_minimal_wiki(tmp)
-            (root / "wiki" / "concepts" / "beta.md").write_text(_page("Beta", "concept"), encoding="utf-8")
+            (root / "wiki" / "concepts" / "beta.md").write_text(
+                _page("Beta", "concept"), encoding="utf-8"
+            )
             (root / "wiki" / "concepts" / "alpha.md").write_text(
-                _page("Alpha", "concept", extra="related: [concepts/beta.md]\n"), encoding="utf-8"
+                _page("Alpha", "concept", extra="related: [concepts/beta.md]\n"),
+                encoding="utf-8",
             )
             _, stdout = run_lint(root)
-        self.assertNotIn("related-broken-link", stdout, f"spec 形式不应误报：\n{stdout}")
+        self.assertNotIn(
+            "related-broken-link", stdout, f"spec 形式不应误报：\n{stdout}"
+        )
 
     def test_genuinely_missing_target_still_reported(self):
         """真坏链接（目标确实不存在）仍须报 related-broken-link——确保基准修正没把检查改瞎。"""
         with tempfile.TemporaryDirectory() as tmp:
             root = build_minimal_wiki(tmp)
             (root / "wiki" / "concepts" / "alpha.md").write_text(
-                _page("Alpha", "concept", extra="related: [concepts/nonexistent.md]\n"), encoding="utf-8"
+                _page("Alpha", "concept", extra="related: [concepts/nonexistent.md]\n"),
+                encoding="utf-8",
             )
             _, stdout = run_lint(root)
         self.assertIn("related-broken-link", stdout, "真坏链接应被报出：\n" + stdout)
@@ -117,12 +126,17 @@ class RelatedLinksResolutionTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = build_minimal_wiki(tmp)
             (root / "wiki" / "comparisons").mkdir(parents=True, exist_ok=True)
-            (root / "wiki" / "concepts" / "beta.md").write_text(_page("Beta", "concept"), encoding="utf-8")
+            (root / "wiki" / "concepts" / "beta.md").write_text(
+                _page("Beta", "concept"), encoding="utf-8"
+            )
             (root / "wiki" / "comparisons" / "cmp.md").write_text(
-                _page("Cmp", "comparison", extra="compared: [concepts/beta.md]\n"), encoding="utf-8"
+                _page("Cmp", "comparison", extra="compared: [concepts/beta.md]\n"),
+                encoding="utf-8",
             )
             _, stdout = run_lint(root)
-        self.assertNotIn("related-broken-link", stdout, f"compared spec 形式不应误报：\n{stdout}")
+        self.assertNotIn(
+            "related-broken-link", stdout, f"compared spec 形式不应误报：\n{stdout}"
+        )
 
 
 class DiscussionsSourceGuardTest(unittest.TestCase):
@@ -138,7 +152,9 @@ class DiscussionsSourceGuardTest(unittest.TestCase):
                 encoding="utf-8",
             )
             _, stdout = run_lint(root)
-        self.assertIn("source-in-discussions", stdout, "指向 discussions/ 应被报出：\n" + stdout)
+        self.assertIn(
+            "source-in-discussions", stdout, "指向 discussions/ 应被报出：\n" + stdout
+        )
 
     def test_source_pointing_at_articles_not_reported(self):
         """正常 raw/articles/ source 不触发 source-in-discussions（防 over-fire 回归）。"""
@@ -152,7 +168,9 @@ class DiscussionsSourceGuardTest(unittest.TestCase):
                 encoding="utf-8",
             )
             _, stdout = run_lint(root)
-        self.assertNotIn("source-in-discussions", stdout, f"正常 source 不应误报：\n{stdout}")
+        self.assertNotIn(
+            "source-in-discussions", stdout, f"正常 source 不应误报：\n{stdout}"
+        )
 
 
 class GitPorcelainPathsTest(unittest.TestCase):
@@ -160,22 +178,25 @@ class GitPorcelainPathsTest(unittest.TestCase):
 
     def setUp(self):
         # 直接 import 模块（与 subprocess 端到端测试互补——本 helper 是纯函数）
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
-        import lint_wiki  # noqa: E402
+        from llmw.content import wiki_lint
 
-        self.lint_wiki = lint_wiki
+        self.lint_wiki = wiki_lint
 
     def test_plain_path(self):
         paths = self.lint_wiki._git_porcelain_paths
         self.assertEqual(paths(" M raw/articles/foo.md"), ["raw/articles/foo.md"])
-        self.assertEqual(paths("?? raw/discussions/draft.md"), ["raw/discussions/draft.md"])
+        self.assertEqual(
+            paths("?? raw/discussions/draft.md"), ["raw/discussions/draft.md"]
+        )
         self.assertEqual(paths("?? raw/discussions/"), ["raw/discussions/"])
 
     def test_rename_returns_both_sides(self):
         """rename `R <old> -> <new>`（git 实测 old 在前、new 在后）返回 [old, new]——
         两侧都判，覆盖 §15.3 archive mv 跨边界（discussions/ → articles/）。"""
         paths = self.lint_wiki._git_porcelain_paths
-        self.assertEqual(paths("R  raw/old.md -> raw/new.md"), ["raw/old.md", "raw/new.md"])
+        self.assertEqual(
+            paths("R  raw/old.md -> raw/new.md"), ["raw/old.md", "raw/new.md"]
+        )
         # archive mv：discussions/ 迁出到 articles/，old 侧命中 discussions 前缀也要排除
         self.assertEqual(
             paths("R  raw/discussions/x.md -> raw/articles/x.md"),
@@ -185,7 +206,9 @@ class GitPorcelainPathsTest(unittest.TestCase):
     def test_quoted_path(self):
         paths = self.lint_wiki._git_porcelain_paths
         # 含空格的路径被双引号包裹
-        self.assertEqual(paths('?? "raw/discussions/my draft.md"'), ["raw/discussions/my draft.md"])
+        self.assertEqual(
+            paths('?? "raw/discussions/my draft.md"'), ["raw/discussions/my draft.md"]
+        )
 
     def test_too_short_line(self):
         self.assertEqual(self.lint_wiki._git_porcelain_paths("XY"), [])
@@ -196,10 +219,9 @@ class SeverityOfTest(unittest.TestCase):
     `--severity error` 静默滤掉 error 级 finding。加映射单测防止再漏。"""
 
     def setUp(self):
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
-        import lint_wiki  # noqa: E402
+        from llmw.content import wiki_lint
 
-        self.severity_of = lint_wiki.severity_of
+        self.severity_of = wiki_lint.severity_of
 
     def test_sources_family_error(self):
         """sources-* 全族必须 error（含曾漏映射的三条）。"""
@@ -212,7 +234,9 @@ class SeverityOfTest(unittest.TestCase):
             "sources-external-symlink-missing",
             "source-in-discussions",
         ):
-            self.assertEqual(self.severity_of(prefix + ": x"), "error", f"{prefix} 应为 error")
+            self.assertEqual(
+                self.severity_of(prefix + ": x"), "error", f"{prefix} 应为 error"
+            )
 
     def test_representative_others(self):
         self.assertEqual(self.severity_of("memory-not-indexed: x"), "info")
@@ -237,16 +261,22 @@ class MemoryIndexDanglingTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = build_minimal_wiki(tmp)
             (root / "MEMORY").mkdir(parents=True, exist_ok=True)
-            (root / "MEMORY" / "MEMORY.md").write_text(self._memory_index(with_link=True), encoding="utf-8")
+            (root / "MEMORY" / "MEMORY.md").write_text(
+                self._memory_index(with_link=True), encoding="utf-8"
+            )
             _, stdout = run_lint(root)
-        self.assertIn("memory-index-dangling", stdout, "索引指向缺失文件应报出：\n" + stdout)
+        self.assertIn(
+            "memory-index-dangling", stdout, "索引指向缺失文件应报出：\n" + stdout
+        )
 
     def test_short_entry_no_link_not_reported(self):
         """短条目（无链接的纯索引行）不算 dangling。"""
         with tempfile.TemporaryDirectory() as tmp:
             root = build_minimal_wiki(tmp)
             (root / "MEMORY").mkdir(parents=True, exist_ok=True)
-            (root / "MEMORY" / "MEMORY.md").write_text(self._memory_index(), encoding="utf-8")
+            (root / "MEMORY" / "MEMORY.md").write_text(
+                self._memory_index(), encoding="utf-8"
+            )
             _, stdout = run_lint(root)
         self.assertNotIn("memory-index-dangling", stdout, f"短条目不应误报：\n{stdout}")
 
@@ -254,10 +284,16 @@ class MemoryIndexDanglingTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = build_minimal_wiki(tmp)
             (root / "MEMORY").mkdir(parents=True, exist_ok=True)
-            (root / "MEMORY" / "MEMORY.md").write_text(self._memory_index(with_link=True), encoding="utf-8")
-            (root / "MEMORY" / "foo.md").write_text("---\ntitle: Foo\n---\n\n# Foo\n", encoding="utf-8")
+            (root / "MEMORY" / "MEMORY.md").write_text(
+                self._memory_index(with_link=True), encoding="utf-8"
+            )
+            (root / "MEMORY" / "foo.md").write_text(
+                "---\ntitle: Foo\n---\n\n# Foo\n", encoding="utf-8"
+            )
             _, stdout = run_lint(root)
-        self.assertNotIn("memory-index-dangling", stdout, f"文件存在不应误报：\n{stdout}")
+        self.assertNotIn(
+            "memory-index-dangling", stdout, f"文件存在不应误报：\n{stdout}"
+        )
 
 
 if __name__ == "__main__":

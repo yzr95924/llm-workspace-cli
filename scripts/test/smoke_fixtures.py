@@ -21,10 +21,6 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-WS_CHECK = (
-    REPO / "yzr-llm-workspace-management" / "scripts" / "check_workspace_fixtures.py"
-)
-WIKI_CHECK = REPO / "yzr-llm-wiki-management" / "scripts" / "check_wiki_fixtures.py"
 
 
 def _llmw(args):
@@ -43,11 +39,11 @@ def _llmw(args):
     return proc
 
 
-def _detector_json(script, root):
-    """跑探测器 --json，返回解析后的 dict。探测器 exit≠0（有 error check）仍返回 JSON。"""
+def _detector_json(args):
+    """跑 llmw 探测器子命令 --json，容忍 exit 1（有 error check），返回解析 dict。"""
     env = dict(os.environ, PYTHONPATH=str(REPO))
     proc = subprocess.run(
-        [sys.executable, str(script), str(root), "--json"],
+        [sys.executable, "-m", "llmw", *args],
         env=env,
         capture_output=True,
         text=True,
@@ -61,12 +57,12 @@ def _detector_json(script, root):
         raise SystemExit(1)
 
 
-def _assert_all_error_pass(script, root, label):
+def _assert_all_error_pass(args, label):
     """断言探测器所有 error 级 check passed=True（允许 skipped/null）。
 
     fail → 列出 fail 的 check id（诊断）+ exit 1；返回解析后的 JSON dict。
     """
-    data = _detector_json(script, root)
+    data = _detector_json(args)
     failed = [
         f"{c['id']} ({c.get('file', '?')})"
         for c in data["checks"]
@@ -81,11 +77,6 @@ def _assert_all_error_pass(script, root, label):
 
 
 def main():
-    if not WS_CHECK.exists() or not WIKI_CHECK.exists():
-        raise SystemExit(
-            f"FAIL: 探测器缺失（{WS_CHECK} / {WIKI_CHECK}）——两 SKILL 目录未入库？"
-        )
-
     with tempfile.TemporaryDirectory(prefix="llmw-smoke-") as tmp:
         ws = Path(tmp) / "ws"
 
@@ -117,8 +108,13 @@ def main():
             ]
         )
 
-        ws_data = _assert_all_error_pass(WS_CHECK, ws, "workspace")
-        wiki_data = _assert_all_error_pass(WIKI_CHECK, ws / "w", "wiki")
+        # 两探测器：workspace 级 + wiki 级（走 llmw.content 命令面，--path 直传 wiki 根）
+        ws_data = _assert_all_error_pass(
+            ["--workspace=" + str(ws), "check-fixtures", "--json"], "workspace"
+        )
+        wiki_data = _assert_all_error_pass(
+            ["wiki", "--path=" + str(ws / "w"), "check-fixtures", "--json"], "wiki"
+        )
 
         # 显式确认两条读取契约 check（E1/E2）落地且 pass——SKILL 读取契约自洽对接
         for check_id, data in [
