@@ -150,7 +150,6 @@ frontmatter 5 必填（`title` / `type` / `created` / `updated` / `tags`，**仅
 ### 骨架所有权四分表（workspace 侧文件归属）
 
 本表约束维护本 workspace 的 agent —— 哪些文件可改、哪些只能由 llmw CLI 渲染。
-完整论证与背景见 `llmw-workspace-cli/doc/skeleton-engine-design.md`（设计文档，CLI 仓内）。
 
 | 文件 | 所有权 | agent 权限 |
 | --- | --- | --- |
@@ -166,9 +165,9 @@ frontmatter 5 必填（`title` / `type` / `created` / `updated` / `tags`，**仅
 > 本文件特有纪律 / 偏好一律沉淀到 `MEMORY/`（由顶部 `@MEMORY/MEMORY.md` 加载，会话常驻），
 > 不写进本文件——否则升级重渲染时丢失。
 >
-> **迁移例外**：spec 升级时，agent 经用户确认可全量重渲染本文件 + 薄壳 `CLAUDE.md`、
-> 补 `.gitignore` 骨架、bump `workspace.toml` 的 `templates_version` 单字段；本地定制先逐条与用户裁定
-> 搬 `MEMORY/` 或丢弃。
+> **升级**：运行 `llmw upgrade --apply [--yes]` 即可完成本文件 + 薄壳 `CLAUDE.md` +
+> `.gitignore` managed block + `MEMORY/MEMORY.md` 头部的升级（按 §六 四分表分类处理）；
+> 自定义内容先搬 `MEMORY/` 再 `--yes` 确认覆盖。
 
 | 字段 | 值 |
 | --- | --- |

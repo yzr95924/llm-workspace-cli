@@ -357,7 +357,7 @@ ingest 时新资料与已有页主张冲突，**不要静默覆盖**，按以下
 ### 骨架所有权四分表（wiki 侧文件归属）
 
 本表约束维护本 wiki 的 agent —— 哪些文件可改、哪些只能由 llmw CLI 渲染。
-完整论证与背景见 `llmw-workspace-cli/doc/skeleton-engine-design.md`（设计文档，CLI 仓内）。
+本表约束维护本 wiki 的 agent —— 哪些文件可改、哪些只能由 llmw CLI 渲染。
 
 | 文件 | 所有权 | agent 权限 |
 | --- | --- | --- |

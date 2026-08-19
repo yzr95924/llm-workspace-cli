@@ -152,7 +152,7 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 ### 骨架所有权四分表（本仓视角）
 
 本仓（llmw CLI）维护的"骨架文件"按所有权分 4 档；`llmw upgrade --apply` / `llmw wiki upgrade --apply`
-的行为差异即按此分类。完整论证见 `doc/skeleton-engine-design.md` §4.6。
+的行为差异即按此分类。
 
 | 档 | CLI 维护的文件 | `check-fixtures` 行为 | `upgrade --apply` 行为 |
 | --- | --- | --- | --- |
