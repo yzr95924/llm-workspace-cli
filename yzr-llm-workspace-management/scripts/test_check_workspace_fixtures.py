@@ -104,7 +104,7 @@ def _clean_workspace_toml(spec=None):
 
 
 def build_workspace(root, agents_md=None, claude_md=None, gitignore=None, memory_index=None, workspace_toml=None):
-    """搭 scratch workspace；缺省 = clean 0.7.0+ 形态，传参覆盖单件（None=默认，False=不建）。"""
+    """搭 scratch workspace；缺省 = clean 形态，传参覆盖单件（None=默认，False=不建）。"""
     root = Path(root)
     (root / "MEMORY").mkdir(parents=True, exist_ok=True)
     if agents_md is not False:
@@ -404,7 +404,7 @@ class WorkspaceTomlReadsSatisfiedTest(unittest.TestCase):
 
 
 class TemplateNoOutboundRefsTest(unittest.TestCase):
-    """模板零出边引用（0.8.0+ 架构不变量）——检测逻辑喂合成文本 + 端到端干净 pass。"""
+    """模板零出边引用（架构不变量）——检测逻辑喂合成文本 + 端到端干净 pass。"""
 
     def _scan(self, text):
         """直接调用脚本内的扫描函数（不改真实模板文件）。"""

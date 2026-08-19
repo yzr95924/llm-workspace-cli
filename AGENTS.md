@@ -12,7 +12,7 @@ This file provides guidance to AI coding agents when working with code in this r
 - 每个 wiki = 一个子目录，含 `raw/` + `wiki/` + `CLAUDE.md` + `wiki_metadata.toml`
 - CLI **只**管元数据 + 启动 session；wiki 内部内容（ingest / lint / query）由
   [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm_workspace_cli/tree/master/yzr-llm-wiki-management)
-  skill 在 session 内负责（2026-08-18 起 skill 与 CLI 同仓）
+  skill 在 session 内负责（skill 与 CLI 同仓）
 - CLI 包 `llmw/` **绝不写** `raw/` 与 `wiki/` 下任何文件——这条不变量贯穿全仓
 
 ## 常用命令
@@ -101,8 +101,8 @@ llmw.cli (argparse + 分派)
    `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` /
    `.gitignore` / 目录骨架 由 CLI 在 `add` 时内联生成——读同仓 `yzr-llm-wiki-management/references/` 下的
    `agents-md-template.md` + `claude-md-template.md` 两份模板和 6 个 fixtures，按
-    `wiki-spec.md v0.36.0` §1-§7 + §9.1 + §14 渲染。
-2. **CLI 内联实现 wiki 创建**（spec 0.2.0 起）：原 `setup_wiki.py` 已删除（skill 迁移时随之移除）；
+    `wiki-spec.md` §1-§7 + §9.1 + §14 渲染。
+2. **CLI 内联实现 wiki 创建**：原 `setup_wiki.py` 已删除（skill 迁移时随之移除）；
    CLI 通过 `llmw.wiki.init_wiki` 读同仓 `yzr-llm-wiki-management/references/agents-md-template.md` +
    `references/claude-md-template.md` +
    `references/fixtures/{index.md,log.md,memory-index,tags.md,scripts.md,gitignore}.txt`
@@ -174,7 +174,7 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
   会互相覆盖产生 churn，故拆出本地化。**不入 git**（与 `workspace_models.toml` 同一 gitignore
   managed block），无 secret 不 chmod 600。`enter` / `config` 均从此读。
   （`enter_byobu` 已删除——窗口路径全环境成立，直启模式无存在场景；老文件残留键 load 静默忽略。）
-- **`<workspace>/workspace_models.toml`**（Phase 2）：schema v2；`schema_version` / `created_at` /
+- **`<workspace>/workspace_models.toml`**（model registry）：schema v2；`schema_version` / `created_at` /
   `updated_at`（只读，CLI 自动 bump）+ `[[models]]` 数组，每条含 `model_id` / `name` / `base_url` /
   `api_key` / `context_window`（必填整数，无 fallback）/ 可选 `is_default`。约束：model_id 唯一
   （`^[a-z0-9_-]{1,64}$`，复用 wiki NAME_RE），
@@ -230,7 +230,7 @@ agent CLI 子进程透传 `os.environ`、依赖 Local 层 `env` 块优先级稳�
 ## 开发注意事项
 
 - **不要写 wiki 内容**：任何对 `raw/` 或 `wiki/` 的写入都是违反不变量 I-1 的。
-- **不要复活 setup_wiki.py**：spec 0.2.0 起已删除（skill 侧明确），wiki 骨架由 CLI 内联生成
+- **不要复活 setup_wiki.py**：已删除（skill 侧明确），wiki 骨架由 CLI 内联生成
   （读 SKILL `references/`）；不要"为了模块化"把渲染拆回脚本。
 - **不要让 model 走环境变量被读出来**：`os.environ.get("ANTHROPIC_*")` 这类读取一律禁止；
   model 配置完全由 `workspace_models.toml` 掌控，enter 的 overlay 交付是 CLI 主动行为

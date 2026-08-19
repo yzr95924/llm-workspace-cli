@@ -86,7 +86,7 @@ def _is_effectively_empty(path: Path) -> bool:
 
 
 def _write_workspace_agents_md(workspace_root: Path, display_name: str) -> None:
-    """spec §4 (0.4.0+): 按 workspace-agents-md-template.md 拷贝生成 <workspace>/AGENTS.md (SSOT)。
+    """spec §4: 按 workspace-agents-md-template.md 拷贝生成 <workspace>/AGENTS.md (SSOT)。
 
     用户所有的 workspace 宪法 (工具无关纪律)——CLI 仅在 init 时拷模板 + 替换 4 占位符:
       {{WORKSPACE_DISPLAY_NAME}} / {{SETUP_DATE}} / {{WORKSPACE_SPEC_VERSION}} / {{CLI_VERSION}}
@@ -139,7 +139,7 @@ def _write_workspace_agents_md(workspace_root: Path, display_name: str) -> None:
 
 
 def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
-    """spec §4 (0.4.0+): 按 workspace-claude-md-template.md 拷贝生成 <workspace>/CLAUDE.md (薄壳)。
+    """spec §4: 按 workspace-claude-md-template.md 拷贝生成 <workspace>/CLAUDE.md (薄壳)。
 
     薄壳 = @AGENTS.md 一行 + 声明 (~10 行);CLI 仅在 init 时拷模板 + 替换 1 占位符
       {{WORKSPACE_DISPLAY_NAME}} (薄壳不持 spec 版本——版本在 AGENTS.md §六)。
@@ -255,7 +255,7 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
 
     save_models(path, create_models_skeleton(path))
 
-    # spec §4 (0.4.0+): 先写 AGENTS.md (SSOT), 再写 CLAUDE.md (薄壳)
+    # spec §4: 先写 AGENTS.md (SSOT), 再写 CLAUDE.md (薄壳)
     _write_workspace_agents_md(path, display_name)
     _write_workspace_claude_md(path, display_name)
 

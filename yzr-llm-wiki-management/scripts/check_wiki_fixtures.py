@@ -26,9 +26,9 @@ standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 to
   下一个 wiki spec 升级只需新增 register 条目 / SKELETON_SPECS 描述符。骨架信号硬编码在
   SKELETON_SPECS（与 references/fixtures/ 一致，改 fixtures 时手工同步描述符）；
   唯独 .gitignore 走 references/fixtures/gitignore.txt 自动跟随。
-- `template-no-outbound-refs`（0.33.0+）：模板零出边引用是架构不变量（纪律正文唯一维护点 =
+- `template-no-outbound-refs`：模板零出边引用是架构不变量（纪律正文唯一维护点 =
   模板；spec / SKILL.md / page-templates.md 单向指入模板），由该 check 机械强制。
-- AGENTS.md 走**模板渲染比对**（0.26.0+ `agents-md-template-sync`）：从 wiki §八 提取
+- AGENTS.md 走**模板渲染比对**（`agents-md-template-sync`）：从 wiki §八 提取
   主题/创建日期/CLI 版本三变量 + wiki 自钉 spec 版本，渲染 references/agents-md-template.md
   后字节比对——一次性覆盖"旧版本残留 + 本地改动"全部漂移，取代 0.25.0- 的两条存在性检查
   （has-at-imports / top-read-directive）。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
@@ -100,7 +100,7 @@ CHECK_REGISTRY = [
         "id": "symlink-anchor-flat-not-legacy",
         "severity": "error",
         "rule_ref": "wiki-spec.md §13.6",
-        "desc": "raw/external/ 不存在 <source-name>/ 子目录（0.17.0+ 扁平布局）",
+        "desc": "raw/external/ 不存在 <source-name>/ 子目录 扁平布局",
     },
     {
         "id": "index-md-categories-stable",
@@ -347,7 +347,7 @@ def _extract_agents_row(text: str, row_re: "re.Pattern[str]") -> Optional[str]:
 
 
 def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """AGENTS.md 与 references/agents-md-template.md 渲染稿字节一致（0.26.0+）。
+    """AGENTS.md 与 references/agents-md-template.md 渲染稿字节一致。
 
     per-wiki 变量只有 4 个（主题 / 创建日期 / CLI 版本 / Wiki Spec 版本，全在 H1 + §八），
     正文 §一~§七 + §九 跨 wiki 逐字相同——故用"提取变量 → 渲染模板 → 字节比对"一次覆盖
@@ -403,7 +403,7 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
     return out
 
 
-# 模板零出边引用（0.33.0+ 架构不变量：纪律正文唯一维护点 = 模板，模板是引用图汇点）。
+# 模板零出边引用（架构不变量：纪律正文唯一维护点 = 模板，模板是引用图汇点）。
 # 任何指向 skill 目录文件 / 阿拉伯数字 §节号的引用都会被本 check 报 error——wiki 侧 agent
 # 解析不了这些指针（模板自己都写着"模板与配套工具随 skill 分发，不在本 wiki 内"），
 # 对运行时读者是死指针；改纪律只改模板对应段，spec / SKILL.md / page-templates.md 单向指入模板。
@@ -435,12 +435,12 @@ def _scan_template_outbound_refs(text):
 
 
 def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """references/agents-md-template.md 不含任何指向 skill 目录的出边引用（0.33.0+）。
+    """references/agents-md-template.md 不含任何指向 skill 目录的出边引用。
 
     模板随 init 拷贝进每个 wiki 成为 AGENTS.md——wiki 侧 agent 读不到 skill 目录，模板内
     一切 `wiki-spec.md` / `page-templates.md` / `lint-checklist.md` / `SKILL.md` /
     `references/` / 阿拉伯数字 §节号 引用都是死指针（零白名单，含 provenance 声明也不得
-    携带——0.33.0 起全部改写为自包含措辞）。skill 目录内文件 → 模板 单向引用由本 check
+    携带——全部改写为自包含措辞）。skill 目录内文件 → 模板 单向引用由本 check
     机械强制；对每个 wiki 报告同一结果（模板是全局文件），违反时 error 逼 skill 侧修复。
     """
     out = {"passed": True, "severity": "error", "file": "references/agents-md-template.md"}  # type: Dict[str, object]
@@ -483,7 +483,7 @@ def check_gitignore_external_track(wiki_root: Path, info: Dict[str, str]) -> Dic
 
     if has_legacy_json:
         out["passed"] = False  # type: ignore
-        out["actual"] = "残留旧 `!raw/external/**/.symlink-anchor.json` 跟踪规则（0.17.0+ 退役）"
+        out["actual"] = "残留旧 `!raw/external/**/.symlink-anchor.json` 跟踪规则（退役）"
         out["expected"] = "!raw/external/.symlink-anchor.toml"
         out["rule_ref"] = "wiki-spec.md §13.6 迁移"
         return out
@@ -583,7 +583,7 @@ def check_symlink_anchor_toml_symlink_matches(wiki_root: Path, info: Dict[str, s
 
 
 def check_symlink_anchor_flat(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """external/ 不存在 <source-name>/ 子目录（0.17.0+ 扁平）"""
+    """external/ 不存在 <source-name>/ 子目录 扁平"""
     out = {  # type: Dict[str, object]
         "passed": True,
         "severity": "error",

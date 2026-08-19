@@ -31,7 +31,7 @@ _ORPHAN_CLEAN_HINT = (
     "或手动 `byobu-tmux kill-window -t @N`"
 )
 
-# ===== STATE 判定（R5，2026-08-15 新增；2026-08-15 重构） =====
+# ===== STATE 判定（R5） =====
 # 内部值是 ASCII 稳定值（--json 输出此值，脚本可判等）：dead / shell / working /
 # waiting / unknown。显示值（✗ / ⚠ shell / ⚙ working / ⏳ waiting / ?）只存在于
 # 表格层——显示值与机器契约分离（巡检 #3）。

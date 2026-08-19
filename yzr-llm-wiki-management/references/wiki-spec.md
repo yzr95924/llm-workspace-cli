@@ -546,8 +546,8 @@ compared:
 当前版本对齐」由 `check_wiki_fixtures.py` 校验（读取契约的可执行 gate）。
 
 spec 版本号的 SSOT 是本 skill `SKILL.md` 的 `metadata.wiki_spec_version` 字段（本 spec 不重复钉号，
-避免双源漂移）。skill 与 CLI 同仓分发：bump 时 `SKILL.md` frontmatter + `scripts/lint_wiki.py` 常量
-+ CLI 侧常量**三处同 commit 对齐**（单仓 CI 校验），不再有跨仓协调步骤。
+避免双源漂移）。skill 与 CLI 同仓分发：bump 只改 `SKILL.md` frontmatter 一处——`lint_wiki.py`
+与 CLI 侧常量均运行时读取该字段，不再维护副本。
 
 **LLM 在每次操作前比对** AGENTS.md §八（无 AGENTS.md 时 fallback CLAUDE.md §八）的 "Wiki Spec 版本" 与 SKILL.md
 `metadata.wiki_spec_version`；不一致时**警告用户**（不阻断——CLI 可能支持多个 spec 版本）。
@@ -578,7 +578,7 @@ spec 版本号的 SSOT 是本 skill `SKILL.md` 的 `metadata.wiki_spec_version` 
 |---|---|---|
 | 文件名 kebab-case | `^[a-z0-9][a-z0-9-]*$` | `wiki/{entities,concepts,sources,comparisons,syntheses}/*.md` + `MEMORY/*.md`（index/log/tags/MEMORY.md 除外） |
 | 子目录名 | 固定字母序（§1） | 5 个内容页子目录 |
-| 特殊目录名 `MEMORY` | **大写**（区别于小写 `raw` / `wiki` 等）；与 `wiki/` 平级（不再嵌在 `wiki/` 下） | `<wiki-root>/MEMORY/` |
+| 特殊目录名 `MEMORY` | **大写**（区别于小写 `raw` / `wiki` 等）；与 `wiki/` 平级 | `<wiki-root>/MEMORY/` |
 | 元数据文件 tags.md | 与 index.md / log.md 同——**无** frontmatter，裸 Markdown；lint 不走 frontmatter 校验（按 `MEMORY.md` 同形态） | `wiki/tags.md` |
 | 索引文件 SCRIPTS.md | 与 tags.md / MEMORY/MEMORY.md 同——**无** frontmatter，裸 Markdown；由 `<wiki-root>/AGENTS.md` 顶部 `@scripts/SCRIPTS.md` `@import` 加载 | `scripts/SCRIPTS.md` |
 | frontmatter 字段名 | 严格小写 + 下划线（`okf_version`、`created`、`updated`） | 所有 frontmatter |
@@ -618,7 +618,7 @@ CLI 生成的产物必须满足以上规则；否则后续 lint 会立即报错�
 └── ...
 ```
 
-- **扁平结构**：所有外部仓的 symlink 直接放在 `raw/external/` 下，**不再**用
+- **扁平结构**：所有外部仓的 symlink 直接放在 `raw/external/` 下，不用
   `<source-name>/` 子目录分组。anchor 文件**单文件**记录所有 entries。
 - **symlink 命名**：必须 kebab-case `^[a-z0-9][a-z0-9-]*$`（与 wiki 内容页命名一致）
 - **anchor 文件位置**：固定 `<wiki-root>/raw/external/.symlink-anchor.toml`

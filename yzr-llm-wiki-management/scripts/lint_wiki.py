@@ -14,7 +14,7 @@ lint_wiki.py — deterministic 健康检查
   仅当 wiki 根目录在 git 仓内且 raw/ 被 git 跟踪时才跑 raw 不可变性检查；
   裸目录树 / 无 git / raw 未纳入 git → 自动跳过并打印提示（不报错，不阻断）。
 --migrate-confidence 一次性迁移老 `confidence:` 字段（0.5.0 引入）到新
-  `reviewed` + `reviewed_at`（0.7.0+）。互斥模式，不做常规 lint。
+  `reviewed` + `reviewed_at`。互斥模式，不做常规 lint。
   已被 `--check-version --apply` 覆盖；保留仅供旧用法兼容。
 --check-version 扫描当前 wiki 的 spec 版本（解析 CLAUDE.md §八 "Wiki Spec 版本"），
   与本 skill metadata.wiki_spec_version 比对，列出老格式 legacy 现场。默认仅打印报告
@@ -46,7 +46,7 @@ from log_format import (
     parse_date_or_datetime,  # noqa: E402
 )
 
-# 0.18.0+ fixtures 一致性检查脚本——`--check-version` 自动调一次；
+# fixtures 一致性检查脚本——`--check-version` 自动调一次；
 # 其 JSON 输出并入 report["fixtures_check"] + plan["fixtures_actions"]。
 # standalone 调用方也可直接跑：scripts/check_wiki_fixtures.py <wiki_root> --json
 CHECK_FIXTURES_SCRIPT = "check_wiki_fixtures.py"  # 与本脚本同目录
@@ -67,7 +67,7 @@ VALID_TYPES = {
 WIKI_SUBDIRS = ("entities", "concepts", "sources", "comparisons", "syntheses")
 MEMORY_SUBDIR = "MEMORY"
 EXTERNAL_SUBDIR = "external"
-ANCHOR_FILENAME = ".symlink-anchor.toml"  # 0.17.0+: TOML 替代旧 .symlink-anchor.json
+ANCHOR_FILENAME = ".symlink-anchor.toml"  # TOML 替代旧 .symlink-anchor.json
 DISCUSSIONS_SUBDIR = "discussions"  # raw/ 下用户 + LLM 协作草稿层（spec §15）；与 external/ 并列的 raw/ 写权限例外
 MD_LINK_RE = re.compile(r"!?\[([^\]]*)\]\(([^)]+)\)")
 EXTERNAL_URL_RE = re.compile(r"^(https?:|mailto:|//)")
@@ -172,7 +172,7 @@ def find_md_files(wiki_root: Path) -> Dict[str, List[Path]]:
         if d.is_dir():
             for p in sorted(d.glob("*.md")):
                 out[sub].append(p)
-    # MEMORY/ 单独扫：0.10.0+ 起与 wiki/ 平级、位于 <wiki-root>/MEMORY/（不在 wiki/ 下）
+    # MEMORY/ 单独扫：与 wiki/ 平级、位于 <wiki-root>/MEMORY/（不在 wiki/ 下）
     mem_dir = wiki_root / MEMORY_SUBDIR
     if mem_dir.is_dir():
         for p in sorted(mem_dir.glob("*.md")):
@@ -267,7 +267,7 @@ def check_raw_immutable(wiki_root: Path, use_git: bool) -> List[str]:
 def _parse_anchor(anchor_path: Path):
     """解析 .symlink-anchor.toml；返回 List[Dict]（每个 entry 一条）或 None（损坏/无有效 entry）
 
-    0.17.0+ schema：顶层 [[entry]] 数组，每 entry 含 symlink / target / captured_at / kind 必填。
+    顶层 [[entry]] 数组，每 entry 含 symlink / target / captured_at / kind 必填。
     顶层 schema_version = <int>（可选）。返回前已过滤掉缺必填字段 / kind 非 'external-repo' 的 entry。
 
     解析策略：手写最小 TOML 解析（避免 tomli/tomllib 依赖）——只支持 skill 实际写出的形态：
@@ -363,7 +363,7 @@ def _parse_anchor(anchor_path: Path):
 
 
 def check_external_symlinks(wiki_root: Path) -> List[str]:
-    """10. raw/external/ 下 symlink 的健康检查（0.17.0+ 扁平 + TOML anchor）
+    """10. raw/external/ 下 symlink 的健康检查（扁平 + TOML anchor）
 
     触发条件：扫 `raw/external/` 顶层，关联 `.symlink-anchor.toml` 的 [[entry]] 数组：
     - external-anchor-missing（error）：symlink 存在但 anchor 文件本身不在
@@ -736,10 +736,6 @@ LOG_RETENTION_LIMIT = 50
 # source 页 stale 摘要阈值（days）——`updated` 距今超过此值报 stale-summary（详见 lint-checklist §二.7）
 STALE_SUMMARY_DAYS = 90
 
-# 0.23.0 短暂引入的 INLINED_INDEX_MAX 内联条数护栏已删除（0.24.0+ 恢复 @import 收口；
-# MEMORY.md / SCRIPTS.md 索引走 @import 加载，AGENTS.md 仅单行引用、不占 L1 词数），
-# 同步删除 check_inlined_memory_index_size() 与 inlined-memory-index-bloating warn。
-
 
 def check_log_truncation(wiki_root: Path) -> List[str]:
     """10. log.md 滚动窗口——条目数超过 LOG_RETENTION_LIMIT 建议截断
@@ -798,7 +794,7 @@ TAG_TAXONOMY_HEADER_RE = re.compile(r"^###\s+Tag Taxonomy")
 TAXONOMY_BULLET_RE = re.compile(r"^[-*]\s+(.+)$")
 TAG_KV_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
-# Tag taxonomy 主流位置（0.8.0+）：wiki/tags.md，无 frontmatter，纯裸 bullet 列表。
+# Tag taxonomy 主流位置：wiki/tags.md，无 frontmatter，纯裸 bullet 列表。
 TAG_FILE_PRIMARY = "wiki/tags.md"
 # 旧格式 fallback：CLAUDE.md 的 `### Tag Taxonomy` 段。
 # 兼容 wiki 升级前未迁移 / 跨 spec 过渡期；新 wiki 不会写这一段。
@@ -866,7 +862,7 @@ def _extract_claudemd_tag_section(text: str) -> str:
 def parse_tag_taxonomy(wiki_root: Path) -> Set[str]:
     """读 tag 白名单，返回允许 tag 集合
 
-    来源优先级（0.8.0+）：
+    来源优先级：
     1. `<wiki_root>/wiki/tags.md`（**新主流位置**）—— LLM 拥有、按需扩展
     2. fallback：`<wiki_root>/CLAUDE.md` 的 `### Tag Taxonomy` 段
        （旧 wiki / 跨 spec 过渡期；迁移通过 `--check-version --apply` 完成）
@@ -878,7 +874,7 @@ def parse_tag_taxonomy(wiki_root: Path) -> Set[str]:
     if primary.is_file():
         text = primary.read_text(encoding="utf-8", errors="replace")
         return _parse_tag_bullets(text)
-    # Legacy fallback（0.11.0+）：SSOT 的 Tag Taxonomy 段——优先 AGENTS.md，再老 CLAUDE.md
+    # Legacy fallback：SSOT 的 Tag Taxonomy 段——优先 AGENTS.md，再老 CLAUDE.md
     for candidate in ("AGENTS.md", "CLAUDE.md"):
         spec_file = wiki_root / candidate
         if not spec_file.is_file():
@@ -896,7 +892,7 @@ def parse_tag_taxonomy(wiki_root: Path) -> Set[str]:
 def check_tag_taxonomy(wiki_root: Path) -> List[str]:
     """11. tag 是否在 taxonomy 白名单内
 
-    来源：`wiki/tags.md`（0.8.0+），fallback 见 `parse_tag_taxonomy`。
+    来源：`wiki/tags.md`，fallback 见 `parse_tag_taxonomy`。
     找不到任何 taxonomy 源 / 解析出 0 个 tag → 静默跳过
     （避免新 setup 的 wiki 必报错）。启用 taxonomy 后，对每个内容页（5 类 +
     MEMORY 非 MEMORY.md）的 frontmatter.tags 元素做包含校验；不在白名单 → info 级。
@@ -1024,14 +1020,14 @@ def check_quality_signals(wiki_root):
 
     deterministic 子检查（字段全部可选；省略 = 不评，lint 不报）：
 
-    A. 可信度信号 reviewed（0.7.0+）：
+    A. 可信度信号 reviewed：
     - pending-review（info）：非 log/index 页未含 reviewed: true——新常态，仅提示
     - reviewed-stale（warn）：reviewed: true 存在但 updated > reviewed_at——LLM 修改后漏清戳
     - invalid-reviewed-value（warn）：reviewed 取值非严格 true（如 "true" 字符串、yes、1、false）
     - reviewed-at-missing（warn）：reviewed: true 存在但缺 reviewed_at
     - reviewed-at-orphan（warn）：reviewed_at 存在但缺 reviewed: true
 
-    B. 认知质量信号 contested / contradictions（0.5.0+）：
+    B. 认知质量信号 contested / contradictions：
     - contested-page（warn）：contested: true 的页——含未解决矛盾
     - contradiction-target-missing（warn）：contradictions 指向不存在的页
     - contradiction-asymmetric（warn）：A 把 B 列入 contradictions 但 B 未反向标注 A
@@ -1040,7 +1036,7 @@ def check_quality_signals(wiki_root):
     C. 迁移期检测（0.5.0 → 0.7.0 过渡）：
     - legacy-confidence-field（warn）：出现已退役的 confidence: 字段
 
-    D. index.md 标识漂移（0.7.0+）：
+    D. index.md 标识漂移：
     - index-review-badge-drift（warn）：wiki/index.md 上的 ✓/✗ 标识与被链页 frontmatter 不一致
 
     字段语义见 page-templates.md §一「可选：可信度与认知质量信号」。
@@ -1248,7 +1244,7 @@ def check_memory_index(wiki_root: Path) -> List[str]:
     """14. MEMORY.md 索引一致性——MEMORY/*.md（非 MEMORY.md）必须被索引列出
 
     MEMORY.md 是单一真源（无 frontmatter）；由 `<wiki-root>/AGENTS.md` 顶部
-    `@MEMORY/MEMORY.md` `@import` 自动加载全文（0.24.0+；详见 wiki-spec §5.1）。
+    `@MEMORY/MEMORY.md` `@import` 自动加载全文（详见 wiki-spec §5.1）。
     本检查只扫 `MEMORY.md ## 索引` 段对 `MEMORY/*.md` 的覆盖——0.23.0 短暂的双轨
     （MEMORY.md + AGENTS.md §一内联段并集）已废，单一真源下不再需要双处同步。
 
@@ -1263,21 +1259,21 @@ def check_memory_index(wiki_root: Path) -> List[str]:
     MEMORY.md 不存在时静默跳过（老 wiki 迁移期 / spec <0.6.0，不报错）。
     severity = info（轻量索引非强制入口，类比 tag-not-in-taxonomy）。
 
-    短条目（0.10.0+ 引入，与项目 CLAUDE.md 同步）：MEMORY.md 索引行可无对应 .md 文件
+    短条目（与项目 CLAUDE.md 同步）：MEMORY.md 索引行可无对应 .md 文件
     （`- 一句话事实` 格式），不进本检查范围——只兜底"有 .md 但未索引"。
 
-    0.10.0+ 路径变更：MEMORY/ 从 wiki/ 下移到 <wiki-root>/MEMORY/（与 wiki/ 平级）。
+    路径变更：MEMORY/ 从 wiki/ 下移到 <wiki-root>/MEMORY/（与 wiki/ 平级）。
     """
     findings = []  # type: List[str]
-    mem_dir = wiki_root / MEMORY_SUBDIR  # 0.10.0+ 移到 wiki 根下；老 wiki 走 --check-version --apply
+    mem_dir = wiki_root / MEMORY_SUBDIR  # 移到 wiki 根下；老 wiki 走 --check-version --apply
     memory_index = mem_dir / "MEMORY.md"
     if not memory_index.is_file():
         return findings
-    # 0.24.0+ 单一真源：只扫 MEMORY.md 索引（`@import` 已自动加载全文）；任一条 `<slug>.md`
+    # 单一真源：只扫 MEMORY.md 索引（`@import` 已自动加载全文）；任一条 `<slug>.md`
     # 未列入 MEMORY.md 索引即报 `memory-not-indexed` info。
     indexed = set()  # type: Set[str]
     mem_dir_resolved = mem_dir.resolve()
-    # 0.24.0+ 单一真源：MEMORY.md `## 索引` 段对 MEMORY/*.md 的覆盖即可
+    # 单一真源：MEMORY.md `## 索引` 段对 MEMORY/*.md 的覆盖即可
     # （AGENTS.md 不再持有副本，`@import` 透明加载——无需双轨兜底）。
     try:
         text = memory_index.read_text(encoding="utf-8", errors="replace")
@@ -1317,7 +1313,7 @@ def check_memory_index(wiki_root: Path) -> List[str]:
 
 
 def check_related_links(wiki_root: Path) -> List[str]:
-    """15. related / compared 路径引用完整性（0.22.0+）
+    """15. related / compared 路径引用完整性
 
     校验 wiki 内容页 frontmatter 的 `related`（concept 页）与 `compared`
     （comparison 页）字段——按 spec §9「路径格式约定」解析为**内容根 `wiki/`
@@ -1535,7 +1531,7 @@ SEMVER_RE = re.compile(r"\d+\.\d+\.\d+")
 def parse_spec_version(wiki_root: Path) -> Optional[str]:
     """从 wiki 纪律 SSOT §八 表里抽 "Wiki Spec 版本"。
 
-    0.11.0+：SSOT 是 <wiki-root>/AGENTS.md（薄壳 CLAUDE.md 不持版本）。
+    SSOT 是 <wiki-root>/AGENTS.md（薄壳 CLAUDE.md 不持版本）。
     老 wiki（0.10.0-）：SSOT 是 <wiki-root>/CLAUDE.md，按候选顺序 fallback 兼容。
 
     返回 semver 字符串（如 "0.11.0"）；找不到或解析失败返回 None。
@@ -1728,7 +1724,7 @@ def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
         if _has_type_memory(rel, text):
             out["patterns"]["type-memory-value"].append({"file": rel, "conflict": False})  # type: ignore
 
-    # 文件级 legacy：CLAUDE.md 仍含 `### Tag Taxonomy` 段（0.8.0+ 移到 wiki/tags.md）
+    # 文件级 legacy：CLAUDE.md 仍含 `### Tag Taxonomy` 段（移到 wiki/tags.md）
     # 只要 heading 行存在就报 legacy——含 bullets 时迁移内容；空段只清 heading
     claude_md = wiki_root / "CLAUDE.md"
     if claude_md.is_file():
@@ -1740,7 +1736,7 @@ def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
             out["patterns"]["claudemd-tag-section"].append(  # type: ignore
                 {"file": "CLAUDE.md", "conflict": False}
             )
-        # claudemd-not-thinshell（0.11.0+）：CLAUDE.md 仍是 SSOT 形态——不含 `@AGENTS.md` 薄壳行
+        # claudemd-not-thinshell：CLAUDE.md 仍是 SSOT 形态——不含 `@AGENTS.md` 薄壳行
         # 且行数 > 30（薄壳模板 ≤ 30 行）→ 老 wiki 未拆 SSOT，由 claudemd-to-agents-md-split 迁移
         claude_lines = claude_text.splitlines()
         has_agents_import = any(line.strip() == "@AGENTS.md" for line in claude_lines)
@@ -1873,7 +1869,7 @@ def build_migration_plan(
             }
         )
 
-    # 0.18.0+ fixtures 一致性 → fixtures_actions[]
+    # fixtures 一致性 → fixtures_actions[]
     # 每条 fixtures-check 失败项生成一条对应 fixtures-fix-* 动作；action 字段含
     # expected / actual 让 agent 一眼看清"该改成什么"；rule_ref 指向 lint-checklist.md
     # §三 anchor / §三.5 MEMORY / §三.6 log 等具体段落。
@@ -1919,14 +1915,14 @@ def build_migration_plan(
                     }
                 )
             elif cid == "agents-md-template-sync":
-                # 0.26.0+ 模板渲染比对失败 → 全量重渲染（不是单行 Edit）；
+                # 模板渲染比对失败 → 全量重渲染（不是单行 Edit）；
                 # 详见 migrate-workflow.md §5 step 6 + wiki-spec.md §10.1
                 fixtures_actions.append(
                     {
                         **base,
                         "type": "fixtures-fix-agents-md-resync",
                         "to_action": (
-                            "AGENTS.md 全量重渲染（0.26.0+ 模板同步机制，4 步）："
+                            "AGENTS.md 全量重渲染（模板同步机制，4 步）："
                             "(1) 从旧 AGENTS.md §八 提取 主题 / 创建日期 / CLI 版本（主题 fallback："
                             "H1 `# <主题> Wiki — LLM 维护守则`）；"
                             "(2) 渲染 references/agents-md-template.md——{{TOPIC_NAME}} / {{SETUP_DATE}} / "
@@ -2018,7 +2014,7 @@ def build_migration_plan(
                     }
                 )
             elif cid.endswith(("-skeleton", "-frontmatter-complete", "-init-rules-complete")):
-                # 0.20.0+ 骨架字段级比对 check（信号来自 references/fixtures/；
+                # 骨架字段级比对 check（信号来自 references/fixtures/；
                 # 新增 *-skeleton 类 check 自动匹配此分支）
                 fixtures_actions.append(
                     {
@@ -2062,13 +2058,13 @@ def build_migration_plan(
             "改完后用 Edit 把 AGENTS.md §八 Wiki Spec 版本行改为 to_version",
             "不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）",
             "不调 ingest / query / lint——保持职责单一",
-            # 0.18.0+ fixtures：
+            # fixtures：
             "fixtures_actions[] 与 actions[] 平行处理——先走 fixtures_actions 修约定文件（如 .gitignore / anchor TOML）",
             "再走 actions[] 修内容页 frontmatter / log；fixtures 修复是后续内容页编辑的前置",
             "fixtures-fix-anchor-merge / -anchor-schema / -anchor-symlink-matches 三条都是『多文件迁移』型 action——必须按 to_action 5 步走，单 Edit 不能完成",
             "fixtures-fix-strip-frontmatter 仅删首部 frontmatter 块，保留全文正文一字不动",
-            "fixtures-fix-skeleton（0.20.0+）：按 expected 补缺失骨架字段（frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段），单 Edit 可落；成长型内容（index 类别 / log 历史 / MEMORY 经验 / tag bullet）不动",
-            "fixtures-fix-agents-md-resync（0.26.0+）：AGENTS.md 全量重渲染——§八 变量保留旧值（Wiki Spec 版本行用 to_version），旧文件多出的定制行/段逐条与用户裁定搬 MEMORY/ 或丢弃；其余以模板渲染稿为准，不做局部 Edit",
+            "fixtures-fix-skeleton：按 expected 补缺失骨架字段（frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段），单 Edit 可落；成长型内容（index 类别 / log 历史 / MEMORY 经验 / tag bullet）不动",
+            "fixtures-fix-agents-md-resync：AGENTS.md 全量重渲染——§八 变量保留旧值（Wiki Spec 版本行用 to_version），旧文件多出的定制行/段逐条与用户裁定搬 MEMORY/ 或丢弃；其余以模板渲染稿为准，不做局部 Edit",
             "fixtures 改造与 lint-checklist §五『语义合并规则』配合读——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按 §五判断",
         ],
     }  # type: Dict[str, object]
@@ -2094,7 +2090,7 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
         total_patterns += len(entries)  # type: ignore
     needs_migration = (comparison == "older") or (total_patterns > 0)
 
-    # 0.18.0+ 调一次 fixtures-check——子进程调 scripts/check_wiki_fixtures.py；
+    # 调一次 fixtures-check——子进程调 scripts/check_wiki_fixtures.py；
     # 输出并入 report["fixtures_check"]。脚本跑挂时 fixtures_check 含 skipped=True，标识"未跑"。
     fixtures_check = _run_fixtures_check(wiki_root)
     if not fixtures_check.get("skipped"):
@@ -2110,7 +2106,7 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
         "needs_migration": needs_migration,
         "legacy_patterns": legacy["patterns"],  # type: ignore
         "conflicts": legacy["conflicts"],  # type: ignore
-        "fixtures_check": fixtures_check,  # 0.18.0+ 新增；fixtures 结构化校验结果
+        "fixtures_check": fixtures_check,  # fixtures 结构化校验结果
     }
 
     if json_mode:
@@ -2172,7 +2168,7 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
             for c in legacy["conflicts"]:  # type: ignore
                 print(f"  - {c['file']}: {c['reason']}")  # type: ignore
 
-    # fixtures-check 段（0.18.0+）
+    # fixtures-check 段
     _print_fixtures_check(fixtures_check, indent="")
 
     # apply 时把 migration plan 以 JSON 输出到 stdout（agent 直接消费；不落盘，升级无中间文件残留）
@@ -2304,7 +2300,6 @@ def main() -> int:
     all_findings.extend(check_page_size(wiki_root))
     all_findings.extend(check_quality_signals(wiki_root))
     all_findings.extend(check_memory_index(wiki_root))
-    # check_inlined_memory_index_size(wiki_root) — 0.23.0- 内联方案 bloat guard；0.24.0+ 已删
     all_findings.extend(check_related_links(wiki_root))
 
     # 过滤

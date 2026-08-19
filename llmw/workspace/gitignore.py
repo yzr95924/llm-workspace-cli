@@ -10,13 +10,10 @@ from pathlib import Path
 
 from llmw.fsutil import atomic_write
 
-# workspace 级 .gitignore managed block 内容（spec workspace-spec.md §10 v0.7.0 + llmw 自有扩展）
-# 前 3 行严格对齐 spec §10（registry + Claude Code / Qoder IDE 项目级 overlay；
-# §10 文本自 0.6.1 起未变，0.7.0 未触及）。
+# workspace 级 .gitignore managed block 内容（spec workspace-spec.md §10 + llmw 自有扩展）
+# 前 3 行严格对齐 spec §10（registry + Claude Code / Qoder IDE 项目级 overlay）。
 # 单仓模型：wiki 是 workspace 直属子目录，**/.<agent>/settings*.json 通配覆盖所有
 # wiki 的 overlay secret，不依赖 per-wiki .gitignore / wiki scaffold（见 §10）。
-# 0.5.0 加 .qoder，0.6.0 把 */ 改 **/（覆盖 workspace 根级），0.6.1 把 settings.local.json
-# 加宽到 settings*.json（含 settings.json / settings.<env>.json 等所有变体）。
 # 后 3 行为 llmw 自有扩展（spec §10 字面未列，"至少包含"语义下保留以避免误提交，
 # 见 MEMORY 驳正条目）：
 # - workspace_local.toml  主机相关运行时配置 (enter_cli，schema v2 起从 workspace.toml

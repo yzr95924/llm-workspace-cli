@@ -12,14 +12,14 @@ tmux 窗口表即注册表，枚举即现实——无心跳、无轮询、无僵
 
 设计要点：
 
-- **版本口径**：目标 tmux ≥ 2.7（软性下限，设计 §1.4 A3，2026-08-15 修订）——只使用
+- **版本口径**：目标 tmux ≥ 2.7（软性下限，设计 §1.4 A3）——只使用
   2.7 时代已稳定存在的原语，**无版本分叉、无运行时版本检测**；本机实测 3.4。三处
   曾经的版本钉子已拔掉：``-e`` 注入（3.2+）→ 命令前缀；``list-windows -a``（2.9+）→
   逐 session 枚举；``#{pane_dead_time}``（疑 2.9+）缺失 → R5 activity 回退。
 - **一律调 ``byobu-tmux``**（/usr/bin/byobu 的 symlink）：byobu 启动脚本经 argv[0]
   强制 BYOBU_BACKEND=tmux（盖过 ~/.byobu/backend 配置）；带参数调用时
   ``exec tmux -u -f <byobu tmuxrc> "$@"`` 全透传（/usr/bin/byobu:258-267）。
-- **byobu wrapper 污染 stdout**（2026-08-17 实测，byobu 5.73）：每次调用无条件向
+- **byobu wrapper 污染 stdout**（实测，byobu 5.73）：每次调用无条件向
   stdout 前置一段 OSC 终端标题（``\x1b]0;user@host (ip) - byobu\x07``，
   /usr/bin/byobu:99 的 printf）——所有 ``-p`` / ``-P -F`` / ``list-*`` 输出解析
   全建立在 stdout 纯净假设上，_run() 统一剥离（见 _run docstring）。
@@ -29,7 +29,7 @@ tmux 窗口表即注册表，枚举即现实——无心跳、无轮询、无僵
   （``new-window -t``）无冒号时整串先按**窗口 index/name** 解析：数字 session 名
   （tmux / byobu 默认命名 "0" / "1"…）必被窗口 index 匹配抢先，``new-window -t 1``
   实际是"在 index 1 处创建"→ 已占用时报 ``create window failed: index 1 in use``
-  （2026-08-15 实机复现，用户 byobu 恰为数字名 session）。``<name>:`` 强制走
+  （实机复现，用户 byobu 恰为数字名 session）。``<name>:`` 强制走
   session 段解析（man：session 名逐条精确/前缀匹配），数字名无歧义。target-session
   类命令（``has-session`` / ``list-windows -t`` / ``attach-session -t``）不受影响——
   其解析规则含精确名匹配，数字名正常（实测 ``has-session -t 1`` 通过）。
@@ -39,12 +39,12 @@ tmux 窗口表即注册表，枚举即现实——无心跳、无轮询、无僵
 - **agent 命令拼 shell 字符串**：tmux 对 shell-command 走 ``sh -c``，拼串形态全版本
   兼容（多 argv 直 exec 是 3.4 行为，不依赖）；py3.7 无 shlex.join，手写
   ``" ".join(shlex.quote(a) for a in argv)``。
-- **env 注入走命令前缀**（2026-08-15 起取代 tmux 3.2+ 的 ``-e``）：``K=V cmd`` 前缀
+- **env 注入走命令前缀**（取代 tmux 3.2+ 的 ``-e``——版本下限 2.7 不含）：``K=V cmd`` 前缀
   拼进 shell_cmd——赋值前缀是 ``sh -c`` 原生语义，全版本通用；值过 shlex.quote。
   **只允许非敏感变量**（LLM_WIKI_ROOT 是路径）——api_key 恒走 overlay 文件交付
   （[[model-ops-no-env-vars]]）。语义差异：``-e`` 写 window 环境（respawn 后仍带），
   前缀只作用初始进程（respawn 后丢失）——用户手动 respawn 边缘场景，可接受。
-- **status 枚举走逐 session**（2026-08-15 起取代 2.9+ 的 ``list-windows -a``）：
+- **status 枚举走逐 session**（取代 2.9+ 的 ``list-windows -a``——版本下限 2.7 不含）：
   ``list-sessions`` + 每 session ``list-windows -t <name>``——远古原语，行为全版本
   一致；session 在两次调用间消失 → 跳过不报错（快照语义）。调用方自行稳定排序。
 - **窗口名经 ``new-window -n`` 锁定**：tmux 对显式命名的窗口自动关闭该窗口的
@@ -100,7 +100,7 @@ _WINDOW_NAME_MAX = 40
 # 只剥 OSC 标题序列（\x1b] ... BEL 或 ST 结束），不动其它 ANSI（TUI 内容的颜色等）。
 _OSC_RE = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")
 
-# 枚举格式（R5，2026-08-15 扩展为 10 字段）：status 实时枚举的字段集合；
+# 枚举格式（R5，10 字段）：status 实时枚举的字段集合；
 # @llmw_wiki / @llmw_started / @llmw_backend 为打标；pane_current_command 供
 # BACKEND 列 fallback 与假活（shell 残留）检测。解析产物是 WindowRow NamedTuple
 # （本模块唯一出口——消费端用属性访问，不再有索引手抄）。
@@ -285,9 +285,9 @@ def find_tagged_window(
     返回 (window_id, pane_dead, backend_matches)；无命中 → None。
 
     pane_dead=True（remain-on-exit=on 残留尸体）由调用方收尸后按无窗口处理——
-    复用尸体会把用户落在无 agent 的死 pane 上（设计 §2.4 R2，2026-08-15 修订）。
+    复用尸体会把用户落在无 agent 的死 pane 上（设计 §2.4 R2）。
     backend_matches=False（带标活窗但 backend 不符）由调用方拒绝 enter——
-    复用它会吞掉用户"切换 agent"的意图（设计 §2.4 R2，2026-08-15 修订）。
+    复用它会吞掉用户"切换 agent"的意图（设计 §2.4 R2）。
     """
     p = _run(
         [
@@ -347,7 +347,7 @@ def list_windows() -> List[WindowRow]:
     无 server / 无窗口 → []（tmux daemon 收尸，僵尸条目不存在）。
 
     逐 session 枚举（`list-sessions` + 每 session `list-windows -t`）——
-    2026-08-15 起取代 2.9+ 的 `list-windows -a`，行为全版本一致（设计 §2.4 R5）。
+    取代 2.9+ 的 `list-windows -a`，行为全版本一致（设计 §2.4 R5）。
     session 在两次调用间消失 → 该次调用失败 → 跳过不报错（快照语义）。
     **按 window_id 去重**（linked/grouped session，`new-session -t <base>` 无 -s 时
     tmux 自动建 `<base>-<n>` 共享窗口）：窗口是 tmux 唯一实体（window_id 全局唯一），

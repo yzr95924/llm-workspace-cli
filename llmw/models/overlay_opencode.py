@@ -23,24 +23,24 @@ overlay.py:_HABIT_TEMPLATE），opencode 无对应机制，不写入。
 **limit = {context: registry.context_window, output: 128K}**（context 由 registry 字段
 驱动,output 仍习惯级 `_MAX_OUTPUT`）：自定义 provider 不会被 models.dev 收录，opencode
 无从得知模型限额,必须显式声明才能管理上下文余量。**context 与 output 必须成对**——
-opencode schema 校验要求 limit 块两键齐全,缺 output 直接拒载整个配置（2026-07-20 实测：
-Missing key provider.llmw.models.<name>.limit.output）。context_window 2026-07-30 起
+opencode schema 校验要求 limit 块两键齐全,缺 output 直接拒载整个配置（实测：
+Missing key provider.llmw.models.<name>.limit.output）。context_window
 为 registry 必填字段（`ModelEntry.context_window: int`,无 fallback,缺字段 loader 抛
 InvalidModelField）——opencode 路径按模型输出限额,claude 路径不读(context 由 `[1m]` 后缀
 或 1M 约定传递）。output 保留习惯级常量,值对齐 opencode 内嵌 models.dev 的 MiniMax-M3
 (output 131072)；将来按模型区分时同样升级为 registry 字段。
 
 **models key 剥 `[...]` 后缀**（`_gateway_model_id`）：`[1m]` 是 Claude Code 侧的 1M
-context 命名约定，opencode/AI SDK 直连网关时不能照发——2026-07-20 四网关实测：
+context 命名约定，opencode/AI SDK 直连网关时不能照发——四网关实测：
 qwen / glm 400 拒带后缀名；kimi 在真实 max_tokens（32000）下 401 拒
 （`other:k3[1m]`，报文自承须 `k3`；max_tokens=1 的小探针反而 200，易误诊）；
 minimax 两种都收。剥后缀后四网关全 200。models 条目**不再写 "name" 展示字段**——
 与剥后缀后的 key 同值即冗余，opencode 缺省用 key 做显示名；opencode 场景下
-`[1m]` 彻底不可见（2026-07-20 用户要求统一去掉；claude 路径不受影响，overlay.py
+`[1m]` 彻底不可见（用户要求统一去掉；claude 路径不受影响，overlay.py
 仍写原 name，k3[1m] 在 Claude Code 实测可用）。context 知识已由 limit.context
 显式提供，不依赖名字后缀。
 
-**baseURL 需要 +/v1 规范化**（`_ai_sdk_base_url`，2026-07-19 对 MiniMax 网关实测）：
+**baseURL 需要 +/v1 规范化**（`_ai_sdk_base_url`，对 MiniMax 网关实测）：
 registry 存的是 Claude Code 约定——请求 URL = ``{base_url}/v1/messages``（Claude Code
 自己拼 /v1）；AI SDK @ai-sdk/anthropic 的约定是请求 URL = ``{baseURL}/messages``。
 两者相差一个 /v1 段，直填 registry 原值会 404（已实测复现）。render 时对不以 /v1
@@ -69,7 +69,7 @@ _SCHEMA_URL = "https://opencode.ai/config.json"
 # 习惯级常量（非用户可配）：自定义 provider 不在 models.dev，须显式声明限额；
 # output 须有（opencode schema 强制 context/output 成对，缺 output 拒载配置）；
 # 值对齐 opencode 内嵌 models.dev 的 MiniMax-M3（output 131072）。
-# context_window 2026-07-30 起为 registry 必填字段，不再走常量。
+# context_window 为 registry 必填字段，不再走常量。
 _MAX_OUTPUT = 131_072
 
 
@@ -77,7 +77,7 @@ def _gateway_model_id(name: str) -> str:
     """model.name → 线上发送的 model id：剥掉 `[...]` 后缀（k3[1m] → k3）。
 
     `[1m]` 是 Claude Code 侧的 1M context 命名约定；opencode/AI SDK 直连网关
-    时各网关对带后缀名容忍度不一（2026-07-20 四网关实测，详见模块 docstring），
+    时各网关对带后缀名容忍度不一（四网关实测，详见模块 docstring），
     剥后缀后全放行。opencode 的 context 知识由 limit.context 显式提供。
     """
     return name.split("[", 1)[0]

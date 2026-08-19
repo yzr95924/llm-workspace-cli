@@ -53,7 +53,7 @@ def resolve_wiki_path(workspace_root: Path, name: str) -> Path:
 
 
 def _print_git_hint(wiki_dir: Path) -> None:
-    """spec §7 (0.16.0+) git 红线: CLI 不碰 git——落盘后打印手动 hint,让用户自行决定。
+    """spec §7 git 红线: CLI 不碰 git——落盘后打印手动 hint,让用户自行决定。
 
     .gitkeep 占位文件已在 init_wiki.render_and_write 无条件落盘(8 个空目录);
     用户 `git add .` 时空目录自然纳入跟踪。
@@ -172,7 +172,7 @@ def add(
     if name in ws.wikis:
         raise WikiExists(f"wiki '{name}' 已存在")
 
-    # Phase 2: 校验 model_id 存在于 registry（统一走 require_model_in_registry）
+    # 校验 model_id 存在于 registry（统一走 require_model_in_registry）
     if model is not None:
         require_model_in_registry(workspace_root, model)
 
@@ -207,11 +207,11 @@ def add(
     # 已存在的覆盖场景)
     wiki_dir.mkdir(parents=False, exist_ok=True)
 
-    # CLI 内联实现 wiki 骨架(spec 0.2.0 起取代原 setup_wiki.py subprocess)
+    # CLI 内联实现 wiki 骨架(取代原 setup_wiki.py subprocess)
     init_wiki.render_and_write(
         wiki_dir,
         topic,
-        # spec 0.28.0+: SETUP_DATE 走 YYYY-MM-DD HH:MM 粒度——fixtures/README.md 的
+        # SETUP_DATE 走 YYYY-MM-DD HH:MM 粒度——fixtures/README.md 的
         # 字节金标准 (HH:MM 14:30 示范);
         # workspace 侧保持 YYYY-MM-DD (workspace-spec §4 字面),不要照搬这里。
         datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -251,9 +251,8 @@ def add(
     ws_store.save(workspace_root, ws)
 
     print(f"[llmw] wiki 已创建: {name} ({wiki_dir})", file=sys.stdout)
-    # spec §7 (0.16.0+) git 红线: CLI 不碰 git,统一打印手动 hint。
-    # (cli.py 的 `--git` flag 保留为向后兼容的 vestigial flag,不再传到本函数;
-    # 0.16.0 前它会触发 git init/commit,现已无操作——无论是否传 --git 都打印同一份 hint)
+    # spec §7 git 红线: CLI 不碰 git,统一打印手动 hint。
+    # (cli.py 的 `--git` flag 保留为向后兼容的 vestigial flag;无论是否传 --git 都打印同一份 hint)
     _print_git_hint(wiki_dir)
     return wiki_dir
 

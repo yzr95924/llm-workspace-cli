@@ -1,6 +1,6 @@
 # llmw — Wiki Workspace CLI
 
-管理一个 workspace（一个 git 仓，含多个 wiki 子目录）下的多个 wiki。wiki 由 CLI 创建（spec 0.2.0 起），内容的 ingest / lint / query 由 [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm-workspace-cli/tree/master/yzr-llm-wiki-management) skill 在 session 内负责。CLI 只管元数据与 session 启动。两 skill（`yzr-llm-wiki-management` / `yzr-llm-workspace-management`）与 CLI **同仓**（2026-08-18 起）。
+管理一个 workspace（一个 git 仓，含多个 wiki 子目录）下的多个 wiki。wiki 由 CLI 创建，内容的 ingest / lint / query 由 [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm-workspace-cli/tree/master/yzr-llm-wiki-management) skill 在 session 内负责。CLI 只管元数据与 session 启动。两 skill（`yzr-llm-wiki-management` / `yzr-llm-workspace-management`）与 CLI **同仓**。
 
 ## 安装
 

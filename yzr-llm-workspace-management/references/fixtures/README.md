@@ -14,7 +14,7 @@ workspace CLI init 时落盘的 `<workspace>/MEMORY/MEMORY.md` 的**字节金标
 
 - `AGENTS.md`（SSOT）+ `CLAUDE.md`（薄壳）——有 `{{WORKSPACE_DISPLAY_NAME}}` 等占位符，走
   `../scripts/check_workspace_fixtures.py` 的模板渲染字节比对（`agents-md-template-sync` /
-  `claude-md-template-sync`，0.7.0+；模板在 `../workspace-agents-md-template.md` +
+  `claude-md-template-sync`；模板在 `../workspace-agents-md-template.md` +
   `../workspace-claude-md-template.md`），与 wiki 的 `agents-md-template.md` / `claude-md-template.md` 同（占位符模板不进 fixtures）
 - `workspace.toml` / CLI 内部配置 toml / `.gitignore`——TOML / gitignore，schema 在 spec
   §2 / §3 / §10，不走 markdown fixture

@@ -1,6 +1,6 @@
 # wiki session 可见性与并行支持 设计说明
 
-> 状态：草稿 / 作者：yzr95924 / 日期：2026-08-14 / 最近修订：2026-08-15（R2/R8/A3/R3/R5 + status 状态可见性 + R2 backend 复用防护 + R5 json 契约，缘起任务书 I1/I2/I4/I5/I6） / 评审人：待定
+> 状态：草稿 / 作者：yzr95924 / 日期：2026-08-14 / 评审人：待定
 
 ## 1. 背景与目标
 
@@ -38,7 +38,7 @@ fire-and-forget(`llmw/wiki/enter.py:143-177`，读码)。三个痛点：
 - A1:单用户本机场景，无并发多用户(与 CLI 既有定位一致，用户口述确认)
 - A2:日常主路径在 byobu 内——用户口述"SSH 后第一件事起 byobu，之后所有操作在 byobu 内";
   单 session 多窗口结构；单终端为主
-- A3:目标主机 tmux ≥ 2.7(**软性下限**，2026-08-15 修订——实现只走 2.7 时代已稳定存在的
+- A3:目标主机 tmux ≥ 2.7(**软性下限**，实现只走 2.7 时代已稳定存在的
   保守原语，无版本分叉、无运行时版本检测；本机实测 3.4。原 3.2 硬约束的唯一来源
   `-e` 注入已改命令前缀注入（§2.2 步 8），约束随之消失)。2.7 真机验证矩阵未跑——
   作为开放问题登记（§2.7-6），出现 2.7 目标机时先跑清单再放行。
@@ -85,7 +85,7 @@ $TMUX 存在(主路径,假设 A2)
       有但已 dead → kill-window 收尸(R2),落入"无"分支
       无 → new-window -P -F '#{window_id}' -n <名> -c <wiki目录> <env 前缀> <agent命令>
            （env 前缀 = `LLM_WIKI_ROOT=<目录>` 拼进命令串，`sh -c` 赋值前缀语义；
-           值过 shlex.quote。2026-08-15 起取代 tmux 3.2+ 的 `-e` 注入——版本下限由
+           值过 shlex.quote。取代 tmux 3.2+ 的 `-e` 注入——版本下限由
            3.2 降至 2.7；env 只允许非敏感变量，api_key 恒走 overlay 文件交付）
            → 按 R3 打标 → tmux 自动聚焦,用户落在 agent 窗口
 $TMUX 不存在
@@ -136,7 +136,7 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
   几乎总有用途差异,`db-ingest` 在状态条扫一眼就懂,`db-2` 毫无信息;③ 形状恒定消歧——
   恒为 `<wiki>-<suffix>` 的窗口一眼可辨是 llmw agent,与用户自开的同名 shell 窗口
   (如数据库操作窗口也叫 `db`)区分开;④ 前缀拼接是构造保证,归属可读性不依赖用户自觉。
-- **R2 复用语义**(2026-08-15 修订):作用域 session(tmux 内 = 当前 session;否则 =
+- **R2 复用语义**:作用域 session(tmux 内 = 当前 session;否则 =
   llm_workspace)内,**窗口名精确匹配 AND `@llmw_wiki` == 当前 wiki AND
   `@llmw_backend` == 当前 backend AND pane 非 dead** 四条件命中 → select-window;
   命中但 **backend 不符** → 拒绝 enter(exit 1 + hint"先 `stop` 或 `--window-suffix`
@@ -151,12 +151,12 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
   `--window-suffix` 消歧失效(两候选同名无法区分)。收尸杀的是 dead pane(无活进程),
   不属 R6"关是低频高危"的高危动作,无需确认;代价是丢失尸体最后屏幕输出——想看的
   用户先 status(R5 尸体显式可见)再决定 stop,enter 语义是"开 agent",顺手收尸合理;
-  ④ backend 是 spawn 语义的一部分(2026-08-15 增补,缘起任务书 I6)——复用 backend
+  ④ backend 是 spawn 语义的一部分——复用 backend
   不符的活窗口 = 用户"切换 agent"的意图被静默吞掉(切 enter_cli 后 enter 以为换成了
   claude,实际复用着 opencode 窗口)。拒绝 + 可操作 hint 让切换必须显式:先 `stop`
   收掉旧窗口,或 `--window-suffix` 开第二窗口并行——**不自动开同名第二窗口**(窗口名
   无 backend 维度,强新开必致同名共存,stop/status 消歧失效)。
-- **R3 打标**(2026-08-15 修订):仅新开窗口时 `set-option -w -t <wid> @llmw_wiki <wiki>` +
+- **R3 打标**:仅新开窗口时 `set-option -w -t <wid> @llmw_wiki <wiki>` +
   `@llmw_started <unix_ts>` + **`@llmw_backend <backend>`**;复用**不刷新**三个标。
   理由:"session 起来多久"的语义是从最初 spawn 起算;窗口消亡标记随亡,账本零漂移。
   `@llmw_backend`(claude/qodercli/opencode)供 status 的 BACKEND 列与 STATE 模式路由——
@@ -167,12 +167,12 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
 - **R4 兜底 session**:名 `llm_workspace`(沿用既有常量);ensure 竞争只做线性降级(≤3 步,
   沿用老 `spawn_window` 精神,不上锁);TTY → attach,非 TTY → 打印 attach hint。
   理由:罕见路径(假设 A2),但让 enter 在任何环境成立,消灭"不在 tmux 就报错"的懒设计。
-- **R5 status**(2026-08-15 修订):枚举走**逐 session**——`list-sessions -F '#{session_name}'`
+- **R5 status**:枚举走**逐 session**——`list-sessions -F '#{session_name}'`
   + 每 session `list-windows -t <name> -F '#{session_name} #{window_id} #{window_name}
   #{window_activity} #{pane_dead} #{pane_dead_time} #{@llmw_wiki} #{@llmw_started}
   #{@llmw_backend} #{pane_current_command}'`(10 字段;原 `list-windows -a` 是 2.9+,
   逐 session 用远古原语,行为全版本一致;session 在两次调用间消失 → 跳过不报错,
-  快照语义)。过滤 `@llmw_wiki` 非空行。**linked/grouped session 去重**(2026-08-16):
+  快照语义)。过滤 `@llmw_wiki` 非空行。**linked/grouped session 去重**:
   `new-session -t <base>` 不带 `-s` 时 tmux 自动建 `<base>-<n>` linked session,
   与 base 共享全部窗口——逐 session 枚举会把同一窗口重复返回(window_id 全局唯一,
   窗口是 tmux 唯一实体),导致 status 重复行 / stop 误报 MultipleRunningSessions。
@@ -185,7 +185,7 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
   **缺失(2.7 疑无此格式变量)时回退 `window_activity`**(agent 死后无输出 → activity
   冻结 ≈ 死亡时刻，近似停表;多 pane 窗口下另一活 pane 会刷新 activity → 高估死亡
   时刻，并入 §2.7-4 已知限制)。
-  **STATE 列**(2026-08-15 新增,缘起任务书 I5):判定优先级短路——① `✗ exited`(dead,
+  **STATE 列**:判定优先级短路——① `✗ exited`(dead,
   已有)② **`⚠ shell` 假活**:带标窗口但 `pane_current_command` ∈ shell 集
   (fish/bash/zsh/sh)= agent 已退出/崩溃但窗口残留 ③ **`⚙ working` / `⏳ waiting`**:
   `capture-pane -p -S -15` 尾部 + 按 `@llmw_backend` 路由的模式注册表——opencode:
@@ -193,7 +193,7 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
   行(`ctrl+p commands`)存在 → waiting;claude/qodercli 注册表**占位未配置** → ④
   `? unknown`。排序:**actionable first**——waiting/`⚠ shell` 最前 → working/unknown →
   dead 最后(原 wiki 字典序 → state 优先级,有意行为变更;`--json` 保持 wiki 稳定排序,
-  新增 `state`/`backend` 字段)。**`--json` 契约**(2026-08-15 修订):`state` 输出
+  新增 `state`/`backend` 字段)。**`--json` 契约**:`state` 输出
   **ASCII 稳定值** `dead` / `shell` / `working` / `waiting` / `unknown`(脚本可判等),
   显示值(`✗`/`⚠ shell`/`⚙ working`/`⏳ waiting`/`?`)只存在于文本表层——显示值与
   机器契约分离,消费方不依赖 emoji。
@@ -211,7 +211,7 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
   理由:tmux daemon 维护的窗口表是免费且永远正确的注册表——agent 退出由 daemon 收尸,
   免疫 PID 复用 / SSH 断线 / llmw 进程死亡;拉取精确对"看一眼哪些在跑"的场景是满分答案。
   推送式通知(pane-exited hook)需注入用户 tmux server,违反"不写用户配置"边界,入 §2.7。
-- **R8 status 孤儿清理**(2026-08-15 新增,缘起任务书 I2):workspace 解析失败
+- **R8 status 孤儿清理**:workspace 解析失败
   (WorkspaceNotFound)时,`llmw status` 不直接报错退出——若 tmux 里枚举到带标窗口
   (`@llmw_wiki` 非空),进入孤儿模式:stderr warning "workspace 未找到: <路径>" +
   照常渲染窗口表 + TTY 下交互确认"将清理全部 N 个窗口(M 个运行中 agent 将被终止 /
@@ -237,15 +237,15 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
   开窗 / 兜底 attach;新增 `--window-suffix`。`enter_cli` 语义不变;qodercli 路径自动获得
   窗口化(本就走同一 `_spawn`)。
 - **新增**:顶层 `llmw status [--json] [--tmux]`;wiki 子命令 `stop [--window-suffix] [--yes]`。
-- **行为补充(2026-08-15 修订)**:`status` 增加 workspace 缺失时的孤儿清理模式(R8);
+- **行为补充**:`status` 增加 workspace 缺失时的孤儿清理模式(R8);
   `enter` 复用判定加"非 dead"第三条件,dead 命中收尸后新开(R2 修订)。
-- **tmux 兼容改造(2026-08-15 修订,缘起任务书 I4)**:env 注入 `-e`(3.2+) → 命令前缀
+- **tmux 兼容改造**:env 注入 `-e`(3.2+) → 命令前缀
   (全版本);status 枚举 `list-windows -a`(2.9+) → 逐 session(全版本);R5 dead 停表
   数据源加 `window_activity` 回退。版本下限 3.2 → **软性 2.7**。行为差异(3.4 上):
   dry-run 打印的命令形态变化;env 出现在 `pane_start_command` 观测中;`respawn` 后
   env 不再自动继承(`-e` 写 window 环境,前缀只作用初始进程——用户手动 respawn 边缘
   场景,可接受)。
-- **status 状态可见性增强(2026-08-15 修订,缘起任务书 I5)**:R3 打标加第三标
+- **status 状态可见性增强**:R3 打标加第三标
   `@llmw_backend`;R5 枚举 8→10 字段 + BACKEND/STATE 两列 + actionable-first 排序;
   `--json` 新增 `state`/`backend` 字段;STATE 数据源 = capture-pane 尾部 + 按 backend
   模式注册表(opencode 先行,claude/qodercli 占位)。
@@ -277,7 +277,7 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
    cmd-find 的接受度(不支持的备选:tmux 内路径省略 `-t`——client 上下文即当前 session;
    或 session-id `$N` 形式);② `#{pane_dead_time}` 是否渲染为空(空 → 走 R5 activity
    回退);③ `new-session/new-window` 的 `-P -F` / `-c` 组合;④ `@` 用户窗口选项写入/
-   读出。验证清单全文见任务书 T8
+   读出。验证清单全文见 §5 自测要点
 
 ## 3. 影响面
 

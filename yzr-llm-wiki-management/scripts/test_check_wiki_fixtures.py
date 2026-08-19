@@ -255,7 +255,7 @@ class AgentsTemplateSyncTest(unittest.TestCase):
 
 
 class TemplateNoOutboundRefsTest(unittest.TestCase):
-    """模板零出边引用（0.33.0+ 架构不变量）——检测逻辑喂合成文本 + 端到端干净 pass。"""
+    """模板零出边引用（架构不变量）——检测逻辑喂合成文本 + 端到端干净 pass。"""
 
     def _scan(self, text):
         """直接调用脚本内的扫描函数（不改真实模板文件）。"""
