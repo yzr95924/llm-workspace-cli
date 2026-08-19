@@ -67,7 +67,6 @@
 
 - **运行时配置拆出 workspace_local.toml（schema v2）** — 主机相关字段（`enter_cli`）放 gitignored `workspace_local.toml`（动机：跨主机共用 git 仓不互相覆盖 churn；无 secret 不 chmod）；workspace.toml 只剩结构数据，`store.load()` v1→v2 自愈迁移幂等，config 据 `LOCAL_KEYS` 路由 runtime key→local_store。**勿复活 `default_model`**（resolve 从不读它，"默认 model" 只由 registry `is_default` 单一表达）与 `enter_byobu`（删除理由见 AGENTS.md 数据模型节）。延续 [[model-ops-no-env-vars]]「配置走 toml 不走 env」纪律
 - **CLI 有意比 spec 字面严** — `init` 对非空目录一律 `WorkspaceExists`（超集覆盖 §12）；`wiki add` 走 `check_not_initialized` 校验 6 文件（§8 字面仅 3，主动加严）
-- **workspace .gitignore managed block** — `_ensure_workspace_gitignore`（`workspace/manager.py`）现写 4 行：spec §10 v0.6.1 的 3 行（`workspace_models.toml` + `**/.claude/settings*.json` + `**/.qoder/settings*.json`）+ llmw 自有 `.llmw-trash/`（wiki remove --purge 备份目录）。老 workspace 升级：函数比对 block 不等就替换。演进史（多 1 行 → 0.5.0 漏 .qoder → 0.6.0/0.6.1 加宽 settings*.json）见 git log
 - **raw/ 默认子目录 + spec↔CLI 解耦** — CLI fresh init 预建 `raw/{articles,assets,discussions}/`（用户要求，spec §15 协作草稿层高频用），`raw/external/` 不预建（.gitignore 的 `raw/external/*` 吃掉 external/.gitkeep，`git check-ignore` 实测 IGNORED，预建对 clone 不可见）。判别尺度：spec 管语义层（目录含义/纪律/provenance），不管实现层（预建哪些/怎么进 git）
 
 **SKILL 维护（2026-08-18 起同仓）**

@@ -1,14 +1,14 @@
 # llmw — Wiki Workspace CLI
 
-管理一个由 [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm_workspace_cli/tree/master/yzr-llm-wiki-management) skill 创建的 wiki 集合（一个 workspace = 一个 git 仓，含多个 wiki 子目录）。CLI 只管元数据与 session 启动；wiki 内容的 ingest / lint / query 由 skill 在 session 内负责。两 skill（`yzr-llm-wiki-management` / `yzr-llm-workspace-management`）与 CLI **同仓**（2026-08-18 起）。
+管理一个 workspace（一个 git 仓，含多个 wiki 子目录）下的多个 wiki。wiki 由 CLI 创建（spec 0.2.0 起），内容的 ingest / lint / query 由 [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm-workspace-cli/tree/master/yzr-llm-wiki-management) skill 在 session 内负责。CLI 只管元数据与 session 启动。两 skill（`yzr-llm-wiki-management` / `yzr-llm-workspace-management`）与 CLI **同仓**（2026-08-18 起）。
 
 ## 安装
 
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/yzr95924/llm_workspace_cli.git
-cd llm_workspace_cli
+git clone https://github.com/yzr95924/llm-workspace-cli.git
+cd llm-workspace-cli
 ```
 
 ### 2. 安装命令（推荐）
@@ -17,11 +17,11 @@ cd llm_workspace_cli
 ./scripts/install.sh
 ```
 
-生成 `~/.local/bin/llmw`（wrapper 内嵌本仓库路径，用 `PYTHONPATH` 解析 `llmw` 包，**无需 pip/venv**），并在 `~/.local/bin` 不在 `PATH` 时自动往 shell rc 注册一个 marker 块。装完按提示 `source ~/.zshrc`（或重开终端）即可。
+生成 `~/.local/bin/llmw`（wrapper 内嵌本仓库路径，用 `PYTHONPATH` 解析 `llmw` 包，**无需 pip/venv**），并在 `~/.local/bin` 不在 `PATH` 时自动往 shell rc 注册一个 marker 块。装完按提示 source 对应 shell rc（或重开终端）即可。
 
 > 全程不动 `llmw/` 包本身、不碰 pip。Python 3.11+ 零第三方依赖；<3.11 运行时需 `pip install 'tomli>=1.1'`。
 
-卸载（只删 wrapper + PATH marker + 已装 completion，**不删仓库、不删 workspace 数据**）：
+卸载（删 wrapper + PATH marker + 已装 completion + skill symlink，**不删仓库、不删 workspace 数据**）：
 
 ```bash
 ./scripts/uninstall.sh
@@ -47,7 +47,7 @@ cd llm_workspace_cli
 llmw init
 cd ~/yzr-llm-wiki-workspace
 
-# 先把要用的 model 注册到 workspace（Phase 2；--default 设默认 model）
+# 先把要用的 model 注册到 workspace（--default 设默认 model）
 llmw model add \
   --model-id=minimax-m3-1m \
   --name="MiniMax-M3[1m]" \
@@ -216,7 +216,7 @@ llmw wiki --name=<wiki> stop --yes        # 关窗口（多窗口时需 --window
 - 用户在 agent 窗口内手动 split pane 会破坏"窗口=agent"1:1 假设，status 将继续
   显示存活——已知限制，用法上不给 agent 窗口拆 pane。
 
-### model registry（Phase 2，源数据 `workspace_models.toml`，不入 git）
+### model registry（源数据 `workspace_models.toml`，不入 git）
 
 | 命令 | 作用 |
 | --- | --- |
@@ -255,13 +255,12 @@ llmw wiki --name=<wiki> stop --yes        # 关窗口（多窗口时需 --window
 | --- | --- |
 | 0 | 成功 |
 | 1 | 用户错误（参数非法、wiki 不存在等） |
-| 2 | 环境错误（SKILL 目录缺失、byobu-tmux / claude 不在 PATH 等） |
+| 2 | 环境错误（byobu-tmux / agent CLI 不在 PATH 等） |
 | 3 | 内部错误（未捕获异常） |
 
 ## 注意事项
 
-- 需 byobu（tmux backend）且 **tmux ≥ 2.7**（软性下限——实现只走保守原语，无版本分叉；
-  本机实测 3.4，2.7 真机验证矩阵待跑，见设计文档 §2.7-6）。
+- 需 byobu（tmux backend）且 **tmux ≥ 2.7**（软性下限——实现只走保守原语，无版本分叉；本机实测 3.4）。
 - 原子写走 `tmp + fsync + rename`（POSIX 原子），本地文件系统（ext4 / APFS）安全。
   **NFS 不安全**——不要在 NFS 挂载的 workspace 上跑 `llmw`（`workspace_models.toml` 的
   chmod 600 会静默失败）。
