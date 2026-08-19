@@ -49,13 +49,14 @@
 
 - **用中文交流** — 全程中文，含回答里的小标题；别英文标题配中文正文的混排（术语/命令保留英文，如 `pre-push`）
 - **测试优先级低** — prototype 阶段不写自动化测试，跑通后补；agent 不主动加测试代码
+- **commit 直接在 master** — 不为每次 commit 开 feature 分支（单开发者无 PR 流，分支易忘合回 master）；override harness「默认分支先开分支」默认。仅用户明确要求 PR/分支隔离/多人协作时才开
 
 **enter 后端选择**
 
 - **enter_cli 选 agent CLI** — `workspace_local.toml#enter_cli` 白名单 3 值：`claude`（默认，resolve+overlay 写 `<wiki>/.claude/settings.local.json`）、`qodercli`（裸启动，不写 overlay、不解析 model）、`opencode`（resolve+overlay 写 `<wiki>/opencode.json`，见下条）。读取点 `enter.py`
 - **opencode overlay 配置** — `overlay_opencode.py` 渲染 `<wiki>/opencode.json`（own `provider.llmw` 整对象 + 顶层 `model`；apiKey 明文 + chmod 600），与 claude 同族走 resolve+overlay。npm 包固定 `@ai-sdk/anthropic`（OpenAI 协议网关改 `_NPM_PACKAGE` 一行）。**baseURL 必须 +`/v1`**（`_ai_sdk_base_url`：Claude Code 约定 `{base}/v1/messages` vs AI SDK 约定 `{baseURL}/messages`，直填 404）。limit 块 context/output **成对必填**（只写 context 启动拒载）；context 直读 `model.context_window`，output `_MAX_OUTPUT=131_072` 习惯级（待 max_output 字段引入）。cmd `opencode <wiki_dir>` 自读 AGENTS.md；无 habit template（CLAUDE_CODE_* 为 claude 专属）。老文件靠 `_is_up_to_date` 整对象比对下次 enter 自动升级。workspace .gitignore 另加 `**/opencode.json`
 - **enter 不传 --system-prompt** — claude/qodercli/opencode 都靠 `--add-dir` + cwd=wiki 让 agent 自读 `<wiki>/CLAUDE.md`/AGENTS.md；不显式注入避免双计入 + 多 backend 行为对齐
-- **enter 走 tmux 窗口（W' 模型，设计 session-visibility）** — `wiki enter` 把 agent 开成**当前 tmux session 的一个窗口**（tmux 内发起 → `new-window` 自动聚焦；不在 tmux 内 → 兜底 session `llm_workspace` + TTY attach / 非 TTY hint），fire-and-forget（窗口建成返回 0，退出码不来自 agent）。窗口名一律 `<wiki>-<suffix>`（缺省 `main`；`--window-suffix` 只传后缀，不传恒为复用跳转——防误开第二个付费 session）；复用判定 = 窗口名精确匹配 **AND** `@llmw_wiki` == wiki **AND** `@llmw_backend` == 当前 backend **AND pane 非 dead** 四条件（命中 dead 尸体 → kill-window 收尸后新开；**backend 不符 → 拒绝 enter + hint 先 stop 或 --window-suffix**——复用会吞掉"切换 agent"意图，2026-08-15 I6；防劫持同名非 llmw 窗口，归属从不从名字反解）；新开时打标 `@llmw_wiki`/`@llmw_started`/**`@llmw_backend`**（复用不刷新起算；backend 标供 status 的 BACKEND 列与 STATE 模式路由）。**tmux 窗口表即注册表**——不维护自建账本，agent 退出 → 窗口消亡 → 标记随亡，`llmw status` 实时枚举（dead pane 显式 `✗ exited` 防僵尸）。**status 的 BACKEND/STATE 列**（R5，2026-08-15）：BACKEND = `@llmw_backend`（老窗口 fallback `pane_current_command`）；STATE 判定短路 = dead `✗` → 假活 `⚠ shell`（带标但 pcmd ∈ fish/bash/zsh/sh，agent 崩了窗口残留）→ capture-pane 尾部按 backend 模式匹配（opencode：`esc interrupt`/braille spinner=working、`ctrl+p commands` 输入行=waiting；claude/qodercli 占位 unknown）→ `?`；**内部值 ASCII**（dead/shell/working/waiting/unknown——`--json` 输出 ASCII 可判等，显示值 `✗/⚠/⚙/⏳/?` 只活在表格层）；表格 actionable first 排序（waiting/⚠ 最前、dead 最后）。**backend 知识单一真源 = `llmw/backends.py`**（`KNOWN_BACKENDS` 白名单 + `STATE_PATTERNS` 注册表——enter_cli 校验 / 打标 / STATE 路由都从它 import，加新 agent 只改一处）。模式随 CLI 版本漂移 → 优雅降级 unknown。workspace 目录被删后 `llmw status` 降级**孤儿清理模式**（R8：仅默认路径触发，warning + 列表 + TTY 确认后逐窗 kill；`--json`/`--tmux`/非 TTY 只打 hint——tmux server 生命周期独立于文件系统，agent 可能还在烧 token）。byobu-tmux 是 enter **硬依赖**（缺 → exit 2）；`enter_byobu` 配置已删除。`stop` 枚举带标窗口 + kill-window（多候选需 `--window-suffix` 消歧）。一律 `byobu-tmux`（强制 tmux backend）；target 用 `#{window_id}`；**session target 用 `<name>:` 显式冒号段**（target-window 无冒号时整串按窗口 index 解析，数字 session 名如 byobu 默认 "1" 会被窗口 index 匹配抢先报 `index N in use`——2026-08-15 实机踩坑）；agent argv[0] 先 `shutil.which`；`new-window -n` 锁名；`LLM_WIKI_ROOT` 走**命令前缀注入**（`K=V cmd` 拼进命令串，取代 tmux 3.2+ 的 `-e`；只允许非敏感变量，api_key 恒走 overlay）。**tmux 版本口径：软性 ≥2.7**（保守原语零分叉：`-e`→前缀、`list-windows -a`(2.9+)→逐 session 枚举、`#{pane_dead_time}` 缺失→status dead 行 activity 回退停表；实测 3.4，2.7 验证矩阵挂设计 §2.7-6）。仅 tmux backend；remove 不清窗口。spawn 收口 `enter.py:_spawn` → `byobu.spawn_window`
+- **enter 走 tmux 窗口（W' 模型）** — agent 开成当前 tmux session 的窗口，fire-and-forget；窗口名/四条件复用/打标/status 判定链/R8 孤儿清理/实施坑 → [enter-tmux-window-model](enter-tmux-window-model.md)
 
 **model registry**
 
@@ -64,7 +65,7 @@
 
 **workspace / wiki 结构**
 
-- **运行时配置拆出 workspace_local.toml（schema v2）** — 主机相关字段（`enter_cli`）从 git 跟踪的 workspace.toml 迁到 gitignored `workspace_local.toml`（无 secret 不 chmod）；动机是跨主机共用 git 仓不互相覆盖 churn。workspace.toml **v1→v2**（只剩结构数据），`store.load()` 自愈迁移（`_migrate_v1_to_v2` 幂等：抽 key 写 local merge 不覆盖 → 确保 gitignore 含新行 → 重写 v2）。config 据 `LOCAL_KEYS` 路由 runtime key→local_store。`default_model` **已彻底删除**（搬地方只是换处误导——resolve 路径从不读它；"默认 model" 只由 registry `is_default` 单一表达）；`enter_byobu` **已删除**（设计 session-visibility §2.5：窗口路径全环境成立，直启模式无存在场景；老文件残留键 load 静默忽略）。延续 [[model-ops-no-env-vars]]「配置走 toml 不走 env」纪律
+- **运行时配置拆出 workspace_local.toml（schema v2）** — 主机相关字段（`enter_cli`）放 gitignored `workspace_local.toml`（动机：跨主机共用 git 仓不互相覆盖 churn；无 secret 不 chmod）；workspace.toml 只剩结构数据，`store.load()` v1→v2 自愈迁移幂等，config 据 `LOCAL_KEYS` 路由 runtime key→local_store。**勿复活 `default_model`**（resolve 从不读它，"默认 model" 只由 registry `is_default` 单一表达）与 `enter_byobu`（删除理由见 AGENTS.md 数据模型节）。延续 [[model-ops-no-env-vars]]「配置走 toml 不走 env」纪律
 - **CLI 有意比 spec 字面严** — `init` 对非空目录一律 `WorkspaceExists`（超集覆盖 §12）；`wiki add` 走 `check_not_initialized` 校验 6 文件（§8 字面仅 3，主动加严）
 - **workspace .gitignore managed block** — `_ensure_workspace_gitignore`（`workspace/manager.py`）现写 4 行：spec §10 v0.6.1 的 3 行（`workspace_models.toml` + `**/.claude/settings*.json` + `**/.qoder/settings*.json`）+ llmw 自有 `.llmw-trash/`（wiki remove --purge 备份目录）。老 workspace 升级：函数比对 block 不等就替换。演进史（多 1 行 → 0.5.0 漏 .qoder → 0.6.0/0.6.1 加宽 settings*.json）见 git log
 - **raw/ 默认子目录 + spec↔CLI 解耦** — CLI fresh init 预建 `raw/{articles,assets,discussions}/`（用户要求，spec §15 协作草稿层高频用），`raw/external/` 不预建（.gitignore 的 `raw/external/*` 吃掉 external/.gitkeep，`git check-ignore` 实测 IGNORED，预建对 clone 不可见）。判别尺度：spec 管语义层（目录含义/纪律/provenance），不管实现层（预建哪些/怎么进 git）
@@ -72,7 +73,7 @@
 **SKILL 维护（2026-08-18 起同仓）**
 
 - **两 SKILL 与 CLI 同仓（随 install.sh 一起分发）** — `yzr-llm-wiki-management` / `yzr-llm-workspace-management` 自 yzr-SKILL 迁入（斩断历史），改 skill 直接在本仓改、commit 随 CLI 走；**npx 分发已退役（2026-08-19）**，install.sh 注册 `~/.agents/skills` 与 `~/.claude/skills`（存在时）的 symlink 指向本仓，uninstall.sh 对称清理。submodule 已删除，原「yzr-SKILL 改动去 /root/yzr-SKILL」纪律废止
-- **规范体只陈述现状规则** — spec / AGENTS.md 模板 / SKILL.md 正文写"记什么 / 不记什么"的规则本身；历史与辩护（"旧版必填…已废止""0.x.0 起取消"）归 commit message + migrate-workflow §六，不进规范体。逐条辩护句会让每处维护都承担同步改写的成本（2026-08-17 清理 external anchor commit 字段时踩过）
+- **规范体只陈述现状规则** — spec / AGENTS.md 模板 / SKILL.md 正文 / 本仓 AGENTS.md 写"记什么 / 不记什么"的规则本身；历史与辩护（"旧版必填…已废止""0.x.0 起取消""schema v2 起字段迁出 X"）归 commit message + migrate-workflow §六，不进规范体。逐条辩护句会让每处维护都承担同步改写的成本（2026-08-17 清理 external anchor commit 字段时踩过）
 - **改 skill 不手改 wiki/workspace 实例** — 模板变更经升级重渲染全量传播，实例 AGENTS.md 不手改（改了会与模板漂移 + 被下次重渲染覆盖）；`agents-md-template-sync` 报漂移属预期，等统一升级
 
 ## 维护规则
