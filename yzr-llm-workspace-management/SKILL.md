@@ -53,7 +53,7 @@ metadata:
 
 | 信息 | 来源 | 备注 |
 | --- | --- | --- |
-| Workspace 路径 | `$LLMW_WORKSPACE` 环境变量，或默认 `~/yzr_llm_wiki_workspace`，或交互时问 | workspace CLI 通常在 `enter` 时设好本变量 |
+| Workspace 路径 | `$LLMW_WORKSPACE` 环境变量，或默认 `~/yzr-llm-wiki-workspace`，或交互时问 | workspace CLI 通常在 `enter` 时设好本变量 |
 | 操作类型 | 用户自然语言 | `scan` / `query` / `link` / `lint` / `migrate` |
 | Query 范围（仅 query） | 用户自然语言或显式指定 wiki 名 | 不指定走全局 INDEX 路由 |
 
@@ -128,7 +128,7 @@ spec §17.2）。**MEMORY 跨边界混淆**：本 skill **禁止**写
 
 每次进入本 skill 时：
 
-1. 定位 workspace 路径：`$LLMW_WORKSPACE` → 默认 `~/yzr_llm_wiki_workspace` → 交互问
+1. 定位 workspace 路径：`$LLMW_WORKSPACE` → 默认 `~/yzr-llm-wiki-workspace` → 交互问
    （同「启动时需具备的信息」表）
 2. 验证 `<workspace>/workspace.toml` 存在——不存在提示用户 "workspace 还没 init，
    跑 `llmw init` 初始化"（**不**替用户跑）
@@ -316,7 +316,7 @@ spec §17.2）。**MEMORY 跨边界混淆**：本 skill **禁止**写
      Write（唯一变量 `{{WORKSPACE_DISPLAY_NAME}}`）
    - `workspace-fix-gitignore-skeleton`——单 Edit 补缺失段 / 托管块规则（**不动**用户自定义规则）
    - `workspace-fix-memory-index-init` / `-skeleton`——按
-     [`canonical/memory-index.md`](references/canonical/memory-index.md) 逐字创建，或单
+     [`fixtures/memory-index.txt`](references/fixtures/memory-index.txt) 逐字创建，或单
      Edit 补骨架（**不动** `## 索引` 下成长条目）
    - `workspace-fix-templates-version`——**收尾** Edit `workspace.toml` 的
      `templates_version` 单字段（其余不动）

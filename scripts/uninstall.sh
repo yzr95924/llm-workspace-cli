@@ -2,15 +2,6 @@
 # scripts/uninstall.sh — install.sh 的逆操作：删 wrapper + 清 PATH marker 块 + 删 completion
 set -euo pipefail
 
-usage() {
-  cat <<'USG'
-usage: ./scripts/uninstall.sh
-  删除 ~/.local/bin/llmw、已装的 shell completion（bash/fish/zsh），
-  并从所有候选 shell rc 移除 llmw marker 块（PATH + completion fpath）。
-  不删仓库、不删 workspace 数据。
-USG
-}
-
 # marker 对：(start, end)；awk 按字符串整行匹配
 declare -a MARKERS=(
   '# >>> llmw (managed by install.sh) >>>|# <<< llmw <<<'

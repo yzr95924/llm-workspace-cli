@@ -38,13 +38,13 @@ bash scripts/test/test_install_uninstall.sh
                             # install/uninstall 集成测试（用临时 HOME 隔离）
 ```
 
-> **当前阶段测试优先级低**（短条目，详见 `MEMORY/MEMORY.md` 短条目区）：先做手动 smoke 跑通 prototype，再补
-> test。代码层面遵守可测性约束（业务与入口分离、Path 显式参数、subprocess 包装、异常类化），但**不**
+> **当前阶段测试优先级低**（短条目，详见 `MEMORY/MEMORY.md` 短条目区）：测试以手动 smoke + CI 冒烟为主；
+> 代码层面遵守可测性约束（业务与入口分离、Path 显式参数、subprocess 包装、异常类化），但**不**
 > 为"便于测试"而重构。agent 不要主动加测试代码。
-> `llmw/models/` 子包已列入 `pyproject.toml` 的 `setuptools.packages`，wheel 与 editable 安装均含完整
-> 4 子包（`llmw` / `llmw.workspace` / `llmw.wiki` / `llmw.models`）。`llmw model` 子命令 wheel
-> 安装即可用。
->
+> `llmw/models/` 子包已列入 `pyproject.toml` 的 `setuptools.packages`，editable 安装
+> （`pip install -e .`，CI test job 用）含完整 4 子包。**功能完整安装只用 `./scripts/install.sh`**
+> （PYTHONPATH 指向本仓）——运行期依赖同仓 `yzr-llm-*/references/` 与 `templates/`，非 editable
+> wheel 安装只对 model/status 等不依赖素材的命令可用。
 
 ### 手动 smoke 验收
 
@@ -93,23 +93,23 @@ llmw.cli (argparse + 分派)
 
 ### 关键不变量（核心 3 条）
 
-完整 7 条不变量维护在原 `CLAUDE.md`（迁移备份 `.migration-backup/CLAUDE.md.original`）。
-此处只列核心 3 条 + 指向 MEMORY 详述：
+此处列核心 3 条 + 指向 MEMORY 详述；完整 7 条的其余部分已在本文档各处承载：
 
 1. **CLI 不写 wiki 内容**——只写 `workspace.toml` / `workspace_local.toml` /
    `<wiki>/wiki_metadata.toml` / `workspace_models.toml` + workspace `.gitignore`。
    `<wiki>/AGENTS.md` / `<wiki>/CLAUDE.md` /
    `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` /
-   `.gitignore` / 目录骨架 由 CLI 在 `add` 时内联生成——读 SKILL 仓 `references/` 下的
+   `.gitignore` / 目录骨架 由 CLI 在 `add` 时内联生成——读同仓 `yzr-llm-wiki-management/references/` 下的
    `agents-md-template.md` + `claude-md-template.md` 两份模板和 6 个 fixtures，按
     `wiki-spec.md v0.36.0` §1-§7 + §9.1 + §14 渲染。
 2. **CLI 内联实现 wiki 创建**（spec 0.2.0 起）：原 `setup_wiki.py` 已删除（skill 迁移时随之移除）；
-   CLI 通过 `llmw.wiki.init_wiki` 读 SKILL 仓 `references/agents-md-template.md` +
+   CLI 通过 `llmw.wiki.init_wiki` 读同仓 `yzr-llm-wiki-management/references/agents-md-template.md` +
    `references/claude-md-template.md` +
    `references/fixtures/{index.md,log.md,memory-index,tags.md,scripts.md,gitignore}.txt`
    作为字节金标准，占位符替换后落盘；
    不复制 SKILL 运行时纪律（ingest / lint），只承担"出生形态"。SKILL 升级时 CLI 自动获益
-   （`fixtures/README.md` 附录 A 的 `cmp -s` 比对保证字节一致）。
+   （字节一致性 gate 走 `scripts/test/smoke_fixtures.py` + `check_wiki_fixtures.py` 探测器，
+   CI fixtures-smoke job 执行）。
 3. **overlay 交付走 Local 层文件**——model 真相源是 `workspace_models.toml`，不依赖环境变量
    （[[model-ops-no-env-vars]]）；wiki enter 渲染 resolved model 进 Local 层 `settings.local.json`
    的 `env` 块（Local 层优先级 > User 层），lazy on enter。`ANTHROPIC_MODEL` 用 `model.name`
@@ -117,8 +117,10 @@ llmw.cli (argparse + 分派)
    Local 层 `env` 块优先级稳赢（[[agent-settings-env-precedence]]）。
    - 详细见 [[overlay-habit-template]]（习惯级 env key 常量）
 
-剩余 4 条（SKILL references/ 路径固定 / 可执行入口在 `bin/` / api_key 永不明文出 stdout /
-CLI 内联 wiki 骨架的字节一致性保证）见设计文档与备份 CLAUDE.md。
+其余不变量（SKILL references/ 路径固定 / api_key 永不明文出 stdout / CLI 内联 wiki 骨架的
+字节一致性保证）已在本文档承载：references 路径见「架构」数据流与模块边界；
+api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/README.md` +
+`scripts/test/smoke_fixtures.py`（CI fixtures-smoke job）。
 
 ### 模块边界
 
@@ -228,7 +230,7 @@ agent CLI 子进程透传 `os.environ`、依赖 Local 层 `env` 块优先级稳�
 ## 开发注意事项
 
 - **不要写 wiki 内容**：任何对 `raw/` 或 `wiki/` 的写入都是违反不变量 I-1 的。
-- **不要复活 setup_wiki.py**：spec 0.2.0 起已删除（SKILL 仓明确），wiki 骨架由 CLI 内联生成
+- **不要复活 setup_wiki.py**：spec 0.2.0 起已删除（skill 侧明确），wiki 骨架由 CLI 内联生成
   （读 SKILL `references/`）；不要"为了模块化"把渲染拆回脚本。
 - **不要让 model 走环境变量被读出来**：`os.environ.get("ANTHROPIC_*")` 这类读取一律禁止；
   model 配置完全由 `workspace_models.toml` 掌控，enter 的 overlay 交付是 CLI 主动行为
@@ -241,5 +243,5 @@ agent CLI 子进程透传 `os.environ`、依赖 Local 层 `env` 块优先级稳�
   上跑 `llmw`**。`workspace_models.toml` 在 NFS 上 `chmod 600` 会 silently 失败，权限安全是
   best-effort。
 - **CI 矩阵**：lint job 跑 ruff（py3.11）；test job 跑 pytest，矩阵 py3.7 + py3.11，用官方
-  python 容器（不受 runner 镜像变动影响）；3.7 上不装 ruff
-  （`pip install -e . "pytest>=7,<8" "pytest-cov>=4"`）。
+  python 容器（不受 runner 镜像变动影响）；3.7 上不装 ruff、不装 pytest-cov
+  （`pip install -e . "pytest>=7,<8"`）。

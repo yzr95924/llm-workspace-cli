@@ -27,13 +27,16 @@ cd llm_workspace_cli
 ./scripts/uninstall.sh
 ```
 
-### 3. 备选：pip 安装
+### 3. 备选：pip editable（仅开发 / CI）
 
-入口是仓库根的 `bin/llmw`（thin shell，`exec python3 -m llmw`）。若更喜欢走 pip：`pip install -e .`（PEP 668 externally-managed 系统 Python 需 `--user` / venv / pipx）。
+`pip install -e .` 只服务开发与 CI（test job 的 import smoke + entry point）。CLI 运行期依赖
+本仓库的 `yzr-llm-*/references/` 与 `templates/`（同仓素材，不在 wheel 内），因此**功能完整安装
+只用 §2 的 `install.sh`**；非 editable 的 wheel 安装只对不依赖这些素材的命令（`model` / `status` 等）
+可用，`llmw init` / `llmw wiki add` 会失败。
 
 ### Shell Completion
 
-`./scripts/install.sh` 按当前 `$SHELL` 自动装一份（bash → `~/.local/share/bash-completion/completions/llmw`；fish → `~/.config/fish/completions/llmw.fish`；zsh → `~/.local/share/zsh/site-functions/_llmw` + 自动 prepend fpath，需 `source ~/.zshrc` 或重开终端）。覆盖全部子命令与 flag；`--name=` / `--model-id=` 动态补全当前 workspace 的 wiki / model 名（未初始化 workspace 时静默仅补静态）。卸载由 `uninstall.sh` 一并处理。
+`./scripts/install.sh` 装全部三套 completion（bash → `~/.local/share/bash-completion/completions/llmw`；fish → `~/.config/fish/completions/llmw.fish`；zsh → `~/.local/share/zsh/site-functions/_llmw` + 自动 prepend fpath，需 `source ~/.zshrc` 或重开终端）。覆盖全部子命令与 flag；`--name=` / `--model-id=` 动态补全当前 workspace 的 wiki / model 名（未初始化 workspace 时静默仅补静态）。卸载由 `uninstall.sh` 一并处理。
 
 ## 快速上手
 
@@ -265,8 +268,7 @@ llmw wiki --name=<wiki> stop --yes        # 关窗口（多窗口时需 --window
 
 ## 仓库结构
 
-- `bin/llmw` — 唯一可执行入口（thin shell → `python -m llmw`）
-- `llmw/` — Python 包：`cli.py` / `config.py` + `workspace/` / `wiki/` / `models/` 子包
+- `llmw/` — Python 包：`cli.py` / `config.py` + `workspace/` / `wiki/` / `models/` 子包（可执行入口 = install.sh 生成的 `~/.local/bin/llmw` wrapper，或 `python -m llmw`）
 - `scripts/` — install / uninstall 脚本及其集成测试
 - `templates/` — 仅 `wiki_metadata.toml.template`（`wiki add` 实例化用）
 - `yzr-llm-wiki-management/` — wiki 维护 skill（模板 + 探测器 + lint 脚本的字节金标准，随仓分发）

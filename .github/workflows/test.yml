@@ -24,7 +24,6 @@ jobs:
         # runner 镜像变动影响。用 full 镜像（非 -slim）：3.7 基于 Debian Buster，
         # 其 apt 仓库已归档下线（404），slim 需手动改源装 git；full 自带 git。
         # 代码按 py37 语法安全写成，3.7 证明向后兼容，3.11 覆盖现代。
-        # 详见 doc/plans/2026-06-26-llmw-v1.md。
         py: ["3.7", "3.11"]
     container: python:${{ matrix.py }}
     steps:
@@ -33,14 +32,11 @@ jobs:
       # 钉 pytest<8：pytest 8 要求 py>=3.8。（不装 pytest-cov：无 --cov 用例，纯多余依赖）
       - run: pip install -e . "pytest>=7,<8"
       # import smoke：逐一 import 所有子模块——这才是 3.7 矩阵的真实价值。它能抓到
-      # import 期求值的注解破坏（如只在 3.9+ 可用的 dict[str,str]）；而零用例时的
-      # `pytest -q` 不 import 任何模块，抓不到这类问题。
+      # import 期求值的注解破坏（如只在 3.9+ 可用的 dict[str,str]）；而 pytest 只 import
+      # 被收集的测试文件，覆盖不到 llmw 全部子模块。
       - run: python -c "import importlib,pkgutil,llmw; [importlib.import_module(m.name) for m in pkgutil.walk_packages(llmw.__path__,'llmw.')]; print('import smoke OK')"
-      # 当前阶段无 pytest 用例（test-priority-low）：退出码 5 = "未收集到用例"，视作
-      # 通过；其它非零码（真实测试失败/收集错误）仍让 CI 变红。补测试后可去掉此包装。
-      - run: |
-          pytest -q; code=$?
-          [ "$code" -eq 0 ] || [ "$code" -eq 5 ]
+      # 全仓 pytest：tests/（31 例）+ 两 SKILL 的 scripts/test_*.py（86 例）。
+      - run: pytest -q
 
   # fresh init + wiki → 两探测器（本仓 yzr-llm-*/scripts/ 的 check_*_fixtures.py）→ 断言结构合规。
   # 双向覆盖：CLI 改坏骨架 / 两 SKILL 改坏 fixtures 都让本 job 红。兑现
@@ -55,3 +51,11 @@ jobs:
           python-version: "3.11"
       # 不需 pip install：gate 脚本内设 PYTHONPATH=REPO，python -m llmw 直接 import。
       - run: python scripts/test/smoke_fixtures.py
+
+  # install/uninstall 集成测试（wrapper + PATH marker + completion + skill symlink 注册/清理）。
+  # skill symlink 注册段是 2026-08-18 迁入后的新增逻辑，独立 job 守护。
+  install-uninstall:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/test/test_install_uninstall.sh

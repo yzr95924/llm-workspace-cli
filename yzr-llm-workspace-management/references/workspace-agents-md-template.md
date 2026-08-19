@@ -44,7 +44,7 @@
 | `LINT.md` | 跨 wiki 维护 agent（本 skill） | 最近一次 workspace lint 报告（快照） |
 | `cross_queries/` | 跨 wiki 维护 agent（本 skill） | 跨 wiki 综合答案归档 |
 | `MEMORY/` | CLI init 建骨架 + 跨 wiki 维护 agent（本 skill） | 跨 wiki agent 私有记忆 |
-| `<wiki-name>/` | workspace CLI + 单 wiki 维护（纪律见各 `<wiki>/AGENTS.md`） | 每个 wiki 是独立子仓 |
+| `<wiki-name>/` | workspace CLI + 单 wiki 维护（纪律见各 `<wiki>/AGENTS.md`） | wiki 是 workspace 仓内子目录（CLI 不碰 git，不独立成仓） |
 
 ### 三层职责切分（与各 wiki 的 AGENTS.md 区分）
 

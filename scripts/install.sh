@@ -4,16 +4,6 @@
 # ~/.local/bin PATH，均与 uninstall.sh 全量清理对称。
 set -euo pipefail
 
-usage() {
-  cat <<'USG'
-usage: ./scripts/install.sh
-  生成 ~/.local/bin/llmw（PYTHONPATH 指向本仓库），
-  装全部三套 shell completion（bash / fish / zsh），
-  并给三套 shell 的 rc 注册 ~/.local/bin PATH（marker 块幂等）。
-  卸载用 ./scripts/uninstall.sh。
-USG
-}
-
 # 装单套 completion（由下方循环对 bash/fish/zsh 各调一次）；不识别 shell 静默跳过
 # 输出到 stderr: 提示文案（install 反馈）
 _install_completion() {

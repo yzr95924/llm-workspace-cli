@@ -334,19 +334,19 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
 ### 0. 一次性 setup（首次使用）—— 由 workspace CLI 完成
 
 > **职责边界**：本 skill 只负责 wiki 的**成长阶段**（ingest / query / lint）。
-> wiki 仓的**创建与删除**由 workspace CLI 负责——CLI 命令名与参数
-> 见其自带文档，本 skill 不绑死任何 CLI 实现。
+> wiki 仓的**创建与删除**由 workspace CLI 负责——命令是 `llmw`（**与本 skill 同仓维护**，
+> 命令名与参数见其自带文档，本节只给形态示例）。
 > wiki 仓的"出生形态"契约见 [`references/wiki-spec.md`](references/wiki-spec.md)——
 > CLI 实现与 SKILL 之间的接口。
 
 **基本流程**：
 
 ```bash
-# 1. 调 workspace CLI 创建 wiki 仓（具体命令以 CLI 文档为准）
-workspace wiki init "LLM Systems"
+# 1. 调 workspace CLI 创建 wiki 仓（`--topic` 必填，`--model` 必须是 registry 里的 model_id）
+llmw wiki --name=llm-systems add --topic="LLM Systems" --model=minimax-m3-1m
 # CLI 按 wiki-spec.md 落盘：目录结构 + AGENTS.md（SSOT）+ CLAUDE.md（薄壳）+
 # wiki/index.md + wiki/log.md + .gitignore + scripts/SCRIPTS.md +
-# git 默认跳过（用户 --git opt-in 时才 init）。完整产物清单见 wiki-spec.md §1-§7。
+# git 默认跳过（CLI 不碰 git，仓库由用户自己托管）。完整产物清单见 wiki-spec.md §1-§7。
 
 # 2. 把原始资料放进 raw/（用户手动 / Obsidian Web Clipper / 浏览器下载）
 cp ~/Downloads/some-article.md ~/wiki/<topic-name>/raw/articles/

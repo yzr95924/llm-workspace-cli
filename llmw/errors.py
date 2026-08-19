@@ -183,11 +183,6 @@ class ByobuCommandFailed(LlmwError):
     user_message = "byobu/tmux 命令执行失败"
 
 
-class PythonUnavailable(LlmwError):
-    exit_code = 2
-    user_message = "sys.executable 不可执行"
-
-
 # ===== model registry 错误 (exit_code = 1) =====
 
 
