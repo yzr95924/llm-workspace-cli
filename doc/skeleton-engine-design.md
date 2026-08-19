@@ -6,6 +6,12 @@
 > | --- | --- | --- | --- | --- | --- |
 > | 草稿 | yzr95924 | 待定 | 2026-08-19 | 2026-08-19 | 责任重划计划（Task 3-5） |
 >
+> **评审决策记录**（评审后回填）：
+>
+> - 撤版本下限护栏：无远古版本，`blocked_too_old` 终态删除，终态集 3 个
+> - `blocked_drift` 语义：dry-run 输出 diff，不写盘，需人工将自定义搬 MEMORY 后重跑
+> - `--list-rules` 生成稿内嵌 `lint-checklist.md` §二，CI 新鲜度断言保 SSOT
+>
 > **章节分层**：§1–5 **需求层**（不依赖实现）→ §6–10 **方案层**（怎么做）→ §11–14 **落地层**。
 > 本文档覆盖 Task 3（render 统一 + checker 派生化）、Task 4（upgrade 引擎）、Task 5（纪律层）；
 > Task 1（脚本搬移 + 命令面）已完成、Task 6（固化）不在本文档方案范围内。
@@ -39,8 +45,8 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 
 ### 1.3 假设清单（评审确认）
 
-- A1：**存量 wiki 以近世代为主**（wiki spec ≥ 0.11 / workspace spec ≥ 0.7），远古 wiki 极少
-  （0.11 前 AGENTS.md SSOT / 0.7 前「当前配置」表均未就位）。
+- A1：**存量 wiki 全为近世代**（wiki spec ≥ 0.11 / workspace spec ≥ 0.7），远古版本不存在
+  → 引擎无需版本下限护栏，终态集不含 `blocked_too_old`。
 - A2：**骨架文件所有权收紧可接受**——agent 禁改骨架，自定义纪律沉淀去 `MEMORY/`（用户已拍板）。
 - A3：**未来 spec bump 的 content-growth 格式变更（如 log 条目格式）极罕见**——历史上 36 个
   版本未发生（log_format.py 是稳定 SSOT）。
@@ -53,7 +59,7 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 | --- | --- | --- |
 | G1 | 改模板/夹具**结构上无事可改 CLI 侧** | 改 `agents-md-template.md` 措辞后，checker/测试/upgrade 全绿（fixtures-smoke + pytest） |
 | G2 | 升级主体由 CLI 确定性执行 | `llmw wiki upgrade` 对近世代 wiki 跑通：0 error 自验证 + 无残留时 exit 0 |
-| G3 | agent 只处理判断残留 | upgrade 输出 4 终态 JSON，agent 只 switch 分支，不解读 plan 手改机械项 |
+| G3 | agent 只处理判断残留 | upgrade 输出 3 终态 JSON，agent 只 switch 分支，不解读 plan 手改机械项 |
 | G4 | 检查器从"查"变"构造" | checker 无 SKELETON_SPECS / 无 4 条提取正则 / 无 count 钉；fixtures-smoke 仍全绿 |
 | G5 | 每个事实单一真源 | 渲染=render.py 一处；规则 what=代码一处；type=wiki-spec 一处 |
 
@@ -61,7 +67,7 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 
 - **不**做 STATS.md / LINT.md 生成器（workspace skill 的 agent 内联工作流，另行任务）。
 - **不**做内容页 frontmatter 变换的自动化（type-memory-value 等语义类 → upgrade 残留，agent 处理）。
-- **不**回写远古版本迁移代码（< 版本下限 → agent fallback 走现有 migrate-workflow）。
+- **不**回写远古版本迁移代码（无远古版本，引擎无需处理）。
 - **不**删除 migrate-workflow.md（Task 5 缩减并改名 upgrade-workflow.md，保留 agent fallback 路径）。
 
 ## 3. 功能点拆解
@@ -73,9 +79,9 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 | FP3 | checker 从 fixture 字节解析 oracle（删 SKELETON_SPECS + 4 提取正则） | P0 | §7.3 |
 | FP4 | 测试改调生产 render（删迷你渲染器） | P0 | §7.3 |
 | FP5 | upgrade 引擎：resync（渲染 + growth 按段嫁接 + 缺失创建） | P0 | §7.4 |
-| FP6 | upgrade 三护栏：版本下限 / drift 预警 --yes / 空 transform 插槽 | P0 | §7.4 / §8 |
+| FP6 | upgrade 两护栏：drift 预警 --yes（预检 diff 非空时拒绝静默覆盖）/ 空 transform 插槽（未来 growth 格式变更的扩展位） | P0 | §7.4 / §8 |
 | FP7 | legacy 路径表（声明式数据，路径存在性触发） | P1 | §7.5 |
-| FP8 | 4 终态 JSON 输出契约 + 自验证闭环 | P0 | §7.6 |
+| FP8 | 3 终态 JSON 输出契约 + 自验证闭环 | P0 | §7.6 |
 | FP9 | 规则 metadata 入代码 + `--list-rules` 生成 checklist + CI 新鲜度断言 | P1 | §7.7 |
 | FP10 | type taxonomy 单源化（wiki-spec 拥有，workspace-spec 引用） | P1 | §7.8 |
 | FP11 | 纪律层：模板禁改段 + spec 所有权四分表 | P1 | §7.9 |
@@ -106,15 +112,13 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 
 - **命令**：`llmw wiki upgrade [--path=DIR | --name=NAME] [--dry-run] [--yes] [--json]`；
   `llmw upgrade [--dry-run] [--yes] [--json]`（workspace 级）。
-- **版本下限**（A1）：wiki < `0.11.0` → `blocked_too_old`（agent 走 migrate-workflow）；
-  workspace < `0.7.0` → 同。下限常量入代码，注明历史依据。
 - **drift 预警**：dry-run 用 render-compare 输出将被覆盖的骨架 diff；apply 前必须 `--yes`，
   输出提示"自定义内容先搬 MEMORY/"（仅当 diff 非空）。
-- **4 终态 JSON 契约**（`--json` 恒可用，agent 判定依据）：
+- **3 终态 JSON 契约**（`--json` 恒可用，agent 判定依据）：
 
   ```json
   {
-    "status": "done | done_with_residue | blocked_drift | blocked_too_old",
+    "status": "done | done_with_residue | blocked_drift",
     "current_spec": "0.36.0", "target_spec": "0.36.0",
     "changed": [{"file": "AGENTS.md", "action": "render"}],
     "residue": [{"type": "content-page-transform", "note": "..."}],
@@ -124,8 +128,8 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 
   - `done`：全部骨架重渲染 + 自验证 0 error + 无残留。
   - `done_with_residue`：骨架完成，残留清单需 agent。
-  - `blocked_drift`：pre-constraint 自定义将被覆盖，需先人工裁决（搬 MEMORY）。
-  - `blocked_too_old`：低于版本下限，走 agent fallback。
+  - `blocked_drift`：pre-constraint 自定义将被覆盖，dry-run 输出 diff 停住，需先人工裁决
+    （搬 MEMORY）后重跑（重跑时 diff 已空 → 正常走）。
 - **自验证**：apply 后内联重跑 fixtures checker，0 error 才算 `done`/`done_with_residue`；
   失败 → 报错 exit 2，不改版本钉。
 - **版本钉写回**：AGENTS.md §八 版本行（经重渲染自动）、`wiki_metadata.toml` 的
@@ -173,14 +177,13 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 | # | 场景 | 类型 | 触发条件 | 期望行为 | 设计落点 |
 | --- | --- | --- | --- | --- | --- |
 | S1 | 近世代 clean wiki upgrade | 主流程 | 版本落后或同版本漂移 | render 全骨架 + 自验证 0 error，`done` | §7.4 |
-| S2 | 近世代 + pre-constraint 自定义 | 分支 | dry-run 检出 AGENTS.md 有模板外内容 | 输出 diff + 提示搬 MEMORY，apply 需 `--yes` | §7.4 / §8.1 |
-| S3 | 远古 wiki（wiki < 0.11 / ws < 0.7） | 异常 | 版本下限检查失败 | `blocked_too_old`，agent fallback | §8.2 |
-| S4 | 结构变化（新增/删除/改名文件） | 分支 | 版本注册表/legacy 表命中 | 创建/删除/移动，进 `changed[]` | §7.5 |
-| S5 | 内容页变换残留 | 异常 | registry 判定需语义判断 | `done_with_residue` + 残留清单 | §8.3 |
-| S6 | 未来 growth 格式变更 | 分支 | transform 插槽被填充（当前空） | 注册表函数执行；未填充则残留 | §8.4 |
-| S7 | upgrade 后自验证失败 | 异常 | 重渲染产物不过 checker | exit 2，不 bump 版本钉，保留 dry-run diff | §8.5 |
-| S8 | 改模板措辞 | 主流程 | 编辑 agents-md-template.md | 只动 skill 侧；checker/测试/upgrade 自动跟随 | §7.2/§7.3 |
-| S9 | 加 lint 规则 | 主流程 | 新增 check 函数 | 只动代码 + checklist 生成稿自动更新 | §7.7 |
+| S2 | 近世代 + pre-constraint 自定义 | 分支 | dry-run 检出 AGENTS.md 有模板外内容 | 输出 diff + 提示搬 MEMORY，apply 需 `--yes`，不写盘 | §7.4 / §8.1 |
+| S3 | 结构变化（新增/删除/改名文件） | 分支 | legacy 路径表命中 | 创建/删除/移动，进 `changed[]` | §7.5 |
+| S4 | 内容页变换残留 | 异常 | registry 判定需语义判断 | `done_with_residue` + 残留清单 | §8.2 |
+| S5 | 未来 growth 格式变更 | 分支 | transform 插槽被填充（当前空） | 注册表函数执行；未填充则残留 | §8.3 |
+| S6 | upgrade 后自验证失败 | 异常 | 重渲染产物不过 checker | exit 2，不 bump 版本钉，保留 dry-run diff | §8.4 |
+| S7 | 改模板措辞 | 主流程 | 编辑 agents-md-template.md | 只动 skill 侧；checker/测试/upgrade 自动跟随 | §7.2/§7.3 |
+| S8 | 加 lint 规则 | 主流程 | 新增 check 函数 | 只动代码 + checklist 生成稿自动更新 | §7.7 |
 
 ## 6. 方案总览
 
@@ -199,7 +202,7 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 │  (add)       (resync)   (render-compare) (production render)                 │
 │                                                                              │
 │  checkers: 从 fixtures 字节解析 oracle（无 SKELETON_SPECS / 无提取正则）       │
-│  upgrade:  resync + 三护栏 + legacy 路径表 + 4 终态 JSON + 自验证             │
+│  upgrade:  resync + 两护栏 + legacy 路径表 + 3 终态 JSON + 自验证             │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -207,7 +210,7 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 1. **渲染单一入口**——五个消费方调同一 `render_*()`，模板事实一个家（§7.2）。
 2. **oracle 派生化**——checker 从 fixture 字节解析，改 fixture 只动 1 文件（§7.3）。
 3. **upgrade = 重新出生**——resync 幂等版本无关；迁移注册表不建，换成 legacy 路径表 +
-   三护栏（§7.4-7.5）。
+   两护栏（§7.4-7.5）。
 4. **检查器从"查"变"构造"**——fixtures-smoke CI 三角自检模板/fixture/render/checker（§7.7）。
 
 ## 7. 详细设计
@@ -218,10 +221,9 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 
 ```
 输入 --path/--name
-  → [护栏1] 版本下限检查（<0.11 → blocked_too_old，exit 1 + JSON）
   → 读 metadata toml + 版本常量（变量 SSOT）
   → render-compare 预检：diff 将被覆盖的自定义（骨架 vs 模板渲染稿）
-      ├─ diff 非空 → 非 dry-run 需 --yes；dry-run 打印 diff 后停（blocked_drift 语义）
+      ├─ diff 非空 → 非 dry-run 需 --yes；dry-run 打印 diff 后停（blocked_drift 语义，不写盘）
   → resync 执行：
       ├─ byte-owned（AGENTS/CLAUDE）→ 全量重渲染 Write
       ├─ growth 文件（index/log/tags/MEMORY）→ 换头保条目（按段嫁接）
@@ -230,7 +232,7 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
       └─ legacy 路径表 → 移动/删除
   → [transform 插槽]（当前空）→ 若注册表命中执行；未命中项进残留
   → 版本钉写回（AGENTS §八 经重渲染 + metadata templates_version）
-  → 自验证：内联重跑 fixtures checker → 0 error？
+  → 自验证：内联重跑 fixtures checker → 0 error?
       ├─ 是 → done / done_with_residue（按残留是否为空）
       └─ 否 → 报错 exit 2，版本钉不落
 ```
@@ -249,9 +251,9 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 **状态机**（upgrade 命令生命周期）：
 
 ```
-idle → probing（下限检查）→ resync → verifying → done
-                        ↘ blocked_too_old / blocked_drift（apply 前停）
-                        ↘ verifying fail → error（版本钉不落，可重跑）
+idle → preflight（drift diff）→ resync → verifying → done
+                          ↘ blocked_drift（apply 前需 --yes，或搬 MEMORY 后重跑）
+                          ↘ verifying fail → error（版本钉不落，可重跑）
 ```
 
 ### 7.2 render.py 设计（FP1/FP2）
@@ -293,7 +295,6 @@ idle → probing（下限检查）→ resync → verifying → done
 
   ```
   run_upgrade(root, *, dry_run, yes, as_json) -> int
-    ├─ _check_version_floor(root) → blocked_too_old | 继续
     ├─ _plan_resync(root) → [{file, action, diff?}]      # dry-run 输出
     ├─ _apply_resync(plan) → 写盘
     ├─ _apply_legacy_paths(legacy_table, root) → changed[]
@@ -303,7 +304,7 @@ idle → probing（下限检查）→ resync → verifying → done
   ```
 
 - **幂等**：任意版本、任意中间态可重跑；重复跑结果相同（重渲染到同一终态）。
-- **`--dry-run`** = 输出 plan（不写盘）；`--json` 恒可用（4 终态契约，§4.3）。
+- **`--dry-run`** = 输出 plan（不写盘）；`--json` 恒可用（3 终态契约，§4.3）。
 - **命令接线**：`llmw wiki upgrade` 走 `_resolve_content_root`（复用 Task 1 的
   `--path`/`--name` 逻辑）；`llmw upgrade`（workspace 级）走 `--workspace` 解析。
 - **CLI flag**：`--dry-run` / `--yes` / `--json`（全局已有）。非 TTY 且非 dry-run 无
@@ -328,7 +329,7 @@ idle → probing（下限检查）→ resync → verifying → done
   MEMORY 位置变更（0.10.0）、scripts/ 相关、老 CLAUDE.md 拆分（该类属内容抽取 → 归残留
   fallback，不进路径表）。
 
-### 7.6 4 终态 JSON 契约（FP8）
+### 7.6 3 终态 JSON 契约（FP8）
 
 见 §4.3 契约全文。补充：
 - `blocked_drift` 的 `changed[]` 带 `diff` 预览（供 agent 提示用户搬 MEMORY）。
@@ -374,30 +375,25 @@ idle → probing（下限检查）→ resync → verifying → done
 ### 8.1 pre-constraint 自定义覆盖（S2）
 
 dry-run render-compare 出 diff → apply 前必须 `--yes`；提示先搬 MEMORY。这是唯一
-"可能丢内容"路径——用 diff 预览 + 显式确认兜住，不静默覆盖。
+"可能丢内容"路径——diff 预览 + 显式确认 + 不写盘兜住，不静默覆盖。重跑时 diff 已空 → 正常走。
 
-### 8.2 远古 wiki（S3）
-
-版本下限拒绝，`blocked_too_old` → agent 走 migrate-workflow（保留现有手改路径）。不
-为远古版本写迁移代码（A1：近世代为主，YAGNI）。
-
-### 8.3 内容页变换残留（S5）
+### 8.2 内容页变换残留（S4）
 
 type-memory-value 等语义裁定 → 残留清单（带精确指令），agent 用 `llmw wiki write` 或
 Edit 处理。**不**做自动化——CLI 写权限保持"只写骨架"（§4.6 I-1 新措辞）。
 
-### 8.4 未来 growth 格式变更（S6）
+### 8.3 未来 growth 格式变更（S5）
 
 transform 插槽为空注册表。若未来 bump 需要（如 log 条目格式换代），届时加一个注册表
 函数（版本注册表只在**需要时**建，不预建空壳机制）。未填充而 lint 满屏报错时 → 残留
 清单提示 agent。
 
-### 8.5 自验证失败（S7）
+### 8.4 自验证失败（S6）
 
 resync 后 checker 非 0 error → **版本钉不落**、exit 2、保留 dry-run diff 供排查。重跑
 幂等（失败态可再跑）。
 
-### 8.6 growth 切分解析失败
+### 8.5 growth 切分解析失败
 
 旧文件结构解析不出（用户大改骨架）→ 不静默丢条目：该项进残留 + 提示 agent 人工合并
 （不属"机械可解"）。
@@ -420,7 +416,7 @@ fixtures-smoke CI 每次 commit 守护 render↔fixture↔checker 三角一致�
 
 ### 9.4 可服务性
 
-`--json` 4 终态契约即可观测性出口；dry-run diff 是变更审计；upgrade 全程无中间文件残留
+`--json` 3 终态契约即可观测性出口；dry-run diff 是变更审计；upgrade 全程无中间文件残留
 （延续 plan 不落盘约定）。
 
 ### 9.5 可测试性
@@ -435,10 +431,10 @@ fixtures-smoke CI 每次 commit 守护 render↔fixture↔checker 三角一致�
 
 | 备选 | 否决理由 |
 | --- | --- |
-| alembic 式逐版本迁移注册表（链式函数） | 每条链式路径一生只走一次、最难测；resync 单路径每次 CI 都在测。链式正确性依赖起点状态做乘法，resync 终态 == render(当前) 一个等式 |
-| 纯 resync（无护栏） | 远古 wiki 丢内容 / pre-constraint 自定义静默覆盖 / 未来 growth 变更无出口——三护栏把三类做成显式行为 |
+| alembic 式逐版本迁移注册表（链式函数） | 每条链式路径一生只走一次、最难测；resync 单路径每次 CI 都在测。链式正确性依赖起点状态做乘法，resync 终态 == render(当前) 一个等式。加上无远古版本，链式注册表完全无意义 |
+| 纯 resync（无护栏） | pre-constraint 自定义静默覆盖 — drift 护栏把这条做成显式行为。版本下限护栏在确认无远古版本后撤掉 |
 | 描述符数据文件（SKELETON_SPECS → fixtures 同目录 .toml） | fixture 字节本身已自描述（frontmatter/H1/段/growth 占位），再建描述符 = 第二份拷贝；直接派生化更彻底（gitignore 先例已验证） |
-| checklist 双写（散文 + 代码） | 两份漂移；规则 what 入代码 + 生成稿 + CI 新鲜度，散文只留 why |
+| checklist 双写（散文 + 代码） | 两份漂移；规则 what 入代码 + 生成稿内嵌 §二 + CI 新鲜度断言保 SSOT，散文只留 why |
 | 保留 fixtures_check_count 钉 | 搬进 CLI 后跨侧计数同步点无意义；tests 断言 registry 自洽已覆盖 |
 | wiki_write 留 skill（早期方案 C） | 全量搬入后 import 卫生更好（无跨包 bootstrap），且 skill 零代码目标更纯 |
 
@@ -448,7 +444,7 @@ fixtures-smoke CI 每次 commit 守护 render↔fixture↔checker 三角一致�
 
 - **Task 3（P2b）**：render.py + checker 派生化 + 规则 metadata + checklist 生成器
   ——对应 FP1/2/3/4/9。
-- **Task 4（P2c）**：upgrade 引擎 + legacy 表 + 命令 + 4 终态契约——对应 FP5/6/7/8。
+- **Task 4（P2c）**：upgrade 引擎 + legacy 表 + 命令 + 3 终态契约——对应 FP5/6/7/8。
 - **Task 5（P2d）**：纪律层（模板禁改段 + spec 四分表 + type 单源 + upgrade-workflow 改名
   + spec 复述审计）——对应 FP10/11/12。
 
@@ -468,7 +464,7 @@ fixtures-smoke CI 每次 commit 守护 render↔fixture↔checker 三角一致�
 | --- | --- | --- | --- |
 | Q1 | `LLM_WIKI_ROOT` 环境变量注入（enter 注入 agent pane）去留 | 保留（session 上下文零成本；脚本迁走后已非必需，但无害） | 用户 |
 | Q2 | workspace `templates_version` 的 wiki_spec 分量——upgrade 时是否联动各 wiki | 不联动（各 wiki 版本归 wiki skill 管，跨 skill 委托提示） | 用户 |
-| Q3 | `--list-rules` 生成稿放 lint-checklist.md 内嵌段还是独立文件 | 内嵌 §二（保持单文件可读） | 用户 |
+| Q3 | `--list-rules` 生成稿放 lint-checklist.md 内嵌段还是独立文件 | **已锁定**：内嵌 §二（单文件可读），CI 新鲜度断言保 SSOT | — |
 | Q4 | spec 复述审计（FP12）规模未知 | 先出报告后改写，不入本次核心 gate | 用户 |
 
 ## 14. 排期
