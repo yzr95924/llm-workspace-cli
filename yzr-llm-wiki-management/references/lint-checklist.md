@@ -45,7 +45,7 @@ python3 yzr-llm-wiki-management/scripts/lint_wiki.py "$LLM_WIKI_ROOT" --severity
 ### 子命令 `--check-version`
 
 扫当前 wiki 的 spec 版本（解析 `<wiki-root>/AGENTS.md` §八；老 wiki fallback
-`<wiki-root>/CLAUDE.md`）与 SKILL 仓 `metadata.wiki_spec_version`（脚本常量
+`<wiki-root>/CLAUDE.md`）与本 skill `metadata.wiki_spec_version`（脚本常量
 `CURRENT_WIKI_SPEC`）比对 + 扫已知 legacy 现场（`confidence-field` /
 `type-memory-value`）+ 自动调 fixtures 检查：
 
@@ -74,7 +74,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 - `wiki-spec-version-stale`（warn）：版本**落后** SKILL → 跑 `--check-version --apply`
   走升级流程（SKILL.md §5 Migrate）
-- `wiki-spec-version-ahead`（warn）：版本**领先** SKILL → 升级 SKILL 仓对齐
+- `wiki-spec-version-ahead`（warn）：版本**领先** SKILL → 更新本 skill 安装对齐
 - `wiki-spec-version-unparsed`（warn）：§八 行无法解析 → 跑 `--check-version` 诊断
 - 一致（equal）→ 无 finding
 

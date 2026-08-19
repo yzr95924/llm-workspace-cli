@@ -1,8 +1,7 @@
 # 5 个完整样例
 
-> 本文件作为参考样例的"按需 Read"指针——SKILL.md §参考样例 段仅留一行引用到此。
-> 来源：早期作为 `references/examples.md` 存在；2026-07-12 误并入 SKILL.md §参考样例
-> （commit 36e0391），二次膨胀后回收独立文件 + SKILL.md 留一行指针。
+> 本文件是参考样例的"按需 Read"指针——SKILL.md §参考样例 段仅留一行引用到此，
+> 完整样例一律写在本文件。
 
 ## 样例一：setup 一个 LLM Systems 主题的 wiki
 
@@ -16,7 +15,7 @@
 2. 用户调 workspace CLI（具体命令以 CLI 文档为准）：
    workspace wiki init "LLM Systems" --root ~/wiki/llm-systems
    → CLI 按 wiki-spec.md 落盘目录 + AGENTS.md（SSOT）+ CLAUDE.md（薄壳）+ index.md + log.md + .gitignore
-   → CLI 默认不建 git（用户 --git opt-in 时才 init + commit）
+   → CLI 不碰 git（git 由用户自行 init）
 3. LLM agent 接管后：
    → 读 ~/wiki/llm-systems/AGENTS.md 确认主题名替换正确（CLAUDE.md 是薄壳，行数 ≤ 30）
    → 验证 wiki/index.md / wiki/log.md 存在且 frontmatter 完整

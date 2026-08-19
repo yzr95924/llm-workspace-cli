@@ -99,7 +99,7 @@ CHECK_REGISTRY = [
         "id": "template-no-outbound-refs",
         "severity": "error",
         "rule_ref": "workspace-spec.md §4 + §17.3",
-        "desc": "references/workspace-agents-md-template.md 不含任何指向 skill 仓的出边引用（workspace-spec.md / workspace-claude-md-template.md / SKILL.md / references/ / skill 名 / 阿拉伯数字 §节号；零白名单）",
+        "desc": "references/workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用（workspace-spec.md / workspace-claude-md-template.md / SKILL.md / references/ / skill 名 / 阿拉伯数字 §节号；零白名单）",
     },
 ]
 
@@ -231,7 +231,7 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
         out["actual"] = found
         out["expected"] = target
         note = (
-            "升级 SKILL 仓后再迁移"
+            "更新本 skill 安装后再迁移"
             if cmp == "newer"
             else "若 agents-md-template-sync 同报 drift，改走 resync 全量重渲染一并覆盖"
         )
@@ -536,8 +536,8 @@ def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) ->
 
 
 # 模板零出边引用（0.8.0+ 架构不变量：纪律正文唯一维护点 = 模板，模板是引用图汇点）。
-# 任何指向 skill 仓文件 / 阿拉伯数字 §节号的引用都会被本 check 报 error——workspace 侧
-# agent 跨仓解析不了这些指针（模板自己都写着"模板与配套工具随 skill 分发，不在本 workspace 内"），
+# 任何指向 skill 目录文件 / 阿拉伯数字 §节号的引用都会被本 check 报 error——workspace 侧
+# agent 读不到 skill 目录、解析不了这些指针（模板自己都写着"模板与配套工具随 skill 分发，不在本 workspace 内"），
 # 对运行时读者是死指针；改纪律只改模板对应段，spec / SKILL.md 单向指入模板。
 TEMPLATE_OUTBOUND_PATTERNS = (
     "workspace-spec.md",
@@ -566,12 +566,12 @@ def _scan_template_outbound_refs(text):
 
 
 def check_template_no_outbound_refs(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """references/workspace-agents-md-template.md 不含任何指向 skill 仓的出边引用（0.8.0+）。
+    """references/workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用（0.8.0+）。
 
-    模板随 init 拷贝进 workspace 成为 AGENTS.md——workspace 侧 agent 读不到 skill 仓，模板内
+    模板随 init 拷贝进 workspace 成为 AGENTS.md——workspace 侧 agent 读不到 skill 目录，模板内
     一切 `workspace-spec.md` / `workspace-claude-md-template.md` / `SKILL.md` /
     `references/` / skill 名 / 阿拉伯数字 §节号 引用都是死指针（零白名单，含 provenance
-    声明也不得携带——0.8.0 起全部改写为自包含措辞）。skill 仓内文件 → 模板 单向引用由本
+    声明也不得携带——0.8.0 起全部改写为自包含措辞）。skill 目录内文件 → 模板 单向引用由本
     check 机械强制；对每个 workspace 报告同一结果（模板是全局文件），违反时 error 逼
     skill 侧修复。
     """
@@ -584,7 +584,7 @@ def check_template_no_outbound_refs(ws_root: Path, info: Dict[str, str]) -> Dict
     hits = _scan_template_outbound_refs(template)
     if hits:
         out["passed"] = False
-        out["expected"] = "模板不含任何指向 skill 仓的引用（自包含措辞；spec / SKILL.md 单向指入模板）"
+        out["expected"] = "模板不含任何指向 skill 目录的引用（自包含措辞；spec / SKILL.md 单向指入模板）"
         out["actual"] = "出边引用: " + "; ".join(hits[:8])
     return out
 

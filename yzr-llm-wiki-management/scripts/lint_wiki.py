@@ -17,7 +17,7 @@ lint_wiki.py — deterministic 健康检查
   `reviewed` + `reviewed_at`（0.7.0+）。互斥模式，不做常规 lint。
   已被 `--check-version --apply` 覆盖；保留仅供旧用法兼容。
 --check-version 扫描当前 wiki 的 spec 版本（解析 CLAUDE.md §八 "Wiki Spec 版本"），
-  与 SKILL 仓 metadata.wiki_spec_version 比对，列出老格式 legacy 现场。默认仅打印报告
+  与本 skill metadata.wiki_spec_version 比对，列出老格式 legacy 现场。默认仅打印报告
    （不动任何文件）；加 `--apply` 把 migration plan 以 JSON 输出到 **stdout**（agent 直接
    消费，**不落盘**——升级全程 wiki 根无任何中间文件残留）供按 references/migrate-workflow.md
    用 Edit/Write 修复；加 `--json` 输出机器可读 JSON。互斥模式。
@@ -112,7 +112,7 @@ def _is_absolute_path(p: str) -> bool:
 
 
 # Wiki spec 当前版本（与 SKILL.md metadata.wiki_spec_version 同步）。
-# SSOT 仍是 SKILL.md；这里硬编码 + SKILL 仓升版本时同步改。
+# SSOT 仍是 SKILL.md；这里硬编码 + skill 升版本时同步改。
 # 详见 references/wiki-spec.md §10「版本钉死」。
 # 模块加载时 `_assert_spec_version_sync()` 会自动对照 SKILL.md frontmatter；
 # 失同步时打印 warning 到 stderr（不中断——vendored 副本布局不同时静默跳过）。
@@ -1618,7 +1618,7 @@ def check_spec_version(wiki_root: Path) -> List[str]:
     elif cmp == "newer":
         findings.append(
             f"wiki-spec-version-ahead: AGENTS.md §八 版本 {current} 领先 SKILL {CURRENT_WIKI_SPEC}——"
-            "升级 SKILL 仓（lint_wiki.py）对齐"
+            "更新本 skill 安装（lint_wiki.py）对齐"
         )
     # equal / unknown → 无 finding
     return findings
@@ -2158,7 +2158,7 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     # 当前版本比 SKILL 新 → 告警，不阻断
     if comparison == "newer":
         print(f"[WARN] wiki 用比 SKILL 更新的 spec（{current_spec} > {CURRENT_WIKI_SPEC}）")
-        print("       请升级 SKILL 仓；本子命令不会修改 wiki")
+        print("       请更新本 skill 安装；本子命令不会修改 wiki")
         print()
         _print_fixtures_check(fixtures_check, indent="")
         return 0

@@ -13,7 +13,7 @@ wiki，断言 related / compared 字段的路径基准（spec §9「wiki 根相�
 前 test_spec_form_* / test_compared_field_* 失败，改后全绿。
 
 运行:
-  python3 scripts/test_lint_wiki.py        # 在 skill 仓根或 scripts/ 下均可
+  python3 scripts/test_lint_wiki.py        # 在 skill 目录根或 scripts/ 下均可
 """
 
 import subprocess

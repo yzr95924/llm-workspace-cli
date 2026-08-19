@@ -127,7 +127,7 @@ python3 ../path/to/scripts/lint_wiki.py .
 
 ## 反模式
 
-> 前 4 条已并入 SKILL.md §反模式段（外部代码仓相关）。本节仅留**本流程特有的 1 条**：
+> 通用外部仓反模式在 SKILL.md §反模式段；本节只收**本流程特有**的：
 
 - **不要把 symlink 文件本身 commit 进 git**——已由 `.gitignore` 排除，强行 `--force`
   add 会污染仓

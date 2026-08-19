@@ -32,8 +32,10 @@ standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 to
   主题/创建日期/CLI 版本三变量 + wiki 自钉 spec 版本，渲染 references/agents-md-template.md
   后字节比对——一次性覆盖"旧版本残留 + 本地改动"全部漂移，取代 0.25.0- 的两条存在性检查
   （has-at-imports / top-read-directive）。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
-- 复用 lint_wiki 的 WIKI_SUBDIRS / MEMORY_SUBDIR / EXTERNAL_SUBDIR 常量名（SSOT
-  在 lint_wiki.py；本脚本硬编码确保 vendored 副本仍能跑）。
+- 复用 lint_wiki / log_format 的常量（MEMORY_SUBDIR / EXTERNAL_SUBDIR / ANCHOR_FILENAME /
+  SEMVER_RE / LOG_LINE_RE，SSOT 单一，直接 import 不复制）。
+  仅 `_compare_semver` / `_parse_anchor_minimal` 保留本地实现（与 lint_wiki 版本有语义
+  差异：None 参数 / captured_at 空串的处理不同，check 需要更严格的宽容度）。
 """
 
 import argparse
@@ -45,11 +47,15 @@ import sys
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
-# -- 复用 lint_wiki.py 常量名（保持 SSOT 一致；standalone 不依赖 lint_wiki.py import）--
-WIKI_SUBDIRS = ("entities", "concepts", "sources", "comparisons", "syntheses")
-MEMORY_SUBDIR = "MEMORY"
-EXTERNAL_SUBDIR = "external"
-ANCHOR_FILENAME = ".symlink-anchor.toml"  # 0.17.0+ TOML
+# 常量 SSOT 在 lint_wiki / log_format，import 不复制（同一 scripts/ 目录）。
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lint_wiki import (  # noqa: E402
+    ANCHOR_FILENAME,
+    EXTERNAL_SUBDIR,
+    MEMORY_SUBDIR,
+    SEMVER_RE,
+)
+from log_format import LOG_LINE_RE  # noqa: E402
 
 # -- 公开 check 注册表（顺序 = 输出顺序）--
 # 每条: severity (error/warn)、rule_ref（指向 spec/lint-checklist 段）、desc（人读摘要）
@@ -70,7 +76,7 @@ CHECK_REGISTRY = [
         "id": "template-no-outbound-refs",
         "severity": "error",
         "rule_ref": "wiki-spec.md §2（纪律正文唯一副本 canonical）",
-        "desc": "模板零出边引用——不得含 wiki-spec/page-templates/lint-checklist/SKILL.md/references/yzr-llm-wiki-management/阿拉伯数字 §节号（wiki 侧跨仓读不到 skill，指针全是死引用）",
+        "desc": "模板零出边引用——不得含 wiki-spec/page-templates/lint-checklist/SKILL.md/references/yzr-llm-wiki-management/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
     },
     {
         "id": "gitignore-external-track-toml",
@@ -141,11 +147,6 @@ CHECK_REGISTRY = [
 ]
 
 # -- 解析用正则 --
-SEMVER_RE = re.compile(r"\d+\.\d+\.\d+")
-LOG_LINE_RE = re.compile(
-    r"^## \[\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?\] "
-    r"(ingest|query|lint|setup) \| .+$"
-)
 AGENTS_VERSION_ROW_RE = re.compile(r"^\s*\|\s*Wiki Spec 版本\s*\|\s*([^|]+?)\s*\|")
 AGENTS_TOPIC_ROW_RE = re.compile(r"^\s*\|\s*主题\s*\|\s*([^|]+?)\s*\|")
 AGENTS_SETUP_DATE_ROW_RE = re.compile(r"^\s*\|\s*创建日期\s*\|\s*([^|]+?)\s*\|")
@@ -188,7 +189,11 @@ def _skill_spec_version() -> Optional[str]:
 
 
 def _compare_semver(a: Optional[str], b: Optional[str]) -> str:
-    """返 'equal' / 'older' / 'newer' / 'unknown'。"""
+    """返 'equal' / 'older' / 'newer' / 'unknown'。
+
+    本地保留（非 lint_wiki import）：lint_wiki._compare_semver 假定 skill 参数非 None，
+    check 的 target_spec 可能为 None（SKILL.md 缺失时），需更宽容的缺值处理。
+    """
     if not a or not b:
         return "unknown"
 
@@ -214,8 +219,9 @@ def _compare_semver(a: Optional[str], b: Optional[str]) -> str:
 def _parse_anchor_minimal(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
     """最小 TOML 解析——支持 [[entry]] 表 + key = "value" 双引号。
 
-    与 lint_wiki.py _parse_anchor 同语义，独立以避免脚本间 import。返回 List[Dict]
-    或 None（文件缺失 / 解析失败 / 无有效 entry）。
+    本地保留（非 lint_wiki import）：与 lint_wiki._parse_anchor 语义基本一致，但
+    captured_at 为空字符串时本版过滤（lint_wiki 版保留）——check 需更严格的判定。
+    返回 List[Dict] 或 None（文件缺失 / 解析失败 / 无有效 entry）。
     """
     text = _read_text(anchor_path)
     if text is None:
@@ -398,8 +404,8 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
 
 
 # 模板零出边引用（0.33.0+ 架构不变量：纪律正文唯一维护点 = 模板，模板是引用图汇点）。
-# 任何指向 skill 仓文件 / 阿拉伯数字 §节号的引用都会被本 check 报 error——wiki 侧 agent
-# 跨仓解析不了这些指针（模板自己都写着"模板与配套工具随 skill 分发，不在本 wiki 内"），
+# 任何指向 skill 目录文件 / 阿拉伯数字 §节号的引用都会被本 check 报 error——wiki 侧 agent
+# 解析不了这些指针（模板自己都写着"模板与配套工具随 skill 分发，不在本 wiki 内"），
 # 对运行时读者是死指针；改纪律只改模板对应段，spec / SKILL.md / page-templates.md 单向指入模板。
 TEMPLATE_OUTBOUND_PATTERNS = (
     "wiki-spec.md",
@@ -429,12 +435,12 @@ def _scan_template_outbound_refs(text):
 
 
 def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """references/agents-md-template.md 不含任何指向 skill 仓的出边引用（0.33.0+）。
+    """references/agents-md-template.md 不含任何指向 skill 目录的出边引用（0.33.0+）。
 
-    模板随 init 拷贝进每个 wiki 成为 AGENTS.md——wiki 侧 agent 读不到 skill 仓，模板内
+    模板随 init 拷贝进每个 wiki 成为 AGENTS.md——wiki 侧 agent 读不到 skill 目录，模板内
     一切 `wiki-spec.md` / `page-templates.md` / `lint-checklist.md` / `SKILL.md` /
     `references/` / 阿拉伯数字 §节号 引用都是死指针（零白名单，含 provenance 声明也不得
-    携带——0.33.0 起全部改写为自包含措辞）。skill 仓内文件 → 模板 单向引用由本 check
+    携带——0.33.0 起全部改写为自包含措辞）。skill 目录内文件 → 模板 单向引用由本 check
     机械强制；对每个 wiki 报告同一结果（模板是全局文件），违反时 error 逼 skill 侧修复。
     """
     out = {"passed": True, "severity": "error", "file": "references/agents-md-template.md"}  # type: Dict[str, object]
@@ -446,7 +452,7 @@ def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Di
     hits = _scan_template_outbound_refs(template)
     if hits:
         out["passed"] = False
-        out["expected"] = "模板不含任何指向 skill 仓的引用（自包含措辞；spec / SKILL.md 单向指入模板）"
+        out["expected"] = "模板不含任何指向 skill 目录的引用（自包含措辞；spec / SKILL.md 单向指入模板）"
         out["actual"] = "出边引用: " + "; ".join(hits[:8])
     return out
 

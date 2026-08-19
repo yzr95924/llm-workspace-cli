@@ -31,7 +31,7 @@ metadata:
 - **scripts/**——ingest_diff.py / lint_wiki.py / check_wiki_fixtures.py / log_format.py /
   **wiki_write.py**（机械字节写操作：log / index / touch / new / memory 五子命令，见 §设计决策
   「机械 vs 判断」的准入规则）。高频 deterministic 任务固化下来（**不**含
-  setup_wiki——wiki 仓的创建由外部 workspace CLI 负责）。当前检查项数见
+  setup_wiki——wiki 仓的创建由 workspace CLI 负责）。当前检查项数见
   `metadata.fixtures_check_count`（详见 [`references/migrate-workflow.md`](references/migrate-workflow.md) + §五 Migrate）。
 - **references/**——按需加载：AGENTS.md schema 模板 + CLAUDE.md 薄壳模板、各操作详细流程、页面模板、
   wiki-spec.md（wiki 仓出生形态 + skill 读取契约）、fixtures（CLI 字节级比对金标准）、migrate-workflow.md §六
@@ -65,7 +65,7 @@ metadata:
 
 ### 操作产物
 
-- **setup** → 由外部 workspace CLI 完成（按 [`references/wiki-spec.md`](references/wiki-spec.md) 落盘），
+- **setup** → 由 workspace CLI 完成（按 [`references/wiki-spec.md`](references/wiki-spec.md) 落盘），
   本 skill 不实现创建逻辑；产物形态为目录结构 + AGENTS.md（SSOT）+ CLAUDE.md（薄壳）+
   wiki/index.md + wiki/log.md + MEMORY/MEMORY.md + .gitignore
 - **ingest** → 新增 / 更新 `wiki/sources/<slug>.md` + 同步实体 / 概念页 + 追加
@@ -85,8 +85,7 @@ metadata:
 > **一个写操作进脚本（`wiki_write.py`），当且仅当：(1) 输出字节是输入的纯函数**
 > （不读正文、无权衡、无用户偏好）；**(2) lint 已有对应检查能验证产物**（round-trip
 > 可测：脚本产物必须 lint-clean）。**两条缺一 → 留 agent/md。迁移期一律 agent**
-> （迁移 = 格式未定之时，脚本只认识当前形态）。完整论证见 git log
-> （`git log --follow -- yzr-llm-wiki-management/SKILL.md`，0.31.0 提交）。
+> （迁移 = 格式未定之时，脚本只认识当前形态）。
 
 - **已固化**（五子命令都满足两条）：log 追加+截断 / index 条目增删 / touch `updated`+清
   reviewed 戳 / new 脚手架（5 必填 frontmatter + H1，slug 校验 + 拒覆盖）/
@@ -178,7 +177,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
    [`agents-md-template.md`](references/agents-md-template.md) §七「本文件本身的纪律」）。
    **写新纪律先判归属**：过在场 / 状态 / 人格三测试（wiki 属性；「做错」限定为状态
    不合法 / 腐烂，写作质量类方法不算）→ 写模板；干活方法 /
-   工具 / 路由 → 留本文件——判据 SSOT 见 [wiki-spec.md §2](references/wiki-spec.md#2-agentsmdssot--claudemd薄壳)
+   工具 / 路由 → 留本文件——判据 SSOT 见 [wiki-spec.md §2](references/wiki-spec.md#2-agentsmdssot-claudemd薄壳)
 4. **每次写入必更 log.md——追加一律走 `wiki_write.py log`**（格式 + 满
    `LOG_RETENTION_LIMIT` 自动截断由脚本保证，见 §设计决策「机械 vs 判断」）；lint
    `log-format` / `log-truncation-recommended` 只兜底带外手改
@@ -258,7 +257,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
 - 用 Obsidian-only 语法（`[[wikilink]]`、`![[embed]]`）——本 skill 假设通用 Markdown
 - 把 yzr-llm-wiki-management skill 自带脚本（lint_wiki.py / ingest_diff.py / log_format.py /
   wiki_write.py / check_wiki_fixtures.py）
-  复制进 `<wiki-root>/scripts/`——SSOT 在 skill 仓；本 wiki 自维护脚本必须同时更新 `SCRIPTS.md` 索引段
+  复制进 `<wiki-root>/scripts/`——SSOT 在本 skill；本 wiki 自维护脚本必须同时更新 `SCRIPTS.md` 索引段
 - 把外部代码仓接入走 `cp -r` 内嵌到 `raw/` 而非 `raw/external/` symlink——占用空间 + 违反 spec §13 纪律
 - 修改 anchor 的 `remote_url` / `branch` 字段——这两个字段是接入意图，
   不是机器状态（详见 [`references/external-repo-rebuild.md`](references/external-repo-rebuild.md)）
@@ -335,8 +334,8 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
 ### 0. 一次性 setup（首次使用）—— 由 workspace CLI 完成
 
 > **职责边界**：本 skill 只负责 wiki 的**成长阶段**（ingest / query / lint）。
-> wiki 仓的**创建与删除**由外部 workspace CLI 负责——CLI 命令名与参数
-> 见 CLI 仓的文档，本 skill 不绑死任何 CLI 实现。
+> wiki 仓的**创建与删除**由 workspace CLI 负责——CLI 命令名与参数
+> 见其自带文档，本 skill 不绑死任何 CLI 实现。
 > wiki 仓的"出生形态"契约见 [`references/wiki-spec.md`](references/wiki-spec.md)——
 > CLI 实现与 SKILL 之间的接口。
 

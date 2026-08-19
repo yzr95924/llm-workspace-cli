@@ -70,7 +70,7 @@ test_wrapper_runs_help() {
 test_wrapper_embeds_repo() {
   run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
   assert_contains "$TMPHOME/.local/bin/llmw" "PYTHONPATH="
-  assert_contains "$TMPHOME/.local/bin/llmw" "python3 -m llmw"
+  assert_contains "$TMPHOME/.local/bin/llmw" "python3 -B -m llmw"
 }
 test_marker_written_when_bin_not_in_path() {
   run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
@@ -102,7 +102,7 @@ test_reinstall_overwrites_wrapper() {
   echo "SENTINEL_BEFORE" >> "$TMPHOME/.local/bin/llmw"
   run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
   assert_not_contains "$TMPHOME/.local/bin/llmw" "SENTINEL_BEFORE"
-  assert_contains "$TMPHOME/.local/bin/llmw" "python3 -m llmw"
+  assert_contains "$TMPHOME/.local/bin/llmw" "python3 -B -m llmw"
 }
 test_install_fails_without_python3() {
   local fb; fb="$(make_fakebin_no_python3)"
@@ -158,6 +158,43 @@ test_uninstall_idempotent() {
   run_uninstall "$PYDIR:/usr/bin:/bin"   # 再跑一次
   [ "$UNINST_CODE" = 0 ] || { cat "$TMPHOME/uninst.out"; exit 1; }
 }
+test_install_registers_skill_symlinks() {
+  run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
+  [ "$INST_CODE" = 0 ] || { cat "$TMPHOME/inst.out"; exit 1; }
+  for name in yzr-llm-wiki-management yzr-llm-workspace-management; do
+    [ -L "$TMPHOME/.agents/skills/$name" ] || { echo "    FAIL: $name 不是 symlink"; exit 1; }
+    [ "$(readlink "$TMPHOME/.agents/skills/$name")" = "$REPO/$name" ] || { echo "    FAIL: $name symlink 指向错误"; exit 1; }
+  done
+  # .claude/skills 不存在时不建链
+  assert_not_exists "$TMPHOME/.claude/skills/yzr-llm-wiki-management"
+}
+test_install_chained_claude_links() {
+  mkdir -p "$TMPHOME/.claude/skills"
+  run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
+  [ "$INST_CODE" = 0 ] || { cat "$TMPHOME/inst.out"; exit 1; }
+  [ -L "$TMPHOME/.claude/skills/yzr-llm-wiki-management" ] || { echo "    FAIL: .claude 链缺失"; exit 1; }
+  [ "$(readlink "$TMPHOME/.claude/skills/yzr-llm-wiki-management")" = "$TMPHOME/.agents/skills/yzr-llm-wiki-management" ] || { echo "    FAIL: .claude 链指向错误"; exit 1; }
+}
+test_install_does_not_overwrite_foreign_dir() {
+  mkdir -p "$TMPHOME/.agents/skills/yzr-llm-wiki-management"
+  echo keep > "$TMPHOME/.agents/skills/yzr-llm-wiki-management/keep.txt"
+  run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
+  [ "$INST_CODE" = 0 ] || { cat "$TMPHOME/inst.out"; exit 1; }
+  assert_exists "$TMPHOME/.agents/skills/yzr-llm-wiki-management/keep.txt"
+  [ -d "$TMPHOME/.agents/skills/yzr-llm-wiki-management" ] || { echo "    FAIL: 真实目录被替换"; exit 1; }
+}
+test_uninstall_removes_skill_symlinks() {
+  run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
+  run_uninstall "$PYDIR:/usr/bin:/bin"
+  assert_not_exists "$TMPHOME/.agents/skills/yzr-llm-wiki-management"
+  assert_not_exists "$TMPHOME/.agents/skills/yzr-llm-workspace-management"
+}
+test_uninstall_keeps_foreign_skill_dir() {
+  mkdir -p "$TMPHOME/.agents/skills/yzr-llm-wiki-management"
+  echo keep > "$TMPHOME/.agents/skills/yzr-llm-wiki-management/keep.txt"
+  run_uninstall "$PYDIR:/usr/bin:/bin"
+  assert_exists "$TMPHOME/.agents/skills/yzr-llm-wiki-management/keep.txt"
+}
 
 # ---- runner ----
 TESTS=(
@@ -174,6 +211,11 @@ TESTS=(
   test_uninstall_strips_marker_keeps_other_lines
   test_uninstall_scans_all_candidate_rc
   test_uninstall_idempotent
+  test_install_registers_skill_symlinks
+  test_install_chained_claude_links
+  test_install_does_not_overwrite_foreign_dir
+  test_uninstall_removes_skill_symlinks
+  test_uninstall_keeps_foreign_skill_dir
 )
 
 run_test() {

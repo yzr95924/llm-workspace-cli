@@ -9,7 +9,7 @@ stdlib unittest + subprocess 调真实脚本（无 mock）：在 tmp 目录搭�
 - `index` 条目派生自页 frontmatter（title/description 复制防漂移）
 
 运行:
-  python3 scripts/test_wiki_write.py        # 在 skill 仓根或 scripts/ 下均可
+  python3 scripts/test_wiki_write.py        # 在 skill 目录根或 scripts/ 下均可
 """
 
 import subprocess

@@ -1,7 +1,7 @@
 # Migrate（升级 wiki spec）详细流程
 
-> 本文件从 `SKILL.md` §5 Migrate 整段下沉而来——主 SKILL.md 留 pointer 即可，
-> 详细流程按需 Read 本文件。**迁移依据的唯一 SSOT = lint plan 的 `actions[]`
+> 主 SKILL.md §5 Migrate 只留 pointer；详细流程按需 Read 本文件。
+> **迁移依据的唯一 SSOT = lint plan 的 `actions[]`
 > （自带 `remove` / `add_or_modify` / `to_action`）+ 本文件 §六 语义合并规则**——
 > 今后任何 breaking 变更的迁移指令必须落本文件 §六，不再另设历史档案；
 > 版本演进叙事看 git log。
@@ -14,10 +14,10 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
 ## 为什么需要这一步
 
 [`wiki-spec.md` §10](wiki-spec.md#10-版本钉死) 规定每个 wiki 仓在
-`<wiki-root>/AGENTS.md` §八 钉一份 `Wiki Spec 版本`（CLI init 时从 SKILL 仓
+`<wiki-root>/AGENTS.md` §八 钉一份 `Wiki Spec 版本`（CLI init 时从本 skill
 `metadata.wiki_spec_version` 镜像）。spec 演进时，老 wiki 会**有意识地保留**部分旧字段（如 `confidence`）——避免一刀切破坏用户沉淀的内容。
 本节定义**检测 + 自动修复**的 workflow：让用户/agent 对着一份"按 spec 升级的清单"逐项
-把 wiki 推到与 SKILL 仓一致的格式。
+把 wiki 推到与本 skill 一致的格式。
 
 ## 职责切分（**关键**——避免与 ingest / lint 混淆）
 
@@ -42,7 +42,7 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
    ```
 
    - 解析 `<wiki-root>/AGENTS.md` §八 "Wiki Spec 版本"——拿到 `current_spec`
-   - 与 SKILL 仓 `metadata.wiki_spec_version`（`scripts/lint_wiki.py` 顶部常量
+   - 与本 skill `metadata.wiki_spec_version`（`scripts/lint_wiki.py` 顶部常量
      `CURRENT_WIKI_SPEC`）比对：相等 / 老 / 新
    - 扫已知 legacy 现场：老字段（`confidence`）+ 其它受 spec 演进影响的内容（legacy
      pattern 清单见 `scripts/lint_wiki.py` 的 `LEGACY_PATTERN_KEYS`，修复语义由
@@ -115,7 +115,7 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
 - **不**在迁移过程中调用 ingest / query / lint（保持职责单一）
 - **冲突页绝不自动覆盖**（已在 step 3 / step 5 双重保险）
 - **不**给迁移追加 log 条目——迁移是脚本运行，不是 wiki 操作事件
-- **`current_spec > skill_spec`**（wiki 比 SKILL 新）：**不**阻断，告警用户升级 SKILL 仓；
+- **`current_spec > skill_spec`**（wiki 比 SKILL 新）：**不**阻断，告警用户更新本 skill 安装；
   **不**改 wiki
 
 ## fixtures 字段更新清单

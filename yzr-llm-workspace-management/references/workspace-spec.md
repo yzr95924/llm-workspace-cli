@@ -171,7 +171,7 @@
 - 这 4 个值是 AGENTS.md 的**机读变量**——承载位置（H1 + 「当前配置」表，随模板定）是探测器的读取契约，
   用于 §17.1 模板渲染字节比对；具体渲染方式不限
 - 模板顶部说明块的自述（"由 workspace CLI 在初始化时按本 skill 的官方模板拷贝生成"）为
-  **自包含措辞**——模板是引用图汇点，**零出边**（不指向任何 skill 仓文件；由
+  **自包含措辞**——模板是引用图汇点，**零出边**（不指向任何 skill 目录文件；由
   `template-no-outbound-refs` check 强制，见 §17.3），CLI **不得修改**
 - **不带 frontmatter**——AGENTS.md 是 plain markdown；与 wiki-spec §2 的 `<wiki>/AGENTS.md` 一致
 
@@ -383,7 +383,7 @@
 > init 拷进 workspace（workspace 侧读者可达），故它就是副本宿主。本节只保留**机制契约**
 > （路径 / frontmatter 字段 / lint 语义 / CLI init 行为）；凡与模板重复的逐字纪律句以
 > 「纪律正文见模板 §五」指针代替。**改纪律只改模板 §五 + bump `workspace_spec_version`**。
-> 引用方向**单向**：spec / SKILL.md → 模板；模板**不**含任何指向 skill 仓的引用
+> 引用方向**单向**：spec / SKILL.md → 模板；模板**不**含任何指向 skill 目录的引用
 > （由 `template-no-outbound-refs` check 机械强制）。
 
 - 路径：`<workspace-root>/MEMORY/`
@@ -646,7 +646,7 @@ MEMORY/MEMORY.md / workspace.toml `templates_version`）会有意识地保留旧
 `agents-version-is-current` / `agents-md-template-sync` / `claude-md-template-sync` /
 `gitignore-skeleton` / `memory-index-skeleton` / `workspace-toml-templates-version-sync`（warn，
 不阻断）/ `workspace-toml-reads-satisfied`（SKILL 读取契约自洽，error）/ `template-no-outbound-refs`
-（skill 仓模板零出边自检，error）；退出码 0 全过 / 1 有 error / 2 运行错误；`--json` 机器可读）。修复由 agent 按
+（skill 模板零出边自检，error）；退出码 0 全过 / 1 有 error / 2 运行错误；`--json` 机器可读）。修复由 agent 按
 报告 `fix` 动作走 SKILL.md §6——**不落 plan 文件**（修复面恒定 ≤ 4 个结构文件，报告即
 清单；检测幂等，中断重跑即可），零中间产物。
 
@@ -671,6 +671,3 @@ CLI 在生成完成后，可执行以下验证：
 5. **不变量自检**：init 完成后 `<workspace>/INDEX.md` / `STATS.md` / `LINT.md` / `cross_queries/`
    **不存在**（CLI 不会创建它们；skill 在首次 `scan` 时按 §5–§8 约定建）；但 `<workspace>/MEMORY/`
    **存在**且含 `MEMORY.md` 索引、无 `*.md` 经验条目（CLI init 按 §9 建骨架）
-
-> 版本演进历史见 git log（`git log --follow -- yzr-llm-workspace-management/references/workspace-spec.md`）——
-> CLI 不读，agent 追"为什么这条规则存在"时按需看提交信息。

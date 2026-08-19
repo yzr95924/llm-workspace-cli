@@ -136,6 +136,32 @@ BLOCK
   echo "已注册 ~/.local/bin PATH -> $rc"
 }
 
+# 注册单个 skill symlink；目标已存在且非 symlink 时不覆盖（防误伤用户自有目录）
+_register_skill_link() {
+  local target="$1" src="$2"
+  if [ -e "$target" ] && [ ! -L "$target" ]; then
+    echo "警告: $target 已存在且非 symlink，跳过注册（如需接管请手动处理）" >&2
+    return 0
+  fi
+  ln -sfn "$src" "$target"
+  echo "已注册 skill -> $target"
+}
+
+# 两个 SKILL 随 llmw 一起分发：~/.agents/skills/ 下建指向本仓的 symlink，
+# ~/.claude/skills/ 存在时补链式 symlink（指向 .agents/skills）。与 uninstall.sh 对称。
+_install_skill_links() {
+  local agent_dir="$HOME/.agents/skills"
+  local claude_dir="$HOME/.claude/skills"
+  mkdir -p "$agent_dir"
+  local name
+  for name in yzr-llm-wiki-management yzr-llm-workspace-management; do
+    _register_skill_link "$agent_dir/$name" "$repo_root/$name"
+    if [ -d "$claude_dir" ]; then
+      _register_skill_link "$claude_dir/$name" "$agent_dir/$name"
+    fi
+  done
+}
+
 # 脚本在 scripts/，仓库根是其上一级；不依赖 readlink -f（兼容 macOS bash 3.2）
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -192,3 +218,6 @@ done
 
 echo "已安装 llmw -> $bin_dir/llmw"
 echo "PATH marker 若为新写入，请 source 对应 rc 或重开终端使其生效。"
+
+# --- 注册两个 SKILL 的 agent skill 目录 symlink（与 uninstall.sh 对称）---
+_install_skill_links

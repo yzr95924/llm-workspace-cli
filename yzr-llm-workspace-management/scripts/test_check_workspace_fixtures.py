@@ -5,7 +5,7 @@ stdlib unittest + subprocess 调真实脚本（无 mock）：在 tmp 目录搭 s
 （clean / 老版 / 各类 drift），断言 --json 报告结构与 finding 内容。
 
 运行:
-  python3 scripts/test_check_workspace_fixtures.py        # 在 skill 仓根或 scripts/ 下均可
+  python3 scripts/test_check_workspace_fixtures.py        # 在 skill 目录根或 scripts/ 下均可
 """
 
 import json

@@ -33,7 +33,7 @@ metadata:
   （toml 完整 schema 由 CLI 代码 SSOT，spec 不做权威定义）
 - **scripts/**——`check_workspace_fixtures.py`（**CLI 产物合规的可执行真源**：fixtures 一致性
   检查，输出修复动作；spec 文档是它的说明，不一致时以探测器为准。亦作 migrate 探测器使用。
-  standalone，Python 3.7+；端到端测试 `test_check_workspace_fixtures.py`）
+  Python 3.7+；端到端测试 `test_check_workspace_fixtures.py`）
 
 ## 何时不使用
 
@@ -83,7 +83,7 @@ metadata:
 3. workspace CLI 已通过 `wiki enter` 把 session 启动好（包含 model overlay）；
    本 skill 在 session 内只做内容层决策，不需要再 `enter`
 4. **依赖单向 DAG（无环）**：本 skill 与 workspace CLI 都只依赖 spec 文件对齐契约
-   （workspace-spec.md 本仓自有；wiki-spec.md 在 `yzr-llm-wiki-management` 仓）；本 skill
+   （workspace-spec.md 本 skill 自有；wiki-spec.md 在 `yzr-llm-wiki-management` skill 内）；本 skill
    **不**直接依赖 workspace CLI 的代码或二进制，运行时只委托 `yzr-llm-wiki-management`（下节）
 
 ### 与 yzr-llm-wiki-management 的边界
@@ -330,7 +330,7 @@ spec §17.2）。**MEMORY 跨边界混淆**：本 skill **禁止**写
 - **不**在迁移过程中跑 scan / query / link / lint（保持职责单一）
 - **`templates_version` 的 wiki_spec 分量只展示不比对**——各 wiki 版本归
   `yzr-llm-wiki-management` 管，本 skill 不读兄弟 skill 的版本
-- **`current > skill`**（workspace 比 SKILL 新）：**不**阻断，告警用户升级 SKILL 仓；**不**改 workspace
+- **`current > skill`**（workspace 比 SKILL 新）：**不**阻断，告警用户更新本 skill 安装；**不**改 workspace
 
 ## 参考样例
 
@@ -376,5 +376,5 @@ spec §17.2）。**MEMORY 跨边界混淆**：本 skill **禁止**写
   单 wiki 内的目录 / frontmatter / 命名约束（本 skill 操作 wiki 时遵循）
 - **委托目标**：`yzr-llm-wiki-management` SKILL.md——
   单 wiki ingest / query / lint / memory 工作流（本 skill 的单 wiki 操作委托给它）
-- **CLI 文档**：workspace CLI 仓（命令 `llmw`，仓路径由用户在外部维护）——本 skill
+- **CLI 文档**：workspace CLI（命令 `llmw`，与本 skill 同仓维护）——本 skill
   **不直接调**，但用户的 `init / add / remove / config / enter / model ...` 命令参考此处

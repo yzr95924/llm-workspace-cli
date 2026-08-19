@@ -21,9 +21,8 @@ include-package-data = true
 [tool.setuptools.package-data]
 llmw = ["../templates/*.template"]
 
-# ruff 全局配置：2026-08-18 起两 SKILL（yzr-llm-wiki-management / yzr-llm-workspace-management）
-# 从 yzr-SKILL 迁入本仓（原为 submodule，整体排除）。各 skill 目录自带局部 ruff 配置
-# （行宽 120 + 规则族），根配置只声明 target。
+# ruff 全局配置：两 SKILL 目录（yzr-llm-wiki-management / yzr-llm-workspace-management）
+# 自带局部 ruff 配置（行宽 120 + 规则族），根配置只声明 target。
 [tool.ruff]
 # ruff 新版默认开启 preview rules,会扫出 ~90 个新规则错误
 # (FA100/I001/UP032/RUF100 等),用于 CI lint 误伤修复。

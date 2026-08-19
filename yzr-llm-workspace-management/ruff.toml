@@ -1,4 +1,3 @@
-# 迁移自 yzr-SKILL 根 pyproject.toml 的 ruff 配置（2026-08-18 随 skill 迁入 CLI 仓）。
 # 本 skill 脚本最低支持 Python 3.7（Optional/List 注解），行宽 120 与 references/ 的
 # .markdownlint.jsonc MD013 对齐。根配置只声明 preview=false + py37，此处补规则族与行宽。
 

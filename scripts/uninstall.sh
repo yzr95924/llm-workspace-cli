@@ -50,4 +50,25 @@ for f in \
   done
 done
 
+# 删两个 SKILL 的 agent skill symlink（与 install.sh 对称）。
+# 安全检查：仅删指向本仓 / .agents/skills 链的 symlink，真实目录与外部 symlink 一律不碰。
+uninstall_skill_links() {
+  local repo_root
+  repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+  local d name target real
+  for d in "$HOME/.agents/skills" "$HOME/.claude/skills"; do
+    for name in yzr-llm-wiki-management yzr-llm-workspace-management; do
+      target="$d/$name"
+      if [ -L "$target" ]; then
+        real="$(readlink "$target")"
+        if [ "$real" = "$repo_root/$name" ] || [ "$real" = "$HOME/.agents/skills/$name" ]; then
+          rm -f "$target"
+          echo "已删除 skill symlink: $target"
+        fi
+      fi
+    done
+  done
+}
+uninstall_skill_links
+
 echo "已卸载 llmw（wrapper + completion 已删除，rc marker 块已清理）。"

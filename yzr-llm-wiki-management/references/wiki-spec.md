@@ -4,8 +4,8 @@
 > **skill 读取契约** + `wiki_metadata.toml` 的 schema 边界（schema 归 CLI，见 §1.1）。
 >
 > **依赖方向（单向）**：`workspace CLI → SKILL`（CLI 运行时读 SKILL 的 fixtures / 模板落盘骨架）。
-> SKILL **不反向依赖** CLI 实现——`wiki_metadata.toml` 的**字段全集 schema 归 CLI 代码 SSOT**
->（见 CLI 仓）。本 spec 只描述 SKILL 读取所需的字段子集。
+> SKILL **不反向依赖** CLI 实现——`wiki_metadata.toml` 的**字段全集 schema 归 CLI 代码 SSOT**。
+> 本 spec 只描述 SKILL 读取所需的字段子集。
 >
 > **spec 只承载设计不变量**：CLI 的具体实现形式——命令名、占位符语法 / 渲染机制、版本戳编码格式、
 > `.gitignore` 栅栏标记、CLI 源码路径等——一律**不进 spec**（实现方法多样，spec 钉死只会反向限制
@@ -18,8 +18,8 @@
 > 探测器 pass 即合规）。
 >
 > **生命周期归属**：本 spec 只规定 wiki 仓的"出生形态"。
-> wiki 出生后的所有成长（ingest / query / lint / 重写）由 **LLM agent** 维护，遵循
-> SKILL 仓的 SKILL.md / references/ 规则。CLI 在 wiki 生命周期的两个边界点被调用：
+> wiki 出生后的所有成长（ingest / query / lint / 重写）由 **LLM agent** 维护，
+> 遵循本 skill 的 SKILL.md / references/ 规则。CLI 在 wiki 生命周期的两个边界点被调用：
 >
 > - **init**：创建（按本 spec 落盘）
 > - **delete**：删除（带备份）
@@ -131,7 +131,7 @@
 
 - 路径：`<wiki-root>/wiki_metadata.toml`
 - 格式：TOML
-- **完整字段 schema 由 CLI 代码 SSOT**（见 CLI 仓）——本 spec 不做权威定义。
+- **完整字段 schema 由 CLI 代码 SSOT**——本 spec 不做权威定义。
   CLI 可自由演进运行时字段（簿记 / session 启动等），spec 不跟进。
 
 > **authority**：下表是 **SKILL 的读取契约**，authority 在 SKILL（读方决定读什么）；
@@ -178,16 +178,16 @@
   - wiki spec 版本号（CLI 当前兼容版本）
   - CLI 自身版本号
 - 模板顶部说明块的自述（"由 workspace CLI 在初始化时按本 skill 的官方模板拷贝生成"）为
-  **自包含措辞**——模板是引用图汇点，**零出边**（不指向任何 skill 仓文件；由
+  **自包含措辞**——模板是引用图汇点，**零出边**（不指向任何 skill 目录文件；由
   `check_wiki_fixtures.py` 的 `template-no-outbound-refs` check 强制），CLI **不得修改**
 
 > **纪律正文唯一副本（canonical）**：模板与各 spec 节共享的纪律正文，**唯一维护点在
-> [`agents-md-template.md`](agents-md-template.md)**——wiki 跨仓读不到 skill，模板必须
+> [`agents-md-template.md`](agents-md-template.md)**——wiki 侧读不到 skill 目录，模板必须
 > 自包含，故它就是副本宿主。本 spec / page-templates.md / SKILL.md 只保留各自**独有**
 > 内容（机制契约 / rationale / 骨架 / digest + 指针），凡与模板重复的逐字纪律句以
 > 「纪律正文见模板 §X」指针代替。**改纪律只改模板对应段 + bump `wiki_spec_version`**；
 > spec 侧仅在机制变化时才跟改。引用方向**单向**：spec / page-templates / SKILL.md →
-> 模板；模板**不**含任何指向 skill 仓的引用（由 `check_wiki_fixtures.py` 的
+> 模板；模板**不**含任何指向 skill 目录的引用（由 `check_wiki_fixtures.py` 的
 > `template-no-outbound-refs` check 机械强制）。
 >
 > **新纪律归属判据**：写一条新规则前先判它属于哪一层——一句话判据：**它是「wiki 的
@@ -307,7 +307,7 @@
 - 其余 `*.md` 经验条目由 LLM 在工作中追加，**文件命名与 wiki 内容页一致**；
   frontmatter 走 §5.2 的 **1 必填（`title`）+ optional 字段**规则（与 wiki 内容页 5 必填
   解耦——MEMORY 是 agent 私有，frontmatter 是可选 decoration）
-  （lint 校验实现见 SKILL 仓 `scripts/lint_wiki.py`，不归本 spec）
+  （lint 校验实现见本 skill `scripts/lint_wiki.py`，不归本 spec）
 - **MEMORY 不在 `wiki/index.md` 中强制列出**——它是 agent 私有入口，不需要 wiki 单一入口约束；
   但每条 `*.md` **必须**在 `MEMORY/MEMORY.md` 索引中列出一行（lint `memory-not-indexed` 兜底漏列）
 - **条目形式按事实颗粒度选**——完整条目（`MEMORY/<slug>.md` + 索引行）/ 短条目（索引行
@@ -349,7 +349,7 @@
 - `type` 取值另有 2 类 memory 扩展（与 spec §9 的「5 类内容页 + 2 类 reserved」并列）：
   - `memory`——MEMORY/*.md 自用语义，区别于 wiki 5 类内容页
   - `memory-entry`——`memory` 同义别名
-- lint 校验（实现见 SKILL 仓 `scripts/lint_wiki.py`）：
+- lint 校验（实现见本 skill `scripts/lint_wiki.py`）：
   - **仅 `title` 必填**；其余 5 字段全 optional
   - `type` 若取则必须合法（含 `memory` / `memory-entry`）
   - `tags` 若取则必须是 list
@@ -457,7 +457,7 @@ CLI **不**生成 `wiki/{entities,concepts,sources,comparisons,syntheses}/` 下�
   段——`lint_wiki.py --check-version --apply` 可把 tag 字典迁到 `wiki/tags.md`
 - 解析规则、bullet 格式约束、`tag-not-in-taxonomy` lint 行为权威定义在
   [`agents-md-template.md`](agents-md-template.md)「Tag Taxonomy」段；
-  SKILL 仓 `scripts/lint_wiki.py` 是实现 SSOT
+  本 skill `scripts/lint_wiki.py` 是实现 SSOT
 
 **为什么 tag 白名单独立成 `wiki/tags.md`**：
 
@@ -536,7 +536,7 @@ compared:
 纪律正文（背书快照非永久标签 / LLM 修改必删戳）见模板 §二「认知质量信号」（canonical
 副本）；本节只留 lint 语义：`reviewed: true` 存在且 `updated > reviewed_at` 时给 warn。
 
-完整 frontmatter 写法约束与 YAML 子集要求，**不在本 spec 范围内**——见 SKILL 仓的
+完整 frontmatter 写法约束与 YAML 子集要求，**不在本 spec 范围内**——见本 skill 的
 [`page-templates.md`](page-templates.md)（LLM 写作视角，非 CLI 视角）。
 
 ## §10 版本钉死
@@ -546,9 +546,9 @@ compared:
 渲染引擎）+ 版本号来源（CLI 内部机制）都归 CLI，spec 不规定。「CLI 记录的 spec 版本是否与 SKILL
 当前版本对齐」由 `check_wiki_fixtures.py` 校验（读取契约的可执行 gate）。
 
-spec 版本号的 SSOT 是 SKILL 仓 `SKILL.md` 的 `metadata.wiki_spec_version` 字段（本 spec 不重复钉号，
-避免双源漂移）。CLI 仓与 spec 版本对齐是 CLI 仓的责任；spec 变更时 SKILL 仓升 `wiki_spec_version`，
-CLI 仓跟随升级。
+spec 版本号的 SSOT 是本 skill `SKILL.md` 的 `metadata.wiki_spec_version` 字段（本 spec 不重复钉号，
+避免双源漂移）。skill 与 CLI 同仓分发：bump 时 `SKILL.md` frontmatter + `scripts/lint_wiki.py` 常量
++ CLI 侧常量**三处同 commit 对齐**（单仓 CI 校验），不再有跨仓协调步骤。
 
 **LLM 在每次操作前比对** AGENTS.md §八（无 AGENTS.md 时 fallback CLAUDE.md §八）的 "Wiki Spec 版本" 与 SKILL.md
 `metadata.wiki_spec_version`；不一致时**警告用户**（不阻断——CLI 可能支持多个 spec 版本）。
@@ -589,7 +589,7 @@ CLI 生成的产物必须满足以上规则；否则后续 lint 会立即报错�
 
 ## §12 不在本 spec 范围内
 
-以下事项不由本 spec 定义（`wiki_metadata.toml` 字段 schema 归 CLI；运行时规则归 SKILL 仓）：
+以下事项不由本 spec 定义（`wiki_metadata.toml` 字段 schema 归 CLI；运行时规则归本 skill）：
 
 - **`wiki_metadata.toml` 字段全集 schema**——归 CLI 代码 SSOT，本 spec 只描述 skill 读取契约（见 §1.1）
 - raw/ 是否 LLM 只读、用户可改的纪律
@@ -775,8 +775,7 @@ anchor 的 `remote_url` / `branch` 是**可选**的 git 身份字段——记录
 
 `raw/external/` 采用扁平 + 单 TOML anchor 形态（§13.1）。非扁平布局 / JSON anchor 等
 结构差异由 `lint_wiki.py --check-version --apply` **手工**迁移（差异大、自动迁移易出错）；
-步骤见 [`migrate-workflow.md` §六](migrate-workflow.md#六语义合并规则)（§6.3）；
-版本演进历史见 git log（`git log --follow -- yzr-llm-wiki-management/references/wiki-spec.md`）。
+步骤见 [`migrate-workflow.md` §六](migrate-workflow.md#六语义合并规则)（§6.3）。
 
 ---
 
@@ -793,7 +792,7 @@ anchor 的 `remote_url` / `branch` 是**可选**的 git 身份字段——记录
 
 - skill 自带脚本（`scripts/lint_wiki.py` / `ingest_diff.py` / `log_format.py`）
   满足**通用**wiki 工作流；本 wiki 个性化的扩展（批量 PDF prep、特定主题的
-  ingest 模板、外部 CLI 胶水、自动 hook）**不**适合 ship 进 skill 仓
+  ingest 模板、外部 CLI 胶水、自动 hook）**不**适合 ship 进本 skill 的 scripts/
 - 走**用户/项目级别**就地维护——既享受 git tracking 又不被 skill 版本约束
 
 ### §14.2 路径约定
@@ -947,7 +946,7 @@ CLI 在生成完成后，可执行以下验证：
 
 1. **字节级对比(渲染后)**:CLI 用一组固定测试值（主题名 / 创建日期等 per-wiki 变量取测试常量）渲染,
    产物与本仓 `references/canonical/` 下对应文件**逐字一致**。
-   canonical/ 目录由本仓在每次 fixture 变更时手工生成(SKILL 仓 owner 操作)。
+   canonical/ 目录由本仓在每次 fixture 变更时手工生成（skill 维护者操作）。
 2. **正则自检**：生成的 `wiki/log.md` 首条条目匹配 §4 正则
 3. **frontmatter 解析**：生成的 `wiki/index.md` / `wiki/log.md` 能被
    SKILL 的 frontmatter 解析器正确解析（MEMORY.md 无 frontmatter，不在此列）

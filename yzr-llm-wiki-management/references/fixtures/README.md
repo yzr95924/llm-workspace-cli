@@ -29,8 +29,7 @@ cmp -s $TMP/.gitignore             <fixture>/gitignore.txt    # .gitignore 纯�
 
 > **术语**：fixtures 是**模板**(带 `{{TOPIC_NAME}}` / `{{SETUP_DATE}}` 占位符),
 > canonical 是**渲染后字面量**(用锚点 mapping `{TOPIC_NAME: "Test", SETUP_DATE: "2026-06-28 14:30"}`
-> 把 fixtures 跑一遍的产物,作为 SKILL 仓字节金标准)。CLI 升级 / fixture 变更时,SKILL 仓 owner
-> 重新生成 canonical/。
+> 把 fixtures 跑一遍的产物,作为本 skill 字节金标准)。CLI 升级 / fixture 变更时,重新生成 canonical/。
 
 ## fixture 与 spec 的关系
 
@@ -93,17 +92,17 @@ CLI 必须替换的占位符：
 CLI 替换后做内容级验证（不能用 fixture 字节比对）：
 
 1. AGENTS.md 的 4 个 `{{...}}` 占位符 + 薄壳 CLAUDE.md 的 `{{TOPIC_NAME}}` **全部被替换**——`grep -c '{{' AGENTS.md CLAUDE.md` 应为 0
-2. 生成的 AGENTS.md §八 "Wiki Spec 版本" 与 SKILL 仓 `metadata.wiki_spec_version` 一致
+2. 生成的 AGENTS.md §八 "Wiki Spec 版本" 与本 skill `metadata.wiki_spec_version` 一致
 
 ## 字节级一致性证据(渲染后)
 
 fixtures 是**模板**;CLI 渲染后产物与 `references/canonical/` 下的字面量文件**字节级一致**。
 canonical/ 下的字面量文件是把 mapping 喂 `{TOPIC_NAME: "Test", SETUP_DATE: "2026-06-28 14:30"}` 后
-渲染产物的副本,作为 SKILL 仓字节金标准。
+渲染产物的副本,作为本 skill 字节金标准。
 
 CLI 升级 / fixture 变更时,跑附录 A 自检:用锚点 mapping render → cmp canonical → 不一致 = CLI / fixture 有 bug。
 
 ## 清理时机
 
-`canonical/` 下的字面量文件是 SKILL 仓的**字节金标准**,`fixtures/` 是**带占位符的字节模板**。
+`canonical/` 下的字面量文件是本 skill 的**字节金标准**,`fixtures/` 是**带占位符的字节模板**。
 **不要删除**任一目录——前者是字节防线的最后一道,后者是占位符替换的源材料。

@@ -3,10 +3,10 @@
 
 stdlib unittest + subprocess 调真实脚本（无 mock）：在 tmp 目录搭 scratch wiki
 （clean / 各类 drift），断言 --json 报告结构与 finding 内容。standalone——不依赖
-CLI / lint_wiki.py，只读 SKILL 仓的模板 + canonical + fixtures。
+CLI / lint_wiki.py，只读本 skill 的模板 + canonical + fixtures。
 
 运行:
-  python3 scripts/test_check_wiki_fixtures.py        # 在 skill 仓根或 scripts/ 下均可
+  python3 scripts/test_check_wiki_fixtures.py        # 在 skill 目录根或 scripts/ 下均可
 """
 
 import json
@@ -182,31 +182,6 @@ class CleanWikiTest(unittest.TestCase):
             FIXTURES_CHECK_COUNT,
             f"实际 check 数 {len(report['checks'])} != metadata.fixtures_check_count "
             f"({FIXTURES_CHECK_COUNT})——改代码时需同步 SKILL.md frontmatter",
-        )
-
-
-class LogLineRegexConsistencyTest(unittest.TestCase):
-    """log 条目正则双份（log_format.py SSOT + check_wiki_fixtures.py vendored 副本）必须逐字一致。
-
-    vendored 副本是 0.28.0 有意为之（standalone 约束）；本测试守护它不漂移。
-    """
-
-    def test_log_line_re_pattern_identical(self):
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
-        import log_format  # noqa: E402
-
-        vendored = (SKILL_ROOT / "scripts" / "check_wiki_fixtures.py").read_text(encoding="utf-8")
-        m = re.search(r"LOG_LINE_RE = re\.compile\(\n(.*?)\n\)", vendored, re.DOTALL)
-        self.assertIsNotNone(m, "check_wiki_fixtures.py 未找到 vendored LOG_LINE_RE")
-        parts = []
-        for ln in m.group(1).splitlines():
-            lit = re.match(r'\s*r?"(.*)"\s*$', ln)
-            self.assertIsNotNone(lit, f"无法解析 vendored 正则片段行: {ln!r}")
-            parts.append(lit.group(1))
-        self.assertEqual(
-            "".join(parts),
-            log_format.LOG_LINE_RE.pattern,
-            "两脚本 log 条目正则漂移——改 log_format.py 时需同步 vendored 副本",
         )
 
 
