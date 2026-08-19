@@ -19,4 +19,4 @@ metadata:
 - **一律写仓库 `MEMORY/`，不写个人 memory 目录**——包括用户交流偏好 / 个人风格（如"用中文交流"）。理由：个人 memory（`~/.claude/projects/.../memory/`）无法随代码仓分发，协作方看不到、也不随代码历史回溯
 - 跟代码本身能查到的（命名约定、目录结构、git 历史）不写记忆——记忆只放"代码查不到的为什么"
 
-关联 [[memory-entry-conventions]] [[design-docs-organization]]。
+关联 [[memory-entry-conventions]]。

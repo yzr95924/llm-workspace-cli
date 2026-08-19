@@ -18,5 +18,4 @@ CLI 仓后同仓更应一并检查。
 **How to apply:** 改 `yzr-llm-wiki-management/references/wiki-spec.md` §9 type enum 或 §5 MEMORY
 结构时，立刻 grep `yzr-llm-workspace-management/references/workspace-spec.md` 里的
 "复用 wiki-spec / wiki-spec §9 / wiki-spec §5"，确认引用仍有效；反之亦然（改 workspace-spec
-type 时也查 wiki-spec 是否被反向依赖）。关联 [[memory-synced-to-skill-source]]（影响输出的
-决策必须落 SKILL 源而非只记 memory）。
+type 时也查 wiki-spec 是否被反向依赖）。关联 [[wiki-spec-0-11-agents-md-ssot]]（两 spec 对称同步）。

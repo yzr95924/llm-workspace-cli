@@ -34,10 +34,6 @@
 - [model 操作不走环境变量](model-ops-no-env-vars.md) — model 配置只从 `workspace_models.toml` 读（绝不读 `os.environ` 当真相源）；`enter` 通过 Local 层（`settings.local.json`）交付 `ANTHROPIC_*`（值来自 registry）
 - [Overlay habit template](overlay-habit-template.md) — `llmw/models/overlay.py:_HABIT_TEMPLATE` 是代码内常量的"习惯级" env key（非用户可配），随 enter 一并写入 settings.local.json；加新 key = 改一行常量
 
-**外部调研 backlog**
-
-- [cc-switch-cli 可借鉴功能](cc-switch-inspire.md) — doctor env 冲突检查 / model check / wiki sessions+resume / 临时配置启动；附源码出处与不借鉴清单
-
 **SKILL 与 spec（2026-08-18 起两 SKILL 同仓）**
 
 - [spec 版本号 bump：单仓三方对齐](spec-version-bump-single-repo.md) — SKILL.md frontmatter / lint_wiki.py CURRENT_WIKI_SPEC / llmw/__init__.py 同 commit 对齐；submodule 指针跨仓步骤已随迁移消失
@@ -46,7 +42,8 @@
 
 ### 短条目（reminder，无需 why+how 展开）
 
-无需独立文件（2026-08-12 中等清理：29→15 条，驳正链合并 + 过程细节压缩到结论 + 判别尺度）：
+无需独立文件（2026-08-12 中等清理：29→15 条，驳正链合并 + 过程细节压缩到结论 + 判别尺度；
+2026-08-19：删 cc-switch-inspire 调研档 + 3 条已吸收/一次性记录短条目，死链 5 处清零）：
 
 **协作偏好与节奏**
 
@@ -68,11 +65,9 @@
 **workspace / wiki 结构**
 
 - **运行时配置拆出 workspace_local.toml（schema v2）** — 主机相关字段（`enter_cli`）从 git 跟踪的 workspace.toml 迁到 gitignored `workspace_local.toml`（无 secret 不 chmod）；动机是跨主机共用 git 仓不互相覆盖 churn。workspace.toml **v1→v2**（只剩结构数据），`store.load()` 自愈迁移（`_migrate_v1_to_v2` 幂等：抽 key 写 local merge 不覆盖 → 确保 gitignore 含新行 → 重写 v2）。config 据 `LOCAL_KEYS` 路由 runtime key→local_store。`default_model` **已彻底删除**（搬地方只是换处误导——resolve 路径从不读它；"默认 model" 只由 registry `is_default` 单一表达）；`enter_byobu` **已删除**（设计 session-visibility §2.5：窗口路径全环境成立，直启模式无存在场景；老文件残留键 load 静默忽略）。延续 [[model-ops-no-env-vars]]「配置走 toml 不走 env」纪律
-- **CLI 实现 vs spec 字面的合理偏差** — (a) `init` 对非空目录一律 `WorkspaceExists`（超集覆盖 §12）；(b) `wiki add` 走 `check_not_initialized` 校验 6 文件（§8 字面仅 3，主动加严）；(c) `yzr-llm-wiki-management/SKILL.md` 5 处沿用 `<wiki>/wiki/MEMORY/>` 旧路径（应 `<wiki>/MEMORY/>`），llmw 落盘不受影响但 workspace scan 会扫空目录——2026-08-18 起 SKILL 同仓，改 SKILL 即可修
+- **CLI 有意比 spec 字面严** — `init` 对非空目录一律 `WorkspaceExists`（超集覆盖 §12）；`wiki add` 走 `check_not_initialized` 校验 6 文件（§8 字面仅 3，主动加严）
 - **workspace .gitignore managed block** — `_ensure_workspace_gitignore`（`workspace/manager.py`）现写 4 行：spec §10 v0.6.1 的 3 行（`workspace_models.toml` + `**/.claude/settings*.json` + `**/.qoder/settings*.json`）+ llmw 自有 `.llmw-trash/`（wiki remove --purge 备份目录）。老 workspace 升级：函数比对 block 不等就替换。演进史（多 1 行 → 0.5.0 漏 .qoder → 0.6.0/0.6.1 加宽 settings*.json）见 git log
-- **wiki-spec §6 vs §13.4 已一致** — 两节现均为 `!raw/external/.symlink-anchor.toml`（TOML 形态），fixture 一致。`.json` 仅残留 §13 废弃声明历史语境。另：spec 侧仍有 prose 陈旧（§1 .gitkeep 矛盾 / §3§4 字段数不符等）不影响 CLI 产物（fixture 是金标准），待 SKILL owner 修
-- **workspace-spec 0.7.0 对齐** — CLI 唯一动作 `WORKSPACE_SPEC_VERSION` bump 0.6.2→0.7.0（§17 升级迁移机制 + AGENTS.md 模板机读表；§17 明文 CLI 不参与升级，全在 skill 侧）。模板无新占位符，渲染字节兼容。老 workspace 走 SKILL.md §6 Migrate，CLI 永不提供迁移命令
-- **raw/ 默认子目录 + spec↔CLI 解耦** — CLI fresh init 现预建 `raw/{articles,assets,discussions}/`（用户要求，spec §15 协作草稿层高频用）；discussions/.gitkeep 不被 .gitignore 排除。**raw/external/ 不预建**：.gitignore 的 `raw/external/*` 吃掉 external/.gitkeep（`git check-ignore` 实测 IGNORED），预建对 clone 不可见——调试手段：预建 raw 子目录前先 `git check-ignore -v raw/<sub>/.gitkeep` 验证。借这次做 **spec↔CLI 解耦**：`yzr-llm-wiki-management/references/wiki-spec.md` 改 5 处（§1/§7 step1+step3/§15），把"预建哪些 raw 子目录 + .gitkeep 策略"改为「实现自由」，只留正确性约束（raw/ 至少有 tracked 内容否则 raw-modified lint 0 命中）+ discussions 语义。**版本号不 bump**（语义未变）。判别尺度（[[spec-semantics-vs-implementation-boundary]]）：spec 管语义层（目录含义/纪律/provenance），不管实现层（预建哪些/怎么进 git）
+- **raw/ 默认子目录 + spec↔CLI 解耦** — CLI fresh init 预建 `raw/{articles,assets,discussions}/`（用户要求，spec §15 协作草稿层高频用），`raw/external/` 不预建（.gitignore 的 `raw/external/*` 吃掉 external/.gitkeep，`git check-ignore` 实测 IGNORED，预建对 clone 不可见）。判别尺度：spec 管语义层（目录含义/纪律/provenance），不管实现层（预建哪些/怎么进 git）
 
 **SKILL 维护（2026-08-18 起同仓）**
 
