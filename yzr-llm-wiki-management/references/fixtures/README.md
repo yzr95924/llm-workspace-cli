@@ -84,3 +84,20 @@ CLI 替换后做内容级验证（不能用 fixture 字节比对）：
 原 canonical/ 字面量——`test_check_wiki_fixtures.py` 的 `_fixture()` 与
 `scripts/test/smoke_fixtures.py` 的探测器断言共同保证：CLI 或 fixture 任一改坏，
 CI 立即红。
+
+## Growth 约定（CLI 拥有 vs agent 成长）
+
+fixtures 只承载 **CLI init 时刻的骨架字节**；内容在 init 之后由 agent / skill
+按 ingest / query / lint / memory 工作流成长——成长部分**不**回写到 fixture：
+
+| 文件 | fixture 覆盖（骨架） | 成长内容（fixture 外） |
+|---|---|---|
+| `wiki/index.md` | frontmatter + H1 + 说明块 + 5 类别 H2 标题 | 类别下每篇 ingest 产出的 page bullet / 链接 |
+| `wiki/log.md` | frontmatter + H1 + 说明块 + 第一条 setup 条目 | 之后每次 ingest / query / lint 追加的条目 |
+| `wiki/tags.md` | H1 + 说明块（空 bullet 列表） | agent 按需追加的 tag bullet |
+| `MEMORY/MEMORY.md` | H1 + 说明块 + `## 索引` 段标题 | 索引下每条经验条目 |
+| `scripts/SCRIPTS.md` | H1 + 说明块 + `## 索引` 段标题 | 用户 / agent 追加的脚本条目 |
+| `.gitignore` | llmw 托管块 + OS / Obsidian / 临时文件段 | 用户自定义排除规则（CLI 不动） |
+
+**原则**：fixture 改 = spec 改；fixture 加新骨架字段 = spec 改；
+fixture 加具体 page / tag / 经验 / 脚本 = 错误（那是 agent 工作流产物，不是骨架）。

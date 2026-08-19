@@ -179,6 +179,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="目标 workspace spec 版本（缺省读 SKILL.md metadata.workspace_spec_version）",
     )
+    p_check_fixtures.add_argument(
+        "--list-rules",
+        action="store_true",
+        help="内省：输出规则清单（不扫描文件）；与 --json 联用具机器可读输出",
+    )
 
     # ===== model registry =====
     p_model = sub.add_parser("model", help="workspace model registry", parents=[common])
@@ -347,6 +352,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="目标 wiki spec 版本（缺省读 SKILL.md metadata.wiki_spec_version）",
     )
+    pw_cf.add_argument(
+        "--list-rules",
+        action="store_true",
+        help="内省：输出规则清单（不扫描文件）；与 --json 联用具机器可读输出",
+    )
 
     pw_id = wiki_sub.add_parser(
         "ingest-diff",
@@ -445,6 +455,13 @@ def _cmd_wiki_content(args) -> int:
     """
     from llmw.content import ingest_diff, wiki_fixtures, wiki_lint, wiki_write
 
+    # --list-rules 自包含：不扫描文件，不需要 root
+    if args.wiki_action == "check-fixtures" and _flag(args, "list_rules"):
+        argv = ["--list-rules"]
+        if _flag(args, "json"):
+            argv.append("--json")
+        return wiki_fixtures.main(argv)
+
     root = _resolve_content_root(args)
     wa = args.wiki_action
 
@@ -463,6 +480,11 @@ def _cmd_wiki_content(args) -> int:
         return wiki_lint.main(argv)
 
     if wa == "check-fixtures":
+        if args.list_rules:
+            argv = ["--list-rules"]
+            if _flag(args, "json"):
+                argv.append("--json")
+            return wiki_fixtures.main(argv)
         argv = [str(root)]
         if args.target_spec:
             argv += ["--target-spec", args.target_spec]
@@ -516,7 +538,15 @@ def main(argv=None) -> int:
         ):
             return _cmd_wiki_content(args)
 
-        # 下列命令需要先解析 workspace_root
+        # 下列命令需要先解析 workspace_root；--list-rules 自包含（无需 workspace）先拦截
+        if args.command == "check-fixtures" and _flag(args, "list_rules"):
+            from llmw.content import workspace_fixtures
+
+            argv_list = ["--list-rules"]
+            if _flag(args, "json"):
+                argv_list.append("--json")
+            return workspace_fixtures.main(argv_list)
+
         from llmw.config import resolve_workspace_root
 
         ws_root = resolve_workspace_root(_flag(args, "workspace"))

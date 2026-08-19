@@ -68,84 +68,98 @@ CHECK_REGISTRY = [
     {
         "id": "agents-version-is-current",
         "severity": "error",
+        "file": "AGENTS.md",
         "rule_ref": "wiki-spec.md §10",
         "desc": "AGENTS.md §八 Wiki Spec 版本行需与 --target-spec 一致",
     },
     {
         "id": "agents-md-template-sync",
         "severity": "error",
+        "file": "AGENTS.md",
         "rule_ref": "wiki-spec.md §10.1",
         "desc": "AGENTS.md 与 references/agents-md-template.md 渲染稿字节一致（§八 四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
         "id": "template-no-outbound-refs",
         "severity": "error",
+        "file": "AGENTS.md",
         "rule_ref": "wiki-spec.md §2（纪律正文唯一副本 canonical）",
         "desc": "模板零出边引用——不得含 wiki-spec/page-templates/lint-checklist/SKILL.md/references/yzr-llm-wiki-management/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
     },
     {
         "id": "gitignore-external-track-toml",
         "severity": "error",
+        "file": ".gitignore",
         "rule_ref": "wiki-spec.md §13.4",
         "desc": ".gitignore 含 `raw/external/*` 排除 + `!raw/external/.symlink-anchor.toml` 跟踪；老 `**/.symlink-anchor.json` 残留即报错",
     },
     {
         "id": "symlink-anchor-toml-schema",
         "severity": "error",
+        "file": "raw/external/.symlink-anchor.toml",
         "rule_ref": "wiki-spec.md §13.2",
         "desc": "raw/external/.symlink-anchor.toml（若存在）：合法 TOML + [[entry]] 数组 + 每 entry 必填 4 字段 + git 身份字段可选",
     },
     {
         "id": "symlink-anchor-toml-symlink-matches",
         "severity": "error",
+        "file": "raw/external/",
         "rule_ref": "wiki-spec.md §13.1",
         "desc": "anchor 每个 [[entry]].symlink 对应 external/ 顶层同名 symlink；anchor 无对应 symlink / orphan symlink 一并检查",
     },
     {
         "id": "symlink-anchor-flat-not-legacy",
         "severity": "error",
+        "file": "raw/external/",
         "rule_ref": "wiki-spec.md §13.6",
         "desc": "raw/external/ 不存在 <source-name>/ 子目录 扁平布局",
     },
     {
         "id": "index-md-categories-stable",
         "severity": "warn",
+        "file": "wiki/index.md",
         "rule_ref": "wiki-spec.md §3",
         "desc": "wiki/index.md 含 5 类别标题 (Entities / Concepts / Sources / Comparisons / Syntheses)",
     },
     {
         "id": "memory-index-no-frontmatter",
         "severity": "error",
+        "file": "MEMORY/MEMORY.md",
         "rule_ref": "wiki-spec.md §5",
         "desc": "MEMORY/MEMORY.md（索引）不带 YAML frontmatter（其 ## 索引 段条目由 AGENTS.md 顶部 @MEMORY/MEMORY.md @import 加载）",
     },
     {
         "id": "memory-entries-indexed",
         "severity": "error",
+        "file": "MEMORY/",
         "rule_ref": "wiki-spec.md §5.1",
         "desc": "MEMORY/*.md（除 MEMORY.md）每条都在 MEMORY/MEMORY.md 索引中列出",
     },
     {
         "id": "log-md-format-strict",
         "severity": "error",
+        "file": "wiki/log.md",
         "rule_ref": "wiki-spec.md §4",
         "desc": "wiki/log.md 每行匹配 `^## [YYYY-MM-DD HH:MM] (ingest|query|lint|setup) | .+$`（HH:MM 可选；老 wikis date-only 仍合法，宽容解析）",
     },
     {
         "id": "scripts-md-no-frontmatter",
         "severity": "error",
+        "file": "scripts/SCRIPTS.md",
         "rule_ref": "wiki-spec.md §14",
         "desc": "scripts/SCRIPTS.md 不带 YAML frontmatter",
     },
     {
         "id": "tags-md-no-frontmatter",
         "severity": "error",
+        "file": "wiki/tags.md",
         "rule_ref": "wiki-spec.md §9.1",
         "desc": "wiki/tags.md 不带 YAML frontmatter",
     },
     {
         "id": "wiki-metadata-reads-satisfied",
         "severity": "error",
+        "file": "wiki_metadata.toml",
         "rule_ref": "wiki-spec.md §1.1 wiki_metadata.toml（SKILL 读取契约）",
         "desc": "wiki_metadata.toml 含 SKILL scan 读取的 6 字段：name / topic / display_name / description / tags / created_at",
     },
@@ -994,6 +1008,7 @@ CHECK_REGISTRY.extend(
     {
         "id": s["id"],
         "severity": s["severity"],
+        "file": s["wiki_path"],
         "rule_ref": s["rule_ref"],
         "desc": s["desc"],
     }
@@ -1102,6 +1117,39 @@ def _format_human(report: Dict[str, object]) -> str:
     return "\n".join(lines)
 
 
+def _format_rules_md() -> str:
+    """--list-rules markdown 输出：代码真源 → 规则清单。"""
+    lines = []  # type: List[str]
+    lines.append("## Wiki fixtures 规则清单")
+    lines.append("")
+    lines.append("| ID | Severity | File | 规则引用 | 说明 |")
+    lines.append("|---|---|---|---|---|")
+    for reg in CHECK_REGISTRY:
+        rid = reg["id"]
+        sev = reg["severity"]
+        file_target = reg.get("file", "")
+        rule_ref = reg["rule_ref"]
+        desc = reg["desc"]
+        lines.append(f"| `{rid}` | {sev} | `{file_target}` | {rule_ref} | {desc} |")
+    return "\n".join(lines)
+
+
+def _rules_json() -> List[Dict[str, object]]:
+    """--list-rules JSON 输出。"""
+    out = []  # type: List[Dict[str, object]]
+    for reg in CHECK_REGISTRY:
+        out.append(
+            {
+                "id": reg["id"],
+                "severity": reg["severity"],
+                "file": reg.get("file", ""),
+                "rule_ref": reg["rule_ref"],
+                "desc": reg["desc"],
+            }
+        )
+    return out
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="check_wiki_fixtures",
@@ -1118,7 +1166,19 @@ def main(argv=None) -> int:
         default=None,
         help="目标 wiki spec 版本（缺省读 SKILL.md metadata.wiki_spec_version）",
     )
+    parser.add_argument(
+        "--list-rules",
+        action="store_true",
+        help="内省：输出 CHECK_REGISTRY 规则清单（不扫描文件，无需 wiki_root）",
+    )
     args = parser.parse_args(argv)
+
+    if args.list_rules:
+        if args.json:
+            print(json.dumps(_rules_json(), indent=2, ensure_ascii=False))
+        else:
+            print(_format_rules_md())
+        return 0
 
     if args.wiki_root:
         wiki_root = Path(args.wiki_root).expanduser().resolve()

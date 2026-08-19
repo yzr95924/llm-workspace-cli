@@ -36,7 +36,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from llmw import WORKSPACE_SPEC_VERSION
 from llmw import __version__ as CLI_VERSION
@@ -62,48 +62,56 @@ CHECK_REGISTRY = [
     {
         "id": "agents-version-is-current",
         "severity": "error",
+        "file": "AGENTS.md",
         "rule_ref": "workspace-spec.md §14 + §17",
         "desc": "AGENTS.md §六 Workspace Spec 版本行需与 --target-spec 一致",
     },
     {
         "id": "agents-md-template-sync",
         "severity": "error",
+        "file": "AGENTS.md",
         "rule_ref": "workspace-spec.md §17.1",
         "desc": "AGENTS.md 与 references/workspace-agents-md-template.md 渲染稿字节一致（§六 四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
         "id": "claude-md-template-sync",
         "severity": "error",
+        "file": "CLAUDE.md",
         "rule_ref": "workspace-spec.md §4 + §17.1",
         "desc": "CLAUDE.md 薄壳与 references/workspace-claude-md-template.md 渲染稿字节一致（仅 {{WORKSPACE_DISPLAY_NAME}} 替换）",
     },
     {
         "id": "gitignore-skeleton",
         "severity": "error",
+        "file": ".gitignore",
         "rule_ref": "workspace-spec.md §10",
         "desc": ".gitignore 段结构齐全：llmw 托管块（标记 + 3 规则）+ OS/编辑器 + Obsidian + 临时文件段各 ≥1 规则（容忍段内删规则）",
     },
     {
         "id": "memory-index-skeleton",
         "severity": "error",
+        "file": "MEMORY/MEMORY.md",
         "rule_ref": "workspace-spec.md §9 + §17",
         "desc": "MEMORY/MEMORY.md 无 frontmatter + 含 H1 / 说明块 / ## 索引（成长条目不动；缺失文件按 fixtures/memory-index.txt 重建）",
     },
     {
         "id": "workspace-toml-templates-version-sync",
         "severity": "warn",
+        "file": "workspace.toml",
         "rule_ref": "workspace-spec.md §14",
         "desc": "workspace.toml templates_version 的 workspace_spec 分量与 target 一致（不阻断；wiki_spec 分量只展示不比对）",
     },
     {
         "id": "workspace-toml-reads-satisfied",
         "severity": "error",
+        "file": "workspace.toml",
         "rule_ref": "workspace-spec.md §2（SKILL 读取契约）",
         "desc": "workspace.toml 含 SKILL scan/migrate 读取的字段：templates_version + 每个 [wikis.<name>] 的 path / created_at",
     },
     {
         "id": "template-no-outbound-refs",
         "severity": "error",
+        "file": "references/workspace-agents-md-template.md",
         "rule_ref": "workspace-spec.md §4 + §17.3",
         "desc": "references/workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用（workspace-spec.md / workspace-claude-md-template.md / SKILL.md / references/ / skill 名 / 阿拉伯数字 §节号；零白名单）",
     },
@@ -705,6 +713,37 @@ def _format_human(report: Dict[str, object]) -> str:
     return "\n".join(lines)
 
 
+def _format_rules_md() -> str:
+    """--list-rules markdown 输出。"""
+    lines = []  # type: List[str]
+    lines.append("## Workspace fixtures 规则清单")
+    lines.append("")
+    lines.append("| ID | Severity | File | 规则引用 | 说明 |")
+    lines.append("|---|---|---|---|---|")
+    for reg in CHECK_REGISTRY:
+        rid = reg["id"]
+        sev = reg["severity"]
+        ft = reg.get("file", "")
+        rr = reg["rule_ref"]
+        desc = reg["desc"]
+        lines.append(f"| `{rid}` | {sev} | `{ft}` | {rr} | {desc} |")
+    return "\n".join(lines)
+
+
+def _rules_json() -> List[Dict[str, object]]:
+    """--list-rules JSON 输出。"""
+    return [
+        {
+            "id": reg["id"],
+            "severity": reg["severity"],
+            "file": reg.get("file", ""),
+            "rule_ref": reg["rule_ref"],
+            "desc": reg["desc"],
+        }
+        for reg in CHECK_REGISTRY
+    ]
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="check_workspace_fixtures",
@@ -717,7 +756,19 @@ def main(argv=None) -> int:
         default=None,
         help="目标 workspace spec 版本（缺省读 SKILL.md metadata.workspace_spec_version）",
     )
+    parser.add_argument(
+        "--list-rules",
+        action="store_true",
+        help="内省：输出 CHECK_REGISTRY 规则清单（不扫描文件，无需 workspace_root）",
+    )
     args = parser.parse_args(argv)
+
+    if args.list_rules:
+        if args.json:
+            print(json.dumps(_rules_json(), indent=2, ensure_ascii=False))
+        else:
+            print(_format_rules_md())
+        return 0
 
     if args.workspace_root:
         ws_root = Path(args.workspace_root).expanduser().resolve()
