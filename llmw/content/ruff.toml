@@ -1,7 +1,7 @@
 # llmw/content — 原两 skill scripts/ 迁入后的本地 ruff 配置。
 # 保持 120 行宽 + 严格规则族（与 skill 目录历史配置一致），避免对 6500 行既有代码
 # 产生无意义 reflow，也不牺牲 lint 严格度（仓根默认只开 E4/E7/E9/F）。
-# 仓内先例：两 SKILL 目录自带局部 ruff.toml。
+# 仓内先例：wiki SKILL 目录自带局部 ruff.toml（workspace SKILL 已删除——零代码重构后该目录无 .py 文件）。
 
 target-version = "py37"
 line-length = 120

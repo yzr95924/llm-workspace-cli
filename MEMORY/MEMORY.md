@@ -89,4 +89,4 @@
 
 ## CI 实战沉淀
 
-- **push 前必跑 CI 三件套** — `ruff check .` + `ruff format --check .` + `python3 scripts/test/smoke_fixtures.py`，本地等价 CI 4 job（lint / test py3.7 / test py3.11 / fixtures-smoke），跑过再 push。两 SKILL 脚本随仓纳入 ruff（各目录 `ruff.toml` 行宽 120 + E/W/F/I/B/UP 规则族）
+- **push 前必跑 CI 三件套** — `ruff check .` + `ruff format --check .` + `python3 scripts/test/smoke_fixtures.py`，本地等价 CI 4 job（lint / test py3.7 / test py3.11 / fixtures-smoke），跑过再 push。两 SKILL 脚本零代码重构后迁入 `llmw/content/`（自带 ruff.toml）；wiki SKILL 目录仍保留局部 ruff.toml，workspace SKILL 目录已删（无 .py）

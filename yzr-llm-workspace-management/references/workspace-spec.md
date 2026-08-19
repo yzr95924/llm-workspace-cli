@@ -179,7 +179,8 @@
 > （SSOT）+ [`workspace-claude-md-template.md`](workspace-claude-md-template.md)（薄壳）拷两份模板生成。
 > 后续修改由 **用户** 完成（AGENTS.md 是 workspace 的 schema，是用户的"宪法"）。
 > LLM agent **不得编辑** AGENTS.md / CLAUDE.md；如需变更 schema，**先与用户确认**。
-> **唯一例外**：spec 升级迁移时（§17），agent 经用户确认可全量重渲染两份文件。
+> **升级例外**：`llmw upgrade --apply`（§17）可按模板全量重渲染两份文件（byte-owned 分类，
+> agent 不手动执行）。
 
 ### AGENTS.md（SSOT）
 
@@ -680,28 +681,6 @@ gitignore 骨架、MEMORY 索引骨架、workspace.toml 读取契约、模板零
   再 `--apply --yes` 重跑；`verify_failed` → 报告用户
 - **不**再手动重渲染 AGENTS.md / CLAUDE.md / .gitignore / MEMORY.md 或改 workspace.toml
 - wiki 侧版本落后（`wikis[].status` 相关）按提示走 wiki skill 的 upgrade 工作流
-
----
-
-## 附录 A：CLI 实现自检建议
-
-CLI 在生成完成后，可执行以下验证：
-
-1. **字节级对比**：`AGENTS.md` 与 §4 SSOT 模板字面一致 + `CLAUDE.md` 与薄壳模板字面一致（占位符
-   替换后）；`MEMORY/MEMORY.md` 与 `references/fixtures/memory-index.txt` 字节一致（无占位符，直接
-   `cmp`，流程同 wiki fixtures）；`.gitignore` 段结构由 `gitignore-skeleton` check 比对（完整字节 SSOT
-   在 CLI 代码，见 §10）。**`workspace.toml` + CLI 内部配置 toml 的字段 schema
-   不由本 spec 比对**——归 CLI SSOT（见 §2 / §3），CLI 是唯一写方、字段演进自保；SKILL 只 gate 读取
-   契约字段（`templates_version` / `[wikis].path/created_at`，由 `workspace-toml-reads-satisfied` check 校验）
-2. **结构性自检**：`<workspace>/` 含 §1 列出的所有顶层项（含 `MEMORY/MEMORY.md`）；`<wiki-name>/` 子目录按
-   wiki-spec §1 目录结构 落盘
-3. **拒绝性自检**：对已存在 workspace 重新初始化、向已存在目录注册 wiki、`AGENTS.md` / `CLAUDE.md`
-   已存在时初始化——都应非零退出（§12）
-4. **gitignored 自检**：敏感文件（模型注册表 + 各 IDE/agent 项目级 settings）被 `.gitignore` 排除；
-   具体清单与栅栏标记以 `gitignore-skeleton` check 为准（见 §10）
-5. **不变量自检**：init 完成后 `<workspace>/INDEX.md` / `STATS.md` / `LINT.md` / `cross_queries/`
-   **不存在**（CLI 不会创建它们；skill 在首次 `scan` 时按 §5–§8 约定建）；但 `<workspace>/MEMORY/`
-   **存在**且含 `MEMORY.md` 索引、无 `*.md` 经验条目（CLI init 按 §9 建骨架）
 
 ---
 

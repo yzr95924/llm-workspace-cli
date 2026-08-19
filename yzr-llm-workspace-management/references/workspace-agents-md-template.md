@@ -35,11 +35,11 @@
 
 | 路径 | 维护方 | 说明 |
 | --- | --- | --- |
-| `workspace.toml` | workspace CLI | wiki 注册表 + 结构数据；skill **只读**（迁移例外见 §六） |
+| `workspace.toml` | workspace CLI | wiki 注册表 + 结构数据；skill **只读**（`templates_version` 由 `llmw upgrade` 更新） |
 | `<CLI 内部配置 *.toml>` | workspace CLI | 模型注册表（含 API key）/ 主机本地运行时等；skill **不读不写**；文件名 / 拆分归 CLI 自由 |
 | `.gitignore` | workspace CLI | 排除承载密钥 / 凭据的 CLI 配置等敏感文件（清单见探测器 `gitignore-skeleton`） |
-| `AGENTS.md` | **用户**（CLI init 时拷 SSOT 模板） | workspace 纪律 SSOT（工具无关）；skill 只读（迁移例外见 §六） |
-| `CLAUDE.md`（薄壳） | **用户**（CLI init 时拷薄壳模板） | `@AGENTS.md`，仅供经薄壳自动加载的 agent（迁移例外同 §六） |
+| `AGENTS.md` | **用户**（CLI init 时拷 SSOT 模板） | workspace 纪律 SSOT（工具无关）；skill 只读（byte-owned，升级由 `llmw upgrade` 接管，见 §六 四分表） |
+| `CLAUDE.md`（薄壳） | **用户**（CLI init 时拷薄壳模板） | `@AGENTS.md`，仅供经薄壳自动加载的 agent（byte-owned，升级由 `llmw upgrade` 接管，见 §六 四分表） |
 | `INDEX.md` / `STATS.md` | 跨 wiki 维护 agent（本 skill） | workspace 入口文档 + 结构化统计 |
 | `LINT.md` | 跨 wiki 维护 agent（本 skill） | 最近一次 workspace lint 报告（快照） |
 | `cross_queries/` | 跨 wiki 维护 agent（本 skill） | 跨 wiki 综合答案归档 |
@@ -51,7 +51,7 @@
 - **workspace CLI**：管 `workspace.toml` + CLI 内部配置（模型注册表等 `*.toml`）/ `.gitignore` + 每个 wiki 子仓元数据；
   不写 INDEX/STATS/LINT/MEMORY/cross_queries
 - **跨 wiki 维护（本 skill）**：管 INDEX/STATS/LINT/MEMORY/cross_queries + 跨 wiki 编排；
-  不写 workspace.toml / CLI 内部配置 / .gitignore / AGENTS.md / CLAUDE.md（迁移例外见 §六）
+  不写 workspace.toml / CLI 内部配置 / .gitignore / AGENTS.md / CLAUDE.md（升级由 `llmw upgrade` 接管，见 §六 四分表）
 - **单 wiki 维护**：管各 wiki 的 ingest / query / lint + `<wiki>/MEMORY/`（纪律见各 `<wiki>/AGENTS.md`）
 
 ## 二、跨 wiki 约定

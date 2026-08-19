@@ -13,7 +13,7 @@ workspace CLI init 时落盘的 `<workspace>/MEMORY/MEMORY.md` 的**字节金标
 **不在 fixture 范围**：
 
 - `AGENTS.md`（SSOT）+ `CLAUDE.md`（薄壳）——有 `{{WORKSPACE_DISPLAY_NAME}}` 等占位符，走
-  `../scripts/check_workspace_fixtures.py` 的模板渲染字节比对（`agents-md-template-sync` /
+  `llmw check-fixtures` 的模板渲染字节比对（`agents-md-template-sync` /
   `claude-md-template-sync`；模板在 `../workspace-agents-md-template.md` +
   `../workspace-claude-md-template.md`），与 wiki 的 `agents-md-template.md` / `claude-md-template.md` 同（占位符模板不进 fixtures）
 - `workspace.toml` / CLI 内部配置 toml / `.gitignore`——TOML / gitignore，schema 在 spec
@@ -22,7 +22,6 @@ workspace CLI init 时落盘的 `<workspace>/MEMORY/MEMORY.md` 的**字节金标
 ## 用法
 
 CLI init 时把 `memory-index.txt` **逐字拷贝**为 `<workspace>/MEMORY/MEMORY.md`（无占位符）。
-完整 gate 走 `scripts/test/smoke_fixtures.py`（CI 跑 real `llmw init` 后用
-`check_workspace_fixtures.py` 探测器断言）。
+完整 gate 走 `llmw check-fixtures` 探测器断言（CLI 仓 CI 跑 real `llmw init` 后执行）。
 
 详细 schema + 维护纪律见 [`workspace-spec.md` §9](../workspace-spec.md#9-workspace-memoryskill-维护)。

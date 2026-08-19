@@ -158,12 +158,12 @@ workspace lint / 跨 wiki memory。
    - 扫 `<wiki>/raw/` 递归拿原始资料数（仅 `find` + 计数，不读内容）
    - 读 `<wiki>/wiki/log.md` 末条拿 last activity
    - 读 `<wiki>/MEMORY/` 拿 memory files 数（仅文件名）
-4. 读 `<workspace>/MEMORY/MEMORY.md` 索引（知晓已有跨 wiki 记忆，供 query 路由 / scan 报告
+3. 读 `<workspace>/MEMORY/MEMORY.md` 索引（知晓已有跨 wiki 记忆，供 query 路由 / scan 报告
    引用）；按 wiki name 字母序聚合，写 `<workspace>/INDEX.md`（格式见
    [spec §5](references/workspace-spec.md#5-indexmdskill-维护)）+ `<workspace>/STATS.md`
    （格式见 [spec §6](references/workspace-spec.md#6-statsmdskill-维护)）
-5. 原子写（POSIX `tmp + fsync + rename`）
-6. 对话中报告："已刷新 INDEX.md / STATS.md，X 个 wiki，Y 个 page，Z 个原始资料"
+4. 原子写（POSIX `tmp + fsync + rename`）
+5. 对话中报告："已刷新 INDEX.md / STATS.md，X 个 wiki，Y 个 page，Z 个原始资料"
 
 **何时不做 scan**：用户只想做 query → 先用现有 INDEX.md；INDEX.md 缺失或明显过期
 （覆盖不到新增 wiki）再提示先 scan。
@@ -253,11 +253,11 @@ workspace lint / 跨 wiki memory。
 
 1. 识别值得沉淀的观察 → **scope 自检**确认跨 wiki（不只是单个 wiki 的事）
 2. 判别条目形式（完整 / 短条目），判别尺度 + frontmatter / 索引格式 + 命名约束见
-   [spec §9.2 + §15](references/workspace-spec.md#92-memorymd-非-memorymd)
+   [spec §9.2 + §15](references/workspace-spec.md#92-memorymd非-memorymd)
 3. 写入 `MEMORY/<slug>.md`（完整条目）或直接在 `MEMORY/MEMORY.md` 索引追加短条目一句话
 4. **同步 `MEMORY.md` 索引一行**（漏写 = 下次读不到，lint `memory-not-indexed` 兜底）
 
-**不动** `<workspace>/ INDEX.md` / `STATS.md` / `LINT.md` / 任何 `<wiki>/MEMORY/`——
+**不动** `<workspace>/INDEX.md` / `STATS.md` / `LINT.md` / 任何 `<wiki>/MEMORY/`——
 MEMORY 是 agent 私有入口；`<workspace>/MEMORY/` 目录 + `MEMORY.md` 索引由 CLI init
 建（[spec §9.1](references/workspace-spec.md#91-memorymemorymd索引)），skill 不重建。
 
