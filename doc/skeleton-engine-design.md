@@ -37,7 +37,7 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 ### 1.2 痛点
 
 1. **"升级"仍是 agent 概率执行**：`llmw wiki lint --check-version --apply` 输出 plan JSON，
-   agent 按 migrate-workflow.md 逐条手改（机械修复也在走 LLM 概率执行）。
+   agent 按 upgrade-workflow.md 逐条手改（机械修复也在走 LLM 概率执行）。
 2. **改模板/fixture 会触发多处手工同步**：模板措辞改动可能连带 checker 提取正则、测试
    迷你渲染器、SKELETON_SPECS——每处都是人肉对账点。
 3. **检查器自身是维护负担**：checker 存在的理由是"防漂移"，但 checker 自身也要维护
@@ -68,7 +68,7 @@ ingest-diff / write` + `llmw check-fixtures`；skill 目录零代码（CI 断言
 - **不**做 STATS.md / LINT.md 生成器（workspace skill 的 agent 内联工作流，另行任务）。
 - **不**做内容页 frontmatter 变换的自动化（type-memory-value 等语义类 → upgrade 残留，agent 处理）。
 - **不**回写远古版本迁移代码（无远古版本，引擎无需处理）。
-- **不**删除 migrate-workflow.md（Task 5 缩减并改名 upgrade-workflow.md，保留 agent fallback 路径）。
+- **不**删除 upgrade-workflow.md（Task 5 缩减并改名 upgrade-workflow.md，保留 agent fallback 路径）。
 
 ## 3. 功能点拆解
 
@@ -325,7 +325,7 @@ idle → preflight（drift diff）→ resync → verifying → done
   ```
 
 - 触发语义：`old` 存在 且 `new` 不存在 → 执行 move；`kind = "remove"` → 老骨架路径存在即删。
-- 初始行：Task 4 时从 migrate-workflow.md / spec 历史条款盘点（**不臆造**）；当前已知候选：
+- 初始行：Task 4 时从 upgrade-workflow.md / spec 历史条款盘点（**不臆造**）；当前已知候选：
   MEMORY 位置变更（0.10.0）、scripts/ 相关、老 CLAUDE.md 拆分（该类属内容抽取 → 归残留
   fallback，不进路径表）。
 
@@ -448,7 +448,15 @@ fixtures-smoke CI 每次 commit 守护 render↔fixture↔checker 三角一致�
 - **Task 5（P2d）**：纪律层（模板禁改段 + spec 四分表 + type 单源 + upgrade-workflow 改名
   + spec 复述审计）——对应 FP10/11/12。
 
-当前完成度：Task 3-5 均未开始（评审 gate 在本文档）。
+当前完成度：Task 3/4/5 均已完成（已合入 master；git rev log 见仓历史）。
+- Task 3（commit 66b6319 / cf97091）：render.py + checker 派生化 + --list-rules + fixtures/README growth 约定
+- Task 4（commit 1216ba3）：upgrade 引擎 + workspace upgrade 聚合 + 3 终态 JSON + legacy_paths.toml（初始空）+ growth 段嫁接算法
+- Task 5（本 commit）：4 份模板禁改段 + 两 spec §1.2 四分表 + migrate-workflow.md → upgrade-workflow.md + 本仓 AGENTS.md I-1 新措辞 + 模块边界 llmw.content 行 + 触动面四分表
+
+未做（Task 6 / 后续）：
+- SKELETON_SPECS → fixture 字节派生 oracle（7 个条目；Task 3 最重子项，独立 PR）
+- lint-checklist.md §二生成稿化 + CI 新鲜度 gate（Task 5 未做完）
+- type 单源（FP10）+ spec 复述审计（FP12）
 
 ## 12. 上线与回滚
 

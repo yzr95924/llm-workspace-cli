@@ -137,7 +137,29 @@ frontmatter 5 必填（`title` / `type` / `created` / `updated` / `tags`，**仅
 **写每条经验后必须同步追加 `MEMORY.md` 索引一行**（按"条目形式"选完整或短格式），
 否则下次会话读不到。
 
-## 六、当前配置
+## 六、本文件本身的纪律
+
+- **本文件由 llmw CLI 渲染拥有（byte-owned）——禁手改**。自定义纪律沉淀去 `MEMORY/`
+  （由顶部第 30 行 `@MEMORY/MEMORY.md` 自动加载，会话常驻）；手改会被
+  `agents-md-template-sync` check 判 drift、`llmw upgrade --apply` 重渲染覆盖
+  （§七 表里 4 个 per-workspace 字段由 upgrade 自动保留现值）。
+- 本文件是 schema，**不是 workspace 内容**——不要往里塞具体 wiki 主题的笔记
+- 改本文件 = 改 skill 行为 = 大事；先和用户确认
+- **模板升级时本文件按 skill 最新模板全量重渲染**（本 workspace 的健康检查强制这一条；本地定制先沉淀 `MEMORY/`）
+
+### 骨架所有权四分表（workspace 侧文件归属）
+
+本表约束维护本 workspace 的 agent —— 哪些文件可改、哪些只能由 llmw CLI 渲染。
+完整论证与背景见 `llmw-workspace-cli/doc/skeleton-engine-design.md`（设计文档，CLI 仓内）。
+
+| 文件 | 所有权 | agent 权限 |
+| --- | --- | --- |
+| `AGENTS.md` / `CLAUDE.md` | byte-owned | 禁改；自定义纪律沉淀到 `MEMORY/` |
+| `.gitignore` | block-owned（llmw managed 块内禁改） | 块外自由添加用户忽略规则 |
+| `MEMORY/MEMORY.md` | header-owned（文件头禁改） | growth 段（`## 索引` 下的条目）日常写 |
+| 跨 wiki 综合产物（`INDEX.md` / `STATS.md` / `LINT.md` / `cross_queries/`）| content-owned | agent 拥有；`llmw upgrade` 不动 |
+
+## 七、当前配置
 
 > 本表 4 个变量（Workspace 名 / 创建日期 / Workspace Spec 版本 / CLI 版本）是仅有的
 > per-workspace 内容——spec 升级重渲染时**保留旧值**（`Workspace Spec 版本` 用迁移目标版本）。

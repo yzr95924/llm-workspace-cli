@@ -25,6 +25,6 @@ commit 内可见、单仓 CI 可检的问题；三处手写副本的同 commit �
 ② 演进叙事写进 commit message（spec 仓已无 changelog 文件）；③ 单仓 CI 的 fixtures-smoke
 已取消对 `agents-version-is-current` 的免疫，漂移直接红。patch/minor 选型：
 非破坏性（新 check 在现有产物 pass / prose 不改字节）→ patch；引入字节级出生形态变更 → minor/breaking。
-breaking 的迁移指令必须落 `references/migrate-workflow.md` §六。
+breaking 的迁移指令必须落 `references/upgrade-workflow.md` §六。
 
 关联 [[wiki-workspace-spec-type-coupling]]（另一条跨 spec 耦合）。

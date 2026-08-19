@@ -105,7 +105,7 @@
      comparison   : older
      needs_migration: true
      [LEGACY] 共 12 处老格式现场（示意输出）
-       - confidence-field (12) → migrate-workflow.md §6.1（依据 plan.actions[]）
+       - confidence-field (12) → upgrade-workflow.md §6.1（依据 plan.actions[]）
            wiki/sources/<legacy-page>.md  [CONFLICT] ← 同时有 reviewed，需人工裁定
            wiki/sources/<another-legacy>.md
            ...

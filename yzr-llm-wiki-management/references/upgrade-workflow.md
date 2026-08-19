@@ -24,7 +24,7 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
 - **脚本**（`scripts/lint_wiki.py --check-version`）= 探测器。只扫不修，输出报告 / `--apply`
   时把 migration plan 以 JSON 输出到 stdout，**不**改任何 wiki 内容 / **不**落盘
 - **agent**（本节定义）= 修复者。按 stdout 返回的 migration plan（`--apply --json` 的
-  `report.migration_plan`）+ [`migrate-workflow.md`](migrate-workflow.md)（§六 语义合并
+  `report.migration_plan`）+ [`upgrade-workflow.md`](upgrade-workflow.md)（§六 语义合并
   规则）用 Edit/Write 改 frontmatter / 移文件 / 补索引 / 改 AGENTS.md §八
 - **迁移期不走 `wiki_write.py`**——迁移 = 格式流动期，机械写命令只认识当前形态
   （准入规则例外，见 SKILL.md §设计决策「机械 vs 判断」）

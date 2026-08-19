@@ -51,7 +51,7 @@ python3 yzr-llm-wiki-management/scripts/lint_wiki.py "$LLM_WIKI_ROOT" --severity
 
 ```bash
 python3 yzr-llm-wiki-management/scripts/lint_wiki.py "$LLM_WIKI_ROOT" --check-version --json
-# 加 --apply 输出 migration plan（stdout JSON，不落盘）供 agent 按 [`migrate-workflow.md`](migrate-workflow.md) 走 Edit/Write 修复
+# 加 --apply 输出 migration plan（stdout JSON，不落盘）供 agent 按 [`upgrade-workflow.md`](upgrade-workflow.md) 走 Edit/Write 修复
 python3 yzr-llm-wiki-management/scripts/lint_wiki.py "$LLM_WIKI_ROOT" --check-version --apply --json
 ```
 
@@ -60,7 +60,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 标记冲突页 → agent 跳过 + 转人工；**互斥模式**，不写 log 条目。
 完整 agent 修复路径见 [SKILL.md §5 Migrate](../SKILL.md#5-migrate升级-wiki-spec)；
 迁移依据 SSOT = plan `actions[]`（remove/add_or_modify/to_action 自含）+
-[`migrate-workflow.md` §六](migrate-workflow.md#六语义合并规则)。
+[`upgrade-workflow.md` §六](upgrade-workflow.md#六语义合并规则)。
 
 ## 二、Deterministic 检查清单（脚本执行）
 
@@ -272,7 +272,7 @@ spec §13 相关，详见 lint_wiki.py `check_external_symlinks` docstring。）
 ## 五、Semantic-merge 规则
 
 > 语义合并规则（agent 走 migration plan 时的合并依据）已并入
-> [`references/migrate-workflow.md` §六](migrate-workflow.md#六语义合并规则)——
+> [`references/upgrade-workflow.md` §六](upgrade-workflow.md#六语义合并规则)——
 > 含 frontmatter 字段合并 / index 条目合并 / anchor TOML 迁移 5 步 / MEMORY 经验合并 /
 > log 严格保留 / 决策树。本节只留指针。
 
@@ -286,7 +286,7 @@ spec §13 相关，详见 lint_wiki.py `check_external_symlinks` docstring。）
 4. 若启用 git，重大修复 commit 时建议加 `lint: <summary>` 前缀；裸目录树 wiki 跳过 commit 步骤
 5. **若跑 fixtures-check**——按 §五 Decision tree 区分脚本 vs LLM 修；
    `fixtures-fix-*` 系列可通过 Edit 落，`fixtures-fix-anchor-merge/-schema/-symlink-matches`
-   三条要走 [`migrate-workflow.md`](migrate-workflow.md) §6.3 五步迁移（不是单 Edit）
+   三条要走 [`upgrade-workflow.md`](upgrade-workflow.md) §6.3 五步迁移（不是单 Edit）
 
 ## 七、lint 频率
 

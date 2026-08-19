@@ -103,6 +103,29 @@
 > （**迁移例外**：spec 升级时按 §17.2 放开 4 处单点写入）。skill 也不写
 > `<wiki-name>/raw/`（用户所有）。
 
+## §1.1 骨架所有权四分表（CLI 渲染 vs skill/agent 写入边界）
+
+> **权威陈述**：完整论证（为什么是这四档 + 升级流程如何依赖此分类）见
+> `llmw-workspace-cli/doc/skeleton-engine-design.md`（CLI 仓设计文档）。本节是契约层
+> 规范，仅列 4 档定义 + 对 workspace 根文件的约束映射。
+
+| 文件 | 所有权 | 含义（约束） | CLI `upgrade` 行为 |
+| --- | --- | --- | --- |
+| `AGENTS.md` / `CLAUDE.md` | **byte-owned** | 整个文件 = 模板渲染；skill / agent 禁改 | 按模板全量重渲染 |
+| `.gitignore` | **block-owned** | llmw managed 块内禁改（标记 + 3 规则行），块外自由 | 仅替换 managed 块 |
+| `MEMORY/MEMORY.md` | **header-owned** | H1 + 说明块 + `## 索引` 段标题禁改；索引条目 skill 正常写 | 段嫁接（换头保留 growth 条目） |
+| `INDEX.md` / `STATS.md` / `LINT.md` / `cross_queries/` + 跨 wiki 综合产物 | **content-owned** | skill 拥有 | 不动 |
+
+**约束语义**（与 §1 根文件归属表的视角互补）：
+
+- byte-owned / header-owned 部分的 skill 修改会被 `llmw check-fixtures` 报告为 drift，
+  `llmw upgrade --apply`（默认 dry-run）重渲染覆盖；自定义纪律 / 偏好沉淀到
+  workspace `MEMORY/`（跨 wiki 经验）或 `<wiki-name>/MEMORY/`（单 wiki 经验），由
+  `AGENTS.md` 顶部 `@MEMORY/MEMORY.md` `@import` 自动加载。
+- block-owned 的 **块外**内容不受 CLI 约束——用户 / 外部工具自由添加忽略规则。
+- content-owned 部分（跨 wiki 综合产物、MEMORY 经验、lint 报告）归 skill 拥有；
+  `llmw upgrade` 不碰。
+
 ## §2 workspace.toml
 
 > **维护方**：CLI 在 init 时刻创建 + 后续 wiki 注册表 / 模型配置等元数据 CRUD 命令维护。

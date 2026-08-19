@@ -32,7 +32,7 @@ metadata:
   `llmw` 子命令：`llmw wiki lint / check-fixtures / ingest-diff / write`（详见
   §工作流各节）。高频确定性任务固化在 CLI，agent 只负责需要判断的部分。
 - **references/**——按需加载：AGENTS.md schema 模板 + CLAUDE.md 薄壳模板、各操作详细流程、页面模板、
-  wiki-spec.md（wiki 仓出生形态 + skill 读取契约）、fixtures（CLI 字节级比对金标准）、migrate-workflow.md §六
+  wiki-spec.md（wiki 仓出生形态 + skill 读取契约）、fixtures（CLI 字节级比对金标准）、upgrade-workflow.md §六
   (语义合并规则，agent 走 migration plan 时的合并依据)
 
 ## 何时不使用
@@ -74,7 +74,7 @@ metadata:
   frontmatter、log.md 格式
 - **migrate** → 跑 `llmw wiki lint --check-version` 输出 spec 版本 + legacy 现场
   报告；`--apply` 把 migration plan 以 JSON 输出到 stdout（不落盘）供 agent 按
-  `references/migrate-workflow.md` 走 Edit/Write 修复；详见 §5 Migrate
+  `references/upgrade-workflow.md` 走 Edit/Write 修复；详见 §5 Migrate
 
 ## 设计决策
 
@@ -465,12 +465,12 @@ reformat"；或 `llmw wiki lint` 报告 `legacy-confidence-field` 等迁移期 w
   用 Edit/Write 改
   frontmatter / 移文件 / 补索引 / 同步 AGENTS.md 到模板（全量重渲染，wiki-spec §10.1）；
   走 plan.fixtures_actions[] 修约定文件；
-  语义合并按 [`references/migrate-workflow.md` §六](references/migrate-workflow.md#六语义合并规则) 走
+  语义合并按 [`references/upgrade-workflow.md` §六](references/upgrade-workflow.md#六语义合并规则) 走
 - **迁移期不走 `llmw wiki write`**——迁移 = 格式流动期，机械写命令只认识当前形态
   （准入规则例外，见 §设计决策「机械 vs 判断」）
-- **迁移依据 SSOT** = plan actions[] + migrate-workflow.md §六（语义合并）——
+- **迁移依据 SSOT** = plan actions[] + upgrade-workflow.md §六（语义合并）——
   不另设历史档案；fixtures-check 的语义合并
-  走 migrate-workflow.md §六（与 §三 字节合规分离）
+  走 upgrade-workflow.md §六（与 §三 字节合规分离）
 - **不**追加 log 条目（迁移是 CLI 运行，不是 wiki 操作事件）
 
 **fixtures 一致性检查**——`llmw wiki lint --check-version` 内部直接调
@@ -482,7 +482,7 @@ wiki_metadata.toml），finding 并入
 [`references/lint-checklist.md`](references/lint-checklist.md)；其中 `agents-md-template-sync`
 对 AGENTS.md 整文做**模板渲染字节比对**——不一致走全量重渲染 + 本地定制搬
 MEMORY/，详见 wiki-spec §10.1）。**简要流程** + 详细步骤 + 字段清单见
-[`references/migrate-workflow.md`](references/migrate-workflow.md)。
+[`references/upgrade-workflow.md`](references/upgrade-workflow.md)。
 
 ## 参考样例
 

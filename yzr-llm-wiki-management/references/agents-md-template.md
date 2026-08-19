@@ -343,12 +343,29 @@ ingest 时新资料与已有页主张冲突，**不要静默覆盖**，按以下
 
 ## 七、本文件本身的纪律
 
+- **本文件由 llmw CLI 渲染拥有（byte-owned）——禁手改**。自定义纪律沉淀去 `MEMORY/`
+  （由顶部第 16 行 `@MEMORY/MEMORY.md` 自动加载，会话常驻）；手改会被
+  `agents-md-template-sync` check 判 drift、`llmw wiki upgrade --apply`
+  重渲染覆盖（§八 表里 4 个 per-wiki 字段由 upgrade 自动保留现值）。
 - 本文件是 schema，**不是 wiki 内容**——不要往里塞 wiki 主题相关的笔记
 - 改本文件 = 改 skill 行为 = 大事；先和用户确认
 - **模板升级时本文件按 skill 最新模板全量重渲染**（本 wiki 的健康检查强制这一条；本地定制先沉淀 `MEMORY/`，
   详见顶部说明）——§八 四行变量
   （主题 / 创建日期 / CLI 版本 / Wiki Spec 版本）是仅有的 per-wiki 内容，升级时保留
 - 若 wiki 启用 git，每次改建议 commit 并加清晰的 commit message；未启用 git 跳过此步
+
+### 骨架所有权四分表（wiki 侧文件归属）
+
+本表约束维护本 wiki 的 agent —— 哪些文件可改、哪些只能由 llmw CLI 渲染。
+完整论证与背景见 `llmw-workspace-cli/doc/skeleton-engine-design.md`（设计文档，CLI 仓内）。
+
+| 文件 | 所有权 | agent 权限 |
+| --- | --- | --- |
+| `AGENTS.md` / `CLAUDE.md` | byte-owned（整个文件 = 模板渲染） | 禁改；自定义纪律沉淀到 `MEMORY/` |
+| `.gitignore` | block-owned（llmw managed 块内禁改） | 块外自由添加用户忽略规则 |
+| `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` | header-owned（文件头禁改） | growth 段（`##` 段体 / 条目 / tags）日常写 |
+| wiki `wiki/` 各内容页 + MEMORY 经验条目 + scripts 脚本 | content-owned | agent 拥有；`llmw wiki upgrade` 不动 |
+
 
 ## 八、当前配置
 

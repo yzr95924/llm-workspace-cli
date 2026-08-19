@@ -16,7 +16,7 @@ wiki_lint — deterministic 健康检查（llmw wiki lint）
 --check-version 扫描当前 wiki 的 spec 版本（解析 AGENTS.md §八 "Wiki Spec 版本"），
   与本 skill metadata.wiki_spec_version 比对，列出老格式 legacy 现场。默认仅打印报告
    （不动任何文件）；加 `--apply` 把 migration plan 以 JSON 输出到 **stdout**（agent 直接
-   消费，**不落盘**——升级全程 wiki 根无任何中间文件残留）供按 references/migrate-workflow.md
+   消费，**不落盘**——升级全程 wiki 根无任何中间文件残留）供按 references/upgrade-workflow.md
    用 Edit/Write 修复；加 `--json` 输出机器可读 JSON。互斥模式。
 
 退出码：
@@ -114,14 +114,14 @@ CURRENT_WIKI_SPEC = WIKI_SPEC_VERSION
 
 # 已知 legacy pattern 的"pattern key"——为后续扩展预留，每个 key 是一类迁移动作。
 # rule_ref 是迁移依据的溯源指针；修复语义自含于 plan actions 的 remove/add_or_modify/to_action
-# 字段 + references/migrate-workflow.md §六（语义合并规则）——不另设历史档案。
+# 字段 + references/upgrade-workflow.md §六（语义合并规则）——不另设历史档案。
 LEGACY_PATTERN_KEYS = {
-    "confidence-field": "migrate-workflow.md §6.1",
+    "confidence-field": "upgrade-workflow.md §6.1",
     # 0.19.0 反转：MEMORY/*.md 上 `type: memory` / `type: memory-entry` 重新合法（spec §5.2）；
     # 本规则仅对 wiki 5 类内容页误用 reserved `type: memory` 报错。
-    "type-memory-value": "migrate-workflow.md §6.1 + wiki-spec.md §5.2",
-    "claudemd-tag-section": "migrate-workflow.md step 5（action 自带 to_action）",
-    "claudemd-not-thinshell": "migrate-workflow.md step 5（action 自带 to_action）+ agents-md-template.md",
+    "type-memory-value": "upgrade-workflow.md §6.1 + wiki-spec.md §5.2",
+    "claudemd-tag-section": "upgrade-workflow.md step 5（action 自带 to_action）",
+    "claudemd-not-thinshell": "upgrade-workflow.md step 5（action 自带 to_action）+ agents-md-template.md",
 }
 
 # 严重性等级
@@ -1413,7 +1413,7 @@ def severity_of(finding: str) -> str:
 # ---------------------------------------------------------------------------
 # --check-version：扫描 wiki 的 spec 版本 + 老格式 legacy 现场
 # 设计见 yzr-llm-wiki-management/docs/superpowers/specs/<date>-migrate-design.md
-# 职责：纯探测（不动 wiki 内容）；agent 拿到 plan 后按 references/migrate-workflow.md 走 Edit/Write 修复。
+# 职责：纯探测（不动 wiki 内容）；agent 拿到 plan 后按 references/upgrade-workflow.md 走 Edit/Write 修复。
 # ---------------------------------------------------------------------------
 
 # CLAUDE.md §八 表格行匹配：
@@ -1661,7 +1661,7 @@ def build_migration_plan(
     """把 detect_legacy_patterns 的发现 + fixtures-check 的发现组织成 agent 可执行的 plan。
 
     每个 action 含 file / type / rule_ref / 具体 remove & add_or_modify；
-    agent 按 references/migrate-workflow.md 引用 rule_ref 走 Edit/Write。
+    agent 按 references/upgrade-workflow.md 引用 rule_ref 走 Edit/Write。
     fixtures-fix-* 类动作落进 `fixtures_actions[]`，与 legacy pattern 的 actions[] 平行——
     agent 走 plan 时两套都得跑（fixtures 修复优先于内容页 frontmatter 修复）。
     """
@@ -1795,7 +1795,7 @@ def build_migration_plan(
                 )
             elif cid == "agents-md-template-sync":
                 # 模板渲染比对失败 → 全量重渲染（不是单行 Edit）；
-                # 详见 migrate-workflow.md §5 step 6 + wiki-spec.md §10.1
+                # 详见 upgrade-workflow.md §5 step 6 + wiki-spec.md §10.1
                 fixtures_actions.append(
                     {
                         **base,
@@ -1923,7 +1923,7 @@ def build_migration_plan(
         "to_version": CURRENT_WIKI_SPEC,
         "skill_path": "yzr-llm-wiki-management/SKILL.md",
         "spec_doc": "yzr-llm-wiki-management/references/wiki-spec.md",
-        "rule_doc": "yzr-llm-wiki-management/references/migrate-workflow.md",
+        "rule_doc": "yzr-llm-wiki-management/references/upgrade-workflow.md",
         "actions": actions,
         "fixtures_actions": fixtures_actions,
         "skipped_conflicts": legacy.get("conflicts", []),  # type: ignore

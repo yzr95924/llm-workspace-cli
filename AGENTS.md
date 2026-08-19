@@ -95,13 +95,13 @@ llmw.cli (argparse + 分派)
 
 此处列核心 3 条 + 指向 MEMORY 详述；完整 7 条的其余部分已在本文档各处承载：
 
-1. **CLI 不写 wiki 内容**——只写 `workspace.toml` / `workspace_local.toml` /
-   `<wiki>/wiki_metadata.toml` / `workspace_models.toml` + workspace `.gitignore`。
-   `<wiki>/AGENTS.md` / `<wiki>/CLAUDE.md` /
-   `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` /
-   `.gitignore` / 目录骨架 由 CLI 在 `add` 时内联生成——读同仓 `yzr-llm-wiki-management/references/` 下的
-   `agents-md-template.md` + `claude-md-template.md` 两份模板和 6 个 fixtures，按
-    `wiki-spec.md` §1-§7 + §9.1 + §14 渲染。
+1. **代码永不创作内容语义**——CLI 写路径仅限三类字节：① 骨架渲染（字节来自 skill
+   `references/` 模板 + metadata 变量，单一入口 `llmw.content.render`）；② 注册表
+   声明的纯函数变换（`workspace_models.toml` CRUD、overlay 启动配置、legacy 路径表
+   移动）；③ 机械 scribe（字节来自 agent `ingest-diff` / `write` 输入，agent 决定内容，
+   CLI 只负责 `log` 行追加 / `index` 条目挂载等无语义变换操作）。`raw/` / `wiki/` 内
+   **任何**需要 LLM 判断的写入都由 skill 在 session 内执行，CLI 绝不创作——这条红线
+   由 `llmw.content` 包封装所有确定性操作（见模块边界表 `llmw.content` 一行）。
 2. **CLI 内联实现 wiki 创建**：原 `setup_wiki.py` 已删除（skill 迁移时随之移除）；
    CLI 通过 `llmw.wiki.init_wiki` 读同仓 `yzr-llm-wiki-management/references/agents-md-template.md` +
    `references/claude-md-template.md` +
@@ -129,6 +129,7 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 | `llmw.cli` | argparse + 全局 flag + 分派 | 不含业务逻辑 |
 | `llmw.backends` | backend 单一真源：`KNOWN_BACKENDS`（enter_cli 白名单 / 打标 / 校验共用）+ `STATE_PATTERNS`（status 的 STATE 模式注册表）+ `match_working`/`match_waiting`；加新 agent 只改此文件 | 不写盘、不做 tmux IO |
 | `llmw.config` | workspace 路径解析、SKILL 脚本路径、模板目录定位 | 不解析 workspace.toml |
+| `llmw.content` | **所有**确定性操作单仓收口：`render.py`（骨架渲染单一入口）/ `init_wiki.py`（渲染 + 编排）/ `upgrade.py`（升级引擎 + 3 终态）/ `wiki_fixtures.py` + `workspace_fixtures.py`（规则注册表 + 探测器）/ `wiki_lint.py` + `ingest_diff.py` + `wiki_write.py`（内容层命令）/ `legacy_paths.toml`（数据）。变量 SSOT = metadata toml + `__version__` 常量；不从旧文件反提取变量 | 不写 `raw/` / `wiki/` 语义内容；不调用 LLM；不读用户 git 状态；不写元数据 toml（`store` 负责） |
 | `llmw.errors` | 自定义异常（按 exit_code 1/2/3 分层） | — |
 | `llmw.fsutil` | 原子写（tmp + fsync + rename）、ISO8601 时间 | — |
 | `llmw._compat` | tomllib (3.11+) / tomli (<3.11) 兼容层 + 手写 toml dump | — |
@@ -147,6 +148,18 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 | `llmw.models.redact` | `redact_api_key` 单一脱敏出口 | — |
 | `llmw.models.resolve` | `resolve_for_wiki` 单一查找入口：wiki.model 优先，否则 registry 默认 | 不做 CRUD |
 | `llmw.models.manager` | CRUD + set/unset-default 业务；保证 `is_default` 全局唯一 | 不直接读 toml 文件（走 store.load） |
+
+### 骨架所有权四分表（本仓视角）
+
+本仓（llmw CLI）维护的"骨架文件"按所有权分 4 档；`llmw upgrade --apply` / `llmw wiki upgrade --apply`
+的行为差异即按此分类。完整论证见 `doc/skeleton-engine-design.md` §4.6。
+
+| 档 | CLI 维护的文件 | `check-fixtures` 行为 | `upgrade --apply` 行为 |
+| --- | --- | --- | --- |
+| **byte-owned** | `<wiki>/AGENTS.md` / `<wiki>/CLAUDE.md` / `<workspace>/AGENTS.md` / `<workspace>/CLAUDE.md` | render-compare：必须与 `references/*-template.md` 渲染稿字节一致 | 按模板全量重渲染 |
+| **block-owned** | `<workspace>/.gitignore` 的 llmw managed 块 | 块内 3 规则必须齐全（`gitignore-skeleton` check） | 仅替换 managed 块，块外用户自定义规则不动 |
+| **header-owned** | `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` | frontmatter 必填键 + H1 + 说明块 + ## 段头（各 `*-skeleton` check） | 换头 + 段嫁接保留 growth 条目 |
+| **content-owned** | wiki 内容页 + MEMORY 经验条目 + scripts 脚本正文 + 跨 wiki 综合产物 | 不查（归 agent / skill） | 不动 |
 
 ### 全局 flag 与退出码
 
@@ -232,6 +245,10 @@ agent CLI 子进程透传 `os.environ`、依赖 Local 层 `env` 块优先级稳�
 - **不要写 wiki 内容**：任何对 `raw/` 或 `wiki/` 的写入都是违反不变量 I-1 的。
 - **不要复活 setup_wiki.py**：已删除（skill 侧明确），wiki 骨架由 CLI 内联生成
   （读 SKILL `references/`）；不要"为了模块化"把渲染拆回脚本。
+- **不要在 `llmw.content` 之外做骨架渲染**：所有确定性操作（render / checker
+  fixture 字节比对 / upgrade resync / legacy paths / 内容层命令）统一入口
+  `llmw.content` 包——外部模块不要"为了复用"自己写 `_substitute` 或重读
+  `references/*-template.md`；直接调 `llmw.content.render` 的 API。
 - **不要让 model 走环境变量被读出来**：`os.environ.get("ANTHROPIC_*")` 这类读取一律禁止；
   model 配置完全由 `workspace_models.toml` 掌控，enter 的 overlay 交付是 CLI 主动行为
   （写启动配置）。详 [[model-ops-no-env-vars]]。

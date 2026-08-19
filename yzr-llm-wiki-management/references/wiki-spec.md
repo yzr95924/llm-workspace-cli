@@ -144,6 +144,28 @@
 - **CLI 写入场景**：wiki 元数据 CRUD——具体命令名归 CLI
 - **skill 写入场景**：**无**——只读
 
+## §1.2 骨架所有权四分表（CLI 渲染 vs agent 写入边界）
+
+> **权威陈述**：完整的论证（为什么是这四档 + 升级流程如何依赖此分类）见
+> `llmw-workspace-cli/doc/skeleton-engine-design.md`（CLI 仓设计文档）。本节是契约层
+> 规范，仅列 4 档定义 + 每档对文件的约束要求。
+
+| 文件 | 所有权 | 含义（约束） | CLI `upgrade` 行为 |
+| --- | --- | --- | --- |
+| `AGENTS.md` / `CLAUDE.md` | **byte-owned** | 整个文件 = 模板渲染；agent 禁改 | 按模板全量重渲染 |
+| `.gitignore` | **block-owned** | llmw managed 块内禁改（标记 + 3 规则行），块外用户自由 | 仅替换 managed 块 |
+| `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` | **header-owned** | frontmatter + H1 + 说明块禁改；`##` 段体 / 条目 / bullet agent 正常写 | 段嫁接（换头保留 growth 条目） |
+| wiki `wiki/` 各内容页 + MEMORY 经验条目 + scripts 脚本 | **content-owned** | agent 拥有 | 不动 |
+
+**约束语义**：
+
+- byte-owned / header-owned 部分的 agent 修改会被 `llmw wiki check-fixtures` 报告
+  为 drift，`llmw wiki upgrade --apply`（默认 dry-run）重渲染覆盖；自定义纪律 / 偏好一律
+  沉淀到 `MEMORY/`，由 `AGENTS.md` 顶部 `@MEMORY/MEMORY.md` 自动加载。
+- block-owned 的 **块外**内容不受 CLI 约束——用户自由添加用户级忽略规则。
+- content-owned 部分（内容页 / growth 条目 / memory 经验 / scripts 正文）归 agent 拥有；
+  `llmw wiki upgrade` 不碰。
+
 ## §2 AGENTS.md（SSOT）+ CLAUDE.md（薄壳）
 
 > **agent 中立设计**：wiki 纪律的**单一真源是 `AGENTS.md`**——工具无关。`CLAUDE.md`
@@ -774,7 +796,7 @@ anchor 的 `remote_url` / `branch` 是**可选**的 git 身份字段——记录
 
 `raw/external/` 采用扁平 + 单 TOML anchor 形态（§13.1）。非扁平布局 / JSON anchor 等
 结构差异由 `lint_wiki.py --check-version --apply` **手工**迁移（差异大、自动迁移易出错）；
-步骤见 [`migrate-workflow.md` §六](migrate-workflow.md#六语义合并规则)（§6.3）。
+步骤见 [`upgrade-workflow.md` §六](upgrade-workflow.md#六语义合并规则)（§6.3）。
 
 ---
 

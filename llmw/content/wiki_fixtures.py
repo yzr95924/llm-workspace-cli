@@ -6,7 +6,7 @@
 MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
 wiki_metadata.toml）是否满足当前 wiki spec 的结构要求。本脚本只校验**结构性字节合规**；
 语义合并（frontmatter 字段升级 / index 重复条目 / 多 MEMORY 条目归并等）由
-migrate-workflow.md §六 + LLM agent 走 migration plan 时处理——本脚本不替代。
+upgrade-workflow.md §六 + LLM agent 走 migration plan 时处理——本脚本不替代。
 
 用法:
   python3 check_wiki_fixtures.py [<WIKI_ROOT>] [--json] [--target-spec <semver>]
