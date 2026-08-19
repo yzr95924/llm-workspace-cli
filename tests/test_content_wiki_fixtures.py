@@ -18,6 +18,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from llmw.content.render import render_wiki_agents_md
+
 REPO = Path(__file__).resolve().parents[1]
 SKILL_ROOT = REPO / "yzr-llm-wiki-management"
 AGENTS_TEMPLATE = (SKILL_ROOT / "references" / "agents-md-template.md").read_text(
@@ -43,12 +45,16 @@ def _target_spec():
 TARGET_SPEC = _target_spec()
 
 
-def _render_agents_md(topic="Test", date="2026-06-28", cli="0.1.0", spec=None):
-    return (
-        AGENTS_TEMPLATE.replace("{{TOPIC_NAME}}", topic)
-        .replace("{{SETUP_DATE}}", date)
-        .replace("{{CLI_VERSION}}", cli)
-        .replace("{{WIKI_SPEC_VERSION}}", spec or TARGET_SPEC)
+def _render_agents_md(
+    topic="Test", setup_date="2026-06-28 00:00", cli="0.1.0", spec=None
+):
+    """生产 render 的薄封装；默认参数与 _wiki_metadata.created_at="2026-06-28T00:00:00Z"（[:16] 派生为
+    `"2026-06-28 00:00"`）对齐，保证 scratch wiki 的 AGENTS.md 与 metadata + 渲染契约字节一致。"""
+    return render_wiki_agents_md(
+        topic=topic,
+        setup_date=setup_date,
+        cli_version=cli,
+        spec_version=spec or TARGET_SPEC,
     )
 
 
@@ -69,8 +75,10 @@ def _wiki_metadata(missing=None):
     return "\n".join(f"{k} = {v}" for k, v in fields if k not in missing) + "\n"
 
 
-# 锚点 mapping 渲染 fixtures = 原 canonical/ 字面量（canonical/ 已删，fixtures 是唯一字节金标准）
-FIXTURE_ANCHORS = {"TOPIC_NAME": "Test", "SETUP_DATE": "2026-06-28 14:30"}
+# 锚点 mapping 渲染 fixtures = 原 canonical/ 字面量（canonical/ 已删，fixtures 是唯一字节金标准）。
+# SETUP_DATE 与 _wiki_metadata.created_at="2026-06-28T00:00:00Z" 派生后的 checker 渲染值一致
+# （"2026-06-28 00:00"），保证 scratch wiki 三处渲染结果字节对齐。
+FIXTURE_ANCHORS = {"TOPIC_NAME": "Test", "SETUP_DATE": "2026-06-28 00:00"}
 
 
 def _fixture(name):
@@ -246,6 +254,9 @@ class WikiMetadataReadsSatisfiedTest(unittest.TestCase):
 
 class AgentsVersionCheckTest(unittest.TestCase):
     def test_stale_version_fails(self):
+        """版本落后时两个 check 协同：version-is-current 报 currency，template-sync
+        因渲染用 CURRENT spec 必然字节差 → 也 fail。**冗余 benign**——两者都推荐 upgrade。
+        旧版 orthogonality 设计已在 §7.2 render-from-metadata 改造中废弃（详见设计文档 §7.4）。"""
         with tempfile.TemporaryDirectory() as tmp:
             build_wiki(tmp, agents_md=_render_agents_md(spec=OLD_VERSION))
             code, report = run_check(tmp)
@@ -253,9 +264,10 @@ class AgentsVersionCheckTest(unittest.TestCase):
         c = check_by_id(report, "agents-version-is-current")
         self.assertIs(c["passed"], False)
         self.assertEqual(c["comparison"], "older")
-        # 版本落后与正文同步正交（正文仍与新模板一致 → template-sync pass）
+        # 与 template-sync 同时 fail：两者都指向 upgrade（设计文档 §7.2 已取消 orthogonality）
         sync = check_by_id(report, "agents-md-template-sync")
-        self.assertIs(sync["passed"], True)
+        self.assertIs(sync["passed"], False)
+        self.assertIn("渲染稿", str(sync.get("expected", "")))
 
 
 class AgentsTemplateSyncTest(unittest.TestCase):

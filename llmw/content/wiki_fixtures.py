@@ -49,14 +49,18 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 # 常量 SSOT 在 wiki_lint / log_format，import 不复制。
 from llmw import WIKI_SPEC_VERSION
+from llmw import __version__ as CLI_VERSION
 from llmw.config import wiki_spec_templates_dir
 from llmw.content.log_format import LOG_LINE_RE  # noqa: E402
+from llmw.content.render import render_wiki_agents_md
 from llmw.content.wiki_lint import (  # noqa: E402
     ANCHOR_FILENAME,
     EXTERNAL_SUBDIR,
     MEMORY_SUBDIR,
     SEMVER_RE,
 )
+from llmw.errors import WikiMetadataCorrupt
+from llmw.wiki import store as wiki_store
 
 # -- 公开 check 注册表（顺序 = 输出顺序）--
 # 每条: severity (error/warn)、rule_ref（指向 spec/lint-checklist 段）、desc（人读摘要）
@@ -149,10 +153,6 @@ CHECK_REGISTRY = [
 
 # -- 解析用正则 --
 AGENTS_VERSION_ROW_RE = re.compile(r"^\s*\|\s*Wiki Spec 版本\s*\|\s*([^|]+?)\s*\|")
-AGENTS_TOPIC_ROW_RE = re.compile(r"^\s*\|\s*主题\s*\|\s*([^|]+?)\s*\|")
-AGENTS_SETUP_DATE_ROW_RE = re.compile(r"^\s*\|\s*创建日期\s*\|\s*([^|]+?)\s*\|")
-AGENTS_CLI_VERSION_ROW_RE = re.compile(r"^\s*\|\s*CLI 版本\s*\|\s*([^|]+?)\s*\|")
-AGENTS_H1_TOPIC_RE = re.compile(r"^#\s+(.+?)\s+Wiki\s+—\s+LLM 维护守则\s*$")
 INDEX_CATEGORY_RE = re.compile(r"^## (.+)$")
 SOURCE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 GITIGNORE_TRACK_TOML_RE = re.compile(r"^!\s*raw/external/\.symlink-anchor\.toml\s*(#.*)?$")
@@ -324,26 +324,22 @@ def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obj
     return out
 
 
-def _extract_agents_row(text: str, row_re: "re.Pattern[str]") -> Optional[str]:
-    """从 AGENTS.md §八 表格提取某字段行单元格；未命中返 None。"""
-    for line in text.splitlines():
-        m = row_re.match(line)
-        if m:
-            return m.group(1).strip()
-    return None
-
-
 def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """AGENTS.md 与 references/agents-md-template.md 渲染稿字节一致。
+    """AGENTS.md 与 render.py 渲染稿字节一致（变量 SSOT = metadata + 版本常量）。
 
-    per-wiki 变量只有 4 个（主题 / 创建日期 / CLI 版本 / Wiki Spec 版本，全在 H1 + §八），
-    正文 §一~§七 + §九 跨 wiki 逐字相同——故用"提取变量 → 渲染模板 → 字节比对"一次覆盖
-    旧版本残留 + 本地改动全部漂移，取代 0.25.0- 的两条存在性检查（has-at-imports /
-    top-read-directive）。{{WIKI_SPEC_VERSION}} 用 wiki 自钉版本替换，与
-    `agents-version-is-current`（版本行对齐 target）保持正交——本 check 只管"正文与模板同步"，
-    不管版本新旧。
-    修复路径：plan 的 fixtures-fix-agents-md-resync（全量重渲染；本地定制逐条与用户
-    裁定搬 MEMORY/ 或丢弃）。
+    设计文档 §7.2: 渲染输入变量全部来自 `wiki_metadata.toml` + `llmw/__init__.py` 版本常量,
+    **不从旧文件反提取**。改模板措辞/结构后只动 skill 侧,本 check 自动跟随。
+
+    per-wiki 变量 4 个 (主题 / 创建日期 / CLI 版本 / Wiki Spec 版本):
+    - 主题 / 创建日期 = wiki_metadata.toml 的 topic / created_at
+    - CLI 版本 / Wiki Spec 版本 = llmw.__version__ / llmw.WIKI_SPEC_VERSION
+
+    一次覆盖旧版本残留 + 本地改动全部漂移。自定义纪律沉淀到 MEMORY/（不进 AGENTS.md,
+    否则与渲染稿不等）。
+
+    与 `agents-version-is-current` 的关系: 本 check 渲染时直接用 CURRENT spec 版本,
+    旧 wiki 必然字节差 → 也会 drift。**冗余是 benign**——两者都推荐 upgrade, 升级路径
+    一次修复。`agents-version-is-current` 仅做 currency 信息报告。
     """
     out = {"passed": True, "severity": "error", "file": "AGENTS.md"}  # type: Dict[str, object]
     wiki_text = _read_text(wiki_root / "AGENTS.md")
@@ -351,42 +347,44 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
         out["passed"] = None
         out["skipped"] = "AGENTS.md 不存在"
         return out
-    template = _read_text(wiki_spec_templates_dir() / "agents-md-template.md")
-    if template is None:
-        out["passed"] = None
-        out["skipped"] = "references/agents-md-template.md 未找到（无法模板比对）"
+
+    # 变量 SSOT: 从 wiki_metadata.toml 读 topic/created_at（不从 AGENTS.md §八 反提取）
+    try:
+        meta = wiki_store.load(wiki_root)
+    except WikiMetadataCorrupt as e:
+        out["passed"] = None  # type: ignore
+        out["skipped"] = f"wiki_metadata.toml 解析失败, 无法派生渲染变量: {e}"
+        return out
+    except OSError as e:
+        out["passed"] = None  # type: ignore
+        out["skipped"] = f"wiki_metadata.toml 不可读: {e}"
         return out
 
-    topic = _extract_agents_row(wiki_text, AGENTS_TOPIC_ROW_RE)
-    if topic is None:  # fallback H1 `# <主题> Wiki — LLM 维护守则`
-        h1 = next((ln for ln in wiki_text.splitlines() if ln.startswith("# ")), "")
-        h1m = AGENTS_H1_TOPIC_RE.match(h1)
-        if h1m:
-            topic = h1m.group(1).strip()
-    setup_date = _extract_agents_row(wiki_text, AGENTS_SETUP_DATE_ROW_RE)
-    cli_version = _extract_agents_row(wiki_text, AGENTS_CLI_VERSION_ROW_RE)
-    spec_cell = _extract_agents_row(wiki_text, AGENTS_VERSION_ROW_RE) or ""
-    spec_semver = SEMVER_RE.search(spec_cell)
-
-    if not topic or not setup_date or not cli_version or spec_semver is None:
+    if not meta.topic or not meta.created_at:
         out["passed"] = False  # type: ignore
-        out["expected"] = "§八 含可解析的 主题 / 创建日期 / CLI 版本 / Wiki Spec 版本 四行（模板比对前置）"
-        out["actual"] = "§八 字段解析失败——走 fixtures-fix-agents-md-resync 全量重渲染（agent 人工提取变量）"
+        out["expected"] = "wiki_metadata.toml 含 topic 与 created_at（渲染变量 SSOT）"
+        out["actual"] = f"topic={meta.topic!r}, created_at={meta.created_at!r}"
         return out
 
-    rendered = (
-        template.replace("{{TOPIC_NAME}}", topic)
-        .replace("{{SETUP_DATE}}", setup_date)
-        .replace("{{CLI_VERSION}}", cli_version)
-        .replace("{{WIKI_SPEC_VERSION}}", spec_semver.group(0))
+    # created_at 形如 "2026-08-19T15:23:45Z" — ISO 8601; 模板 SETUP_DATE 占位符粒度
+    # 为 YYYY-MM-DD HH:MM（与 init_wiki.today 一致）
+    ca = meta.created_at.replace("T", " ")
+    setup_date = ca[:16] if len(ca) >= 16 else ca
+
+    rendered = render_wiki_agents_md(
+        topic=meta.topic,
+        setup_date=setup_date,
+        cli_version=CLI_VERSION,
+        spec_version=WIKI_SPEC_VERSION,
     )
+
     if rendered != wiki_text:
         diff = list(difflib.unified_diff(wiki_text.splitlines(), rendered.splitlines(), lineterm="", n=0))
         changed = [ln for ln in diff if ln.startswith(("+", "-")) and not ln.startswith(("+++", "---"))]
         preview = "; ".join(ln[:60] for ln in changed[:4])
         out["passed"] = False  # type: ignore
-        out["expected"] = "AGENTS.md 与渲染模板字节一致（定制纪律沉淀到 MEMORY/，不进本文件）"
-        out["actual"] = f"{len(changed)} 行与模板渲染稿不一致（首处: {preview}）" if preview else "与模板渲染稿不一致"
+        out["expected"] = "AGENTS.md 与 llmw.content.render 渲染稿字节一致（定制纪律沉淀到 MEMORY/，不进本文件）"
+        out["actual"] = f"{len(changed)} 行与渲染稿不一致（首处: {preview}）" if preview else "与渲染稿不一致"
     return out
 
 

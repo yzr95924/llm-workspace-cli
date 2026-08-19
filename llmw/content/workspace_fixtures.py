@@ -39,11 +39,14 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 from llmw import WORKSPACE_SPEC_VERSION
+from llmw import __version__ as CLI_VERSION
 from llmw.config import workspace_spec_templates_dir
+from llmw.content.render import render_workspace_agents_md, render_workspace_claude_md
 
 ENV_WORKSPACE_ROOT = "LLMW_WORKSPACE"
 
 SEMVER_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+CREATED_AT_TOML_RE = re.compile(r'^\s*created_at\s*=\s*"([^"]+)"', re.MULTILINE)
 
 # §六「当前配置」表行（机读版本钉死）
 WS_NAME_ROW_RE = re.compile(r"^\|\s*Workspace 名\s*\|\s*(.+?)\s*\|\s*$")
@@ -235,13 +238,15 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
 
 
 def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#2: AGENTS.md 与 references/workspace-agents-md-template.md 渲染稿字节一致。
+    """check#2: AGENTS.md 与 render.py 渲染稿字节一致。
 
-    per-workspace 变量只有 4 个（Workspace 名 / 创建日期 / Workspace Spec 版本 / CLI 版本，
-    全在 H1 + §六 表），正文跨 workspace 逐字相同——故用"提取变量 → 渲染模板 → 字节比对"
-    一次覆盖旧版本残留 + 本地改动全部漂移。{{WORKSPACE_SPEC_VERSION}} 用 workspace 自钉版本
-    替换，与 check#1（版本新旧）保持正交。修复 = 全量重渲染（fix workspace-fix-agents-md-resync），
-    本地定制逐条与用户裁定搬 MEMORY/ 或丢弃。
+    设计文档 §7.2: 渲染输入尽量从 workspace.toml + 版本常量派生; **display_name 例外**——
+    workspace.toml 没有该字段（init 时只写到 AGENTS.md），仍需从 AGENTS.md §六 表
+    （或 H1 fallback）提取。其它 3 变量均 SSOT 派生，模板措辞改后本 check 自动跟随。
+
+    与 check#1 的关系: 本 check 直接用 CURRENT spec 版本渲染, 旧 workspace 必然字节差
+    → 也会 drift。**冗余 benign**: 两者都推荐 upgrade, 一次修复。check#1 仅做 currency
+    信息报告 + 老格式 fallback。
     """
     out = {"passed": True, "severity": "error", "file": "AGENTS.md"}  # type: Dict[str, object]
     ws_text = _read_text(ws_root / "AGENTS.md")
@@ -249,37 +254,62 @@ def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
         out["passed"] = None
         out["skipped"] = "AGENTS.md 不存在"
         return out
-    template, tpl_path = _agents_reference()
-    if template is None:
-        out["passed"] = None
-        out["skipped"] = f"{tpl_path} 未找到（无法模板比对）"
-        return out
 
-    vars = _extract_template_vars(ws_text)
-    if not all([vars["name"], vars["date"], vars["cli"], vars["spec"]]):
+    # Variable 1 (例外): display_name 从 AGENTS.md §六 / H1 提取（ws.toml 没存）
+    display_name = _extract_row(ws_text, WS_NAME_ROW_RE)
+    if display_name is None:
+        h1 = next((ln for ln in ws_text.splitlines() if ln.startswith("# ")), "")
+        h1m = H1_NAME_RE.match(h1)
+        if h1m:
+            display_name = h1m.group(1).strip()
+    if not display_name:
         out["passed"] = False  # type: ignore
         out["expected"] = (
-            "§六 表含可解析的 Workspace 名 / 创建日期 / Workspace Spec 版本 / CLI 版本（或老 §六 散文行 fallback 可解析）"
+            "AGENTS.md §六 Workspace 名 / H1 可解析为 display_name（ws.toml 不存该字段，"
+            "本 check 必须从此提取；模板变量 SSOT 见设计文档 §7.2）"
         )
-        out["actual"] = "变量提取失败——走 workspace-fix-agents-md-resync 全量重渲染（agent 人工提取变量）"
+        out["actual"] = "Workspace 名提取失败——走 workspace-fix-agents-md-resync"
         out["fix"] = {
             "type": "workspace-fix-agents-md-resync",
-            "to_action": "按 SKILL.md §6 全量重渲染 AGENTS.md（变量提取失败，agent 人工从旧文件读出 4 变量）",
+            "to_action": (
+                "人工确认 display_name 后按 llmw.content.render 全量重渲染 AGENTS.md；"
+                "本地定制逐条与用户裁定搬 MEMORY/ 或丢弃"
+            ),
         }
         return out
 
-    rendered = _render_agents_template(template, vars, vars["spec"] or "")
+    # Variable 2 (SSOT): workspace.toml.created_at → setup_date
+    ws_toml_text = _read_text(ws_root / "workspace.toml")
+    if ws_toml_text is None:
+        out["passed"] = None  # type: ignore
+        out["skipped"] = "workspace.toml 不存在, 无法派生 setup_date"
+        return out
+    cm = CREATED_AT_TOML_RE.search(ws_toml_text)
+    if cm is None:
+        out["passed"] = None  # type: ignore
+        out["skipped"] = "workspace.toml 缺 created_at, 无法派生 setup_date"
+        return out
+    setup_date = cm.group(1)[:10]
+
+    # Variables 3+4 (SSOT): 版本常量
+    rendered = render_workspace_agents_md(
+        display_name=display_name,
+        setup_date=setup_date,
+        cli_version=CLI_VERSION,
+        spec_version=WORKSPACE_SPEC_VERSION,
+    )
+
     if rendered != ws_text:
         diff = list(difflib.unified_diff(ws_text.splitlines(), rendered.splitlines(), lineterm="", n=0))
         changed = [ln for ln in diff if ln.startswith(("+", "-")) and not ln.startswith(("+++", "---"))]
         preview = "; ".join(ln[:60] for ln in changed[:4])
         out["passed"] = False  # type: ignore
-        out["expected"] = "AGENTS.md 与渲染模板字节一致（定制纪律沉淀到 MEMORY/，不进本文件）"
-        out["actual"] = f"{len(changed)} 行与模板渲染稿不一致（首处: {preview}）" if preview else "与模板渲染稿不一致"
+        out["expected"] = "AGENTS.md 与 llmw.content.render 渲染稿字节一致（定制纪律沉淀到 MEMORY/，不进本文件）"
+        out["actual"] = f"{len(changed)} 行与渲染稿不一致（首处: {preview}）" if preview else "与渲染稿不一致"
         out["fix"] = {
             "type": "workspace-fix-agents-md-resync",
             "to_action": (
-                f"按 SKILL.md §6 全量重渲染 AGENTS.md：保留 §六 4 变量旧值（{{{{WORKSPACE_SPEC_VERSION}}}} 用 {info.get('target_spec') or vars['spec']}）→ "
+                f"按 llmw.content.render.render_workspace_agents_md 全量重渲染 AGENTS.md（display_name={display_name}）→ "
                 "diff 旧文件，多出的本地定制逐条与用户裁定搬 MEMORY/ 或丢弃 → Write 覆盖"
             ),
         }
@@ -287,25 +317,32 @@ def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
 
 
 def check_claude_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#3: CLAUDE.md 薄壳与 references/workspace-claude-md-template.md 渲染稿字节一致。
+    """check#3: CLAUDE.md 薄壳与 render.py 渲染稿字节一致。
 
-    薄壳唯一变量是 {{WORKSPACE_DISPLAY_NAME}}（从 AGENTS.md §六 表 / H1 提取）。薄壳不持
-    spec 版本（版本在 AGENTS.md §六），故渲染稿与版本新旧无关。
+    薄壳唯一变量是 {{WORKSPACE_DISPLAY_NAME}}；workspace.toml 没存 display_name,
+    仍需从 AGENTS.md §六 表 / H1 提取。
     """
     out = {"passed": True, "severity": "error", "file": "CLAUDE.md"}  # type: Dict[str, object]
     tpl_path = workspace_spec_templates_dir() / "workspace-claude-md-template.md"
-    template = _read_text(tpl_path)
-    if template is None:
+    if not tpl_path.is_file():
         out["passed"] = None
         out["skipped"] = f"{tpl_path} 未找到（无法模板比对）"
         return out
     agents_text = _read_text(ws_root / "AGENTS.md")
-    name = _extract_template_vars(agents_text)["name"] if agents_text is not None else None
-    if not name:
+    display_name = None
+    if agents_text is not None:
+        display_name = _extract_row(agents_text, WS_NAME_ROW_RE)
+        if display_name is None:
+            h1 = next((ln for ln in agents_text.splitlines() if ln.startswith("# ")), "")
+            h1m = H1_NAME_RE.match(h1)
+            if h1m:
+                display_name = h1m.group(1).strip()
+    if not display_name:
         out["passed"] = None
         out["skipped"] = "AGENTS.md 缺失或 Workspace 名不可解析（无法渲染薄壳比对）"
         return out
-    rendered = template.replace("{{WORKSPACE_DISPLAY_NAME}}", name)
+
+    rendered = render_workspace_claude_md(display_name=display_name)
 
     ws_text = _read_text(ws_root / "CLAUDE.md")
     if ws_text is None:
@@ -314,16 +351,16 @@ def check_claude_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
         out["actual"] = "CLAUDE.md 不存在"
         out["fix"] = {
             "type": "workspace-fix-claude-md-create",
-            "to_action": f"按 references/workspace-claude-md-template.md 渲染创建 CLAUDE.md（{{{{WORKSPACE_DISPLAY_NAME}}}} 用 {name}）",
+            "to_action": f"按 llmw.content.render.render_workspace_claude_md(display_name={display_name}) 渲染创建 CLAUDE.md",
         }
         return out
     if rendered != ws_text:
         out["passed"] = False  # type: ignore
-        out["expected"] = "CLAUDE.md 与薄壳模板渲染稿字节一致（不含纪律正文；版本在 AGENTS.md §六）"
+        out["expected"] = "CLAUDE.md 与 llmw.content.render 渲染稿字节一致（不含纪律正文；版本在 AGENTS.md §六）"
         out["actual"] = "与薄壳模板渲染稿不一致"
         out["fix"] = {
             "type": "workspace-fix-claude-md-resync",
-            "to_action": f"按 references/workspace-claude-md-template.md 渲染 Write 覆盖 CLAUDE.md（{{{{WORKSPACE_DISPLAY_NAME}}}} 用 {name}）",
+            "to_action": f"按 llmw.content.render.render_workspace_claude_md(display_name={display_name}) 渲染 Write 覆盖 CLAUDE.md",
         }
     return out
 

@@ -207,20 +207,20 @@ def add(
     # 已存在的覆盖场景)
     wiki_dir.mkdir(parents=False, exist_ok=True)
 
-    # CLI 内联实现 wiki 骨架(取代原 setup_wiki.py subprocess)
+    # 先建 wiki_metadata.toml（UTC created_at），再从其派生 SETUP_DATE（设计文档 §7.2
+    # 变量 SSOT：模板变量 + checker 派生逻辑读同字段）。[:16] = YYYY-MM-DD HH:MM；
+    # replace("T", " ") 把 ISO 8601 "T" 分隔符换成空格（与 fixtures/README.md 字节金标准对齐）。
+    meta = wiki_store.create_skeleton(wiki_dir, name, topic)
+    setup_date = (meta.created_at or "").replace("T", " ")[:16]
+
+    # CLI 内联实现 wiki 骨架（取代原 setup_wiki.py subprocess）
     init_wiki.render_and_write(
         wiki_dir,
         topic,
-        # SETUP_DATE 走 YYYY-MM-DD HH:MM 粒度——fixtures/README.md 的
-        # 字节金标准 (HH:MM 14:30 示范);
-        # workspace 侧保持 YYYY-MM-DD (workspace-spec §4 字面),不要照搬这里。
-        datetime.now().strftime("%Y-%m-%d %H:%M"),
+        setup_date,
         cli_version=__version__,
         spec_version=WIKI_SPEC_VERSION,
     )
-
-    # 写 wiki_metadata.toml
-    meta = wiki_store.create_skeleton(wiki_dir, name, topic)
 
     # 交互模式填 metadata
     if sys.stdin.isatty():

@@ -1,8 +1,7 @@
 """workspace 级业务: init / config / list"""
 
-import re
 import sys
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
@@ -10,6 +9,7 @@ from llmw import WORKSPACE_SPEC_VERSION, __version__
 from llmw._compat import TOMLDecodeError
 from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
 from llmw.config import workspace_spec_templates_dir
+from llmw.content.render import render_workspace_agents_md, render_workspace_claude_md
 from llmw.errors import (
     InvalidConfigKey,
     KeyNotUnsettable,
@@ -85,11 +85,15 @@ def _is_effectively_empty(path: Path) -> bool:
     return all(entry.name in ignored for entry in path.iterdir())
 
 
-def _write_workspace_agents_md(workspace_root: Path, display_name: str) -> None:
+def _write_workspace_agents_md(
+    workspace_root: Path, display_name: str, setup_date: str
+) -> None:
     """spec §4: 按 workspace-agents-md-template.md 拷贝生成 <workspace>/AGENTS.md (SSOT)。
 
-    用户所有的 workspace 宪法 (工具无关纪律)——CLI 仅在 init 时拷模板 + 替换 4 占位符:
-      {{WORKSPACE_DISPLAY_NAME}} / {{SETUP_DATE}} / {{WORKSPACE_SPEC_VERSION}} / {{CLI_VERSION}}
+    setup_date 由调用方派生自 workspace.toml.created_at（[:10] 取 YYYY-MM-DD），
+    与 checker（从同字段派生）保持一致——设计文档 §7.2 变量 SSOT 原则。
+
+    模板渲染统一走 llmw.content.render。
 
     spec §12: AGENTS.md 已存在 → 拒绝覆盖 (schema 是用户所有)。
     """
@@ -100,37 +104,16 @@ def _write_workspace_agents_md(workspace_root: Path, display_name: str) -> None:
             hint="AGENTS.md 是 workspace schema（用户所有），若需更新请手动编辑",
         )
 
-    refs = workspace_spec_templates_dir()
-    if not refs.is_dir():
-        raise SkillMissing(
-            f"找不到 workspace SKILL references/ 目录: {refs}",
-            hint="检查 yzr-llm-*/references/ 是否完整（SKILL 随 CLI 同仓，仓库完整克隆即含）",
-        )
-    try:
-        tmpl = (refs / "workspace-agents-md-template.md").read_text(encoding="utf-8")
-    except OSError as e:
-        raise SetupFailed(
-            f"读取 workspace AGENTS.md 模板失败: {e.filename}",
-            hint="检查 yzr-llm-workspace-management/references/ 是否完整",
-        )
-
-    mapping = {
-        "WORKSPACE_DISPLAY_NAME": display_name,
-        "SETUP_DATE": date.today().isoformat(),
-        "WORKSPACE_SPEC_VERSION": WORKSPACE_SPEC_VERSION,
-        "CLI_VERSION": __version__,
-    }
-    for k, v in mapping.items():
-        tmpl = tmpl.replace("{{" + k + "}}", v)
-    leftover = re.findall(r"\{\{[^}]+\}\}", tmpl)
-    if leftover:
-        raise SetupFailed(
-            f"workspace AGENTS.md 模板占位符未替换干净: {leftover}",
-            hint="检查模板占位符与 mapping 是否匹配",
-        )
+    # 模板渲染（含 references/ 存在性检查 + 占位符 assert 兜底）
+    rendered = render_workspace_agents_md(
+        display_name=display_name,
+        setup_date=setup_date,
+        cli_version=__version__,
+        spec_version=WORKSPACE_SPEC_VERSION,
+    )
 
     try:
-        atomic_write(agents_md, tmpl)
+        atomic_write(agents_md, rendered)
     except OSError as e:
         raise SetupFailed(
             f"写入 workspace AGENTS.md 失败: {e.filename or e.strerror}",
@@ -145,6 +128,8 @@ def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
       {{WORKSPACE_DISPLAY_NAME}} (薄壳不持 spec 版本——版本在 AGENTS.md §六)。
     spec §4 字面: 薄壳仅替换 WORKSPACE_DISPLAY_NAME,不共享 AGENTS.md 的 4 键 mapping。
 
+    模板渲染统一走 llmw.content.render(设计文档 §7.2 单一入口)。
+
     spec §12: CLAUDE.md 已存在 → 拒绝覆盖 (薄壳也是 schema, 用户所有)。
     """
     claude_md = workspace_root / "CLAUDE.md"
@@ -154,31 +139,11 @@ def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
             hint="CLAUDE.md 是 workspace schema 薄壳（用户所有），若需更新请手动编辑",
         )
 
-    refs = workspace_spec_templates_dir()
-    if not refs.is_dir():
-        raise SkillMissing(
-            f"找不到 workspace SKILL references/ 目录: {refs}",
-            hint="检查 yzr-llm-*/references/ 是否完整（SKILL 随 CLI 同仓，仓库完整克隆即含）",
-        )
-    try:
-        tmpl = (refs / "workspace-claude-md-template.md").read_text(encoding="utf-8")
-    except OSError as e:
-        raise SetupFailed(
-            f"读取 workspace CLAUDE.md 模板失败: {e.filename}",
-            hint="检查 yzr-llm-workspace-management/references/ 是否完整",
-        )
-
-    # spec §4: 薄壳仅替换 WORKSPACE_DISPLAY_NAME。残留占位符 = 模板漂移,assert 兜底。
-    tmpl = tmpl.replace("{{WORKSPACE_DISPLAY_NAME}}", display_name)
-    leftover = re.findall(r"\{\{[^}]+\}\}", tmpl)
-    if leftover:
-        raise SetupFailed(
-            f"workspace CLAUDE.md 模板占位符未替换干净: {leftover}",
-            hint="薄壳模板应仅含 {{WORKSPACE_DISPLAY_NAME}};检查模板是否漂移",
-        )
+    # 模板渲染（含 references/ 存在性检查 + 占位符 assert 兜底）
+    rendered = render_workspace_claude_md(display_name=display_name)
 
     try:
-        atomic_write(claude_md, tmpl)
+        atomic_write(claude_md, rendered)
     except OSError as e:
         raise SetupFailed(
             f"写入 workspace CLAUDE.md 失败: {e.filename or e.strerror}",
@@ -241,7 +206,7 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
     else:
         path.mkdir(parents=True)
 
-    ws_store.create_skeleton(path)
+    ws = ws_store.create_skeleton(path)
 
     # 写 workspace 级 .gitignore（spec §10：无论是否启用 git 都生成，便于后续补 git）
     ensure_workspace_gitignore(path)
@@ -256,7 +221,10 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
     save_models(path, create_models_skeleton(path))
 
     # spec §4: 先写 AGENTS.md (SSOT), 再写 CLAUDE.md (薄壳)
-    _write_workspace_agents_md(path, display_name)
+    # setup_date 派生自 workspace.toml.created_at（UTC ISO 8601）— 取 YYYY-MM-DD 与
+    # checker 派生逻辑一致（设计文档 §7.2 变量 SSOT 原则）
+    setup_date = (ws.created_at or "")[:10]
+    _write_workspace_agents_md(path, display_name, setup_date=setup_date)
     _write_workspace_claude_md(path, display_name)
 
     # spec §9.1: 拷 workspace MEMORY.md 索引（agent 跨 wiki 持久化记忆,LLM 拥有）

@@ -199,8 +199,9 @@ class CleanWorkspaceTest(unittest.TestCase):
 
 class AgentsVersionCheckTest(unittest.TestCase):
     def test_stale_version_row_fails_with_older(self):
+        """版本落后时两个 check 协同 fail（设计文档 §7.2 render-from-metadata 已取消正交性,
+        两者都推荐 upgrade——冗余 benign）。"""
         with tempfile.TemporaryDirectory() as tmp:
-            # 版本行落后、正文其余与新模板一致——与 template-sync 正交（后者应 pass）
             build_workspace(tmp, agents_md=_render_agents_md(spec=OLD_VERSION))
             code, report = run_check(tmp)
         self.assertEqual(code, 1)
@@ -209,7 +210,12 @@ class AgentsVersionCheckTest(unittest.TestCase):
         self.assertEqual(c["comparison"], "older")
         self.assertEqual(c["fix"]["type"], "workspace-fix-agents-version")
         sync = check_by_id(report, "agents-md-template-sync")
-        self.assertIs(sync["passed"], True, "版本行落后不影响正文同步（正交）")
+        self.assertIs(
+            sync["passed"],
+            False,
+            "render 用 CURRENT spec → 字节差 → template-sync 必然 fail",
+        )
+        self.assertEqual(sync["fix"]["type"], "workspace-fix-agents-md-resync")
 
     def test_unparsable_version_row_fails_unknown(self):
         drifted = _render_agents_md().replace(
@@ -236,7 +242,7 @@ class AgentsTemplateSyncTest(unittest.TestCase):
         c = check_by_id(report, "agents-md-template-sync")
         self.assertIs(c["passed"], False)
         self.assertEqual(c["fix"]["type"], "workspace-fix-agents-md-resync")
-        self.assertIn("行与模板渲染稿不一致", c["actual"])
+        self.assertIn("行与渲染稿不一致", c["actual"])
 
     def test_old_workspace_fallback_extraction(self):
         """0.7.0- 老格式（无「当前配置」表）：§六 散文行 fallback 提取出版本 → comparison=older 而非 unknown。"""
