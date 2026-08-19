@@ -1,6 +1,7 @@
 """argparse 顶层 + 全局 flag + 子命令分派"""
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -185,6 +186,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="内省：输出规则清单（不扫描文件）；与 --json 联用具机器可读输出",
     )
 
+    p_upgrade = sub.add_parser(
+        "upgrade",
+        help="升级 workspace 所有 wiki 骨架（默认 dry-run；逐 wiki 跑 upgrade）",
+        parents=[common],
+    )
+    p_upgrade.add_argument(
+        "--apply",
+        action="store_true",
+        help="显式写盘（覆盖 dry-run 默认）；diff 非空时还需 --yes",
+    )
+    p_upgrade.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="确认覆盖 drift diff（自定义内容先搬 MEMORY/）",
+    )
+
     # ===== model registry =====
     p_model = sub.add_parser("model", help="workspace model registry", parents=[common])
     model_sub = p_model.add_subparsers(dest="model_action", metavar="ACTION")
@@ -358,6 +376,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="内省：输出规则清单（不扫描文件）；与 --json 联用具机器可读输出",
     )
 
+    pw_upgrade = wiki_sub.add_parser(
+        "upgrade",
+        help="升级 wiki 骨架（重渲染 + legacy 路径 + 自检；默认 dry-run）",
+        parents=[common],
+    )
+    pw_upgrade.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=True,
+        help="只输出计划不写盘（默认；传 --apply 显式写入）",
+    )
+    pw_upgrade.add_argument(
+        "--apply",
+        action="store_true",
+        help="显式写盘（覆盖 dry-run 默认）；diff 非空时还需 --yes",
+    )
+    pw_upgrade.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="确认覆盖 drift diff（自定义内容先搬 MEMORY/）",
+    )
+
     pw_id = wiki_sub.add_parser(
         "ingest-diff",
         help="扫 raw/ 找需 LLM 关注的文件（untracked / stale-raw / log-only）",
@@ -462,6 +503,18 @@ def _cmd_wiki_content(args) -> int:
             argv.append("--json")
         return wiki_fixtures.main(argv)
 
+    if args.wiki_action == "upgrade":
+        from llmw.content import upgrade
+
+        root = _resolve_content_root(args)
+        dry_run = not _flag(args, "apply")  # --apply 显式写盘，默认 dry-run
+        return upgrade.run_upgrade(
+            root,
+            dry_run=dry_run,
+            yes=_flag(args, "yes"),
+            as_json=_flag(args, "json"),
+        )
+
     root = _resolve_content_root(args)
     wa = args.wiki_action
 
@@ -534,6 +587,7 @@ def main(argv=None) -> int:
             "lint",
             "check-fixtures",
             "ingest-diff",
+            "upgrade",
             "write",
         ):
             return _cmd_wiki_content(args)
@@ -560,6 +614,57 @@ def main(argv=None) -> int:
             if _flag(args, "json"):
                 argv.append("--json")
             return workspace_fixtures.main(argv)
+
+        if args.command == "upgrade":
+            from llmw.content import upgrade as _upgrade
+            from llmw.workspace import store as _ws_store
+
+            ws = _ws_store.load(ws_root)
+            wikis = getattr(ws, "wikis", {}) or {}
+            if not wikis:
+                print("[llmw] workspace 无已注册 wiki", file=sys.stderr)
+                return 0
+            dry_run = not _flag(args, "apply")
+            yes = _flag(args, "yes")
+            as_json = _flag(args, "json")
+            aggregated = []
+            worst_rc = 0
+            for name, entry in wikis.items():
+                wiki_root = (ws_root / getattr(entry, "path", "")).resolve()
+                if not wiki_root.is_dir():
+                    aggregated.append(
+                        {
+                            "wiki": name,
+                            "status": "not_found",
+                            "hint": f"{wiki_root} 不存在",
+                        }
+                    )
+                    worst_rc = max(worst_rc, 2)
+                    continue
+                # monkey-patch print → capture each wiki's output
+                import io as _io
+
+                buf = _io.StringIO()
+                old_stdout, old_stderr = sys.stdout, sys.stderr
+                try:
+                    sys.stdout = buf
+                    sys.stderr = buf
+                    rc = _upgrade.run_upgrade(
+                        wiki_root, dry_run=dry_run, yes=yes, as_json=as_json
+                    )
+                finally:
+                    sys.stdout, sys.stderr = old_stdout, old_stderr
+                aggregated.append({"wiki": name, "output": buf.getvalue(), "exit": rc})
+                worst_rc = max(worst_rc, rc)
+            if as_json:
+                print(json.dumps({"wikis": aggregated}, indent=2, ensure_ascii=False))
+            else:
+                for item in aggregated:
+                    print(f"\n=== {item['wiki']} ===")
+                    print(item.get("output", "").rstrip())
+                    if item.get("exit"):
+                        print(f"[exit {item['exit']}]")
+            return worst_rc
 
         if args.command == "config":
             from llmw.workspace.manager import (

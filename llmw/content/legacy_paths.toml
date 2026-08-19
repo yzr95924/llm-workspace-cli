@@ -1,0 +1,21 @@
+# llmw/content/legacy_paths.toml — wiki upgrade 路径表
+#
+# 触发语义：old 存在 且 new 不存在 → 执行 kind 动作。
+#   kind = "move"   : old → new（new 已存在则跳过，防误覆盖）
+#   kind = "remove" : old 存在即删（老骨架文件，无成长价值）
+#
+# 盘点原则：只登记已确认的路径变更 / 废弃骨架路径；不臆造（详见设计文档 §7.5）。
+#
+# 当前盘点结果（基于 migrate-workflow.md + spec 历史条款）：
+# - 已确认的历史骨架路径变更：无。
+# - symlink-anchor-flat-not-legacy（0.17.0 anchor 翻新）属内容层 legacy，
+#   由 lint check + agent 处理，不入路径表。
+# - frontmatter 字段演进（confidence 等）属语义类，归残留，agent 处理。
+#
+# 示例（未启用，仅留作模板；启用时删 # 并确保 old/new 经确认）：
+#
+# [[legacy]]
+# kind = "move"
+# old = ""
+# new = ""
+# note = ""
