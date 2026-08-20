@@ -430,7 +430,7 @@ git 身份字段 → 创建 symlink + 写 anchor → 后续 `llmw wiki ingest-di
 - lint 报告的 recurring pattern（每次 lint 都报某 type 缺字段）
 
 **流程摘要**（agent 主动；frontmatter 字段 / 索引同步 / 完整 vs 短条目判定的权威定义在
-AGENTS.md 模板 §五「Memory 纪律」+ 仓库根 `MEMORY/MEMORY.md` 索引自身的写法 — fixture 头部说明块 canonical）：
+AGENTS.md 模板 §一「MEMORY/」节 + 仓库根 `MEMORY/MEMORY.md` 索引自身的写法 — fixture `memory-index.txt` 头部说明块 canonical）：
 
 1. 决定是否值得写——能否让未来 agent 工作更顺？
 2. 判别条目形式：**完整**（含 why+how 上下文）→ `llmw wiki write memory add --slug ... --title ...`

@@ -130,9 +130,8 @@
 - 两种格式可在同一 `MEMORY/MEMORY.md` 共存；lint `memory-not-indexed` 只兜底
   "有 .md 但未索引"，短条目无 .md 不进该检查
 
-frontmatter 5 必填（`title` / `type` / `created` / `updated` / `tags`，**仅约束完整条目**），
-推荐 `wikis` 字段（涉及 wiki 名数组）与 `description`——指 `MEMORY/<slug>.md` 经验条目
-（`MEMORY.md` 索引本身无 frontmatter，被本文件 `@MEMORY/MEMORY.md` import 会话常驻）。
+frontmatter **仅 `title` 必填**（`type` 若写固定 `workspace-memory`；`created`/`updated`/`tags`/`description`/`wikis` 全 optional——与内容页 5 必填规则解耦；`wikis` 推荐用于跨 wiki 关联）。
+`MEMORY.md` 索引本身无 frontmatter，被本文件 `@MEMORY/MEMORY.md` import 会话常驻。
 **写每条经验后必须同步追加 `MEMORY.md` 索引一行**（按"条目形式"选完整或短格式），
 否则下次会话读不到。
 
