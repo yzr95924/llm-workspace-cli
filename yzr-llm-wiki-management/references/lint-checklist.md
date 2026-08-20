@@ -182,7 +182,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
   短条目 `- 一句话事实` 无链接、不算）
 - MEMORY.md 不存在 → 静默跳过（老 wiki 迁移期）
 - `agents-md-template-sync`（error，fixtures）：AGENTS.md 与模板渲染字节不一致 →
-  按 wiki-spec §10.1 全量重渲染 + 本地定制逐条搬 MEMORY/ 或丢弃
+  全量重渲染 + 本地定制逐条搬 MEMORY/ 或丢弃（plan action `fixtures-fix-agents-md-resync`）
 
 ### 15. related / compared 路径引用完整性
 

@@ -7,7 +7,7 @@ metadata:
 
 三方（实际四方，含用户）的**关系边界** SSOT——回答"新能力放哪两方、为什么"。本图只承载**关系层**（边与判归），各方内部事实（模块职责 / schema / 工作流）以各自原位为准；本图里的任何行与本位事实冲突时，**本位事实优先**。
 
-> **本图 vs 既有边界文档的分工**：本仓 AGENTS.md「顶层数据流」「模块边界表」「四分表节」、`workspace-spec.md §1 + §1.1`、模板 `§一` 都是**事实层**（节点内部职责 / 文件字段）；本图是**关系层**（跨方协作的线）。重叠点在本图用"指针归本位"代替复制——改事实时只动本位，图不动。
+> **本图 vs 既有边界文档的分工**：本仓 AGENTS.md「顶层数据流」「模块边界表」「四分表节」、模板 `§一` 都是**事实层**（节点内部职责 / 文件字段）；本图是**关系层**（跨方协作的线）。重叠点在本图用"指针归本位"代替复制——改事实时只动本位，图不动。
 
 ## V1 四方定位
 
@@ -71,8 +71,7 @@ metadata:
 
 **本图不复制归属矩阵**——权威表在本位：
 
-- workspace 根文件归属：[`workspace-spec.md` §1](../yzr-llm-workspace-management/references/workspace-spec.md)
-- workspace 骨架所有权四分表：[`workspace-spec.md` §1.1](../yzr-llm-workspace-management/references/workspace-spec.md)
+- workspace 根文件归属 + 骨架所有权四分表：`AGENTS.md`（本仓）「顶层数据流」+「四分表」
 - 本仓模块边界 + 四分表：`AGENTS.md`
 
 图只承载**跨方写入原则**：CLI 绝不写 INDEX / STATS / LINT / cross_queries / `MEMORY/*.md`（skill 领地）；CLI 绝不写 `raw/` / `wiki/` 语义内容（用户 + agent 领地）；skill 绝不写 `workspace.toml` / `.gitignore` / `AGENTS.md` / `CLAUDE.md`（前三 CLI / CLI 引擎升级；后两用户宪法）。

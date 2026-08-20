@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """workspace_fixtures — workspace fixtures 一致性检查（升级时专用；CLI 入口 `llmw check-fixtures`）
 
-按 workspace-spec §4 / §10 / §17 + SKILL.md §6 的 fixture 视角，校验一个已存在 workspace 的
+从 fixture 视角校验一个已存在 workspace 的
 "约定文件"（AGENTS.md / CLAUDE.md / .gitignore / MEMORY/MEMORY.md / workspace.toml
 templates_version）是否满足当前 workspace spec 的结构要求。本模块只校验**结构性字节合规**；
 修复由 agent 按报告里的 fix 动作走 SKILL.md §6 Upgrade 工作流——本模块不写任何文件。
@@ -63,57 +63,57 @@ CHECK_REGISTRY = [
         "id": "agents-version-is-current",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "workspace-spec.md §14 + §17",
+        "rule_ref": "repo AGENTS.md §当前配置 + upgrade 引擎",
         "desc": "AGENTS.md §六 Workspace Spec 版本行需与 --target-spec 一致",
     },
     {
         "id": "agents-md-template-sync",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "workspace-spec.md §17.1",
+        "rule_ref": "llmw/content/upgrade.py 升级引擎",
         "desc": "AGENTS.md 与包内 workspace-agents-md-template.md 渲染稿字节一致（§六 四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
         "id": "claude-md-template-sync",
         "severity": "error",
         "file": "CLAUDE.md",
-        "rule_ref": "workspace-spec.md §4 + §17.1",
+        "rule_ref": "repo AGENTS.md 模板重渲染 + upgrade 引擎",
         "desc": "CLAUDE.md 薄壳与包内 workspace-claude-md-template.md 渲染稿字节一致（仅 {{WORKSPACE_DISPLAY_NAME}} 替换）",
     },
     {
         "id": "gitignore-skeleton",
         "severity": "error",
         "file": ".gitignore",
-        "rule_ref": "workspace-spec.md §10",
+        "rule_ref": ".gitignore fixture + llmw/workspace/gitignore.py",
         "desc": ".gitignore 段结构齐全：llmw 托管块（标记 + 3 规则）+ OS/编辑器 + Obsidian + 临时文件段各 ≥1 规则（容忍段内删规则）",
     },
     {
         "id": "memory-index-skeleton",
         "severity": "error",
         "file": "MEMORY/MEMORY.md",
-        "rule_ref": "workspace-spec.md §9 + §17",
+        "rule_ref": "MEMORY 产物契约（yzr-llm-workspace-management SKILL.md 附录 A6）+ upgrade 引擎",
         "desc": "MEMORY/MEMORY.md 无 frontmatter + 含 H1 / 说明块 / ## 索引（成长条目不动；缺失文件按 fixtures/memory-index.txt 重建）",
     },
     {
         "id": "workspace-toml-templates-version-sync",
         "severity": "warn",
         "file": "workspace.toml",
-        "rule_ref": "workspace-spec.md §14",
+        "rule_ref": "repo AGENTS.md §当前配置",
         "desc": "workspace.toml templates_version 的 workspace_spec 分量与 target 一致（不阻断；wiki_spec 分量只展示不比对）",
     },
     {
         "id": "workspace-toml-reads-satisfied",
         "severity": "error",
         "file": "workspace.toml",
-        "rule_ref": "workspace-spec.md §2（SKILL 读取契约）",
+        "rule_ref": "workspace-toml-reads-satisfied（读取契约 check）",
         "desc": "workspace.toml 含 SKILL scan/upgrade 读取的字段：templates_version + 每个 [wikis.<name>] 的 path / created_at",
     },
     {
         "id": "template-no-outbound-refs",
         "severity": "error",
         "file": "workspace-agents-md-template.md",
-        "rule_ref": "workspace-spec.md §4 + §17.3",
-        "desc": "workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用（workspace-spec.md / workspace-claude-md-template.md / SKILL.md / references/ / skill 名 / 阿拉伯数字 §节号；零白名单）",
+        "rule_ref": "repo AGENTS.md 模板 + check-fixtures 探测",
+        "desc": "workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用（workspace-claude-md-template.md / SKILL.md / references/ / skill 名 / 阿拉伯数字 §节号；零白名单）",
     },
 ]
 
@@ -207,7 +207,7 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
     """check#1: AGENTS.md §六 Workspace Spec 版本行与 target_spec 一致（新旧判定）。
 
     与 template-sync 正交：只管版本新旧，不管正文同步。0.7.0- 老格式无表 → fallback
-    §六 散文行 `llmw vX / workspace-spec vY` 提取。
+    §六 散文行含旧版 `llmw vX / workspace-spec vY` 格式时提取
     """
     out = {"passed": True, "severity": "error", "file": "AGENTS.md"}  # type: Dict[str, object]
     text = _read_text(ws_root / "AGENTS.md")
@@ -394,7 +394,7 @@ def check_gitignore_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str, o
         out["actual"] = ".gitignore 不存在"
         out["fix"] = {
             "type": "workspace-fix-gitignore-skeleton",
-            "to_action": "按 workspace-spec §10 最小 .gitignore 逐字创建",
+            "to_action": "按 llmw/workspace/gitignore.py 的 GITIGNORE_MANAGED_BLOCK 常量逐字创建",
         }
         return out
 
@@ -437,7 +437,7 @@ def check_gitignore_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str, o
         out["actual"] = "缺：" + "；".join(missing)
         out["fix"] = {
             "type": "workspace-fix-gitignore-skeleton",
-            "to_action": "按 workspace-spec §10 单 Edit 补 .gitignore 缺失段 / 规则（不动用户自定义规则）",
+            "to_action": "按 llmw/workspace/gitignore.py 的 GITIGNORE_MANAGED_BLOCK 常量单 Edit 补 .gitignore 缺失段 / 规则（不动用户自定义规则）",
         }
     return out
 
@@ -545,7 +545,7 @@ def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) ->
     的 skip 语义，不重复报）。minimal TOML 风格：只认 key = 行 + [section] 头，不引入 tomli。
 
     读取契约 co-location：本 check 校验的字段 = SKILL scan/upgrade 实际读取的字段。若 SKILL
-    将来新读 workspace.toml 某字段，必须同步加到这里 + workspace-spec §2「skill 读取的字段」
+    将来新读 workspace.toml 某字段，必须同步加到这里 + yzr-llm-workspace-management SKILL.md 附录 A1「读取契约」
     表——两处（本 check / spec §2）一致，gate 才有效（清单漂移 = check 不报警 = gate 失效）。
     """
     out = {"passed": True, "severity": "error", "file": "workspace.toml"}  # type: Dict[str, object]
@@ -577,7 +577,7 @@ def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) ->
 # agent 读不到 skill 目录、解析不了这些指针（模板自己都写着"模板与配套工具随 skill 分发，不在本 workspace 内"），
 # 对运行时读者是死指针；改纪律只改模板对应段，spec / SKILL.md 单向指入模板。
 TEMPLATE_OUTBOUND_PATTERNS = (
-    "workspace-spec.md",
+    "workspace-spec.md",  # 文件已删除，保留禁令防历史引用回渗
     "workspace-claude-md-template.md",
     "SKILL.md",
     "references/",
@@ -606,7 +606,7 @@ def check_template_no_outbound_refs(ws_root: Path, info: Dict[str, str]) -> Dict
     """包内 workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用。
 
     模板随 init 拷贝进 workspace 成为 AGENTS.md——workspace 侧 agent 读不到 skill 目录，模板内
-    一切 `workspace-spec.md` / `workspace-claude-md-template.md` / `SKILL.md` /
+    一切 `workspace-claude-md-template.md` / `SKILL.md` /
     `references/` / skill 名 / 阿拉伯数字 §节号 引用都是死指针（零白名单，含 provenance
     声明也不得携带——全部改写为自包含措辞）。skill 目录内文件 → 模板 单向引用由本
     check 机械强制；对每个 workspace 报告同一结果（模板是全局文件），违反时 error 逼

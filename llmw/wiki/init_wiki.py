@@ -1,5 +1,5 @@
 """wiki 仓初始化: 读同仓 yzr-llm-wiki-management/references/ 下的模板与 fixtures,
-按 wiki-spec.md §1-§7 + §9.1 + §14 把 wiki 仓"出生形态"落盘.
+把 wiki 仓"出生形态"落盘（按包内 templates/ + fixtures/ 字节金标准；`llmw wiki check-fixtures` 探测）.
 
 CLI 内联实现(wiki 创建归 CLI 负责,skill 只供 references 素材).
 fixtures 是 CLI 字节金标准;完整 gate 走 scripts/test/smoke_fixtures.py
@@ -87,7 +87,7 @@ def render_and_write(
     cli_version: str,
     spec_version: str,
 ) -> None:
-    """按 wiki-spec.md 落盘 wiki 仓骨架.
+    """按包内 templates/ + fixtures/ 落盘 wiki 仓骨架.
 
     Args:
         wiki_dir: wiki 仓根目录 (含路径名);调用方应已 mkdir 此目录.

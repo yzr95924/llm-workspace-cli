@@ -16,7 +16,7 @@ from llmw.errors import (
 )
 from llmw.fsutil import atomic_write, chmod_600, now_iso8601
 
-# workspace-spec.md §15: model_id 允许 ^[a-z0-9_-]{1,64}$ (首字符可为 - 或 _),
+# model_id 允许 ^[a-z0-9_-]{1,64}$ (首字符可为 - 或 _),
 # 比 wiki name 的 NAME_RE 更宽松. 本地复刻,不再 import wiki.NAME_RE.
 MODEL_ID_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
 

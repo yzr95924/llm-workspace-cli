@@ -17,16 +17,16 @@ CLI 把 fixtures 视为**带占位符的字节模板**：用用户传入的 mapp
 > fixture 即字面量）；`index.md.txt` / `log.md.txt` 带占位符（渲染后 ≠ fixture）。
 > 不要从"fixture 都带占位符"推导。
 
-## fixture 与 spec 的关系
+## fixture 与模板的关系
 
-| | spec | fixture |
+| | 模板（`*-template.md`） | fixture（`*.txt`） |
 |---|---|---|
-| **形态** | 人类阅读的契约文档（`wiki-spec.md`） | 机器读取的字节模板（`*.txt`） |
-| **作用** | 告诉 CLI "应该长什么样" | 给 CLI "字面量比对" 的金标准 |
-| **变更** | spec 改 → fixture 改 | fixture 改 → spec 也要跟着改 |
-| **权威性** | spec 是概念权威 | fixture 是字节权威 |
+| **形态** | 带 `{{占位符}}` 的完整文档（`AGENTS.md` / `CLAUDE.md`） | 带占位符的字节模板（header-owned 文件的出生形态） |
+| **作用** | CLI init / upgrade 时渲染完整文件 | byte-owned + header-owned 文件的字节级比对金标准 |
+| **变更** | 改模板 → bump `wiki_spec_version`（实例需 upgrade reconcile） | 同左（字节变化即 bump） |
+| **权威性** | 模板是字节权威（CLI 包内 SSOT） | fixture 是字节权威（CLI 包内 SSOT） |
 
-两者必须**同步**：spec §3 描述 index.md 的 frontmatter 字段时，fixture/index.md.txt 的实际 frontmatter 必须与之匹配。任一不一致 → review 时立即暴露。
+模板与 fixture 共同承载 CLI 的骨架所有权（byte-owned + header-owned）；block-owned + content-owned 由其他机制承载（`.gitignore` managed block 在 gitignore 模块；content-owned 由 skill 的 page-templates.md 承载）。
 
 ## 六个 fixture 对应的"角色"
 
@@ -38,8 +38,6 @@ CLI 把 fixtures 视为**带占位符的字节模板**：用用户传入的 mapp
 | `memory-index.txt` | init 时刻 | **LLM agent**（追加经验条目到 MEMORY/ 下 + 同步 MEMORY.md 索引） |
 | `scripts.md.txt` | init 时刻 | **用户 + LLM agent**（添加 / 修改脚本与同步 SCRIPTS.md 段是原子动作；与 MEMORY/tags.md 同形态——无 frontmatter） |
 | `gitignore.txt` | init 时刻 | **不动**（除非用户手动调） |
-
-详细归属见 `wiki-spec.md` 顶部声明。
 
 ## fixture 取值约定
 

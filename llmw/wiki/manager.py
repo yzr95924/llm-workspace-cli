@@ -265,7 +265,7 @@ def _purge_with_backup(
 ) -> None:
     """`wiki remove --purge` 的物理删除:默认备份到 .llmw-trash/,失败阻断。
 
-    spec wiki-spec.md:14 "delete 带备份" 的 CLI 落地;--no-backup 是 escape hatch
+    wiki 仓删除保留 .bak 备份的安全网;--no-backup 是 escape hatch
     (CI / 脚本场景)。
 
     Args:

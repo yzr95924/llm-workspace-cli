@@ -8,8 +8,8 @@
 > `wiki_spec_version`。
 
 > **本章顺序说明**：下面按**教学序**列出（基础 → 综合：entity → concept → source
-> → comparison → synthesis）。spec 强制**字母序**用于目录结构与 `type` 取值表——
-> 见 [wiki-spec.md §1 / §9](wiki-spec.md)。
+> → comparison → synthesis）。`type` 取值表与目录结构对应——字母序：`comparison` /
+> `concept` / `entity` / `source` / `synthesis`。
 
 ## 目录
 
@@ -33,8 +33,8 @@
 
 > **适用范围**：本节模板适用于 wiki 5 类内容页（entities / concepts / sources /
 > comparisons / syntheses）。**MEMORY/*.md 的 frontmatter 规则不同**——仅 `title`
-> 必填，其余 5 字段全 optional；详见 [`wiki-spec.md` §5.2](wiki-spec.md#52-memorymd非-memorymd) +
-> [`lint-checklist.md` §二.2](lint-checklist.md#2-frontmatter-完整性) 末尾。
+> 必填，其余 5 字段全 optional；详见 [`lint-checklist.md` §二.2](lint-checklist.md#2-frontmatter-完整性)
+> 末尾（或 `<wiki-root>/MEMORY/MEMORY.md` fixture 头部说明块）。
 
 ```yaml
 ---
@@ -52,6 +52,15 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 ---
 ```
 
+> **为什么必填 5 字段**：`title` / `type` / `tags` / `created` / `updated` 是 OKF §9
+> 「字段齐全性」与 lint 校验一致性的最小交集——`title`（人/grep 找页）、`type`
+> （决定子目录 + lint 校验路径）、`created` / `updated`（stale / orphan 判定）、
+> `tags`（taxonomy 过滤）。少于 5 字段会让"抓腐烂"判定失效；多于 5 字段 OK 但不强制。
+> **为什么 5 类内容页**：`entity` / `concept` / `source` / `comparison` / `synthesis`
+> 覆盖 wiki 复利的 5 种认知角色（实体 / 概念 / 资料 / 对比 / 综合），与 lint 校验路径、
+> index 分组、OKF §4.1 字段齐全性一致；`index` / `log` 是 reserved（见 §6 / §7），
+> 仅标记用途、lint 跳过它们。
+
 **字段说明**：
 
 - `title`——人类可读标题，不要带文件扩展名
@@ -61,7 +70,7 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
   `log.md` 是 **reserved 文件**（结构见 §6 / §7），自带 frontmatter，其中 `type: index` /
   `type: log` 仅作标记、lint 跳过它们——不算概念页 type
 - `tags`——用于跨页搜索 + 未来可能的 dataview 查询。**取值必须严格在
-  [`wiki/tags.md`](wiki-spec.md#91-tag-白名单来源) 白名单内**——agent 在 ingest /
+  `wiki/tags.md` 白名单内**——agent 在 ingest /
   query 遇到新 tag 时**直接追加**到 `wiki/tags.md`（无需询问用户），保持字典随 wiki 生长；
   用户可随时打开 `wiki/tags.md` **直接删除**误判的 bullet，下次 lint 把残留引用以
   `tag-not-in-taxonomy`（info）报回来再裁定。详 lint 语义见
@@ -344,7 +353,7 @@ updated: YYYY-MM-DD HH:MM
 threads:  # 必填——线索标题数组（synthesis 区分多线索的"主线"）
   - <thread-1-title>
   - <thread-2-title>
-sources:  # 必填——wiki 内其它页路径（不是 raw/）；详见 wiki-spec §9 类型特化
+sources:  # 必填——wiki 内其它页路径（不是 raw/）；详见各类型模板的"参考来源 / Sources"段
   - <concepts/x.md>
   - <sources/y.md>
 ---

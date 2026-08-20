@@ -47,4 +47,4 @@ frontmatter 的 `*_spec_version`（同 commit，顺序任意）；③ 演进叙�
 - 2026-08-20 前：`llmw.config.skill_spec_version()` 运行时读 SKILL.md，常量消失
 - 2026-08-20 起：回到硬编码常量 + CI gate（当前形态）
 
-关联 [[wiki-workspace-spec-type-coupling]]（另一条跨 spec 耦合）、[[boundary-map]] 公理 2/3（包内资源内建原则）。
+关联 [[boundary-map]] 公理 2/3（包内资源内建原则）。

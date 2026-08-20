@@ -13,8 +13,7 @@ reformat"；或 `llmw wiki lint` 报告 legacy warn。
 
 ## 为什么需要这一步
 
-[`wiki-spec.md` §10](wiki-spec.md#10-版本钉死) 规定每个 wiki 仓在
-`<wiki-root>/AGENTS.md` §七 钉一份 `Wiki Spec 版本`（CLI init 时从本 skill
+每个 wiki 仓在 `<wiki-root>/AGENTS.md` §七 钉一份 `Wiki Spec 版本`（CLI init 时从本 skill
 `metadata.wiki_spec_version` 镜像）。spec 演进时，老 wiki 会**有意识地保留**部分旧字段——避免一刀切破坏用户沉淀的内容。
 本节定义**检测 + 自动修复**的 workflow：让用户/agent 对着一份"按 spec 升级的清单"逐项
 把 wiki 推到与本 skill 一致的格式。
@@ -68,9 +67,9 @@ reformat"；或 `llmw wiki lint` 报告 legacy warn。
    - 按 `actions[]` 顺序逐项修；每个 action 前打印依据 `rule_ref`
    - `frontmatter-rename`：Edit 改 frontmatter（删老字段、加新字段；**不动 `updated`**）
    - `file-move`：先读源 → 写目标 → 删源
-   - `frontmatter-retype`：按 `action.note` 与 `wiki-spec §5.2` 决定具体改法
-   - **跳过 `skipped_conflicts[]`**——永不自动覆盖人工决策
-6. **同步 `<wiki-root>/AGENTS.md` 到当前模板**（模板渲染比对机制，wiki-spec §10.1）：
+    - `frontmatter-retype`：按 `action.note` 与 page-templates.md §一决定具体改法
+    - **跳过 `skipped_conflicts[]`**——永不自动覆盖人工决策
+ 6. **同步 `<wiki-root>/AGENTS.md` 到当前模板**（check `agents-md-template-sync` 报错时触发）：
    - plan 含 `fixtures-fix-agents-md-resync` 时按其 `to_action` 走 4 步：
      (1) 从旧 AGENTS.md §七 提取 主题 / 创建日期 / CLI 版本（主题 fallback H1）；
      (2) 渲染包内 `agents-md-template.md`（llmw CLI 自动完成）——三变量用旧值，
@@ -213,7 +212,7 @@ step 8 会清）；`.migration-plan.json` 已退役（现由 stdout 输出 upgra
 - **同 `<title>` 词但不同 `<relative-path>`** → 标红（`✗ duplicate-title`），转人工裁定——
   是 entity 重命名（保留新路径、合并到老路径）还是概念拆页（重命名其中之一）由人决定
 - **新分类（如 0.X 引入第六类 `Comparisons`）→ 老 wiki 无该类时**，在 wiki/index.md 末尾
-  按 wiki-spec §3 模板加新类别 H2 + 一行 `<!-- agent: TODO 归类旧页 -->` 占位，提醒人工归类
+  按 fixture 头部模板加新类别 H2 + 一行 `<!-- agent: TODO 归类旧页 -->` 占位，提醒人工归类
 - **`raw/external/<symlink>` 形式的源条目**——改用 symlink 名（kebab-case）而非
   老 `<source-name>/` 子目录；index.md 里所有 `raw/external/<source-name>/...`
   形式条目同步改为 `raw/external/<symlink>/...`
@@ -264,7 +263,7 @@ anchor 从「每仓一份 `<source-name>/.symlink-anchor.json`（JSON object）�
 ### 6.5 wiki/log.md 迁移期不改（不合并 / 不截断）
 
 - 迁移期 log **不**合并 / **不**截断 / **不**改格式——保持现状原样搬过来（即使条目数 >
-  `LOG_RETENTION_LIMIT` 也不在迁移期截断；截断是日常运行期行为，见 wiki-spec §4.1）
+  `LOG_RETENTION_LIMIT` 也不在迁移期截断；截断是日常运行期行为，`llmw wiki write log` 自动生效）
 - 唯一例外：0.16.0- 老 wiki 在 CLI 红线贯彻时 log 含 legacy `git init` 之类无效行——
   保留不修，lint 不报（log-truncation / log-format 都不查 legacy git 行）
 - `fixtures-fix-log-format` action 仅当 **新增** 行不合规时落，迁移期**不变更 history**

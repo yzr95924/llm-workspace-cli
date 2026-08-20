@@ -14,7 +14,7 @@
    → 推荐路径建议在 ~/wiki/llm-systems
 2. 用户调 workspace CLI（具体命令以 CLI 文档为准）：
    workspace wiki init "LLM Systems" --root ~/wiki/llm-systems
-   → CLI 按 wiki-spec.md 落盘目录 + AGENTS.md（SSOT）+ CLAUDE.md（薄壳）+ index.md + log.md + .gitignore
+    → CLI 按包内模板落盘目录 + AGENTS.md（SSOT）+ CLAUDE.md（薄壳）+ index.md + log.md + .gitignore
    → CLI 不碰 git（git 由用户自行 init）
 3. LLM agent 接管后：
    → 读 ~/wiki/llm-systems/AGENTS.md 确认主题名替换正确（CLAUDE.md 是薄壳，行数 ≤ 30）

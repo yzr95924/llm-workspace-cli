@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """wiki_fixtures — fixtures 一致性检查（升级时专用；CLI 入口 `llmw wiki check-fixtures`）
 
-按 wiki-spec（§3/§4/§5/§6/§9.1/§10/§13/§14 各节）的 fixture 视角，校验一个已存在 wiki 的
+从 fixture 视角校验一个已存在 wiki 的
 "约定文件"（AGENTS.md §七 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
 MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
 wiki_metadata.toml）是否满足当前 wiki spec 的结构要求。本模块只校验**结构性字节合规**；
@@ -69,98 +69,98 @@ CHECK_REGISTRY = [
         "id": "agents-version-is-current",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "wiki-spec.md §10",
+        "rule_ref": "lint-checklist §一.11 wiki-spec-version",
         "desc": "AGENTS.md §七 Wiki Spec 版本行需与 --target-spec 一致",
     },
     {
         "id": "agents-md-template-sync",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "wiki-spec.md §10.1",
+        "rule_ref": "lint-checklist §一.14 agents-md-template-sync",
         "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（§七 四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
         "id": "template-no-outbound-refs",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "wiki-spec.md §2（纪律正文唯一副本 canonical）",
-        "desc": "模板零出边引用——不得含 wiki-spec/page-templates/lint-checklist/SKILL.md/references/yzr-llm-wiki-management/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
+        "rule_ref": "<wiki-root>/AGENTS.md §六 本文件本身的纪律",
+        "desc": "模板零出边引用——不得含 page-templates/lint-checklist/SKILL.md/references/yzr-llm-wiki-management/external-repo/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
     },
     {
         "id": "gitignore-external-track-toml",
         "severity": "error",
         "file": ".gitignore",
-        "rule_ref": "wiki-spec.md §13.4",
+        "rule_ref": "external-repo.md §一（gitignore 增强见 .gitignore fixture）",
         "desc": ".gitignore 含 `raw/external/*` 排除 + `!raw/external/.symlink-anchor.toml` 跟踪；老 `**/.symlink-anchor.json` 残留即报错",
     },
     {
         "id": "symlink-anchor-toml-schema",
         "severity": "error",
         "file": "raw/external/.symlink-anchor.toml",
-        "rule_ref": "wiki-spec.md §13.2",
+        "rule_ref": "external-repo.md §1.2",
         "desc": "raw/external/.symlink-anchor.toml（若存在）：合法 TOML + [[entry]] 数组 + 每 entry 必填 4 字段 + git 身份字段可选",
     },
     {
         "id": "symlink-anchor-toml-symlink-matches",
         "severity": "error",
         "file": "raw/external/",
-        "rule_ref": "wiki-spec.md §13.1",
+        "rule_ref": "external-repo.md §1.1",
         "desc": "anchor 每个 [[entry]].symlink 对应 external/ 顶层同名 symlink；anchor 无对应 symlink / orphan symlink 一并检查",
     },
     {
         "id": "symlink-anchor-flat-not-legacy",
         "severity": "error",
         "file": "raw/external/",
-        "rule_ref": "wiki-spec.md §13.6",
+        "rule_ref": "upgrade-workflow.md §6.3",
         "desc": "raw/external/ 不存在 <source-name>/ 子目录 扁平布局",
     },
     {
         "id": "index-md-categories-stable",
         "severity": "warn",
         "file": "wiki/index.md",
-        "rule_ref": "wiki-spec.md §3",
+        "rule_ref": "wiki/index.md fixture header (wiki 实例内直接可读)",
         "desc": "wiki/index.md 含 5 类别标题 (Entities / Concepts / Sources / Comparisons / Syntheses)",
     },
     {
         "id": "memory-index-no-frontmatter",
         "severity": "error",
         "file": "MEMORY/MEMORY.md",
-        "rule_ref": "wiki-spec.md §5",
+        "rule_ref": "MEMORY/MEMORY.md fixture header (wiki 实例内直接可读)",
         "desc": "MEMORY/MEMORY.md（索引）不带 YAML frontmatter（其 ## 索引 段条目由 AGENTS.md 顶部 @MEMORY/MEMORY.md @import 加载）",
     },
     {
         "id": "memory-entries-indexed",
         "severity": "error",
         "file": "MEMORY/",
-        "rule_ref": "wiki-spec.md §5.1",
+        "rule_ref": "MEMORY/MEMORY.md fixture header (wiki 实例内直接可读)",
         "desc": "MEMORY/*.md（除 MEMORY.md）每条都在 MEMORY/MEMORY.md 索引中列出",
     },
     {
         "id": "log-md-format-strict",
         "severity": "error",
         "file": "wiki/log.md",
-        "rule_ref": "wiki-spec.md §4",
+        "rule_ref": "wiki/log.md fixture header (wiki 实例内直接可读)",
         "desc": "wiki/log.md 每行匹配 `^## [YYYY-MM-DD HH:MM] (ingest|query|lint|setup) | .+$`（HH:MM 可选；老 wikis date-only 仍合法，宽容解析）",
     },
     {
         "id": "scripts-md-no-frontmatter",
         "severity": "error",
         "file": "scripts/SCRIPTS.md",
-        "rule_ref": "wiki-spec.md §14",
+        "rule_ref": "scripts/SCRIPTS.md fixture header (wiki 实例内直接可读)",
         "desc": "scripts/SCRIPTS.md 不带 YAML frontmatter",
     },
     {
         "id": "tags-md-no-frontmatter",
         "severity": "error",
         "file": "wiki/tags.md",
-        "rule_ref": "wiki-spec.md §9.1",
+        "rule_ref": "wiki/tags.md fixture header (wiki 实例内直接可读)",
         "desc": "wiki/tags.md 不带 YAML frontmatter",
     },
     {
         "id": "wiki-metadata-reads-satisfied",
         "severity": "error",
         "file": "wiki_metadata.toml",
-        "rule_ref": "wiki-spec.md §1.1 wiki_metadata.toml（SKILL 读取契约）",
+        "rule_ref": "lint-checklist §二.17 wiki-metadata-reads-satisfied",
         "desc": "wiki_metadata.toml 含 SKILL scan 读取的 6 字段：name / topic / display_name / description / tags / created_at",
     },
 ]
@@ -407,7 +407,7 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
 # 解析不了这些指针（模板自己都写着"模板与配套工具随 skill 分发，不在本 wiki 内"），
 # 对运行时读者是死指针；改纪律只改模板对应段，spec / SKILL.md / page-templates.md 单向指入模板。
 TEMPLATE_OUTBOUND_PATTERNS = (
-    "wiki-spec.md",
+    "wiki-spec.md",  # 文件已删除，保留禁令防历史引用回渗
     "page-templates.md",
     "lint-checklist.md",
     "SKILL.md",
@@ -437,7 +437,7 @@ def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Di
     """包内 agents-md-template.md 不含任何指向 skill 目录的出边引用。
 
     模板随 init 拷贝进每个 wiki 成为 AGENTS.md——wiki 侧 agent 读不到 skill 目录，模板内
-    一切 `wiki-spec.md` / `page-templates.md` / `lint-checklist.md` / `SKILL.md` /
+    一切 `page-templates.md` / `lint-checklist.md` / `external-repo.md` / `SKILL.md` /
     `references/` / 阿拉伯数字 §节号 引用都是死指针（零白名单，含 provenance 声明也不得
     携带——全部改写为自包含措辞）。skill 目录内文件 → 模板 单向引用由本 check
     机械强制；对每个 wiki 报告同一结果（模板是全局文件），违反时 error 逼 skill 侧修复。
@@ -484,7 +484,7 @@ def check_gitignore_external_track(wiki_root: Path, info: Dict[str, str]) -> Dic
         out["passed"] = False  # type: ignore
         out["actual"] = "残留旧 `!raw/external/**/.symlink-anchor.json` 跟踪规则（退役）"
         out["expected"] = "!raw/external/.symlink-anchor.toml"
-        out["rule_ref"] = "wiki-spec.md §13.6 迁移"
+        out["rule_ref"] = "upgrade-workflow.md §6.3"
         return out
     if not has_exclude:
         out["passed"] = False  # type: ignore
@@ -775,7 +775,7 @@ def check_tags_md_no_frontmatter(wiki_root: Path, info: Dict[str, str]) -> Dict[
 
 
 # 读取契约 co-location：这 6 字段 = workspace skill scan 读 wiki_metadata.toml 的字段子集。
-# SKILL 将来新读某字段，必须同步加到这里 + wiki-spec §1.1「skill 读取的字段」——两处一致，
+# SKILL 将来新读某字段，必须同步加到这里——清单完整，gate 才有效
 # wiki-metadata-reads-satisfied gate 才有效（清单漂移 = check 不报警 = gate 失效）。
 WIKI_METADATA_REQUIRED_FIELDS = ("name", "topic", "display_name", "description", "tags", "created_at")
 WIKI_METADATA_KEY_RE = re.compile(r"^[ \t]*([a-z_]+)[ \t]*=", re.MULTILINE)
@@ -923,7 +923,7 @@ SKELETON_SPECS = [
         "id": "gitignore-init-rules-complete",
         "severity": "warn",
         "wiki_path": ".gitignore",
-        "rule_ref": "wiki-spec.md §6",
+        "rule_ref": ".gitignore fixture (wiki 实例内直接可读)",
         "desc": ".gitignore 含 OS/编辑器 + Obsidian + 临时文件 段（各 ≥1 规则；external 段由 gitignore-external-track-toml 单独查）",
         "signals": {"gitignore_section_structure": True},
     },
@@ -931,7 +931,7 @@ SKELETON_SPECS = [
         "id": "index-md-frontmatter-complete",
         "severity": "error",
         "wiki_path": "wiki/index.md",
-        "rule_ref": "wiki-spec.md §3",
+        "rule_ref": "wiki/index.md fixture header (wiki 实例内直接可读)",
         "desc": "wiki/index.md frontmatter 含 6 必填键（title/type/okf_version/tags/created/updated）",
         "signals": {"frontmatter_keys": ["title", "type", "okf_version", "tags", "created", "updated"]},
     },
@@ -939,7 +939,7 @@ SKELETON_SPECS = [
         "id": "index-md-skeleton",
         "severity": "warn",
         "wiki_path": "wiki/index.md",
-        "rule_ref": "wiki-spec.md §3",
+        "rule_ref": "wiki/index.md fixture header (wiki 实例内直接可读)",
         "desc": "wiki/index.md 含 H1（# <topic> Wiki）+ 说明块（> 引用）",
         "signals": {"h1_pattern": r"^# .+ Wiki$", "blockquote": True},
     },
@@ -947,7 +947,7 @@ SKELETON_SPECS = [
         "id": "log-md-frontmatter-complete",
         "severity": "error",
         "wiki_path": "wiki/log.md",
-        "rule_ref": "wiki-spec.md §4",
+        "rule_ref": "wiki/log.md fixture header (wiki 实例内直接可读)",
         "desc": "wiki/log.md frontmatter 含 5 必填键（title/type/tags/created/updated）",
         "signals": {"frontmatter_keys": ["title", "type", "tags", "created", "updated"]},
     },
@@ -955,7 +955,7 @@ SKELETON_SPECS = [
         "id": "memory-index-skeleton",
         "severity": "warn",
         "wiki_path": "MEMORY/MEMORY.md",
-        "rule_ref": "wiki-spec.md §5.1",
+        "rule_ref": "MEMORY/MEMORY.md fixture header (wiki 实例内直接可读)",
         "desc": "MEMORY/MEMORY.md 含 H1（# MEMORY）+ 说明块 + ## 索引",
         "signals": {"h1": "# MEMORY", "blockquote": True, "section_headings": ["## 索引"]},
     },
@@ -963,7 +963,7 @@ SKELETON_SPECS = [
         "id": "scripts-md-skeleton",
         "severity": "warn",
         "wiki_path": "scripts/SCRIPTS.md",
-        "rule_ref": "wiki-spec.md §14",
+        "rule_ref": "scripts/SCRIPTS.md fixture header (wiki 实例内直接可读)",
         "desc": "scripts/SCRIPTS.md 含 H1（# Scripts）+ 说明块 + ## 索引",
         "signals": {"h1": "# Scripts", "blockquote": True, "section_headings": ["## 索引"]},
     },
@@ -971,7 +971,7 @@ SKELETON_SPECS = [
         "id": "tags-md-skeleton",
         "severity": "warn",
         "wiki_path": "wiki/tags.md",
-        "rule_ref": "wiki-spec.md §9.1",
+        "rule_ref": "wiki/tags.md fixture header (wiki 实例内直接可读)",
         "desc": "wiki/tags.md 含 H1（# Tags）+ 说明块（无 ## 索引——tags 直接 bullet 列表）",
         "signals": {"h1": "# Tags", "blockquote": True},
     },

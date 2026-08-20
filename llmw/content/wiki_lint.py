@@ -107,7 +107,7 @@ def _is_absolute_path(p: str) -> bool:
 
 # Wiki spec 当前版本——SSOT 是 SKILL.md metadata.wiki_spec_version（frontmatter），
 # 经 llmw/__init__ 单源读取，不再维护常量副本（单仓后漂移源消失）。
-# 详见 references/wiki-spec.md §10「版本钉死」+ MEMORY/spec-version-bump-single-repo.md。
+# 详见 MEMORY/spec-version-bump-single-repo.md。
 from llmw import WIKI_SPEC_VERSION  # noqa: E402
 
 CURRENT_WIKI_SPEC = WIKI_SPEC_VERSION
@@ -120,7 +120,7 @@ LEGACY_PATTERN_KEYS = {
     # 已于 2026-08 随"场景清零"退役删除；未来退役字段时按需注册新 key。
     # 0.19.0 起保留的现行校验：MEMORY/*.md 上 `type: memory` / `type: memory-entry` 合法
     # （spec §5.2）；本规则拦 wiki 5 类内容页误用 reserved `type: memory`。
-    "type-memory-value": "upgrade-workflow.md §6.1 + wiki-spec.md §5.2",
+    "type-memory-value": "upgrade-workflow.md §6.1 + page-templates.md §一",
 }
 
 # 严重性等级
@@ -712,7 +712,7 @@ def check_log_format(wiki_root: Path) -> List[str]:
     return findings
 
 
-# log.md 滚动窗口上限——超过则建议截断保最近 N 条（详见 wiki-spec §4.1 Log retention）
+# log.md 滚动窗口上限——超过则建议截断保最近 N 条
 LOG_RETENTION_LIMIT = 50
 
 # source 页 stale 摘要阈值（days）——`updated` 距今超过此值报 stale-summary（详见 lint-checklist §二.7）
@@ -742,7 +742,7 @@ def check_log_truncation(wiki_root: Path) -> List[str]:
     if entry_count > LOG_RETENTION_LIMIT:
         findings.append(
             f"log-truncation-recommended: wiki/log.md 含 {entry_count} 条目，超过 {LOG_RETENTION_LIMIT} "
-            f"滚动窗口上限；按 wiki-spec §4.1 截断保最近 {LOG_RETENTION_LIMIT} 条"
+            f"滚动窗口上限；建议截断保最近 {LOG_RETENTION_LIMIT} 条"
             f"（完整历史查 git log -p -- wiki/log.md）"
         )
     return findings
@@ -846,7 +846,7 @@ def check_tag_taxonomy(wiki_root: Path) -> List[str]:
     target_pages = []  # type: List[Path]
     for sub in WIKI_SUBDIRS:
         target_pages.extend(pages[sub])
-    # MEMORY/*.md 不进 tag 白名单校验——按 wiki-spec §5「MEMORY agent 私有」定位：
+    # MEMORY/*.md 不进 tag 白名单校验——MEMORY 是 agent 私有记忆（AGENTS.md 模板 §五）：
     # MEMORY 私有 tag（lint / external-repo / symlink 等）是 LLM 工作上下文分类，
     # 不应跟 wiki 用户面共享 taxonomy（spec §9.1 tag 白名单是防 wiki 索引/过滤漂移）。
     for p in target_pages:
@@ -935,7 +935,7 @@ def check_page_size(wiki_root, threshold=PAGE_SIZE_THRESHOLD):
     """12. 页面体量——正文非空行数 > threshold 的内容页建议拆分
 
     仅检查 5 类内容页（entities/concepts/sources/comparisons/syntheses）——MEMORY/*
-    按 wiki-spec §5.2「正文无长度上限」(agent 私有定位)。计非空行（纯空行不计），避免空行撑大计数。
+    agent 私有定位（正文无长度上限）。计非空行（纯空行不计），避免空行撑大计数。
     阈值见模块顶部 PAGE_SIZE_THRESHOLD（SSOT）。
     """
     findings = []  # type: List[str]
@@ -985,7 +985,7 @@ def check_quality_signals(wiki_root):
     target_pages = []  # type: List[Path]
     for sub in WIKI_SUBDIRS:
         target_pages.extend(pages[sub])
-    # MEMORY/*.md 不进 reviewed 校验——按 wiki-spec §5.2「与 wiki 内容页的区别」：
+    # MEMORY/*.md 不进 reviewed 校验——MEMORY 与 wiki 内容页的 frontmatter 规则解耦：
     # MEMORY 是 agent 私有记忆，无「人工 review」的语义角色。MEMORY/MEMORY.md
     # （索引）本就 excluded。
     # 字段语义（reviewed / reviewed_at / contested / contradictions）仍可被 MEMORY
@@ -1176,7 +1176,7 @@ def check_memory_index(wiki_root: Path) -> List[str]:
     """14. MEMORY.md 索引一致性——MEMORY/*.md（非 MEMORY.md）必须被索引列出
 
     MEMORY.md 是单一真源（无 frontmatter）；由 `<wiki-root>/AGENTS.md` 顶部
-    `@MEMORY/MEMORY.md` `@import` 自动加载全文（详见 wiki-spec §5.1）。
+    `@MEMORY/MEMORY.md` `@import` 自动加载全文。
     本检查只扫 `MEMORY.md ## 索引` 段对 `MEMORY/*.md` 的覆盖——0.23.0 短暂的双轨
     （MEMORY.md + AGENTS.md §一内联段并集）已废，单一真源下不再需要双处同步。
 
@@ -1613,13 +1613,13 @@ def build_upgrade_plan(
                         "type": "fixtures-fix-agents-version",
                         "to_action": (
                             f"Edit {fpath} §七 Wiki Spec 版本行单元格改为 `{expected}`（实际为 `{actual}`）——"
-                            "参考 lint-checklist.md §三.1 + wiki-spec.md §10"
+                            "参考 lint-checklist.md §三.1"
                         ),
                     }
                 )
             elif cid == "agents-md-template-sync":
                 # 模板渲染比对失败 → 全量重渲染（不是单行 Edit）；
-                # 详见 upgrade-workflow.md §5 step 6 + wiki-spec.md §10.1
+                # 详见 upgrade-workflow.md §5 step 6 + 仓库 AGENTS.md 骨架所有权四分表
                 fixtures_actions.append(
                     {
                         **base,
@@ -1658,7 +1658,7 @@ def build_upgrade_plan(
                         **base,
                         "type": "fixtures-fix-anchor-schema",
                         "to_action": (
-                            "按 wiki-spec §13.2 修 raw/external/.symlink-anchor.toml："
+                            "按 external-repo.md §1.2 修 raw/external/.symlink-anchor.toml："
                             "schema_version=1 顶层 + 每 [[entry]] 必填 4 字段 + git 身份字段可选。"
                             "若文件损坏，重写（先备份为 .bak，重新汇总 entries）"
                         ),
@@ -1689,7 +1689,7 @@ def build_upgrade_plan(
                         **base,
                         "type": "fixtures-fix-memory-index",
                         "to_action": (
-                            "按 wiki-spec §5.1 在 MEMORY/MEMORY.md 索引追加缺失条目："
+                            "在 MEMORY/MEMORY.md 索引追加缺失条目（fixture 头部说明块规则）："
                             "`- [<slug>](<slug>.md) — 一句话 → [正文](<slug>.md)`"
                         ),
                     }
@@ -1711,7 +1711,7 @@ def build_upgrade_plan(
                         **base,
                         "type": "fixtures-fix-index-categories",
                         "to_action": (
-                            f"按 wiki-spec §3 补齐 {fpath} 缺类别：5 标题齐全 "
+                            f"补齐 {fpath} 缺类别：5 标题齐全（见 fixture 头部模板） "
                             "(Entities / Concepts / Sources / Comparisons / Syntheses)，顺序可调"
                         ),
                     }
@@ -1746,7 +1746,7 @@ def build_upgrade_plan(
         "from_version": current_spec,
         "to_version": CURRENT_WIKI_SPEC,
         "skill_doc": "SKILL.md（yzr-llm-wiki-management skill 根）",
-        "spec_doc": "references/wiki-spec.md（yzr-llm-wiki-management skill）",
+        "spec_doc": "references/lint-checklist.md（yzr-llm-wiki-management skill，check 语义参考）",
         "rule_doc": "references/upgrade-workflow.md（yzr-llm-wiki-management skill）",
         "actions": actions,
         "fixtures_actions": fixtures_actions,
@@ -1755,7 +1755,7 @@ def build_upgrade_plan(
             "按 actions[] 顺序逐项修；每个 action 前打印依据 rule_ref",
             "frontmatter-rename：用 Edit 改 frontmatter（删老字段、加新字段；不动 updated）",
             "file-move：先读源 → 写目标 → 删源",
-            "frontmatter-retype：按 action.note 与 wiki-spec §5.2 决定具体改法",
+            "frontmatter-retype：按 action.note 与 page-templates.md §一决定具体改法",
             "skipped_conflicts[] 永远不自动覆盖——转人工",
             "claudemd-to-agents-md-split：老 CLAUDE.md 正文搬到 AGENTS.md + CLAUDE.md 重写为薄壳",
             "改完后用 Edit 把 AGENTS.md §七 Wiki Spec 版本行改为 to_version",
