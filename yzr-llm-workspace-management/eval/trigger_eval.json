@@ -1,0 +1,22 @@
+[
+  {"query": "我最近在我那几个 wiki 里记过关于 RAID 的内容，现在写方案要用——帮我把所有 wiki 里跟 RAID 有关的笔记都翻出来汇总一下，我记得 storage 那个 wiki 肯定有，但别的可能也提过", "should_trigger": true},
+  {"query": "我 workspace 里 huawei_storage_wiki 和 llm_inference 两个 wiki 好像都记了 KV cache 的东西，帮我对比下这两个 wiki 对 KV cache 的说法有啥不一样", "should_trigger": true},
+  {"query": "刚下载了一篇关于 prefix caching 的论文 pdf，我维护了好几个主题的 wiki（存储、LLM、数据库），你说我该把它放进哪个 wiki？", "should_trigger": true},
+  {"query": "好久没整理了，帮我扫一下我的 workspace，更新一下那个总的 INDEX，顺便看看每个 wiki 的活跃度", "should_trigger": true},
+  {"query": "帮我做个 workspace 整体的健康检查——看看有没有 wiki 注册了但目录不在的、跨 wiki 的失效链接之类的", "should_trigger": true},
+  {"query": "我发现 storage wiki 里的 NVMe-oF 这个 entity 在我新建的 cloud wiki 里也有对应的页，帮我把两边互相加个链接", "should_trigger": true},
+  {"query": "记一下：我以后想按时间线而不是主题来分 wiki，2024 年之前的资料单独归档", "should_trigger": true},
+  {"query": "我的 workspace 好久没升级了，检查下版本，该迁移就迁移到最新 format", "should_trigger": true},
+  {"query": "这些 wiki 越攒越多了，帮我看看有没有内容重复的、该合并的，给我个总览", "should_trigger": true},
+  {"query": "老板问我到底沉淀了多少东西——帮我统计下我所有 wiki 的页面数、资料数，生成个 STATS 报告", "should_trigger": true},
+  {"query": "帮我把这篇刚存的 storage 白皮书 ingest 进 huawei_storage_wiki，摘要写好点，引用页也建好", "should_trigger": false},
+  {"query": "我这个 wiki 里 concepts/ 下面有几页 frontmatter 缺 tags，帮我扫一下修掉", "should_trigger": false},
+  {"query": "帮我在 huawei_storage_wiki 里查一下 NVMe 相关的笔记，记得上次有篇关于 NVMe-oF over RDMA 的论文 ingest 过", "should_trigger": false},
+  {"query": "帮我给 workspace 加一个新 wiki，叫 llm-inference，主题是大模型推理优化，模型选 MiniMax-M3", "should_trigger": false},
+  {"query": "把 huawei_storage_wiki 从这个 workspace 里删掉吧，我已经把内容迁走了", "should_trigger": false},
+  {"query": "帮我看看我们团队在 Notion 上的产品 wiki 最近更新了啥文档，给我个摘要", "should_trigger": false},
+  {"query": "把这个 README.md 帮我转成好看的 html 发给同事，最好有 dark mode 和侧边目录", "should_trigger": false},
+  {"query": "我的 workspace.toml 里 enter_cli 想改成 qoder，帮我配置一下，顺便看下 model registry 怎么加一个 Claude Sonnet 4.5", "should_trigger": false},
+  {"query": "看下我 llmw 现在跑着哪几个 wiki session，把不要的都停掉，byobu 窗口太多了", "should_trigger": false},
+  {"query": "帮我把 confluence 上那篇架构文档同步到团队的 outline wiki，保留 markdown 格式和图片附件", "should_trigger": false}
+]
