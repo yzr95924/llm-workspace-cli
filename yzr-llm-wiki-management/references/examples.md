@@ -88,20 +88,20 @@
 4. 整理成结构化报告，问用户先修哪些
 ```
 
-## 样例五：检查 wiki 是否需要升级到最新 spec
+## 样例五：检查 wiki 是否需要升级到最新 format
 
-**用户指令**："我这个 wiki 是去年搭的，老格式了，能不能升级到最新 spec"
+**用户指令**："我这个 wiki 是去年搭的，老格式了，能不能升级到最新 format"
 
 **执行**：
 
 ```text
-1. 跑操作前置：Read ~/wiki/llm-systems/AGENTS.md (看到 §七 Wiki Spec 版本 = 0.5.0；老 wiki 版本在 CLAUDE.md §七) +
+1. 跑操作前置：Read ~/wiki/llm-systems/AGENTS.md (看到 §七 Wiki Format 版本 = 0.5.0；老 wiki 版本在 CLAUDE.md §七) +
    wiki/index.md + wiki/log.md 最近 30 行
 2. 跑探测：
    llmw wiki --path ~/wiki/llm-systems lint --check-version
    脚本报告：
-     current_spec : 0.5.0
-     skill_spec   : 0.7.0
+     current_format : 0.5.0
+     skill_format   : 0.7.0
      comparison   : older
      needs_upgrade: true
      [LEGACY] 共 3 处老格式现场（示意输出）
@@ -119,7 +119,7 @@
 5. agent 从 stdout JSON 读 plan.actions[] 逐项 Edit/Write 修复:
    - 3 处 frontmatter-retype（wiki 内容页误用 reserved `type: memory` → agent 按页面真实语义
      裁定改为 5 类内容页之一；注：占位默认 `memory-entry` 仅适用于 MEMORY 桶，wiki 内容页必须替换）
-6. Edit 改 ~/wiki/llm-systems/AGENTS.md §七 "Wiki Spec 版本" 0.5.0 → 0.7.0
+6. Edit 改 ~/wiki/llm-systems/AGENTS.md §七 "Wiki Format 版本" 0.5.0 → 0.7.0
 7. 重跑 llmw wiki lint --check-version 验证:
      needs_upgrade: false ✓ 完成
 8. 告诉用户完成，无残留冲突

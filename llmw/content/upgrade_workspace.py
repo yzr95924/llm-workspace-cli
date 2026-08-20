@@ -2,7 +2,7 @@
 
 确定性执行 `llmw upgrade`（workspace 级）：重渲染 workspace 根的 byte-owned 文件
 (AGENTS.md / CLAUDE.md)、managed block 重放 .gitignore、header-owned MEMORY.md 段嫁接、
-自验 fixtures checker 0 error、版本钉 `templates_version` 的 workspace_spec 分量 bump。
+自验 fixtures checker 0 error、版本钉 `templates_version` 的 workspace_format 分量 bump。
 
 流程与 wiki 侧 (upgrade.py) 同构：
 
@@ -21,7 +21,7 @@
     1 = blocked_drift
     2 = 自验证失败 / 内部错误
 
-变量 SSOT: workspace.toml.created_at (setup_date) + llmw.WORKSPACE_SPEC_VERSION（包内常量；SKILL.md 前端版本由 CI gate 与常量比对）
+变量 SSOT: workspace.toml.created_at (setup_date) + llmw.WORKSPACE_FORMAT_VERSION（包内常量；SKILL.md 前端版本由 CI gate 与常量比对）
 + 版本常量；display_name 例外（workspace.toml 未存），仍需从现有 AGENTS.md §七 / H1 提取。
 """
 
@@ -33,7 +33,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from llmw import WORKSPACE_SPEC_VERSION
+from llmw import WORKSPACE_FORMAT_VERSION
 from llmw import __version__ as CLI_VERSION
 from llmw.config import workspace_templates_dir
 from llmw.content import render as _render
@@ -50,9 +50,11 @@ _BYTE_OWNED = ("AGENTS.md", "CLAUDE.md")
 _BLOCK_OWNED = (".gitignore",)
 _HEADER_OWNED = ("MEMORY/MEMORY.md",)
 
-# templates_version 解析正则（保留 wiki_spec 分量，只换 workspace_spec）
-_TV_WS_RE = re.compile(r"(workspace_spec\s*=\s*)[0-9]+\.[0-9]+\.[0-9]+")
-_TV_PARSE = re.compile(r"workspace_spec\s*=\s*([0-9]+\.[0-9]+\.[0-9]+)\s*;\s*wiki_spec\s*=\s*([0-9]+\.[0-9]+\.[0-9]+)")
+# templates_version 解析正则（保留 wiki_format 分量，只换 workspace_format；接受 legacy *_spec 形式）
+_TV_WS_RE = re.compile(r"((?:workspace_format|workspace_spec)\s*=\s*)[0-9]+\.[0-9]+\.[0-9]+")
+_TV_PARSE = re.compile(
+    r"(?:workspace_format|workspace_spec)\s*=\s*([0-9]+\.[0-9]+\.[0-9]+)\s*;\s*(?:wiki_format|wiki_spec)\s*=\s*([0-9]+\.[0-9]+\.[0-9]+)"
+)
 
 
 # ===== 辅助 =====
@@ -181,7 +183,7 @@ def plan_resync(ws_root: Path) -> List[Dict[str, object]]:
                 display_name=display_name,
                 setup_date=setup_date,
                 cli_version=CLI_VERSION,
-                spec_version=WORKSPACE_SPEC_VERSION,
+                format_version=WORKSPACE_FORMAT_VERSION,
             )
         else:  # CLAUDE.md
             if not display_name:
@@ -322,7 +324,7 @@ def apply_resync(ws_root: Path, plan: List[Dict[str, object]]) -> List[Dict[str,
 
 
 def self_verify(ws_root: Path) -> Dict[str, object]:
-    report = workspace_fixtures.run_checks(ws_root, WORKSPACE_SPEC_VERSION)
+    report = workspace_fixtures.run_checks(ws_root, WORKSPACE_FORMAT_VERSION)
     summary = report["summary"]  # type: ignore
     failures = [c for c in report["checks"] if c.get("passed") is False]  # type: ignore
     return {
@@ -337,8 +339,8 @@ def self_verify(ws_root: Path) -> Dict[str, object]:
 # ===== bump templates_version =====
 
 
-def _bump_templates_version(ws_root: Path, target_workspace_spec: str) -> bool:
-    """仅替换 templates_version.workspace_spec 分量；wiki_spec 分量保留。
+def _bump_templates_version(ws_root: Path, target_workspace_format: str) -> bool:
+    """仅替换 templates_version.workspace_format 分量；wiki_format 分量保留。
     返是否真的变更。"""
     try:
         ws = ws_store.load(ws_root)
@@ -347,10 +349,10 @@ def _bump_templates_version(ws_root: Path, target_workspace_spec: str) -> bool:
     cur = ws.templates_version
     m = _TV_PARSE.search(cur)
     if m:
-        new_tv = f"workspace_spec={target_workspace_spec}; wiki_spec={m.group(2)}"
+        new_tv = f"workspace_format={target_workspace_format}; wiki_format={m.group(2)}"
     else:
         # 老格式 / 不可解析 → 直接重写为双分量
-        new_tv = f"workspace_spec={target_workspace_spec}; wiki_spec=unknown"
+        new_tv = f"workspace_format={target_workspace_format}; wiki_format=unknown"
     if new_tv == cur:
         return False
     ws.templates_version = new_tv
@@ -370,8 +372,8 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
     if blocked_reasons:
         result = {
             "status": "blocked_drift",
-            "current_spec": WORKSPACE_SPEC_VERSION,
-            "target_spec": WORKSPACE_SPEC_VERSION,
+            "current_format": WORKSPACE_FORMAT_VERSION,
+            "target_format": WORKSPACE_FORMAT_VERSION,
             "changed": [],
             "verified": {},
             "hint": f"变量提取失败：{'; '.join(blocked_reasons)}；需人工确认 display_name / ensure workspace.toml 含 created_at",
@@ -384,8 +386,8 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
     if has_diff and not dry_run and not yes:
         result = {
             "status": "blocked_drift",
-            "current_spec": WORKSPACE_SPEC_VERSION,
-            "target_spec": WORKSPACE_SPEC_VERSION,
+            "current_format": WORKSPACE_FORMAT_VERSION,
+            "target_format": WORKSPACE_FORMAT_VERSION,
             "changed": [
                 {"file": str(item["rel_path"]), "action": str(item["action"])} for item in plan if item.get("diff")
             ],
@@ -407,8 +409,8 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
     if dry_run:
         result = {
             "status": "dry_run",
-            "current_spec": WORKSPACE_SPEC_VERSION,
-            "target_spec": WORKSPACE_SPEC_VERSION,
+            "current_format": WORKSPACE_FORMAT_VERSION,
+            "target_format": WORKSPACE_FORMAT_VERSION,
             "plan": [
                 {
                     "file": str(item["rel_path"]),
@@ -423,7 +425,7 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
             print(json.dumps(result, indent=2, ensure_ascii=False))
         else:
             print("== workspace upgrade dry-run ==")
-            print(f"current_spec={WORKSPACE_SPEC_VERSION}")
+            print(f"current_format={WORKSPACE_FORMAT_VERSION}")
             for item in plan:
                 diff_lines = (item.get("diff") or "").count("\n")
                 line = f"  [{item['action']}] {item['rel_path']}"
@@ -442,8 +444,8 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
     if verified.get("error", 0) > 0:
         result = {
             "status": "verify_failed",
-            "current_spec": WORKSPACE_SPEC_VERSION,
-            "target_spec": WORKSPACE_SPEC_VERSION,
+            "current_format": WORKSPACE_FORMAT_VERSION,
+            "target_format": WORKSPACE_FORMAT_VERSION,
             "changed": changed,
             "verified": verified,
             "hint": "自验失败（版本钉不落）",
@@ -452,14 +454,14 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
         return 2
 
     # 6. bump templates_version
-    bumped = _bump_templates_version(ws_root, WORKSPACE_SPEC_VERSION)
+    bumped = _bump_templates_version(ws_root, WORKSPACE_FORMAT_VERSION)
     if bumped:
         changed.append({"file": "workspace.toml", "action": "templates_version_bump"})
 
     result = {
         "status": "done",
-        "current_spec": WORKSPACE_SPEC_VERSION,
-        "target_spec": WORKSPACE_SPEC_VERSION,
+        "current_format": WORKSPACE_FORMAT_VERSION,
+        "target_format": WORKSPACE_FORMAT_VERSION,
         "changed": changed,
         "verified": verified,
     }

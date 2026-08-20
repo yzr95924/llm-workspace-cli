@@ -11,7 +11,7 @@
 
 变量 SSOT:
 - metadata toml: wiki_metadata.toml (name/topic/created_at) / workspace.toml (display_name)
-- 版本常量: llmw/__init__.py (WIKI_SPEC_VERSION / WORKSPACE_SPEC_VERSION / __version__)
+- 版本常量: llmw/__init__.py (WIKI_FORMAT_VERSION / WORKSPACE_FORMAT_VERSION / __version__)
 
 不从旧文件反提取变量（这是派生化 checker 的基础，详见设计文档 §7.2）。
 """
@@ -54,7 +54,7 @@ def _read_template(path: Path) -> str:
 # ===== wiki side =====
 
 
-def render_wiki_agents_md(*, topic: str, setup_date: str, cli_version: str, spec_version: str) -> str:
+def render_wiki_agents_md(*, topic: str, setup_date: str, cli_version: str, format_version: str) -> str:
     """渲染 wiki <wiki-root>/AGENTS.md（模板 4 占位符）。"""
     refs = wiki_templates_dir()
     tmpl = _read_template(refs / "agents-md-template.md")
@@ -64,7 +64,7 @@ def render_wiki_agents_md(*, topic: str, setup_date: str, cli_version: str, spec
             "TOPIC_NAME": topic,
             "SETUP_DATE": setup_date,
             "CLI_VERSION": cli_version,
-            "WIKI_SPEC_VERSION": spec_version,
+            "WIKI_FORMAT_VERSION": format_version,
         },
     )
 
@@ -93,7 +93,7 @@ def render_wiki_log_md(*, topic: str, setup_date: str) -> str:
 # ===== workspace side =====
 
 
-def render_workspace_agents_md(*, display_name: str, setup_date: str, cli_version: str, spec_version: str) -> str:
+def render_workspace_agents_md(*, display_name: str, setup_date: str, cli_version: str, format_version: str) -> str:
     """渲染 workspace <workspace>/AGENTS.md（模板 4 占位符）。"""
     refs = workspace_templates_dir()
     tmpl = _read_template(refs / "workspace-agents-md-template.md")
@@ -103,7 +103,7 @@ def render_workspace_agents_md(*, display_name: str, setup_date: str, cli_versio
             "WORKSPACE_DISPLAY_NAME": display_name,
             "SETUP_DATE": setup_date,
             "CLI_VERSION": cli_version,
-            "WORKSPACE_SPEC_VERSION": spec_version,
+            "WORKSPACE_FORMAT_VERSION": format_version,
         },
     )
 

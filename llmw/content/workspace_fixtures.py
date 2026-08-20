@@ -3,13 +3,13 @@
 
 从 fixture 视角校验一个已存在 workspace 的
 "约定文件"（AGENTS.md / CLAUDE.md / .gitignore / MEMORY/MEMORY.md / workspace.toml
-templates_version）是否满足当前 workspace spec 的结构要求。本模块只校验**结构性字节合规**；
+templates_version）是否满足当前 workspace format 的结构要求。本模块只校验**结构性字节合规**；
 修复由 agent 按报告里的 fix 动作走 SKILL.md §6 Upgrade 工作流——本模块不写任何文件。
 
 用法:
-  llmw check-fixtures --workspace=<WORKSPACE_ROOT> [--json] [--target-spec <semver>]
+  llmw check-fixtures --workspace=<WORKSPACE_ROOT> [--json] [--target-format <semver>]
 
-缺省 --target-spec 时读 llmw.WORKSPACE_SPEC_VERSION（包内常量；SKILL.md 前端的版本 SSOT 由 CI gate 比对）。
+缺省 --target-format 时读 llmw.WORKSPACE_FORMAT_VERSION（包内常量；SKILL.md 前端的版本 SSOT 由 CI gate 比对）。
 standalone（不依赖其他脚本 / 第三方库；Python 3.7+）。
 
 退出码:
@@ -24,8 +24,8 @@ standalone（不依赖其他脚本 / 第三方库；Python 3.7+）。
   fallback H1 + §六 散文行），渲染 references/workspace-*-template.md 后字节比对——
   一次性覆盖"旧版本残留 + 本地改动"全部漂移。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
 - 版本新旧（agents-version-is-current）与正文同步（agents-md-template-sync）正交：
-  后者渲染时用 workspace 自钉版本替换 {{WORKSPACE_SPEC_VERSION}}。
-- workspace.toml 的 wiki_spec 分量只展示不比对（跨 skill 指针：该跑各 wiki 的 upgrade
+  后者渲染时用 workspace 自钉版本替换 {{WORKSPACE_FORMAT_VERSION}}。
+- workspace.toml 的 wiki_format 分量只展示不比对（跨 skill 指针：该跑各 wiki 的 upgrade
   由 yzr-llm-wiki-management 负责，本脚本不读兄弟 skill 的版本）。
 """
 
@@ -38,7 +38,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from llmw import WORKSPACE_SPEC_VERSION
+from llmw import WORKSPACE_FORMAT_VERSION
 from llmw import __version__ as CLI_VERSION
 from llmw.config import workspace_templates_dir
 from llmw.content.render import render_workspace_agents_md, render_workspace_claude_md
@@ -51,7 +51,7 @@ CREATED_AT_TOML_RE = re.compile(r'^\s*created_at\s*=\s*"([^"]+)"', re.MULTILINE)
 # §六「当前配置」表行（机读版本钉死）
 WS_NAME_ROW_RE = re.compile(r"^\|\s*Workspace 名\s*\|\s*(.+?)\s*\|\s*$")
 SETUP_DATE_ROW_RE = re.compile(r"^\|\s*创建日期\s*\|\s*(.+?)\s*\|\s*$")
-SPEC_VERSION_ROW_RE = re.compile(r"^\|\s*Workspace Spec 版本\s*\|\s*(.+?)\s*\|\s*$")
+WORKSPACE_FORMAT_ROW_RE = re.compile(r"^\|\s*Workspace Format 版本\s*\|\s*(.+?)\s*\|\s*$")
 CLI_VERSION_ROW_RE = re.compile(r"^\|\s*CLI 版本\s*\|\s*(.+?)\s*\|\s*$")
 # fallback：H1 `# <名> Workspace — LLM 维护守则` + 0.7.0- 老 §六 散文行
 H1_NAME_RE = re.compile(r"^#\s+(.+?)\s+Workspace\s+—\s+LLM 维护守则\s*$")
@@ -64,7 +64,7 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": "AGENTS.md",
         "rule_ref": "repo AGENTS.md §当前配置 + upgrade 引擎",
-        "desc": "AGENTS.md §六 Workspace Spec 版本行需与 --target-spec 一致",
+        "desc": "AGENTS.md §六 Workspace Format 版本行需与 --target-format 一致",
     },
     {
         "id": "agents-md-template-sync",
@@ -99,7 +99,7 @@ CHECK_REGISTRY = [
         "severity": "warn",
         "file": "workspace.toml",
         "rule_ref": "repo AGENTS.md §当前配置",
-        "desc": "workspace.toml templates_version 的 workspace_spec 分量与 target 一致（不阻断；wiki_spec 分量只展示不比对）",
+        "desc": "workspace.toml templates_version 的 workspace_format 分量与 target 一致（不阻断；wiki_format 分量只展示不比对）",
     },
     {
         "id": "workspace-toml-reads-satisfied",
@@ -126,9 +126,9 @@ def _read_text(path: Path) -> Optional[str]:
         return None
 
 
-def _skill_spec_version() -> Optional[str]:
-    """workspace spec 版本（SSOT = llmw.WORKSPACE_SPEC_VERSION 包内常量）。"""
-    return WORKSPACE_SPEC_VERSION
+def _skill_format_version() -> Optional[str]:
+    """workspace format 版本（SSOT = llmw.WORKSPACE_FORMAT_VERSION 包内常量）。"""
+    return WORKSPACE_FORMAT_VERSION
 
 
 def _compare_semver(a: Optional[str], b: Optional[str]) -> str:
@@ -165,12 +165,12 @@ def _extract_row(text: str, row_re: "re.Pattern[str]") -> Optional[str]:
 
 
 def _extract_template_vars(agents_text: str) -> Dict[str, Optional[str]]:
-    """提取模板渲染 4 变量：§六 表优先；老格式 fallback H1（名）+ §六 散文行（日期 / CLI / spec）。"""
-    legacy_date = legacy_cli = legacy_spec = None  # type: Optional[str]
+    """提取模板渲染 4 变量：§六 表优先；老格式 fallback H1（名）+ §六 散文行（日期 / CLI / format）。"""
+    legacy_date = legacy_cli = legacy_format = None  # type: Optional[str]
     for line in agents_text.splitlines():
         m = LEGACY_ROW_RE.match(line)
         if m:
-            legacy_date, legacy_cli, legacy_spec = m.group(1), m.group(2), m.group(3)
+            legacy_date, legacy_cli, legacy_format = m.group(1), m.group(2), m.group(3)
             break
     name = _extract_row(agents_text, WS_NAME_ROW_RE)
     if name is None:
@@ -178,21 +178,21 @@ def _extract_template_vars(agents_text: str) -> Dict[str, Optional[str]]:
         h1m = H1_NAME_RE.match(h1)
         if h1m:
             name = h1m.group(1).strip()
-    spec_cell = _extract_row(agents_text, SPEC_VERSION_ROW_RE)
-    spec_semver = SEMVER_RE.search(spec_cell) if spec_cell else None
+    format_cell = _extract_row(agents_text, WORKSPACE_FORMAT_ROW_RE)
+    format_semver = SEMVER_RE.search(format_cell) if format_cell else None
     return {
         "name": name,
         "date": _extract_row(agents_text, SETUP_DATE_ROW_RE) or legacy_date,
         "cli": _extract_row(agents_text, CLI_VERSION_ROW_RE) or legacy_cli,
-        "spec": spec_semver.group(0) if spec_semver else legacy_spec,
+        "format": format_semver.group(0) if format_semver else legacy_format,
     }
 
 
-def _render_agents_template(template: str, vars: Dict[str, Optional[str]], spec: str) -> str:
+def _render_agents_template(template: str, vars: Dict[str, Optional[str]], format_ver: str) -> str:
     return (
         template.replace("{{WORKSPACE_DISPLAY_NAME}}", vars["name"] or "")
         .replace("{{SETUP_DATE}}", vars["date"] or "")
-        .replace("{{WORKSPACE_SPEC_VERSION}}", spec)
+        .replace("{{WORKSPACE_FORMAT_VERSION}}", format_ver)
         .replace("{{CLI_VERSION}}", vars["cli"] or "")
     )
 
@@ -204,7 +204,7 @@ def _agents_reference() -> Tuple[Optional[str], Path]:
 
 
 def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#1: AGENTS.md §六 Workspace Spec 版本行与 target_spec 一致（新旧判定）。
+    """check#1: AGENTS.md §六 Workspace Format 版本行与 target_format 一致（新旧判定）。
 
     与 template-sync 正交：只管版本新旧，不管正文同步。0.7.0- 老格式无表 → fallback
     §六 散文行含旧版 `llmw vX / workspace-spec vY` 格式时提取
@@ -215,12 +215,12 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
         out["passed"] = None
         out["skipped"] = "AGENTS.md 不存在"
         return out
-    target = info.get("target_spec")
-    found = _extract_template_vars(text)["spec"]
+    target = info.get("target_format")
+    found = _extract_template_vars(text)["format"]
     if found is None:
         out["passed"] = False  # type: ignore
         out["comparison"] = "unknown"
-        out["actual"] = "无法解析 §六 Workspace Spec 版本行（含老 §六 散文行 fallback）"
+        out["actual"] = "无法解析 §六 Workspace Format 版本行（含老 §六 散文行 fallback）"
         out["expected"] = target or "(未指定 target)"
         out["fix"] = {
             "type": "workspace-fix-agents-md-resync",
@@ -240,7 +240,7 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
         )
         out["fix"] = {
             "type": "workspace-fix-agents-version",
-            "to_action": f"Edit AGENTS.md §六 表：`Workspace Spec 版本` 行改为 {target}（{note}）",
+            "to_action": f"Edit AGENTS.md §六 表：`Workspace Format 版本` 行改为 {target}（{note}）",
         }
     return out
 
@@ -252,7 +252,7 @@ def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
     workspace.toml 没有该字段（init 时只写到 AGENTS.md），仍需从 AGENTS.md §六 表
     （或 H1 fallback）提取。其它 3 变量均 SSOT 派生，模板措辞改后本 check 自动跟随。
 
-    与 check#1 的关系: 本 check 直接用 CURRENT spec 版本渲染, 旧 workspace 必然字节差
+    与 check#1 的关系: 本 check 直接用 CURRENT format 版本渲染, 旧 workspace 必然字节差
     → 也会 drift。**冗余 benign**: 两者都推荐 upgrade, 一次修复。check#1 仅做 currency
     信息报告 + 老格式 fallback。
     """
@@ -304,7 +304,7 @@ def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
         display_name=display_name,
         setup_date=setup_date,
         cli_version=CLI_VERSION,
-        spec_version=WORKSPACE_SPEC_VERSION,
+        format_version=WORKSPACE_FORMAT_VERSION,
     )
 
     if rendered != ws_text:
@@ -481,14 +481,14 @@ def check_memory_index_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str
 
 
 TEMPLATES_VERSION_RE = re.compile(r'^[ \t]*templates_version[ \t]*=[ \t]*"([^"]*)"', re.MULTILINE)
-TV_WORKSPACE_SPEC_RE = re.compile(r"workspace_spec\s*=\s*([0-9]+\.[0-9]+\.[0-9]+)")
-TV_WIKI_SPEC_RE = re.compile(r"wiki_spec\s*=\s*([0-9]+\.[0-9]+\.[0-9]+)")
+TV_WORKSPACE_FORMAT_RE = re.compile(r"(?:workspace_format|workspace_spec)\s*=\s*([0-9]+\.[0-9]+\.[0-9]+)")
+TV_WIKI_FORMAT_RE = re.compile(r"(?:wiki_format|wiki_spec)\s*=\s*([0-9]+\.[0-9]+\.[0-9]+)")
 
 
 def check_workspace_toml_templates_version(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#6: workspace.toml templates_version 的 workspace_spec 分量与 target 一致（warn）。
+    """check#6: workspace.toml templates_version 的 workspace_format 分量与 target 一致（warn）。
 
-    不阻断（spec §14：旧 spec 产物仍可读）。wiki_spec 分量只展示不比对——跨 skill
+    不阻断（旧 format 产物仍可读）。wiki_format 分量只展示不比对——跨 skill
     指针，提示用户跑各 wiki 的 upgrade（yzr-llm-wiki-management），本脚本不读兄弟 skill 版本。
     """
     out = {"passed": True, "severity": "warn", "file": "workspace.toml"}  # type: Dict[str, object]
@@ -499,35 +499,35 @@ def check_workspace_toml_templates_version(ws_root: Path, info: Dict[str, str]) 
         return out
     m = TEMPLATES_VERSION_RE.search(text)
     if m:
-        wiki_m = TV_WIKI_SPEC_RE.search(m.group(1))
+        wiki_m = TV_WIKI_FORMAT_RE.search(m.group(1))
         if wiki_m:
-            out["wiki_spec"] = wiki_m.group(1)
+            out["wiki_format"] = wiki_m.group(1)
     found = None
     if m:
-        spec_m = TV_WORKSPACE_SPEC_RE.search(m.group(1))
-        if spec_m:
-            found = spec_m.group(1)
+        format_m = TV_WORKSPACE_FORMAT_RE.search(m.group(1))
+        if format_m:
+            found = format_m.group(1)
     if found is None:
         out["passed"] = False  # type: ignore
         out["comparison"] = "unknown"
-        out["actual"] = "templates_version 缺失或 workspace_spec 分量不可解析"
+        out["actual"] = "templates_version 缺失或 workspace_format 分量不可解析"
         out["expected"] = (
-            f'templates_version = "workspace_spec = {info.get("target_spec") or "<target>"}; wiki_spec = ..."'
+            f'templates_version = "workspace_format = {info.get("target_format") or "<target>"}; wiki_format = ..."'
         )
         out["fix"] = {
             "type": "workspace-fix-templates-version",
-            "to_action": f"upgrade 收尾 Edit workspace.toml：templates_version 的 workspace_spec 分量改为 {info.get('target_spec') or '<target>'}（单字段，其余不动）",
+            "to_action": f"upgrade 收尾 Edit workspace.toml：templates_version 的 workspace_format 分量改为 {info.get('target_format') or '<target>'}（单字段，其余不动）",
         }
         return out
-    cmp = _compare_semver(found, info.get("target_spec"))
+    cmp = _compare_semver(found, info.get("target_format"))
     if cmp != "equal":
         out["passed"] = False  # type: ignore
         out["comparison"] = cmp
         out["actual"] = found
-        out["expected"] = info.get("target_spec")
+        out["expected"] = info.get("target_format")
         out["fix"] = {
             "type": "workspace-fix-templates-version",
-            "to_action": f"upgrade 收尾 Edit workspace.toml：templates_version 的 workspace_spec 分量改为 {info.get('target_spec') or '<target>'}（单字段，其余不动）",
+            "to_action": f"upgrade 收尾 Edit workspace.toml：templates_version 的 workspace_format 分量改为 {info.get('target_format') or '<target>'}（单字段，其余不动）",
         }
     return out
 
@@ -546,7 +546,7 @@ def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) ->
 
     读取契约 co-location：本 check 校验的字段 = SKILL scan/upgrade 实际读取的字段。若 SKILL
     将来新读 workspace.toml 某字段，必须同步加到这里 + yzr-llm-workspace-management SKILL.md 附录 A1「读取契约」
-    表——两处（本 check / spec §2）一致，gate 才有效（清单漂移 = check 不报警 = gate 失效）。
+    表——两处（本 check / SKILL.md 附录 A1）一致，gate 才有效（清单漂移 = check 不报警 = gate 失效）。
     """
     out = {"passed": True, "severity": "error", "file": "workspace.toml"}  # type: Dict[str, object]
     text = _read_text(ws_root / "workspace.toml")
@@ -575,9 +575,8 @@ def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) ->
 # 模板零出边引用（架构不变量：纪律正文唯一维护点 = 模板，模板是引用图汇点）。
 # 任何指向 skill 目录文件 / 阿拉伯数字 §节号的引用都会被本 check 报 error——workspace 侧
 # agent 读不到 skill 目录、解析不了这些指针（模板自己都写着"模板与配套工具随 skill 分发，不在本 workspace 内"），
-# 对运行时读者是死指针；改纪律只改模板对应段，spec / SKILL.md 单向指入模板。
+# 对运行时读者是死指针；改纪律只改模板对应段，SKILL.md 单向指入模板。
 TEMPLATE_OUTBOUND_PATTERNS = (
-    "workspace-spec.md",  # 文件已删除，保留禁令防历史引用回渗
     "workspace-claude-md-template.md",
     "SKILL.md",
     "references/",
@@ -621,7 +620,7 @@ def check_template_no_outbound_refs(ws_root: Path, info: Dict[str, str]) -> Dict
     hits = _scan_template_outbound_refs(template)
     if hits:
         out["passed"] = False
-        out["expected"] = "模板不含任何指向 skill 目录的引用（自包含措辞；spec / SKILL.md 单向指入模板）"
+        out["expected"] = "模板不含任何指向 skill 目录的引用（自包含措辞；SKILL.md 单向指入模板）"
         out["actual"] = "出边引用: " + "; ".join(hits[:8])
     return out
 
@@ -639,8 +638,8 @@ CHECK_FUNCS = [
 ]
 
 
-def run_checks(ws_root: Path, target_spec: Optional[str]) -> Dict[str, object]:
-    info = {"target_spec": target_spec or ""}
+def run_checks(ws_root: Path, target_format: Optional[str]) -> Dict[str, object]:
+    info = {"target_format": target_format or ""}
     summary = {"error": 0, "warn": 0, "info": 0, "pass": 0, "skip": 0}  # type: Dict[str, int]
     checks_out = []  # type: List[Dict[str, object]]
     func_map = dict(CHECK_FUNCS)
@@ -668,12 +667,12 @@ def run_checks(ws_root: Path, target_spec: Optional[str]) -> Dict[str, object]:
                 "skipped": result.get("skipped", ""),
                 "comparison": result.get("comparison", ""),
                 "fix": result.get("fix", {}),
-                "wiki_spec": result.get("wiki_spec", ""),
+                "wiki_format": result.get("wiki_format", ""),
             }
         )
     return {
         "workspace_root": str(ws_root),
-        "target_spec": target_spec,
+        "target_format": target_format,
         "checks": checks_out,
         "summary": summary,
     }
@@ -684,7 +683,7 @@ def _format_human(report: Dict[str, object]) -> str:
     lines = []  # type: List[str]
     lines.append("=== Workspace fixtures 一致性检查 ===")
     lines.append(f"  workspace_root: {report['workspace_root']}")
-    lines.append(f"  target_spec   : {report['target_spec'] or '(未指定)'}")
+    lines.append(f"  target_format   : {report['target_format'] or '(未指定)'}")
     s = report["summary"]  # type: ignore
     lines.append(f"  error={s['error']} warn={s['warn']} info={s['info']} pass={s['pass']} skip={s['skip']}")  # type: ignore
     lines.append("")
@@ -752,9 +751,9 @@ def main(argv=None) -> int:
     parser.add_argument("workspace_root", nargs="?", help="workspace 根目录；默认从 $LLMW_WORKSPACE 读")
     parser.add_argument("--json", action="store_true", help="输出机器可读 JSON 而不是人读报告")
     parser.add_argument(
-        "--target-spec",
+        "--target-format",
         default=None,
-        help="目标 workspace spec 版本（缺省读 llmw.WORKSPACE_SPEC_VERSION 包内常量）",
+        help="目标 workspace format 版本（缺省读 llmw.WORKSPACE_FORMAT_VERSION 包内常量）",
     )
     parser.add_argument(
         "--list-rules",
@@ -782,9 +781,9 @@ def main(argv=None) -> int:
         print(f"ERROR: {ws_root} 不是目录", file=sys.stderr)
         return 2
 
-    target_spec = args.target_spec or _skill_spec_version()
+    target_format = args.target_format or _skill_format_version()
 
-    report = run_checks(ws_root, target_spec)
+    report = run_checks(ws_root, target_format)
 
     if args.json:
         print(json.dumps(report, indent=2, ensure_ascii=False))

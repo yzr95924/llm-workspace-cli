@@ -159,8 +159,8 @@ frontmatter 5 必填（`title` / `type` / `created` / `updated` / `tags`，**仅
 
 ## 七、当前配置
 
-> 本表 4 个变量（Workspace 名 / 创建日期 / Workspace Spec 版本 / CLI 版本）是仅有的
-> per-workspace 内容——spec 升级重渲染时**保留旧值**（`Workspace Spec 版本` 用升级目标版本）。
+> 本表 4 个变量（Workspace 名 / 创建日期 / Workspace Format 版本 / CLI 版本）是仅有的
+> per-workspace 内容——format 升级重渲染时**保留旧值**（`Workspace Format 版本` 用升级目标版本）。
 > 本文件特有纪律 / 偏好一律沉淀到 `MEMORY/`（由顶部 `@MEMORY/MEMORY.md` 加载，会话常驻），
 > 不写进本文件——否则升级重渲染时丢失。
 >
@@ -173,5 +173,5 @@ frontmatter 5 必填（`title` / `type` / `created` / `updated` / `tags`，**仅
 | Workspace 名 | {{WORKSPACE_DISPLAY_NAME}} |
 | 创建日期 | {{SETUP_DATE}} |
 | Workspace 根 | <由 LLMW_WORKSPACE 环境变量或 init 时确定> |
-| Workspace Spec 版本 | {{WORKSPACE_SPEC_VERSION}} |
+| Workspace Format 版本 | {{WORKSPACE_FORMAT_VERSION}} |
 | CLI 版本 | {{CLI_VERSION}} |

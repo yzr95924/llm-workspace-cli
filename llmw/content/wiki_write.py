@@ -21,7 +21,7 @@
   memory  新建 MEMORY 条目（仅 title 必填 frontmatter）+ 原子追加 MEMORY.md 索引行
           `python3 wiki_write.py <WIKI_ROOT> memory add --slug foo --title "Foo" [--index-line "一句话"]`
 
-版本错位警告：wiki §七 钉定版本与 SKILL 的 CURRENT_WIKI_SPEC 不一致时警告"先 upgrade 再写"
+版本错位警告：wiki §七 钉定版本与 SKILL 的 CURRENT_WIKI_FORMAT 不一致时警告"先 upgrade 再写"
 ——防新格式写进老 wiki。只警告不阻断（逃生舱：用户对老 wiki 有意写入时仍可用）。
 
 退出码：0 = 成功（含 no-op）；2 = 运行错误 / 参数错误。
@@ -36,10 +36,10 @@ from pathlib import Path
 from llmw.content.ingest_diff import parse_frontmatter_simple  # noqa: E402
 from llmw.content.log_format import LOG_LINE_RE  # noqa: E402
 from llmw.content.wiki_lint import (  # noqa: E402
-    CURRENT_WIKI_SPEC,
+    CURRENT_WIKI_FORMAT,
     LOG_RETENTION_LIMIT,
     SOURCE_NAME_RE,
-    parse_spec_version,
+    parse_format_version,
 )
 
 # wiki 5 类内容页（非 MEMORY 扩展类型）→ 子目录 + index.md 类别段
@@ -71,10 +71,10 @@ def _now():
 
 def _warn_version(wiki_root):
     """wiki §七 钉定版本与 SKILL 不一致时打警告（stderr，不阻断）"""
-    pinned = parse_spec_version(Path(wiki_root))
-    if pinned and pinned != CURRENT_WIKI_SPEC:
+    pinned = parse_format_version(Path(wiki_root))
+    if pinned and pinned != CURRENT_WIKI_FORMAT:
         print(
-            f"[WARN] wiki 钉定 spec {pinned}，与 SKILL {CURRENT_WIKI_SPEC} 不一致——"
+            f"[WARN] wiki 钉定 format {pinned}，与 SKILL {CURRENT_WIKI_FORMAT} 不一致——"
             f"建议先跑 `llmw wiki lint --check-version --apply` 完成迁移再写入",
             file=sys.stderr,
         )

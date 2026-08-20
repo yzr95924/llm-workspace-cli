@@ -189,7 +189,7 @@
 2. **agent 检查半定性部分**——矛盾、缺失交叉引用、过期主张
 3. **修 lint 不要回退 schema**——若 lint 报告与本文件冲突，**先讨论用户**再决定
 4. **版本漂移响应**——lint / write / check-fixtures 报版本漂移
-   （`wiki-spec-version-stale` / `agents-md-template-sync` drift / legacy warn）时，
+   （`wiki-format-version-stale` / `agents-md-template-sync` drift / legacy warn）时，
    **不回退 schema、不手改对齐**；告知用户并走升级流程：`llmw check-fixtures` 取
    plan → 按 upgrade-workflow 走 Edit/Write 修复 → 改本文件 §七 版本行（其余由模板
    重渲染）
@@ -204,7 +204,7 @@
 - 改本文件 = 改 skill 行为 = 大事；先和用户确认
 - **模板升级时本文件按 CLI 最新模板全量重渲染**（本 wiki 的健康检查强制这一条；本地定制先沉淀 `MEMORY/`，
   详见顶部说明）——§七 四行变量
-  （主题 / 创建日期 / CLI 版本 / Wiki Spec 版本）是仅有的 per-wiki 内容，升级时保留
+  （主题 / 创建日期 / CLI 版本 / Wiki Format 版本）是仅有的 per-wiki 内容，升级时保留
 - 若 wiki 启用 git，每次改建议 commit 并加清晰的 commit message；未启用 git 跳过此步
 
 ### 骨架所有权四分表（wiki 侧文件归属）
@@ -225,5 +225,5 @@
 | 主题 | {{TOPIC_NAME}} |
 | 创建日期 | {{SETUP_DATE}} |
 | Wiki 根 | <由 LLM_WIKI_ROOT 环境变量或 init 时确定> |
-| Wiki Spec 版本 | {{WIKI_SPEC_VERSION}} |
+| Wiki Format 版本 | {{WIKI_FORMAT_VERSION}} |
 | CLI 版本 | {{CLI_VERSION}} |

@@ -5,7 +5,7 @@
 > **本文件是 content-owned 产物（wiki 内容页）纪律的 canonical**——frontmatter 字段
 > 全集 / 建页阈值 / 认知质量信号 / 矛盾处理 Update Policy 的唯一维护点（0.37.0 起
 > 从 AGENTS.md 模板迁入；模板不再承载写页规则）。改规则只改本文件 + bump
-> `wiki_spec_version`。
+> `wiki_format_version`。
 
 > **本章顺序说明**：下面按**教学序**列出（基础 → 综合：entity → concept → source
 > → comparison → synthesis）。`type` 取值表与目录结构对应——字母序：`comparison` /
@@ -252,7 +252,7 @@ type: source
 tags: [<必填但可空>]
 created: YYYY-MM-DD HH:MM
 updated: YYYY-MM-DD HH:MM
-sources:  # 必填——指向 raw/ 现存路径（不得指向 raw/discussions/——草稿非真相源，spec §15）
+sources:  # 必填——指向 raw/ 现存路径（不得指向 raw/discussions/——草稿非真相源，详见 ingest-workflow.md §10）
   - raw/articles/<slug>.md
 authors: [<name1>, <name2>]  # 可选
 published: YYYY-MM-DD          # 可选

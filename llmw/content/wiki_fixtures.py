@@ -4,14 +4,14 @@
 从 fixture 视角校验一个已存在 wiki 的
 "约定文件"（AGENTS.md §七 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
 MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
-wiki_metadata.toml）是否满足当前 wiki spec 的结构要求。本模块只校验**结构性字节合规**；
+wiki_metadata.toml）是否满足当前 wiki format 的结构要求。本模块只校验**结构性字节合规**；
 语义合并（frontmatter 字段升级 / index 重复条目 / 多 MEMORY 条目归并等）由
 upgrade-workflow.md §六 + LLM agent 走 upgrade plan 时处理——本模块不替代。
 
 用法:
-  llmw wiki check-fixtures --path=<WIKI_ROOT> [--json] [--target-spec <semver>]
+  llmw wiki check-fixtures --path=<WIKI_ROOT> [--json] [--target-format <semver>]
 
-缺省 --target-spec 时读 llmw.WIKI_SPEC_VERSION（包内常量；SKILL.md 前端的版本 SSOT 由 CI gate 比对）。
+缺省 --target-format 时读 llmw.WIKI_FORMAT_VERSION（包内常量；SKILL.md 前端的版本 SSOT 由 CI gate 比对）。
 standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 tomli/tomllib。
 
 退出码:
@@ -23,13 +23,13 @@ standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 to
 - 该脚本不写文件，也不产出 upgrade plan（由 llmw wiki lint --check-version
   `--apply` 以 stdout JSON 输出并 call 它的活）；standalone 调用方只能看到 stdout/JSON 报告。
 - 21 条 check（13 条结构探测 + 7 条骨架字段比对 + 1 条模板自检 `template-no-outbound-refs`）；
-  下一个 wiki spec 升级只需新增 register 条目 / SKELETON_SPECS 描述符。骨架信号硬编码在
-  SKELETON_SPECS（与包内 fixtures/ 一致，改 fixtures 时手工同步描述符）；
+  下一个 wiki format 升级只需新增 register 条目 / SKELETON_REGISTRY 描述符。骨架信号硬编码在
+  SKELETON_REGISTRY（与包内 fixtures/ 一致，改 fixtures 时手工同步描述符）；
   唯独 .gitignore 走包内 fixtures/gitignore.txt 自动跟随。
 - `template-no-outbound-refs`：模板零出边引用是架构不变量（纪律正文唯一维护点 =
-  模板；spec / SKILL.md / page-templates.md 单向指入模板），由该 check 机械强制。
+  模板；SKILL.md / page-templates.md 单向指入模板），由该 check 机械强制。
 - AGENTS.md 走**模板渲染比对**（`agents-md-template-sync`）：从 wiki §七 提取
-  主题/创建日期/CLI 版本三变量 + wiki 自钉 spec 版本，渲染包内 agents-md-template.md
+  主题/创建日期/CLI 版本三变量 + wiki 自钉 format 版本，渲染包内 agents-md-template.md
   后字节比对——一次性覆盖"旧版本残留 + 本地改动"全部漂移，取代 0.25.0- 的两条存在性检查
   （has-at-imports / top-read-directive）。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
 - 复用 lint_wiki / log_format 的常量（MEMORY_SUBDIR / EXTERNAL_SUBDIR / ANCHOR_FILENAME /
@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 # 常量 SSOT 在 wiki_lint / log_format，import 不复制。
-from llmw import WIKI_SPEC_VERSION
+from llmw import WIKI_FORMAT_VERSION
 from llmw import __version__ as CLI_VERSION
 from llmw.config import wiki_templates_dir
 from llmw.content.log_format import LOG_LINE_RE  # noqa: E402
@@ -63,14 +63,14 @@ from llmw.errors import WikiMetadataCorrupt
 from llmw.wiki import store as wiki_store
 
 # -- 公开 check 注册表（顺序 = 输出顺序）--
-# 每条: severity (error/warn)、rule_ref（指向 spec/lint-checklist 段）、desc（人读摘要）
+# 每条: severity (error/warn)、rule_ref（指向 lint-checklist 段）、desc（人读摘要）
 CHECK_REGISTRY = [
     {
         "id": "agents-version-is-current",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "lint-checklist §一.11 wiki-spec-version",
-        "desc": "AGENTS.md §七 Wiki Spec 版本行需与 --target-spec 一致",
+        "rule_ref": "lint-checklist §一.11 wiki-format-version",
+        "desc": "AGENTS.md §七 Wiki Format 版本行需与 --target-format 一致",
     },
     {
         "id": "agents-md-template-sync",
@@ -166,7 +166,7 @@ CHECK_REGISTRY = [
 ]
 
 # -- 解析用正则 --
-AGENTS_VERSION_ROW_RE = re.compile(r"^\s*\|\s*Wiki Spec 版本\s*\|\s*([^|]+?)\s*\|")
+AGENTS_FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\s*\|")
 INDEX_CATEGORY_RE = re.compile(r"^## (.+)$")
 SOURCE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 GITIGNORE_TRACK_TOML_RE = re.compile(r"^!\s*raw/external/\.symlink-anchor\.toml\s*(#.*)?$")
@@ -184,16 +184,16 @@ def _read_text(path: Path) -> Optional[str]:
         return None
 
 
-def _skill_spec_version() -> Optional[str]:
-    """wiki spec 版本（SSOT = llmw.WIKI_SPEC_VERSION 包内常量）。"""
-    return WIKI_SPEC_VERSION
+def _skill_format_version() -> Optional[str]:
+    """wiki format 版本（SSOT = llmw.WIKI_FORMAT_VERSION 包内常量）。"""
+    return WIKI_FORMAT_VERSION
 
 
 def _compare_semver(a: Optional[str], b: Optional[str]) -> str:
     """返 'equal' / 'older' / 'newer' / 'unknown'。
 
     本地保留（非 lint_wiki import）：lint_wiki._compare_semver 假定 skill 参数非 None，
-    check 的 current_spec 可能为 None（wiki §七 版本钉定时），需更宽容的缺值处理。
+    check 的 current_format 可能为 None（wiki §七 版本钉定时），需更宽容的缺值处理。
     """
     if not a or not b:
         return "unknown"
@@ -291,16 +291,16 @@ def _parse_anchor_minimal(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
 
 
 def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """AGENTS.md §七 spec 行与 --target-spec 一致"""
-    target_spec = info.get("target_spec") or None
+    """AGENTS.md §七 format 行与 --target-format 一致"""
+    target_format = info.get("target_format") or None
     out = {  # type: Dict[str, object]
         "passed": True,
         "severity": "error",
         "file": "AGENTS.md",
     }
-    if target_spec is None:
+    if target_format is None:
         out["passed"] = None  # type: ignore
-        out["skipped"] = "--target-spec 未提供；跳过版本对齐检查"
+        out["skipped"] = "--target-format 未提供；跳过版本对齐检查"
         return out
 
     # 从 AGENTS.md 抓行；若 AGENTS.md 不存在，fallback CLAUDE.md（pre-0.11.0 老 wiki 兼容）
@@ -312,7 +312,7 @@ def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obj
         if text is None:
             continue
         for line in text.splitlines():
-            m = AGENTS_VERSION_ROW_RE.match(line)
+            m = AGENTS_FORMAT_ROW_RE.match(line)
             if not m:
                 continue
             cell = m.group(1).strip()
@@ -325,15 +325,15 @@ def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obj
             break
     if found_version is None:
         out["passed"] = False  # type: ignore
-        out["actual"] = "(无法解析 §七 Wiki Spec 版本行)"
-        out["expected"] = target_spec
+        out["actual"] = "(无法解析 §七 Wiki Format 版本行)"
+        out["expected"] = target_format
         return out
     out["file"] = source_file  # type: ignore
-    cmp = _compare_semver(found_version, target_spec)
+    cmp = _compare_semver(found_version, target_format)
     if cmp != "equal":
         out["passed"] = False  # type: ignore
         out["actual"] = found_version
-        out["expected"] = target_spec
+        out["expected"] = target_format
         out["comparison"] = cmp  # type: ignore
     return out
 
@@ -344,14 +344,14 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
     设计文档 §7.2: 渲染输入变量全部来自 `wiki_metadata.toml` + `llmw/__init__.py` 版本常量,
     **不从旧文件反提取**。改模板措辞/结构后只动 skill 侧,本 check 自动跟随。
 
-    per-wiki 变量 4 个 (主题 / 创建日期 / CLI 版本 / Wiki Spec 版本):
+    per-wiki 变量 4 个 (主题 / 创建日期 / CLI 版本 / Wiki Format 版本):
     - 主题 / 创建日期 = wiki_metadata.toml 的 topic / created_at
-    - CLI 版本 / Wiki Spec 版本 = llmw.__version__ / llmw.WIKI_SPEC_VERSION
+    - CLI 版本 / Wiki Format 版本 = llmw.__version__ / llmw.WIKI_FORMAT_VERSION
 
     一次覆盖旧版本残留 + 本地改动全部漂移。自定义纪律沉淀到 MEMORY/（不进 AGENTS.md,
     否则与渲染稿不等）。
 
-    与 `agents-version-is-current` 的关系: 本 check 渲染时直接用 CURRENT spec 版本,
+    与 `agents-version-is-current` 的关系: 本 check 渲染时直接用 CURRENT format 版本,
     旧 wiki 必然字节差 → 也会 drift。**冗余是 benign**——两者都推荐 upgrade, 升级路径
     一次修复。`agents-version-is-current` 仅做 currency 信息报告。
     """
@@ -389,7 +389,7 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
         topic=meta.topic,
         setup_date=setup_date,
         cli_version=CLI_VERSION,
-        spec_version=WIKI_SPEC_VERSION,
+        format_version=WIKI_FORMAT_VERSION,
     )
 
     if rendered != wiki_text:
@@ -405,9 +405,8 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
 # 模板零出边引用（架构不变量：纪律正文唯一维护点 = 模板，模板是引用图汇点）。
 # 任何指向 skill 目录文件 / 阿拉伯数字 §节号的引用都会被本 check 报 error——wiki 侧 agent
 # 解析不了这些指针（模板自己都写着"模板与配套工具随 skill 分发，不在本 wiki 内"），
-# 对运行时读者是死指针；改纪律只改模板对应段，spec / SKILL.md / page-templates.md 单向指入模板。
+# 对运行时读者是死指针；改纪律只改模板对应段，SKILL.md / page-templates.md 单向指入模板。
 TEMPLATE_OUTBOUND_PATTERNS = (
-    "wiki-spec.md",  # 文件已删除，保留禁令防历史引用回渗
     "page-templates.md",
     "lint-checklist.md",
     "SKILL.md",
@@ -451,7 +450,7 @@ def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Di
     hits = _scan_template_outbound_refs(template)
     if hits:
         out["passed"] = False
-        out["expected"] = "模板不含任何指向 skill 目录的引用（自包含措辞；spec / SKILL.md 单向指入模板）"
+        out["expected"] = "模板不含任何指向 skill 目录的引用（自包含措辞；SKILL.md 单向指入模板）"
         out["actual"] = "出边引用: " + "; ".join(hits[:8])
     return out
 
@@ -727,7 +726,7 @@ def check_log_md_format(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obje
         if not line.strip():
             continue
         # 仅检查 ## 一级 heading 行（与 lint_wiki.py check_log_format 同口径；
-        # spec §4 条目正则即以 ## 起头）；其它行（续段落 / 描述）允许
+        # 条目正则即以 ## 起头）；其它行（续段落 / 描述）允许
         if line.lstrip().startswith("## "):
             if not LOG_LINE_RE.match(line):
                 bad_lines.append(i)
@@ -805,7 +804,7 @@ def check_wiki_metadata_reads_satisfied(wiki_root: Path, info: Dict[str, str]) -
 
 # ============================================================================
 # 骨架字段级比对——gitignore 读包内 fixtures/；
-# 其余骨架信号（frontmatter 键 / H1 / 说明块 / ## 标题）硬编码在 SKELETON_SPECS
+# 其余骨架信号（frontmatter 键 / H1 / 说明块 / ## 标题）硬编码在 SKELETON_REGISTRY
 # 描述符里（与包内 fixtures/*.txt 一致），改 fixtures 时手工同步描述符。
 # 纯骨架件（.gitignore/tags.md/SCRIPTS.md/MEMORY.md）全字段骨架比对；成长件
 # （index.md/log.md）只比结构必填（frontmatter 键 + H1 + 说明块），不动成长内容。
@@ -918,7 +917,7 @@ def _check_skeleton_signals(wiki_text: str, signals: Dict[str, object]) -> List[
 
 # -- 骨架 check 描述符（id/severity/wiki_path/rule_ref/desc/signals）--
 # wiki_path 相对 wiki 根；signals 见 _check_skeleton_signals 支持的 key。
-SKELETON_SPECS = [
+SKELETON_REGISTRY = [
     {
         "id": "gitignore-init-rules-complete",
         "severity": "warn",
@@ -978,12 +977,12 @@ SKELETON_SPECS = [
 ]
 
 
-def _make_skeleton_check(spec: Dict[str, object]) -> Callable[[Path, Dict[str, str]], Dict[str, object]]:
-    """按 SKELETON_SPECS 描述符生成一条骨架 check 函数（照搬 _check_no_frontmatter 共享模式）。"""
-    wiki_path = spec["wiki_path"]  # type: ignore
-    severity = spec["severity"]  # type: ignore
-    rule_ref = spec["rule_ref"]  # type: ignore
-    sigs = spec["signals"]  # type: ignore
+def _make_skeleton_check(entry: Dict[str, object]) -> Callable[[Path, Dict[str, str]], Dict[str, object]]:
+    """按 SKELETON_REGISTRY 描述符生成一条骨架 check 函数（照搬 _check_no_frontmatter 共享模式）。"""
+    wiki_path = entry["wiki_path"]  # type: ignore
+    severity = entry["severity"]  # type: ignore
+    rule_ref = entry["rule_ref"]  # type: ignore
+    sigs = entry["signals"]  # type: ignore
 
     def _check(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
         out = {"passed": True, "severity": severity, "file": wiki_path}  # type: Dict[str, object]
@@ -999,7 +998,7 @@ def _make_skeleton_check(spec: Dict[str, object]) -> Callable[[Path, Dict[str, s
             out["actual"] = "; ".join(missing)
         return out
 
-    _check.__name__ = "check_" + str(spec["id"]).replace("-", "_")  # type: ignore
+    _check.__name__ = "check_" + str(entry["id"]).replace("-", "_")  # type: ignore
     return _check
 
 
@@ -1012,7 +1011,7 @@ CHECK_REGISTRY.extend(
         "rule_ref": s["rule_ref"],
         "desc": s["desc"],
     }
-    for s in SKELETON_SPECS
+    for s in SKELETON_REGISTRY
 )
 
 
@@ -1035,12 +1034,12 @@ CHECK_FUNCTIONS = [
     ("scripts-md-no-frontmatter", check_scripts_md_no_frontmatter),
     ("tags-md-no-frontmatter", check_tags_md_no_frontmatter),
     ("wiki-metadata-reads-satisfied", check_wiki_metadata_reads_satisfied),
-] + [(s["id"], _make_skeleton_check(s)) for s in SKELETON_SPECS]
+] + [(s["id"], _make_skeleton_check(s)) for s in SKELETON_REGISTRY]
 
 
-def run_checks(wiki_root: Path, target_spec: Optional[str]) -> Dict[str, object]:
-    """跑全部 check；返 { wiki_root, target_spec, checks: [...], summary: {...} }"""
-    info = {"wiki_root": str(wiki_root), "target_spec": target_spec or ""}
+def run_checks(wiki_root: Path, target_format: Optional[str]) -> Dict[str, object]:
+    """跑全部 check；返 { wiki_root, target_format, checks: [...], summary: {...} }"""
+    info = {"wiki_root": str(wiki_root), "target_format": target_format or ""}
     checks_out = []  # type: List[Dict[str, object]]
     summary = {"error": 0, "warn": 0, "info": 0, "pass": 0, "skip": 0}  # type: Dict[str, int]
     for check_id, fn in CHECK_FUNCTIONS:
@@ -1076,7 +1075,7 @@ def run_checks(wiki_root: Path, target_spec: Optional[str]) -> Dict[str, object]
         checks_out.append(entry)
     return {
         "wiki_root": str(wiki_root),
-        "target_spec": target_spec,
+        "target_format": target_format,
         "checks": checks_out,
         "summary": summary,
     }
@@ -1087,7 +1086,7 @@ def _format_human(report: Dict[str, object]) -> str:
     lines = []  # type: List[str]
     lines.append("=== Wiki fixtures 一致性检查 ===")
     lines.append(f"  wiki_root     : {report['wiki_root']}")
-    lines.append(f"  target_spec   : {report['target_spec'] or '(未指定)'}")
+    lines.append(f"  target_format   : {report['target_format'] or '(未指定)'}")
     s = report["summary"]  # type: ignore
     lines.append(
         f"  error={s['error']} warn={s['warn']} info={s['info']} pass={s['pass']} skip={s['skip']}"  # type: ignore
@@ -1162,9 +1161,9 @@ def main(argv=None) -> int:
         help="输出机器可读 JSON 而不是人读报告",
     )
     parser.add_argument(
-        "--target-spec",
+        "--target-format",
         default=None,
-        help="目标 wiki spec 版本（缺省读 llmw.WIKI_SPEC_VERSION 包内常量）",
+        help="目标 wiki format 版本（缺省读 llmw.WIKI_FORMAT_VERSION 包内常量）",
     )
     parser.add_argument(
         "--list-rules",
@@ -1192,9 +1191,9 @@ def main(argv=None) -> int:
         print(f"ERROR: {wiki_root} 不是目录", file=sys.stderr)
         return 2
 
-    target_spec = args.target_spec or _skill_spec_version()
+    target_format = args.target_format or _skill_format_version()
 
-    report = run_checks(wiki_root, target_spec)
+    report = run_checks(wiki_root, target_format)
 
     if args.json:
         print(json.dumps(report, indent=2, ensure_ascii=False))

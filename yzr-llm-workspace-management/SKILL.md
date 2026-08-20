@@ -9,14 +9,14 @@ description: |
   触发："总结我所有 wiki 中关于 X 的内容" / "对比 wiki A 和 wiki B 对 Y 的看法" / "这个问题
   该查哪个 wiki" / "扫一下我的 workspace" / "workspace 整体 lint" / "记一下：用户偏好按
   时间线分 wiki" / "wiki A 的 X 在 wiki B 也有，加个链接" / "升级 workspace / 迁移到最新
-  spec / 检查 workspace 版本"。
+  format / 检查 workspace 版本"。
   不适用：单 wiki 的 ingest / query / lint（走 yzr-llm-wiki-management）；workspace / wiki
   元数据 CRUD（走 workspace CLI）；云端协作 wiki（走 yzr-outline-wiki）；一次性文档生成
   （直接用普通文件写入流程）。
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  workspace_spec_version: 0.8.0
+  workspace_format_version: 0.9.0
 ---
 
 # LLM Workspace Management
@@ -30,11 +30,11 @@ metadata:
 
 - **SKILL.md（本文）**——工作流 + 边界的"宪法"
 
-  （toml 完整 schema 由 CLI 代码 SSOT，spec 不做权威定义）
+  （toml 完整 schema 由 CLI 代码 SSOT，格式契约由本 SKILL.md 附录承载）
 - **确定性执行（归 llmw CLI）**——本 skill **零代码**。一致性检查 + 升级都收敛为两条 CLI 命令：
   - `llmw check-fixtures`：只探测（输出 drift 报告，不写盘）
   - `llmw upgrade`：workspace 骨架 + 逐 wiki 聚合确定性升级（默认 dry-run）
-  不一致时以探测器为准；spec 文档仅说明设计意图
+  不一致时以探测器为准；本 SKILL.md 附录说明设计意图
 
 ## 输入 / 输出
 
@@ -71,7 +71,7 @@ metadata:
    人类执行。CLI 的元数据写入是用户驱动的决策，skill 不越权
 3. workspace CLI 已通过 `wiki enter` 把 session 启动好（包含 model overlay）；
    本 skill 在 session 内只做内容层决策，不需要再 `enter`
-4. **依赖单向 DAG（无环）**：本 skill 与 workspace CLI 都只依赖 spec 文件对齐契约
+4. **依赖单向 DAG（无环）**：本 skill 与 workspace CLI 都只依赖格式契约对齐
    workspace 文件契约见本 SKILL.md 附录；wiki 文件契约束见 yzr-llm-wiki-management SKILL.md 与 references/；本 skill
    **不**直接依赖 workspace CLI 的代码或二进制，运行时只委托 `yzr-llm-wiki-management`（下节）
 
@@ -254,7 +254,7 @@ MEMORY 是 agent 私有入口；`<workspace>/MEMORY/` 目录 + `MEMORY.md` 索�
 
 ### 6. Upgrade（升级 workspace 骨架）
 
-**触发**："升级 workspace / 检查 workspace 版本 / spec 升级"。
+**触发**："升级 workspace / 检查 workspace 版本 / format 升级"。
 
 **职责切分**：`llmw upgrade`（CLI 命令）= **全部确定性操作**——workspace 骨架 + 逐 wiki
 聚合两段式，按本仓 AGENTS.md 骨架所有权四分表
@@ -318,9 +318,7 @@ skill 的 upgrade 工作流（按工作流名引用：走 `yzr-llm-wiki-manageme
 
 ## 附录：产物格式契约与读取契约
 
-> 本节合并原 `references/workspace-spec.md` ——workspace 文件的**归属 + skill 读取契约
-> + 产物格式**。spec 文档已删除（2026-08-20：CLI 实现参考职能已被同仓代码吸收；
-> 残量并入本 SKILL.md）。
+> 附录承载 workspace 文件的**归属 + skill 读取契约 + 产物格式**（CLI 实现参考已由同仓代码吸收）。
 
 ### A1. workspace.toml 读取契约（SKILL 的读方视角）
 
@@ -332,7 +330,7 @@ skill 的 upgrade 工作流（按工作流名引用：走 `yzr-llm-wiki-manageme
 
 | 字段 | 用途 |
 | --- | --- |
-| `templates_version` | `llmw upgrade` 版本比对 + 自动 bump（含 `workspace_spec` / `wiki_spec` 双分量） |
+| `templates_version` | `llmw upgrade` 版本比对 + 自动 bump（含 `workspace_format` / `wiki_format` 双分量） |
 | `[wikis.<name>].path` | skill `scan` 遍历 wiki 子目录 |
 | `[wikis.<name>].created_at` | INDEX 内 wiki 排序 |
 

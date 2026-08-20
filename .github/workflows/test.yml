@@ -14,7 +14,7 @@ jobs:
       - run: ruff format --check .
       - run: ruff check .
       # skill 零代码不变量：yzr-llm-*/ 下不得出现 .py（确定性代码全部归 llmw/content/）。
-      # 两 SKILL 目录是纯文本（spec / 模板 / fixtures / 工作流散文）——代码回渗即红。
+      # 两 SKILL 目录是纯文本（SKILL.md / 模板 / fixtures / workflow 散文）——代码回渗即红。
       - run: |
           find yzr-llm-wiki-management yzr-llm-workspace-management -name '*.py' | grep -q . && { echo 'FAIL: skill 目录出现 .py'; exit 1; } || true
 
@@ -45,7 +45,7 @@ jobs:
   # fresh init + wiki → 两探测器（llmw.content 命令面：`llmw check-fixtures` /
   # `llmw wiki --path=DIR check-fixtures`）→ 断言结构合规。
   # 双向覆盖：CLI 改坏骨架 / 两 SKILL 改坏 fixtures 都让本 job 红。兑现
-  # 探测器作为「CLI 产物合规的可执行真源」（spec 与探测器不一致时以探测器为准）。
+  # 探测器作为「CLI 产物合规的可执行真源」（格式契约与探测器不一致时以探测器为准）。
   # 两 SKILL 与 CLI 同仓，无 submodule 依赖。
   fixtures-smoke:
     runs-on: ubuntu-latest

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from llmw import WIKI_SPEC_VERSION, __version__
+from llmw import WIKI_FORMAT_VERSION, __version__
 from llmw._compat import TOMLDecodeError
 from llmw.errors import (
     BackupFailed,
@@ -53,7 +53,7 @@ def resolve_wiki_path(workspace_root: Path, name: str) -> Path:
 
 
 def _print_git_hint(wiki_dir: Path) -> None:
-    """spec §7 git 红线: CLI 不碰 git——落盘后打印手动 hint,让用户自行决定。
+    """git 红线: CLI 不碰 git——落盘后打印手动 hint,让用户自行决定。
 
     .gitkeep 占位文件已在 init_wiki.render_and_write 无条件落盘(8 个空目录);
     用户 `git add .` 时空目录自然纳入跟踪。
@@ -178,7 +178,7 @@ def add(
 
     wiki_dir = workspace_root / name
 
-    # spec §8: 文件级拒绝条件(在 mkdir 前检查,失败无需清理半成品目录)
+    # 文件级拒绝条件(在 mkdir 前检查,失败无需清理半成品目录)
     init_wiki.check_not_initialized(wiki_dir)
 
     # 非 TTY 下: 必须所有 metadata flag 齐
@@ -202,7 +202,7 @@ def add(
     if topic is None:
         topic = name
 
-    # 创建子目录(exist_ok=True: 允许目标目录已存在; spec §8 已在更早 check_not_initialized
+    # 创建子目录(exist_ok=True: 允许目标目录已存在; 已在更早 check_not_initialized
     # 阻断 AGENTS.md / CLAUDE.md / wiki/index.md / MEMORY.md / tags.md / SCRIPTS.md
     # 已存在的覆盖场景)
     wiki_dir.mkdir(parents=False, exist_ok=True)
@@ -219,7 +219,7 @@ def add(
         topic,
         setup_date,
         cli_version=__version__,
-        spec_version=WIKI_SPEC_VERSION,
+        format_version=WIKI_FORMAT_VERSION,
     )
 
     # 交互模式填 metadata
@@ -251,7 +251,7 @@ def add(
     ws_store.save(workspace_root, ws)
 
     print(f"[llmw] wiki 已创建: {name} ({wiki_dir})", file=sys.stdout)
-    # spec §7 git 红线: CLI 不碰 git,统一打印手动 hint。
+    # git 红线: CLI 不碰 git,统一打印手动 hint。
     # (cli.py 的 `--git` flag 保留为向后兼容的 vestigial flag;无论是否传 --git 都打印同一份 hint)
     _print_git_hint(wiki_dir)
     return wiki_dir
@@ -638,7 +638,7 @@ def _show_collect(workspace_root: Path, name: str) -> Dict:
         else 0
     )
     # last_activity: 从 <wiki>/wiki/log.md mtime 派生 —— 不依赖 SKILL/CLI 配合,
-    # SKILL spec 强制 ingest/query/lint 后必须写 log.md,OS mtime 直接给真实活跃时刻。
+    # SKILL 强制 ingest/query/lint 后必须写 log.md；OS mtime 直接给真实活跃时刻。
     # log.md 不存在 → None(降级为 "-");NFS 上 stat 安全(chmod 才会 silently fail)。
     last_activity = None
     log_md_p = wiki_sub_p / "log.md"

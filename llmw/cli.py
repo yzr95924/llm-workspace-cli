@@ -85,7 +85,7 @@ def _common_flags() -> argparse.ArgumentParser:
 
     经 ``parents=[_common_flags()]`` 同时挂到主 parser 与每个子 parser，使全局 flag
     既可写在子命令前（``llmw --json list``）也可写在子命令后（``llmw list --json``，
-    spec §3.1 / 设计 01 §1.3）。``default=SUPPRESS`` 是关键：子 parser 解析时若用户
+    设计 01 §1.3 (薄壳)）。``default=SUPPRESS`` 是关键：子 parser 解析时若用户
     没在该位置传该 flag，就不写入 namespace，从而不会用默认值覆盖主 parser 已解析
     到的同名值（argparse 子 parser 默认会 clobber）。故读取处须用 ``getattr``。
     """
@@ -176,9 +176,9 @@ def build_parser() -> argparse.ArgumentParser:
         parents=[common],
     )
     p_check_fixtures.add_argument(
-        "--target-spec",
+        "--target-format",
         default=None,
-        help="目标 workspace spec 版本（缺省读 llmw.WORKSPACE_SPEC_VERSION 包内常量）",
+        help="目标 workspace format 版本（缺省读 llmw.WORKSPACE_FORMAT_VERSION 包内常量）",
     )
     p_check_fixtures.add_argument(
         "--list-rules",
@@ -259,7 +259,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--git",
         action="store_true",
         default=False,
-        help="vestigial (spec §7): git 操作现已全部由用户手动;"
+        help="vestigial: git 操作现已全部由用户手动 (CLI 不碰 git 不变量);"
         "flag 仅为向后兼容保留,无实际效果——落盘后打印的手动 hint 见输出",
     )
 
@@ -337,7 +337,7 @@ def build_parser() -> argparse.ArgumentParser:
     # 组装 argv 转发给模块 main()——模块是 flag 行为唯一真源。
     pw_lint = wiki_sub.add_parser(
         "lint",
-        help="deterministic 健康检查（含 spec 版本 / legacy 现场探测）",
+        help="deterministic 健康检查（含 format 版本 / legacy 现场探测）",
         parents=[common],
     )
     pw_lint.add_argument(
@@ -352,7 +352,7 @@ def build_parser() -> argparse.ArgumentParser:
     pw_lint.add_argument(
         "--check-version",
         action="store_true",
-        help="扫描 spec 版本 + legacy 现场（互斥模式；默认 dry-run）",
+        help="扫描 format 版本 + legacy 现场（互斥模式；默认 dry-run）",
     )
     pw_lint.add_argument(
         "--apply",
@@ -366,9 +366,9 @@ def build_parser() -> argparse.ArgumentParser:
         parents=[common],
     )
     pw_cf.add_argument(
-        "--target-spec",
+        "--target-format",
         default=None,
-        help="目标 wiki spec 版本（缺省读 llmw.WIKI_SPEC_VERSION 包内常量）",
+        help="目标 wiki format 版本（缺省读 llmw.WIKI_FORMAT_VERSION 包内常量）",
     )
     pw_cf.add_argument(
         "--list-rules",
@@ -539,8 +539,8 @@ def _cmd_wiki_content(args) -> int:
                 argv.append("--json")
             return wiki_fixtures.main(argv)
         argv = [str(root)]
-        if args.target_spec:
-            argv += ["--target-spec", args.target_spec]
+        if args.target_format:
+            argv += ["--target-format", args.target_format]
         if _flag(args, "json"):
             argv.append("--json")
         return wiki_fixtures.main(argv)
@@ -609,8 +609,8 @@ def main(argv=None) -> int:
             from llmw.content import workspace_fixtures
 
             argv = [str(ws_root)]
-            if args.target_spec:
-                argv += ["--target-spec", args.target_spec]
+            if args.target_format:
+                argv += ["--target-format", args.target_format]
             if _flag(args, "json"):
                 argv.append("--json")
             return workspace_fixtures.main(argv)

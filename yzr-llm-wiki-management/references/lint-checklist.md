@@ -36,9 +36,9 @@ llmw wiki --path "$LLM_WIKI_ROOT" lint --severity error
 
 ### 子命令 `--check-version`
 
-扫当前 wiki 的 spec 版本（解析 `<wiki-root>/AGENTS.md` §七；老 wiki fallback
-`<wiki-root>/CLAUDE.md`）与本 skill `metadata.wiki_spec_version`（脚本常量
-`CURRENT_WIKI_SPEC`）比对 + 扫已知 legacy 现场（`type-memory-value`）+ 自动调 fixtures 检查：
+扫当前 wiki 的 format 版本（解析 `<wiki-root>/AGENTS.md` §七；老 wiki fallback
+`<wiki-root>/CLAUDE.md`）与本 skill `metadata.wiki_format_version`（脚本常量
+`CURRENT_WIKI_FORMAT`）比对 + 扫已知 legacy 现场（`type-memory-value`）+ 自动调 fixtures 检查：
 
 ```bash
 llmw wiki --path "$LLM_WIKI_ROOT" lint --check-version --json
@@ -49,7 +49,7 @@ llmw wiki --path "$LLM_WIKI_ROOT" lint --check-version --apply --json
 行为：默认 dry-run（只打印报告，不动文件）；`--apply` 以 stdout JSON 输出 upgrade
 plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_actions[]`）；
 标记冲突页 → agent 跳过 + 转人工；**互斥模式**，不写 log 条目。
-完整 agent 修复路径见 [SKILL.md §5 Upgrade](../SKILL.md#5-upgrade升级-wiki-spec)；
+完整 agent 修复路径见 [SKILL.md §5 Upgrade](../SKILL.md#5-upgrade升级-wiki-format)；
 迁移依据 SSOT = plan `actions[]`（remove/add_or_modify/to_action 自含）+
 [`upgrade-workflow.md` §六](upgrade-workflow.md#六语义合并规则)。
 
@@ -60,13 +60,13 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ### 前置：wiki 版本一致性
 
-每次常规 lint 都查 `<wiki-root>/AGENTS.md` §七 与 `CURRENT_WIKI_SPEC` 一致性（实现：
-`check_spec_version()`，与 `--check-version` 同源）——日常 lint 就能感知版本漂移：
+每次常规 lint 都查 `<wiki-root>/AGENTS.md` §七 与 `CURRENT_WIKI_FORMAT` 一致性（实现：
+`check_format_version()`，与 `--check-version` 同源）——日常 lint 就能感知版本漂移：
 
-- `wiki-spec-version-stale`（warn）：版本**落后** SKILL → 跑 `--check-version --apply`
+- `wiki-format-version-stale`（warn）：版本**落后** SKILL → 跑 `--check-version --apply`
   走升级流程（SKILL.md §5 Upgrade）
-- `wiki-spec-version-ahead`（warn）：版本**领先** SKILL → 更新本 skill 安装对齐
-- `wiki-spec-version-unparsed`（warn）：§七 行无法解析 → 跑 `--check-version` 诊断
+- `wiki-format-version-ahead`（warn）：版本**领先** SKILL → 更新本 skill 安装对齐
+- `wiki-format-version-unparsed`（warn）：§七 行无法解析 → 跑 `--check-version` 诊断
 - 一致（equal）→ 无 finding
 
 ### 1. `raw/` 不可变性
@@ -75,12 +75,12 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
   修法：问用户，还原或确认后提交
 - 跳过（不报错不提示）：无 `.git/`（默认状态，CLI 不自动 git init）/ raw/ 未纳入
   git 跟踪 / 传 `--no-git` 静默跳过
-- `raw/discussions/`（spec §15）未提交改动属预期，从 `git status` 结果中排除
+- `raw/discussions/` 未提交改动属预期（详见 ingest-workflow.md §10），从 `git status` 结果中排除
 
 ### 2. frontmatter 完整性
 
 - 扫 `wiki/` 5 个内容子目录 + `<wiki-root>/MEMORY/*.md`（排除 `MEMORY.md` 本身）
-- 口径两类（spec §5.2 vs §9）：**wiki 5 类内容页** 5 必填（`title` / `type` /
+- 口径两类（§9 vs §5.2）：**wiki 5 类内容页** 5 必填（`title` / `type` /
   `created` / `updated` / `tags`，字段定义见 [page-templates.md §一](page-templates.md#一共有-frontmatter-段)）；
   **MEMORY/*.md** 仅 `title` 必填（其余全 optional）
 - `type` 取值：5 类内容页；MEMORY 桶额外 `memory` / `memory-entry`
@@ -94,12 +94,12 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
   现存路径；`type: synthesis` 的 `sources:` 非空（可指 wiki 内页）
 - `sources-absolute-path`（error，仅 source 页）：任一元素以绝对路径形式出现（Unix /
   Windows 盘符 / UNC 三种）——破坏跨机器可移植性。修法：改 wiki 根相对 raw/ 路径
-- **`raw/external/<symlink>/...` 例外**（spec §13.3）：以 `raw/external/` 起始时走
+- **`raw/external/<symlink>/...` 例外**（详见 external-repo.md §1）：以 `raw/external/` 起始时走
   关联校验链——`sources-malformed`（段数 < 3）/ `sources-external-anchor-missing`
   （缺 anchor）/ `sources-external-symlink-missing`（symlink 不存在）/
   `sources-missing`（跟随 symlink 后不可访问；external repo 是 git 仓即目录，可指向整仓）
 - `source-in-discussions`（error，仅 source 页）：指向 `raw/discussions/` = provenance
-  后门。修法：走 spec §15.3 归档路径（消化式 / 转正式 `mv` 后再 ingest）
+  后门。修法：走 ingest-workflow.md §10.3 归档路径（消化式 / 转正式 `mv` 后再 ingest）
 
 ### 4. 路径引用完整性
 
@@ -140,7 +140,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 11. Tag Taxonomy 校验
 
 - 解析 `<wiki-root>/wiki/tags.md`（**主流位置**）裸 bullet 列表；不存在则 fallback
-  AGENTS.md `### Tag Taxonomy` 段（老 wiki 过渡期，spec §9.1）。文件必须是**裸 bullet**
+  AGENTS.md `### Tag Taxonomy` 段（老 wiki 过渡期）。文件必须是**裸 bullet**
   （包在 code block / HTML comment 里 = 解析 0 tag 静默跳过）；支持
   `- category：tag1 / tag2` 中英文分隔
 - 仅对 5 类内容页做包含校验；**MEMORY agent 私有**不共享 taxonomy；tags.md 自身不参与
@@ -152,7 +152,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 12. 页面体量
 
 - `oversized-page`（warn）：5 类内容页正文**非空行数** > `PAGE_SIZE_THRESHOLD`
-  （`llmw.content.wiki_lint` 常量，与 AGENTS.md「Page Thresholds」对齐；MEMORY 无上限——spec §5.2）
+  （`llmw.content.wiki_lint` 常量，与 AGENTS.md「Page Thresholds」对齐；MEMORY 无上限）
 - 修法：拆成子主题页 + cross-link
 
 ### 13. 可信度与认知质量信号（reviewed / contested / contradictions）
@@ -189,7 +189,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 - `related-broken-link`（warn）：frontmatter `related`（concept 页）/ `compared`
   （comparison 页）每条元素按**内容根 `wiki/` 相对**解析（`concepts/X.md`，不带
   `./` / `../` / `wiki/` 前缀）不存在
-- 两层路径约定（spec §9）：frontmatter 路径字段（机器消费为主）→ wiki 根相对；
+- 两层路径约定（page-templates.md §一）：frontmatter 路径字段（机器消费为主）→ wiki 根相对；
   正文 markdown 链接（人读为主）→ 文件相对。`contradictions` 字段按既有约定走文件
   相对（§二.13 处理），不在本检查范围
 
@@ -256,7 +256,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 （external symlink ↔ anchor 关联的 finding 全家：`external-anchor-missing` /
 `external-anchor-corrupt` / `external-source-name-invalid` / `external-symlink-missing` /
 `external-anchor-orphan` / `external-target-drift`——
-spec §13 相关，详见 `llmw.content.wiki_lint` 的 `check_external_symlinks` docstring。）
+详见 `llmw.content.wiki_lint` 的 `check_external_symlinks` docstring。）
 
 ## 五、Semantic-merge 规则
 
@@ -283,7 +283,7 @@ spec §13 相关，详见 `llmw.content.wiki_lint` 的 `check_external_symlinks`
 - **中 wiki（50-200 页）**——每 2 周 1 次
 - **大 wiki（> 200 页）**——每周 1 次；可考虑写 cron
 - **重大 ingest 后**——建议跑一次（可能引入新 entity / 断链）
-- **跨 spec 升级后**——首次跑 fixtures-check 验证约定文件已切到新 spec 字节形态
+- **跨 format 升级后**——首次跑 fixtures-check 验证约定文件已切到新 format 字节形态
 
 ## 八、lint 的边界
 
@@ -298,4 +298,4 @@ spec §13 相关，详见 `llmw.content.wiki_lint` 的 `check_external_symlinks`
   wiki_metadata.toml）的合规性：
    check 清单以 `llmw wiki check-fixtures --json` 输出为准（CLI 内部注册表唯一真源；
    结构探测 + 骨架字段比对两类，后者读 llmw 包内字节金标准作 SSOT）；语义合并走 §五
-   由 LLM 判断——脚本不替代人。常规 lint 另跑 `check_spec_version`（§二前置）报版本漂移 warn
+   由 LLM 判断——脚本不替代人。常规 lint 另跑 `check_format_version`（§二前置）报版本漂移 warn

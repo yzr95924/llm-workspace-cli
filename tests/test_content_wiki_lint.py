@@ -2,15 +2,15 @@
 """test_content_wiki_lint — llmw.content.wiki_lint 端到端测试（聚焦 check_related_links）
 
 stdlib unittest + subprocess 调真实模块（无 mock）：在 tmp 目录搭最小 scratch
-wiki，断言 related / compared 字段的路径基准（spec §9「wiki 根相对」= **内容根
-`wiki/` 相对**）解析正确——spec 形式 `concepts/X.md` 命中真实文件时不报
+wiki，断言 related / compared 字段的路径基准（「wiki 根相对」= **内容根
+`wiki/` 相对**）解析正确——wiki 根相对形式 `concepts/X.md` 命中真实文件时不报
 `related-broken-link`；真坏链接仍报。
 
-背景：0.22.0 引入 `check_related_links` 时 `target = wiki_root / item` 误把 spec
-的内容根相对路径（`concepts/X.md`）当**最外层根相对**解析（缺 `wiki/` 段，因为
-`wiki_root` 是 `<wiki>/`，真实文件在 `<wiki>/wiki/concepts/X.md`），导致按 spec
+背景：0.22.0 引入 `check_related_links` 时 `target = wiki_root / item` 误把 wiki 的内容
+根相对路径（`concepts/X.md`）当**最外层根相对**解析（缺 `wiki/` 段，因为
+`wiki_root` 是 `<wiki>/`，真实文件在 `<wiki>/wiki/concepts/X.md`），导致按 wiki 根相对基准
 正确写的 related 必被误报 `related-broken-link`。本测试覆盖该基准 bug——改 lint
-前 test_spec_form_* / test_compared_field_* 失败，改后全绿。
+前 test_wiki_root_relative_form_* / test_compared_field_* 失败，改后全绿。
 
 运行:
   pytest tests/test_content_wiki_lint.py
@@ -93,8 +93,8 @@ def run_lint(root):
 
 
 class RelatedLinksResolutionTest(unittest.TestCase):
-    def test_spec_form_concepts_relative_not_reported(self):
-        """spec §9 约定的 wiki 根相对形式 concepts/beta.md（基准 = 内容根 wiki/）
+    def test_wiki_root_relative_form_concepts_not_reported(self):
+        """page-templates.md §一约定的 wiki 根相对形式 concepts/beta.md（基准 = 内容根 wiki/）
         命中真实文件 wiki/concepts/beta.md 时，不应报 related-broken-link。"""
         with tempfile.TemporaryDirectory() as tmp:
             root = build_minimal_wiki(tmp)
@@ -107,7 +107,7 @@ class RelatedLinksResolutionTest(unittest.TestCase):
             )
             _, stdout = run_lint(root)
         self.assertNotIn(
-            "related-broken-link", stdout, f"spec 形式不应误报：\n{stdout}"
+            "related-broken-link", stdout, f"wiki 根相对形式不应误报：\n{stdout}"
         )
 
     def test_genuinely_missing_target_still_reported(self):
@@ -122,7 +122,7 @@ class RelatedLinksResolutionTest(unittest.TestCase):
         self.assertIn("related-broken-link", stdout, "真坏链接应被报出：\n" + stdout)
 
     def test_compared_field_same_semantics(self):
-        """compared 字段与 related 同语义（spec §9 同基准）——wiki 根相对形式同样不应误报。"""
+        """compared 字段与 related 同语义（page-templates.md §一同基准）——wiki 根相对形式同样不应误报。"""
         with tempfile.TemporaryDirectory() as tmp:
             root = build_minimal_wiki(tmp)
             (root / "wiki" / "comparisons").mkdir(parents=True, exist_ok=True)
@@ -135,12 +135,14 @@ class RelatedLinksResolutionTest(unittest.TestCase):
             )
             _, stdout = run_lint(root)
         self.assertNotIn(
-            "related-broken-link", stdout, f"compared spec 形式不应误报：\n{stdout}"
+            "related-broken-link",
+            stdout,
+            f"compared wiki 根相对形式不应误报：\n{stdout}",
         )
 
 
 class DiscussionsSourceGuardTest(unittest.TestCase):
-    """spec §15：`type: source` 页 `sources:` 不得指向 `raw/discussions/`。"""
+    """`type: source` 页 `sources:` 不得指向 `raw/discussions/`。"""
 
     def test_source_pointing_at_discussions_is_reported(self):
         """source 页 sources 指向 raw/discussions/ → 报 source-in-discussions（error）。"""

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from llmw import WORKSPACE_SPEC_VERSION, __version__
+from llmw import WORKSPACE_FORMAT_VERSION, __version__
 from llmw._compat import TOMLDecodeError
 from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
 from llmw.config import workspace_templates_dir
@@ -88,14 +88,14 @@ def _is_effectively_empty(path: Path) -> bool:
 def _write_workspace_agents_md(
     workspace_root: Path, display_name: str, setup_date: str
 ) -> None:
-    """spec §4: 按 workspace-agents-md-template.md 拷贝生成 <workspace>/AGENTS.md (SSOT)。
+    """按 workspace-agents-md-template.md 拷贝生成 <workspace>/AGENTS.md (SSOT)。
 
     setup_date 由调用方派生自 workspace.toml.created_at（[:10] 取 YYYY-MM-DD），
     与 checker（从同字段派生）保持一致——设计文档 §7.2 变量 SSOT 原则。
 
     模板渲染统一走 llmw.content.render。
 
-    spec §12: AGENTS.md 已存在 → 拒绝覆盖 (schema 是用户所有)。
+    AGENTS.md 已存在 → 拒绝覆盖 (schema 是用户所有)。
     """
     agents_md = workspace_root / "AGENTS.md"
     if agents_md.exists():
@@ -109,7 +109,7 @@ def _write_workspace_agents_md(
         display_name=display_name,
         setup_date=setup_date,
         cli_version=__version__,
-        spec_version=WORKSPACE_SPEC_VERSION,
+        format_version=WORKSPACE_FORMAT_VERSION,
     )
 
     try:
@@ -122,15 +122,15 @@ def _write_workspace_agents_md(
 
 
 def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
-    """spec §4: 按 workspace-claude-md-template.md 拷贝生成 <workspace>/CLAUDE.md (薄壳)。
+    """按 workspace-claude-md-template.md 拷贝生成 <workspace>/CLAUDE.md (薄壳)。
 
     薄壳 = @AGENTS.md 一行 + 声明 (~10 行);CLI 仅在 init 时拷模板 + 替换 1 占位符
-      {{WORKSPACE_DISPLAY_NAME}} (薄壳不持 spec 版本——版本在 AGENTS.md §六)。
-    spec §4 字面: 薄壳仅替换 WORKSPACE_DISPLAY_NAME,不共享 AGENTS.md 的 4 键 mapping。
+      {{WORKSPACE_DISPLAY_NAME}} (薄壳不持 format 版本——版本在 AGENTS.md §六)。
+    字面: 薄壳仅替换 WORKSPACE_DISPLAY_NAME,不共享 AGENTS.md 的 4 键 mapping。
 
     模板渲染统一走 llmw.content.render(设计文档 §7.2 单一入口)。
 
-    spec §12: CLAUDE.md 已存在 → 拒绝覆盖 (薄壳也是 schema, 用户所有)。
+    CLAUDE.md 已存在 → 拒绝覆盖 (薄壳也是 schema, 用户所有)。
     """
     claude_md = workspace_root / "CLAUDE.md"
     if claude_md.exists():
@@ -152,18 +152,18 @@ def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
 
 
 def _write_workspace_memory_index(workspace_root: Path) -> None:
-    """spec §9.1: 拷包内 fixtures/memory-index.txt → <workspace>/MEMORY/MEMORY.md (索引)。
+    """拷包内 fixtures/memory-index.txt → <workspace>/MEMORY/MEMORY.md (索引)。
 
     无 frontmatter、被 <workspace>/CLAUDE.md 用 @MEMORY/MEMORY.md import 会话常驻。
-    幂等 (spec §9.1): 已存在则跳过——MEMORY 是 LLM agent 私有记忆,init 重跑不应覆盖。
+    幂等 : 已存在则跳过——MEMORY 是 LLM agent 私有记忆,init 重跑不应覆盖。
 
     与 _write_workspace_claude_md 的拒绝策略对照:
       - workspace.toml / CLAUDE.md / .gitignore / workspace_models.toml: 已存在 → 拒绝 / 块替换
-      - MEMORY/MEMORY.md: 已存在 → 跳过(spec §9.1 idempotent)
+      - MEMORY/MEMORY.md: 已存在 → 跳过(idempotent)
     """
     target = workspace_root / "MEMORY" / "MEMORY.md"
     if target.exists():
-        # spec §9.1 idempotent: 已存在即跳过;由 skill 在 cross-wiki MEMORY 工作时维护
+        # idempotent: 已存在即跳过;由 skill 在 cross-wiki MEMORY 工作时维护
         return
 
     refs = workspace_templates_dir()
@@ -208,10 +208,10 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
 
     ws = ws_store.create_skeleton(path)
 
-    # 写 workspace 级 .gitignore（spec §10：无论是否启用 git 都生成，便于后续补 git）
+    # 写 workspace 级 .gitignore（无论是否启用 git 都生成，便于后续补 git）
     ensure_workspace_gitignore(path)
 
-    # spec §3: workspace init 时刻创建空 workspace_models.toml 骨架
+    # workspace init 时刻创建空 workspace_models.toml 骨架
     # （含 schema_version=2 + 空 models=[]；save 内置 chmod 600 + NFS 跳过）
     from llmw.models.store import (
         create_skeleton as create_models_skeleton,
@@ -220,14 +220,14 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
 
     save_models(path, create_models_skeleton(path))
 
-    # spec §4: 先写 AGENTS.md (SSOT), 再写 CLAUDE.md (薄壳)
+    # 先写 AGENTS.md (SSOT), 再写 CLAUDE.md (薄壳)
     # setup_date 派生自 workspace.toml.created_at（UTC ISO 8601）— 取 YYYY-MM-DD 与
     # checker 派生逻辑一致（设计文档 §7.2 变量 SSOT 原则）
     setup_date = (ws.created_at or "")[:10]
     _write_workspace_agents_md(path, display_name, setup_date=setup_date)
     _write_workspace_claude_md(path, display_name)
 
-    # spec §9.1: 拷 workspace MEMORY.md 索引（agent 跨 wiki 持久化记忆,LLM 拥有）
+    # 拷 workspace MEMORY.md 索引（agent 跨 wiki 持久化记忆,LLM 拥有）
     _write_workspace_memory_index(path)
 
     print(f"[llmw] workspace 已初始化于 {path}", file=sys.stdout)

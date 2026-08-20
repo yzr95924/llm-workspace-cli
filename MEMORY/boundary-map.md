@@ -47,8 +47,8 @@ metadata:
 
 **单向约束（反向依赖全禁）**：
 
-- **CLI 代码不读 skill 文件**——运行期资源全部内建 `llmw/content/templates/`（2026-08-20 收敛；spec 版本号 SSOT = `llmw/__init__.py` 常量，SKILL.md frontmatter 由 CI gate 比对）
-- skill 文本**不**读 CLI 代码（CLI 重构不能让 skill 失效）；spec 指向 CLI 资产只用命令名（`llmw check-fixtures`）不用包内路径
+- **CLI 代码不读 skill 文件**——运行期资源全部内建 `llmw/content/templates/`（2026-08-20 收敛；format 版本号 SSOT = `llmw/__init__.py` 常量，SKILL.md frontmatter 由 CI gate 比对）
+- skill 文本**不**读 CLI 代码（CLI 重构不能让 skill 失效）；格式契约指向 CLI 资产只用命令名（`llmw check-fixtures`）不用包内路径
 - skill **不**解析 CLI 输出做元数据读取（直读 toml 更可靠；CLI 输出是人类的，文本可能改）
 - wiki skill **不知** workspace skill 存在（workspace → wiki 是单委托；反向会破坏 DAG）
 - agent（workspace skill）**不**执行元数据写——"让 CLI 写"的语义是"告诉用户跑 CLI"，人类决策
@@ -65,7 +65,7 @@ metadata:
 | **delete** | CLI | 带备份删 |
 | **元数据 CRUD** | 用户 | skill 建议 → 用户跑 `llmw wiki ...` 命令，人类执行（agent 不代行） |
 
-`templates_version` 跨仓语义：workspace.toml 里的 `workspace_spec=X; wiki_spec=Y` 双分量，归 CLI 写（`upgrade` 时 bump）；版本号 SSOT = `llmw/__init__.py` 常量（SKILL.md frontmatter 与常量由 CI gate 比对，同 commit 改两处）。
+`templates_version` 跨仓语义：workspace.toml 里的 `workspace_format=X; wiki_format=Y` 双分量，归 CLI 写（`upgrade` 时 bump）；版本号 SSOT = `llmw/__init__.py` 常量（SKILL.md frontmatter 与常量由 CI gate 比对，同 commit 改两处）。
 
 ## V4 产物归属（指针）
 

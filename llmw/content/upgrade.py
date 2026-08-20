@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from llmw import WIKI_SPEC_VERSION
+from llmw import WIKI_FORMAT_VERSION
 from llmw import __version__ as CLI_VERSION
 from llmw.content import render as _render
 from llmw.content import wiki_fixtures
@@ -203,7 +203,7 @@ def _render_byte_owned(*, topic: str, setup_date: str) -> Dict[str, str]:
             topic=topic,
             setup_date=setup_date,
             cli_version=CLI_VERSION,
-            spec_version=WIKI_SPEC_VERSION,
+            format_version=WIKI_FORMAT_VERSION,
         ),
         "CLAUDE.md": _render.render_wiki_claude_md(topic=topic),
     }
@@ -398,7 +398,7 @@ def apply_legacy_paths(wiki_root: Path) -> List[Dict[str, str]]:
 
 def self_verify(wiki_root: Path) -> Dict[str, object]:
     """内联重跑 fixtures checker → 返 {error, warn, pass, skip, failures: [...]}。"""
-    report = wiki_fixtures.run_checks(wiki_root, WIKI_SPEC_VERSION)
+    report = wiki_fixtures.run_checks(wiki_root, WIKI_FORMAT_VERSION)
     summary = report["summary"]  # type: ignore
     # 只保留 failed 的 check（error / warn 级）供诊断；pass/skip 不列出节省噪声
     failures = [c for c in report["checks"] if c.get("passed") is False]  # type: ignore
@@ -441,8 +441,8 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
         # blocked_drift: 输出 diff 但不写盘
         result = {
             "status": "blocked_drift",
-            "current_spec": WIKI_SPEC_VERSION,
-            "target_spec": WIKI_SPEC_VERSION,
+            "current_format": WIKI_FORMAT_VERSION,
+            "target_format": WIKI_FORMAT_VERSION,
             "changed": [
                 {"file": str(item.get("rel_path", "")), "action": str(item.get("action", ""))}
                 for item in plan
@@ -467,8 +467,8 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
     if dry_run:
         result = {
             "status": "dry_run",
-            "current_spec": WIKI_SPEC_VERSION,
-            "target_spec": WIKI_SPEC_VERSION,
+            "current_format": WIKI_FORMAT_VERSION,
+            "target_format": WIKI_FORMAT_VERSION,
             "plan": [
                 {
                     "file": str(item.get("rel_path", "")),
@@ -482,7 +482,7 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
             print(json.dumps(result, indent=2, ensure_ascii=False))
         else:
             print("== upgrade dry-run ==")
-            print(f"current_spec={result['current_spec']} target_spec={result['target_spec']}")
+            print(f"current_format={result['current_format']} target_format={result['target_format']}")
             for item in plan:
                 action = item.get("action", "")
                 rel = item.get("rel_path", "")
@@ -513,8 +513,8 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
     if verified.get("error", 0) > 0:
         result = {
             "status": "verify_failed",
-            "current_spec": WIKI_SPEC_VERSION,
-            "target_spec": WIKI_SPEC_VERSION,
+            "current_format": WIKI_FORMAT_VERSION,
+            "target_format": WIKI_FORMAT_VERSION,
             "changed": changed,
             "residue": residue,
             "verified": verified,
@@ -531,8 +531,8 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
     status = "done" if not residue else "done_with_residue"
     result = {
         "status": status,
-        "current_spec": WIKI_SPEC_VERSION,
-        "target_spec": WIKI_SPEC_VERSION,
+        "current_format": WIKI_FORMAT_VERSION,
+        "target_format": WIKI_FORMAT_VERSION,
         "changed": changed,
         "residue": residue,
         "verified": verified,
@@ -541,7 +541,7 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
         print(f"== upgrade {status} ==")
-        print(f"current_spec={WIKI_SPEC_VERSION}")
+        print(f"current_format={WIKI_FORMAT_VERSION}")
         print(f"changed: {len(changed)} files")
         if residue:
             print(f"residue: {len(residue)} items")

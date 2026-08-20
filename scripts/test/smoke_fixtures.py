@@ -5,8 +5,8 @@
 都让本 gate 红。双向覆盖。
 
 断言策略：两探测器所有 error 级 check passed=True（允许 skipped/null）。
-版本常量（llmw.WIKI_SPEC_VERSION / WORKSPACE_SPEC_VERSION）与两 SKILL.md
-frontmatter 的 *_spec_version 由本 gate 比对，漂移即挂。
+版本常量（llmw.WIKI_FORMAT_VERSION / WORKSPACE_FORMAT_VERSION）与两 SKILL.md
+frontmatter 的 *_format_version 由本 gate 比对，漂移即挂。
 
 standalone，Python 3.7+（与项目最低支持版本对齐）。用法：``python3 scripts/test/smoke_fixtures.py``
 """
@@ -24,11 +24,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 
 
-def _check_spec_version_alignment():
-    """版本门：SKILL.md frontmatter *_spec_version 必须 == llmw 包内常量。
+def _check_format_version_alignment():
+    """版本门：SKILL.md frontmatter *_format_version 必须 == llmw 包内常量。
 
-    读 SKILL.md frontmatter 与 llmw.WIKI_SPEC_VERSION / WORKSPACE_SPEC_VERSION 比对；
-    任一不一致即 exit 1。这是 [[spec-version-bump-single-repo]] 的机械 gate（纪律升级为 gate）。
+    读 SKILL.md frontmatter 与 llmw.WIKI_FORMAT_VERSION / WORKSPACE_FORMAT_VERSION 比对；
+    任一不一致即 exit 1。这是 [[format-version-bump-single-repo]] 的机械 gate（纪律升级为 gate）。
     """
     sys.path.insert(0, str(REPO))
     import llmw
@@ -43,11 +43,11 @@ def _check_spec_version_alignment():
         )
 
     cases = [
-        ("yzr-llm-wiki-management", "wiki_spec_version", llmw.WIKI_SPEC_VERSION),
+        ("yzr-llm-wiki-management", "wiki_format_version", llmw.WIKI_FORMAT_VERSION),
         (
             "yzr-llm-workspace-management",
-            "workspace_spec_version",
-            llmw.WORKSPACE_SPEC_VERSION,
+            "workspace_format_version",
+            llmw.WORKSPACE_FORMAT_VERSION,
         ),
     ]
     drifts = []
@@ -61,17 +61,17 @@ def _check_spec_version_alignment():
         frontmatter_value = m.group(1).strip()
         if frontmatter_value != expected:
             drifts.append(
-                f"{skill_dir}: SKILL.md {key}={frontmatter_value} != llmw.{key.rstrip('_version').upper()}_SPEC_VERSION={expected}"
+                f"{skill_dir}: SKILL.md {key}={frontmatter_value} != llmw.{key.rstrip('_version').upper()}_FORMAT_VERSION={expected}"
             )
     if drifts:
-        sys.stderr.write("FAIL: spec 版本对齐检查失败:\n")
+        sys.stderr.write("FAIL: format 版本对齐检查失败:\n")
         for d in drifts:
             sys.stderr.write(f"  {d}\n")
         sys.stderr.write(
-            "修复：按 MEMORY/spec-version-bump-single-repo.md 同 commit 改 SKILL.md frontmatter + llmw/__init__.py 常量\n"
+            "修复：按 MEMORY/format-version-bump-single-repo.md 同 commit 改 SKILL.md frontmatter + llmw/__init__.py 常量\n"
         )
         raise SystemExit(1)
-    print("[OK] spec 版本对齐：SKILL.md frontmatter == llmw 包内常量")
+    print("[OK] format 版本对齐：SKILL.md frontmatter == llmw 包内常量")
 
 
 def _llmw(args):
@@ -128,7 +128,7 @@ def _assert_all_error_pass(args, label):
 
 
 def main():
-    _check_spec_version_alignment()
+    _check_format_version_alignment()
     with tempfile.TemporaryDirectory(prefix="llmw-smoke-") as tmp:
         ws = Path(tmp) / "ws"
 

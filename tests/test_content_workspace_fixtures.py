@@ -28,9 +28,9 @@ FIXTURES_MEMORY_INDEX = (TEMPLATES_WS / "fixtures" / "memory-index.txt").read_te
     encoding="utf-8"
 )
 
-OLD_VERSION = "0.6.2"  # 真实历史版本——永远小于当前 target_spec
+OLD_VERSION = "0.6.2"  # 真实历史版本——永远小于当前 target_format
 
-# 与 workspace-spec §10 的最小 .gitignore 逐字一致
+# 与 llmw/workspace/gitignore.py 的 gitignore managed block 逐字一致
 CLEAN_GITIGNORE = """# >>> llmw (managed by llmw) >>>
 workspace_models.toml
 # IDE 项目级 settings（可能含 token）：`**/` 锚定 workspace 根 + 任意深度子目录
@@ -74,22 +74,22 @@ OLD_AGENTS_MD = """# Old Workspace — LLM 维护守则
 """
 
 
-def _target_spec():
-    """包内常量 llmw.WORKSPACE_SPEC_VERSION（与 SKILL.md frontmatter 同 commit 对齐，CI gate 守护）。"""
+def _target_format():
+    """包内常量 llmw.WORKSPACE_FORMAT_VERSION（与 SKILL.md frontmatter 同 commit 对齐，CI gate 守护）。"""
     sys.path.insert(0, str(REPO))
     import llmw
 
-    return llmw.WORKSPACE_SPEC_VERSION
+    return llmw.WORKSPACE_FORMAT_VERSION
 
 
-TARGET_SPEC = _target_spec()
+TARGET_FORMAT = _target_format()
 
 
-def _render_agents_md(name="Test", date="2026-07-01", spec=None, cli="0.1.0"):
+def _render_agents_md(name="Test", date="2026-07-01", format_version=None, cli="0.1.0"):
     return (
         AGENTS_TEMPLATE.replace("{{WORKSPACE_DISPLAY_NAME}}", name)
         .replace("{{SETUP_DATE}}", date)
-        .replace("{{WORKSPACE_SPEC_VERSION}}", spec or TARGET_SPEC)
+        .replace("{{WORKSPACE_FORMAT_VERSION}}", format_version or TARGET_FORMAT)
         .replace("{{CLI_VERSION}}", cli)
     )
 
@@ -98,11 +98,11 @@ def _render_claude_md(name="Test"):
     return CLAUDE_TEMPLATE.replace("{{WORKSPACE_DISPLAY_NAME}}", name)
 
 
-def _clean_workspace_toml(spec=None):
+def _clean_workspace_toml(format_version=None):
     return (
         "schema_version = 1\n"
         'created_at = "2026-07-01T00:00:00"\n'
-        f'templates_version = "workspace_spec = {spec or TARGET_SPEC}; wiki_spec = 0.26.0"\n'
+        f'templates_version = "workspace_format = {format_version or TARGET_FORMAT}; wiki_format = 0.26.0"\n'
         "\n[wikis]\n"
     )
 
@@ -187,7 +187,7 @@ class CleanWorkspaceTest(unittest.TestCase):
             build_workspace(tmp)
             code, report = run_check(tmp)
         self.assertEqual(code, 0, f"clean workspace 应 exit 0：{report}")
-        self.assertEqual(report["target_spec"], TARGET_SPEC)
+        self.assertEqual(report["target_format"], TARGET_FORMAT)
         self.assertEqual(report["summary"]["error"], 0)
         for c in report["checks"]:
             self.assertIs(c["passed"], True, f"clean 下 {c['id']} 应 pass：{c}")
@@ -198,7 +198,9 @@ class AgentsVersionCheckTest(unittest.TestCase):
         """版本落后时两个 check 协同 fail（设计文档 §7.2 render-from-metadata 已取消正交性,
         两者都推荐 upgrade——冗余 benign）。"""
         with tempfile.TemporaryDirectory() as tmp:
-            build_workspace(tmp, agents_md=_render_agents_md(spec=OLD_VERSION))
+            build_workspace(
+                tmp, agents_md=_render_agents_md(format_version=OLD_VERSION)
+            )
             code, report = run_check(tmp)
         self.assertEqual(code, 1)
         c = check_by_id(report, "agents-version-is-current")
@@ -209,13 +211,14 @@ class AgentsVersionCheckTest(unittest.TestCase):
         self.assertIs(
             sync["passed"],
             False,
-            "render 用 CURRENT spec → 字节差 → template-sync 必然 fail",
+            "render 用 CURRENT format → 字节差 → template-sync 必然 fail",
         )
         self.assertEqual(sync["fix"]["type"], "workspace-fix-agents-md-resync")
 
     def test_unparsable_version_row_fails_unknown(self):
         drifted = _render_agents_md().replace(
-            f"| Workspace Spec 版本 | {TARGET_SPEC} |", "| Workspace Spec 版本 | 待定 |"
+            f"| Workspace Format 版本 | {TARGET_FORMAT} |",
+            "| Workspace Format 版本 | 待定 |",
         )
         with tempfile.TemporaryDirectory() as tmp:
             build_workspace(tmp, agents_md=drifted)
@@ -359,7 +362,9 @@ class MemoryIndexSkeletonTest(unittest.TestCase):
 class WorkspaceTomlVersionTest(unittest.TestCase):
     def test_stale_templates_version_warns_but_exit_0(self):
         with tempfile.TemporaryDirectory() as tmp:
-            build_workspace(tmp, workspace_toml=_clean_workspace_toml(spec=OLD_VERSION))
+            build_workspace(
+                tmp, workspace_toml=_clean_workspace_toml(format_version=OLD_VERSION)
+            )
             code, report = run_check(tmp)
         self.assertEqual(code, 0, "warn 级不阻断退出码")
         c = check_by_id(report, "workspace-toml-templates-version-sync")
@@ -368,13 +373,13 @@ class WorkspaceTomlVersionTest(unittest.TestCase):
         self.assertEqual(c["comparison"], "older")
         self.assertEqual(c["fix"]["type"], "workspace-fix-templates-version")
 
-    def test_wiki_spec_component_surfaced_as_info(self):
-        """wiki_spec 分量只展示不比对（跨 skill 指针）。"""
+    def test_wiki_format_component_surfaced_as_info(self):
+        """wiki_format 分量只展示不比对（跨 skill 指针）。"""
         with tempfile.TemporaryDirectory() as tmp:
             build_workspace(tmp)
             code, report = run_check(tmp)
         c = check_by_id(report, "workspace-toml-templates-version-sync")
-        self.assertEqual(c.get("wiki_spec"), "0.26.0")
+        self.assertEqual(c.get("wiki_format"), "0.26.0")
 
     def test_missing_templates_version_fails_unknown(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -468,10 +473,9 @@ class TemplateNoOutboundRefsTest(unittest.TestCase):
         )
 
     def test_skill_file_refs_detected(self):
-        text = "见 `workspace-spec.md` §15 与 `workspace-claude-md-template.md`\n且 SKILL.md、references/、yzr-llm-workspace-management、yzr-llm-wiki-management 都算"
+        text = "见 workspace-claude-md-template.md 与 SKILL.md\n且 references/、yzr-llm-workspace-management、yzr-llm-wiki-management 都算"
         hits = self._scan(text)
         for pat in (
-            "workspace-spec.md",
             "workspace-claude-md-template.md",
             "SKILL.md",
             "references/",
@@ -481,7 +485,9 @@ class TemplateNoOutboundRefsTest(unittest.TestCase):
             self.assertTrue(any(pat in h for h in hits), f"{pat} 应被检出: {hits}")
 
     def test_arabic_section_ref_detected(self):
-        self.assertTrue(any("§节号" in h for h in self._scan("详见 spec §13.3")))
+        self.assertTrue(
+            any("§节号" in h for h in self._scan("详见 external-repo.md §1"))
+        )
 
     def test_chinese_section_ref_ok(self):
         self.assertEqual(self._scan("详见本文件 §六「迁移例外」段"), [])
@@ -520,7 +526,7 @@ class CliBehaviorTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             build_workspace(tmp)
             code, report = run_check(tmp)
-        for key in ("workspace_root", "target_spec", "checks", "summary"):
+        for key in ("workspace_root", "target_format", "checks", "summary"):
             self.assertIn(key, report)
         for key in ("error", "warn", "info", "pass", "skip"):
             self.assertIn(key, report["summary"])

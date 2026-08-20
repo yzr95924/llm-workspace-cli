@@ -34,9 +34,9 @@
 - [model 操作不走环境变量](model-ops-no-env-vars.md) — model 配置只从 `workspace_models.toml` 读（绝不读 `os.environ` 当真相源）；`enter` 通过 Local 层（`settings.local.json`）交付 `ANTHROPIC_*`（值来自 registry）
 - [Overlay habit template](overlay-habit-template.md) — `llmw/models/overlay.py:_HABIT_TEMPLATE` 是代码内常量的"习惯级" env key（非用户可配），随 enter 一并写入 settings.local.json；加新 key = 改一行常量
 
-**SKILL 与 spec（2026-08-18 起两 SKILL 同仓）**
+**SKILL 与格式契约（2026-08-18 起两 SKILL 同仓）**
 
-- [spec 版本号 bump：包内常量 + CI gate](spec-version-bump-single-repo.md) — SSOT = `llmw/__init__.py` 常量；bump 判别式：现有实例需要 reconcile 才 bump；文档/重构不 bump
+- [format 版本号 bump：包内常量 + CI gate](format-version-bump-single-repo.md) — SSOT = `llmw/__init__.py` 常量；bump 判别式：现有实例需要 reconcile 才 bump；文档/重构不 bump
 - [三方边界关系图](boundary-map.md) — 用户 + CLI + workspace skill + wiki skill 四方依赖方向 + 生命周期 + 产物归属指针 + 新能力判归 6 步有序测试；新增归属决策时先查
 
 ### 短条目（reminder，无需 why+how 展开）
@@ -65,13 +65,13 @@
 **workspace / wiki 结构**
 
 - **运行时配置拆出 workspace_local.toml（schema v2）** — 主机相关字段（`enter_cli`）放 gitignored `workspace_local.toml`（动机：跨主机共用 git 仓不互相覆盖 churn；无 secret 不 chmod）；workspace.toml 只剩结构数据，`store.load()` v1→v2 自愈迁移幂等，config 据 `LOCAL_KEYS` 路由 runtime key→local_store。**勿复活 `default_model`**（resolve 从不读它，"默认 model" 只由 registry `is_default` 单一表达）与 `enter_byobu`（删除理由见 AGENTS.md 数据模型节）。延续 [[model-ops-no-env-vars]]「配置走 toml 不走 env」纪律
-- **CLI 有意比 spec 字面严** — `init` 对非空目录一律 `WorkspaceExists`（超集覆盖 §12）；`wiki add` 走 `check_not_initialized` 校验 6 文件（§8 字面仅 3，主动加严）
-- **raw/ 默认子目录 + spec↔CLI 解耦** — CLI fresh init 预建 `raw/{articles,assets,discussions}/`（用户要求，spec §15 协作草稿层高频用），`raw/external/` 不预建（.gitignore 的 `raw/external/*` 吃掉 external/.gitkeep，`git check-ignore` 实测 IGNORED，预建对 clone 不可见）。判别尺度：spec 管语义层（目录含义/纪律/provenance），不管实现层（预建哪些/怎么进 git）
+- **CLI 有意比格式契约字面严** — `init` 对非空目录一律 `WorkspaceExists`（超集覆盖 §12）；`wiki add` 走 `check_not_initialized` 校验 6 文件（§8 字面仅 3，主动加严）
+- **raw/ 默认子目录 + 格式契约↔CLI 解耦** — CLI fresh init 预建 `raw/{articles,assets,discussions}/`（用户要求，协作草稿层高频用），`raw/external/` 不预建（.gitignore 的 `raw/external/*` 吃掉 external/.gitkeep，`git check-ignore` 实测 IGNORED，预建对 clone 不可见）。判别尺度：格式契约定语义层（目录含义/纪律/provenance），不管实现层（预建哪些/怎么进 git）
 
 **SKILL 维护（2026-08-18 起同仓）**
 
 - **两 SKILL 与 CLI 同仓（随 install.sh 一起分发）** — `yzr-llm-wiki-management` / `yzr-llm-workspace-management` 自 yzr-SKILL 迁入（斩断历史），改 skill 直接在本仓改、commit 随 CLI 走；**npx 分发已退役（2026-08-19）**，install.sh 注册 `~/.agents/skills` 的 symlink 直接指向本仓、`~/.claude/skills`（存在时）建**链式 symlink 指向 `~/.agents/skills/<name>`**（uninstall.sh 的安全检查依赖这个链式形态），uninstall.sh 对称清理。submodule 已删除，原「yzr-SKILL 改动去 /root/yzr-SKILL」纪律废止
-- **规范体只陈述现状规则** — spec / AGENTS.md 模板 / SKILL.md 正文 / 本仓 AGENTS.md 写"记什么 / 不记什么"的规则本身；历史与辩护（"旧版必填…已废止""0.x.0 起取消""schema v2 起字段迁出 X"）归 commit message + upgrade-workflow §六，不进规范体。逐条辩护句会让每处维护都承担同步改写的成本（2026-08-17 清理 external anchor commit 字段时踩过）
+- **规范体只陈述现状规则** — AGENTS.md 模板 / SKILL.md 正文 / 本仓 AGENTS.md 写"记什么 / 不记什么"的规则本身；历史与辩护（"旧版必填…已废止""0.x.0 起取消""schema v2 起字段迁出 X"）归 commit message + upgrade-workflow §六，不进规范体。逐条辩护句会让每处维护都承担同步改写的成本（2026-08-17 清理 external anchor commit 字段时踩过）
 - **改 skill 不手改 wiki/workspace 实例** — 模板变更经升级重渲染全量传播，实例 AGENTS.md 不手改（改了会与模板漂移 + 被下次重渲染覆盖）；`agents-md-template-sync` 报漂移属预期，等统一升级
 
 ## 维护规则

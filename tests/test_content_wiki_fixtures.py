@@ -25,22 +25,22 @@ AGENTS_TEMPLATE = (TEMPLATES_WIKI / "agents-md-template.md").read_text(encoding=
 FIXTURES_DIR = TEMPLATES_WIKI / "fixtures"
 WIKI_GITIGNORE = (FIXTURES_DIR / "gitignore.txt").read_text(encoding="utf-8")
 
-OLD_VERSION = "0.25.0"  # 真实历史版本——永远小于当前 target_spec
+OLD_VERSION = "0.25.0"  # 真实历史版本——永远小于当前 target_format
 
 
-def _target_spec():
-    """包内常量 llmw.WIKI_SPEC_VERSION（与 SKILL.md frontmatter 同 commit 对齐，CI gate 守护）。"""
+def _target_format():
+    """包内常量 llmw.WIKI_FORMAT_VERSION（与 SKILL.md frontmatter 同 commit 对齐，CI gate 守护）。"""
     sys.path.insert(0, str(REPO))
     import llmw
 
-    return llmw.WIKI_SPEC_VERSION
+    return llmw.WIKI_FORMAT_VERSION
 
 
-TARGET_SPEC = _target_spec()
+TARGET_FORMAT = _target_format()
 
 
 def _render_agents_md(
-    topic="Test", setup_date="2026-06-28 00:00", cli="0.1.0", spec=None
+    topic="Test", setup_date="2026-06-28 00:00", cli="0.1.0", format_version=None
 ):
     """生产 render 的薄封装；默认参数与 _wiki_metadata.created_at="2026-06-28T00:00:00Z"（[:16] 派生为
     `"2026-06-28 00:00"`）对齐，保证 scratch wiki 的 AGENTS.md 与 metadata + 渲染契约字节一致。"""
@@ -48,7 +48,7 @@ def _render_agents_md(
         topic=topic,
         setup_date=setup_date,
         cli_version=cli,
-        spec_version=spec or TARGET_SPEC,
+        format_version=format_version or TARGET_FORMAT,
     )
 
 
@@ -181,7 +181,7 @@ class CleanWikiTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             build_wiki(tmp)
             code, report = run_check(tmp)
-        self.assertEqual(report["target_spec"], TARGET_SPEC)
+        self.assertEqual(report["target_format"], TARGET_FORMAT)
         self.assertEqual(
             report["summary"]["error"],
             0,
@@ -249,10 +249,10 @@ class WikiMetadataReadsSatisfiedTest(unittest.TestCase):
 class AgentsVersionCheckTest(unittest.TestCase):
     def test_stale_version_fails(self):
         """版本落后时两个 check 协同：version-is-current 报 currency，template-sync
-        因渲染用 CURRENT spec 必然字节差 → 也 fail。**冗余 benign**——两者都推荐 upgrade。
+        因渲染用 CURRENT format 必然字节差 → 也 fail。**冗余 benign**——两者都推荐 upgrade。
         旧版 orthogonality 设计已在 §7.2 render-from-metadata 改造中废弃（详见设计文档 §7.4）。"""
         with tempfile.TemporaryDirectory() as tmp:
-            build_wiki(tmp, agents_md=_render_agents_md(spec=OLD_VERSION))
+            build_wiki(tmp, agents_md=_render_agents_md(format_version=OLD_VERSION))
             code, report = run_check(tmp)
         self.assertEqual(code, 1)
         c = check_by_id(report, "agents-version-is-current")
@@ -290,10 +290,9 @@ class TemplateNoOutboundRefsTest(unittest.TestCase):
         )
 
     def test_skill_file_refs_detected(self):
-        text = "见 `wiki-spec.md` §15 与 `page-templates.md` §一\n且 lint-checklist.md、SKILL.md、references/、yzr-llm-wiki-management、OKF 都算"
+        text = "见 page-templates.md §一 与 lint-checklist.md §二\n且 SKILL.md、references/、yzr-llm-wiki-management、OKF 都算"
         hits = self._scan(text)
         for pat in (
-            "wiki-spec.md",
             "page-templates.md",
             "lint-checklist.md",
             "SKILL.md",
@@ -304,7 +303,9 @@ class TemplateNoOutboundRefsTest(unittest.TestCase):
             self.assertTrue(any(pat in h for h in hits), f"{pat} 应被检出: {hits}")
 
     def test_arabic_section_ref_detected(self):
-        self.assertTrue(any("§节号" in h for h in self._scan("详见 spec §13.3")))
+        self.assertTrue(
+            any("§节号" in h for h in self._scan("详见 external-repo.md §1"))
+        )
 
     def test_chinese_section_ref_ok(self):
         self.assertEqual(self._scan("详见本文件 §二「页面类型」段"), [])
@@ -319,7 +320,7 @@ class TemplateNoOutboundRefsTest(unittest.TestCase):
 
 
 class SkeletonCheckTest(unittest.TestCase):
-    """代表性骨架 / 结构 check 的反例（覆盖 SKELETON_SPECS 机制 + 结构 check）。"""
+    """代表性骨架 / 结构 check 的反例（覆盖 SKELETON_REGISTRY 机制 + 结构 check）。"""
 
     def test_memory_index_frontmatter_fails(self):
         drifted = "---\ntitle: MEMORY\n---\n\n" + _fixture("memory-index")
@@ -344,7 +345,7 @@ class ReportSchemaTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             build_wiki(tmp)
             _, report = run_check(tmp)
-        for key in ("wiki_root", "target_spec", "checks", "summary"):
+        for key in ("wiki_root", "target_format", "checks", "summary"):
             self.assertIn(key, report)
         for key in ("error", "warn", "info", "pass", "skip"):
             self.assertIn(key, report["summary"])

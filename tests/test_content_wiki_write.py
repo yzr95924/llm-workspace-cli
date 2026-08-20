@@ -22,7 +22,7 @@ from pathlib import Path
 
 from llmw.content.log_format import LOG_LINE_RE
 from llmw.content.wiki_lint import (
-    CURRENT_WIKI_SPEC,
+    CURRENT_WIKI_FORMAT,
     check_frontmatter,
     check_memory_index,
 )
@@ -85,16 +85,16 @@ MEMORY_INDEX_SKELETON = """# MEMORY
 """
 
 
-def _make_wiki(root, spec_version=None):
+def _make_wiki(root, format_version=None):
     root = Path(root)
     for sub in ("entities", "concepts", "sources", "comparisons", "syntheses"):
         (root / "wiki" / sub).mkdir(parents=True)
     (root / "MEMORY").mkdir()
     (root / "raw" / "articles").mkdir(parents=True)
     (root / "raw" / "external").mkdir()
-    ver = spec_version or CURRENT_WIKI_SPEC
+    ver = format_version or CURRENT_WIKI_FORMAT
     (root / "AGENTS.md").write_text(
-        f"# Test Wiki\n\n## 八 Wiki Spec\n\n| Wiki Spec 版本 | {ver} |\n",
+        f"# Test Wiki\n\n## 八 Wiki Format\n\n| Wiki Format 版本 | {ver} |\n",
         encoding="utf-8",
     )
     (root / "wiki" / "index.md").write_text(INDEX_SKELETON, encoding="utf-8")
@@ -444,7 +444,7 @@ class MemoryTests(unittest.TestCase):
 class VersionWarnTests(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
-        self.root = _make_wiki(self._tmp.name, spec_version="0.27.1")
+        self.root = _make_wiki(self._tmp.name, format_version="0.27.1")
 
     def tearDown(self):
         self._tmp.cleanup()

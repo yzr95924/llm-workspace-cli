@@ -13,8 +13,8 @@ wiki_lint — deterministic 健康检查（llmw wiki lint）
 --no-git 跳过 raw/ 的 git status 检查（CI 或裸仓场景）。默认**自动检测**：
   仅当 wiki 根目录在 git 仓内且 raw/ 被 git 跟踪时才跑 raw 不可变性检查；
   裸目录树 / 无 git / raw 未纳入 git → 自动跳过并打印提示（不报错，不阻断）。
---check-version 扫描当前 wiki 的 spec 版本（解析 AGENTS.md §七 "Wiki Spec 版本"），
-  与本 skill metadata.wiki_spec_version 比对，列出老格式 legacy 现场。默认仅打印报告
+--check-version 扫描当前 wiki 的 format 版本（解析 AGENTS.md §七 "Wiki Format 版本"），
+  与本 skill metadata.wiki_format_version 比对，列出老格式 legacy 现场。默认仅打印报告
    （不动任何文件）；加 `--apply` 把 upgrade plan 以 JSON 输出到 **stdout**（agent 直接
    消费，**不落盘**——升级全程 wiki 根无任何中间文件残留）供按 references/upgrade-workflow.md
    用 Edit/Write 修复；加 `--json` 输出机器可读 JSON。互斥模式。
@@ -51,7 +51,7 @@ VALID_TYPES = {
     "source",
     "comparison",
     "synthesis",
-    # MEMORY 扩展类型（spec §5.2「或新的 memory 类型按需扩展，本 spec 不限制」）：
+    # MEMORY 扩展类型（page-templates.md §一：`或新的 memory 类型按需扩展`）：
     # - `memory`：MEMORY/*.md 自用语义，与 wiki 5 类内容页区分
     # - `memory-entry`：lint-checklist §5.1 提示的 0.6.0 迁移目标（兼容老 MEMORY 写法）
     "memory",
@@ -62,7 +62,7 @@ WIKI_SUBDIRS = ("entities", "concepts", "sources", "comparisons", "syntheses")
 MEMORY_SUBDIR = "MEMORY"
 EXTERNAL_SUBDIR = "external"
 ANCHOR_FILENAME = ".symlink-anchor.toml"  # TOML 替代旧 .symlink-anchor.json
-DISCUSSIONS_SUBDIR = "discussions"  # raw/ 下用户 + LLM 协作草稿层（spec §15）；与 external/ 并列的 raw/ 写权限例外
+DISCUSSIONS_SUBDIR = "discussions"  # raw/ 下用户 + LLM 协作草稿层；与 external/ 并列的 raw/ 写权限例外
 MD_LINK_RE = re.compile(r"!?\[([^\]]*)\]\(([^)]+)\)")
 EXTERNAL_URL_RE = re.compile(r"^(https?:|mailto:|//)")
 SOURCE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -105,12 +105,12 @@ def _is_absolute_path(p: str) -> bool:
     return False
 
 
-# Wiki spec 当前版本——SSOT 是 SKILL.md metadata.wiki_spec_version（frontmatter），
+# Wiki format 当前版本——SSOT 是 SKILL.md metadata.wiki_format_version（frontmatter），
 # 经 llmw/__init__ 单源读取，不再维护常量副本（单仓后漂移源消失）。
-# 详见 MEMORY/spec-version-bump-single-repo.md。
-from llmw import WIKI_SPEC_VERSION  # noqa: E402
+# 详见 MEMORY/format-version-bump-single-repo.md。
+from llmw import WIKI_FORMAT_VERSION  # noqa: E402
 
-CURRENT_WIKI_SPEC = WIKI_SPEC_VERSION
+CURRENT_WIKI_FORMAT = WIKI_FORMAT_VERSION
 
 # 已知 legacy pattern 的"pattern key"——为后续扩展预留，每个 key 是一类迁移动作。
 # rule_ref 是迁移依据的溯源指针；修复语义自含于 plan actions 的 remove/add_or_modify/to_action
@@ -119,7 +119,7 @@ LEGACY_PATTERN_KEYS = {
     # 历史迁移 pattern（confidence-field / claudemd-tag-section / claudemd-not-thinshell）
     # 已于 2026-08 随"场景清零"退役删除；未来退役字段时按需注册新 key。
     # 0.19.0 起保留的现行校验：MEMORY/*.md 上 `type: memory` / `type: memory-entry` 合法
-    # （spec §5.2）；本规则拦 wiki 5 类内容页误用 reserved `type: memory`。
+    # ；本规则拦 wiki 5 类内容页误用 reserved `type: memory`。
     "type-memory-value": "upgrade-workflow.md §6.1 + page-templates.md §一",
 }
 
@@ -232,10 +232,10 @@ def check_raw_immutable(wiki_root: Path, use_git: bool) -> List[str]:
         # 这种情况没有"未提交改动"概念（git 一无所知），跳过
         return ([], "raw-immutable-skipped: raw/ 未纳入 git 跟踪，跳过 raw/ 不可变性检查")
     lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
-    # raw/discussions/ 是用户 + LLM 协作的草稿层（spec §15），双方可写——
+    # raw/discussions/ 是用户 + LLM 协作的草稿层，双方可写——
     # 其未提交改动不属于"raw 被违规改"，从 raw-modified 信号中排除（与 §13 raw/external/
     # 并列为本 skill 的两处 raw/ 写权限例外）。external/ 的 symlink 本身被 .gitignore
-    # 排除（spec §13.4），不会出现在 git status 里，故此处只需过滤 discussions/。
+    # 排除，不会出现在 git status 里，故此处只需过滤 discussions/。
     discussions_prefix = "raw/" + DISCUSSIONS_SUBDIR + "/"
     # rename 两侧都可能涉及 discussions/（§15.3 archive mv 跨边界：discussions/ → articles/），
     # 任一路径命中即排除，避免合法归档误报 raw-modified
@@ -411,7 +411,7 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
             # symlink 存在但 anchor 不存在
             findings.append(
                 f"external-anchor-missing: raw/external/ 下有 symlink "
-                f"{sorted(symlink_names)} 但缺 '{ANCHOR_FILENAME}'（spec §13 必填）"
+                f"{sorted(symlink_names)} 但缺 '{ANCHOR_FILENAME}'（必填）"
             )
         return findings
     entries = _parse_anchor(anchor_path)
@@ -427,7 +427,7 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
     for sl_name in sorted(symlink_names):
         if sl_name not in entry_by_symlink:
             rel = (external_dir / sl_name).relative_to(wiki_root).as_posix()
-            findings.append(f"external-anchor-orphan: {rel} 是 symlink 但 anchor 无对应 [[entry]]（spec §13 必填关联）")
+            findings.append(f"external-anchor-orphan: {rel} 是 symlink 但 anchor 无对应 [[entry]]（必填关联）")
             continue
         anchor = entry_by_symlink[sl_name]
         rel = (external_dir / sl_name).relative_to(wiki_root).as_posix()
@@ -468,7 +468,7 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
             target = entry.get("target", "?")
             findings.append(
                 f"external-symlink-missing: anchor [[entry]] symlink='{sl_name}' target='{target}' "
-                f"但 raw/external/{sl_name} symlink 不存在（spec §13 必填关联）"
+                f"但 raw/external/{sl_name} symlink 不存在（必填关联）"
             )
 
     return findings
@@ -477,7 +477,7 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
 def check_frontmatter(wiki_root: Path) -> List[str]:
     """2. frontmatter 完整性 + 3. source/synthesis 的 sources 字段
 
-    校验口径分两类（spec §5.2 vs §9）：
+    校验口径分两类（vs §9）：
     - wiki 5 类内容页（entities/concepts/sources/comparisons/syntheses）：
       5 必填（title/type/created/updated/tags）+ 推荐 description
     - MEMORY/*.md：仅 `title` 必填，其余 5 字段全 optional（frontmatter 是
@@ -526,21 +526,21 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
                                     f"raw/external/<source-name>/...），与 lint-checklist §二.3 一致"
                                 )
                                 continue
-                            # raw/discussions/ 禁止作 source（spec §15）——
+                            # raw/discussions/ 禁止作 source——
                             # discussions/ 是用户 + LLM 双方可写的协作草稿层，不是"用户掌控的
                             # 真相源"；放开口子 = provenance 后门（LLM 自产内容被当 raw 真相
                             # ingest 回 wiki）。要引用其内容先 mv 到 raw/articles 等正式子树走标准
-                            # ingest（spec §15.3）。命中后 continue 跳过后续 external / missing——
+                            # ingest。命中后 continue 跳过后续 external / missing——
                             # 同一根因不重复报错。
                             if s.startswith("raw/" + DISCUSSIONS_SUBDIR + "/"):
                                 findings.append(
                                     f"source-in-discussions: {rel} sources='{s}' 指向 "
                                     f"raw/{DISCUSSIONS_SUBDIR}/——discussions/ 是协作草稿层"
-                                    f"（spec §15），不可作 source 真相源；先 mv 到 raw/articles "
+                                    f"，不可作 source 真相源；先 mv 到 raw/articles "
                                     f"等正式子树再 ingest"
                                 )
                                 continue
-                            # 0.17+ raw/external/<symlink>/... 例外（spec §13.3）：
+                            # 0.17+ raw/external/<symlink>/... 例外：
                             # symlink 跟随 .resolve() 会落到 wiki 根外，本不该判
                             # sources-out-of-root。改为：解析 <symlink> 段、查 anchor +
                             # symlink 存在 + 文件跟随后可访问，全部合法才放过。
@@ -848,7 +848,7 @@ def check_tag_taxonomy(wiki_root: Path) -> List[str]:
         target_pages.extend(pages[sub])
     # MEMORY/*.md 不进 tag 白名单校验——MEMORY 是 agent 私有记忆（AGENTS.md 模板 §五）：
     # MEMORY 私有 tag（lint / external-repo / symlink 等）是 LLM 工作上下文分类，
-    # 不应跟 wiki 用户面共享 taxonomy（spec §9.1 tag 白名单是防 wiki 索引/过滤漂移）。
+    # 不应跟 wiki 用户面共享 taxonomy（tag 白名单是防 wiki 索引/过滤漂移）。
     for p in target_pages:
         if not p.is_file():
             continue
@@ -1188,7 +1188,7 @@ def check_memory_index(wiki_root: Path) -> List[str]:
     或文件被误移），下次会话按索引读必落空。注意只能靠链接判定：短条目
     （`- 一句话事实`）无链接、不算 dangling。
 
-    MEMORY.md 不存在时静默跳过（老 wiki 迁移期 / spec <0.6.0，不报错）。
+    MEMORY.md 不存在时静默跳过（老 wiki 迁移期 / format <0.6.0，不报错）。
     severity = info（轻量索引非强制入口，类比 tag-not-in-taxonomy）。
 
     短条目（与项目 CLAUDE.md 同步）：MEMORY.md 索引行可无对应 .md 文件
@@ -1248,13 +1248,13 @@ def check_related_links(wiki_root: Path) -> List[str]:
     """15. related / compared 路径引用完整性
 
     校验 wiki 内容页 frontmatter 的 `related`（concept 页）与 `compared`
-    （comparison 页）字段——按 spec §9「路径格式约定」解析为**内容根 `wiki/`
+    （comparison 页）字段——按 page-templates.md §一「路径格式约定」解析为**内容根 `wiki/`
     相对**（`concepts/X.md` → `<wiki>/wiki/concepts/X.md`），文件不存在则报
     `related-broken-link` warn。注意基准陷阱：`wiki_root` 是最外层 `<wiki>/`
     （其下才是 `wiki/` 内容根），故解析须补 `wiki/` 段——与 source 页 `sources`
     字段走最外层 `raw/` 基准（见 check_frontmatter）刻意区分。
 
-    路径格式约定（spec §9 类型特化字段）：**内容根 `wiki/` 相对路径**（如
+    路径格式约定（类型特化字段）：**内容根 `wiki/` 相对路径**（如
     `concepts/transformer.md`），不带前导 `./`、不带 `../` 跨目录、也不带
     `wiki/` 前缀——与正文 Markdown 链接（约定用文件相对路径）形成清晰的两层约定。
 
@@ -1290,7 +1290,7 @@ def check_related_links(wiki_root: Path) -> List[str]:
                 # 防御：若元素是外部 URL（语义上不该出现但防御性兜底）→ 跳过
                 if is_external_url(item):
                     continue
-                # spec §9：related / compared 是内容根 wiki/ 相对（concepts/X.md），
+                # related / compared 是内容根 wiki/ 相对（按 page-templates.md §一）（concepts/X.md），
                 # 不是最外层根相对——wiki_root 是 <wiki>/，真实内容页在 <wiki>/wiki/<sub>/，
                 # 故补 wiki/ 段。不 .resolve() 避免跟随实际不存在的目录/文件时静默吞错
                 # （is_file() 已能准确判定）
@@ -1353,45 +1353,45 @@ def severity_of(finding: str) -> str:
         return "warn"
     if finding.startswith(("tag-not-in-taxonomy", "pending-review", "memory-not-indexed")):
         return "info"
-    if finding.startswith(("wiki-spec-version-stale", "wiki-spec-version-ahead", "wiki-spec-version-unparsed")):
+    if finding.startswith(("wiki-format-version-stale", "wiki-format-version-ahead", "wiki-format-version-unparsed")):
         return "warn"
     return "info"
 
 
 # ---------------------------------------------------------------------------
-# --check-version：扫描 wiki 的 spec 版本 + 老格式 legacy 现场
+# --check-version：扫描 wiki 的 format 版本 + 老格式 legacy 现场
 # 职责：纯探测（不动 wiki 内容）；agent 拿到 plan 后按 references/upgrade-workflow.md 走 Edit/Write 修复。
 # ---------------------------------------------------------------------------
 
 # CLAUDE.md §七 表格行匹配：
-# | Wiki Spec 版本 | 0.7.0 |
+# | Wiki Format 版本 | 0.7.0 |
 # 兼容用户编辑后的格式变体（多余空格、备注尾部等）；semver 走单独正则抓取。
-CLAUDE_VERSION_ROW_RE = re.compile(r"^\s*\|\s*Wiki Spec 版本\s*\|\s*([^|]+?)\s*\|")
+CLAUDE_FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\s*\|")
 SEMVER_RE = re.compile(r"\d+\.\d+\.\d+")
 
 
-def parse_spec_version(wiki_root: Path) -> Optional[str]:
-    """从 wiki 纪律 SSOT §七 表里抽 "Wiki Spec 版本"。
+def parse_format_version(wiki_root: Path) -> Optional[str]:
+    """从 wiki 纪律 SSOT §七 表里抽 "Wiki Format 版本"。
 
     SSOT 是 <wiki-root>/AGENTS.md（薄壳 CLAUDE.md 不持版本）。
     老 wiki（0.10.0-）：SSOT 是 <wiki-root>/CLAUDE.md，按候选顺序 fallback 兼容。
 
     返回 semver 字符串（如 "0.11.0"）；找不到或解析失败返回 None。
 
-    设计权衡：仅解析 §七 表的"Wiki Spec 版本"行，不扫描全文（避免误抓正文里出现的
-    版本号）。用户编辑表格时若格式被破坏（例如把"Wiki Spec 版本"改成"Wiki 版本"），
+    设计权衡：仅解析 §七 表的"Wiki Format 版本"行，不扫描全文（避免误抓正文里出现的
+    版本号）。用户编辑表格时若格式被破坏（例如把"Wiki Format 版本"改成"Wiki 版本"），
     解析失败——提示用户人工填回，而不是猜。
     """
     for candidate in ("AGENTS.md", "CLAUDE.md"):
-        spec_file = wiki_root / candidate
-        if not spec_file.is_file():
+        md_file = wiki_root / candidate
+        if not md_file.is_file():
             continue
         try:
-            text = spec_file.read_text(encoding="utf-8", errors="replace")
+            text = md_file.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
         for line in text.splitlines():
-            m = CLAUDE_VERSION_ROW_RE.match(line)
+            m = CLAUDE_FORMAT_ROW_RE.match(line)
             if not m:
                 continue
             cell = m.group(1).strip()
@@ -1404,31 +1404,31 @@ def parse_spec_version(wiki_root: Path) -> Optional[str]:
     return None
 
 
-def check_spec_version(wiki_root: Path) -> List[str]:
-    """常规 lint 也查 wiki 版本与 SKILL（CURRENT_WIKI_SPEC）是否一致；不一致提示走升级流程。
+def check_format_version(wiki_root: Path) -> List[str]:
+    """常规 lint 也查 wiki 版本与 SKILL（CURRENT_WIKI_FORMAT）是否一致；不一致提示走升级流程。
 
-    与 cmd_check_version 复用同一 parse_spec_version + _compare_semver，但本函数只产
+    与 cmd_check_version 复用同一 parse_format_version + _compare_semver，但本函数只产
     warn finding 提示（不产 plan——plan 由 --check-version --apply 落）。让用户日常
     lint 时就能感知「wiki 版本落后/领先 SKILL」，而不必显式跑 --check-version 才发现。
     """
     findings = []  # type: List[str]
-    current = parse_spec_version(wiki_root)
+    current = parse_format_version(wiki_root)
     if current is None:
         findings.append(
-            "wiki-spec-version-unparsed: AGENTS.md §七「Wiki Spec 版本」行无法解析"
+            "wiki-format-version-unparsed: AGENTS.md §七「Wiki Format 版本」行无法解析"
             "（缺 AGENTS.md / CLAUDE.md 或表格格式破坏）——"
             "跑 `lint_wiki.py --check-version` 诊断"
         )
         return findings
-    cmp = _compare_semver(current, CURRENT_WIKI_SPEC)
+    cmp = _compare_semver(current, CURRENT_WIKI_FORMAT)
     if cmp == "older":
         findings.append(
-            f"wiki-spec-version-stale: AGENTS.md §七 版本 {current} 落后 SKILL {CURRENT_WIKI_SPEC}——"
+            f"wiki-format-version-stale: AGENTS.md §七 版本 {current} 落后 SKILL {CURRENT_WIKI_FORMAT}——"
             "跑 `lint_wiki.py --check-version --apply` 走升级流程"
         )
     elif cmp == "newer":
         findings.append(
-            f"wiki-spec-version-ahead: AGENTS.md §七 版本 {current} 领先 SKILL {CURRENT_WIKI_SPEC}——"
+            f"wiki-format-version-ahead: AGENTS.md §七 版本 {current} 领先 SKILL {CURRENT_WIKI_FORMAT}——"
             "更新本 skill 安装（lint_wiki.py）对齐"
         )
     # equal / unknown → 无 finding
@@ -1444,7 +1444,7 @@ def _run_fixtures_check(wiki_root: Path) -> Dict[str, object]:
     try:
         from llmw.content.wiki_fixtures import run_checks
 
-        return run_checks(wiki_root, CURRENT_WIKI_SPEC)
+        return run_checks(wiki_root, CURRENT_WIKI_FORMAT)
     except Exception as e:  # noqa: BLE001
         return {"skipped": True, "reason": f"fixtures check exec failed: {e}"}
 
@@ -1453,7 +1453,7 @@ def _has_type_memory(page_rel: str, text: str) -> bool:
     """frontmatter `type: memory` 在 wiki 5 类内容页上误用——0.19.0 起仅对 wiki 内容页生效。
 
     MEMORY/*.md 上 `type: memory` / `type: memory-entry` 是 0.19.0 合法值
-    （spec §5.2——MEMORY frontmatter 解耦 + 扩展 `memory` / `memory-entry` 两类），
+    （page-templates.md §一——MEMORY frontmatter 解耦 + 扩展 `memory` / `memory-entry` 两类），
     故跳过 `page_rel` 起始于 `MEMORY/` 的页面。
 
     Args:
@@ -1542,7 +1542,7 @@ def _compare_semver(current: Optional[str], skill: str) -> str:
 
 def build_upgrade_plan(
     wiki_root: Path,
-    current_spec: Optional[str],
+    current_format: Optional[str],
     legacy: Dict[str, object],
     fixtures_check: Optional[Dict[str, object]] = None,
 ) -> Dict[str, object]:
@@ -1612,7 +1612,7 @@ def build_upgrade_plan(
                         **base,
                         "type": "fixtures-fix-agents-version",
                         "to_action": (
-                            f"Edit {fpath} §七 Wiki Spec 版本行单元格改为 `{expected}`（实际为 `{actual}`）——"
+                            f"Edit {fpath} §七 Wiki Format 版本行单元格改为 `{expected}`（实际为 `{actual}`）——"
                             "参考 lint-checklist.md §三.1"
                         ),
                     }
@@ -1629,7 +1629,7 @@ def build_upgrade_plan(
                             "(1) 从旧 AGENTS.md §七 提取 主题 / 创建日期 / CLI 版本（主题 fallback："
                             "H1 `# <主题> Wiki — LLM 维护守则`）；"
                             "(2) 渲染包内 agents-md-template.md——{{TOPIC_NAME}} / {{SETUP_DATE}} / "
-                            "{{CLI_VERSION}} 用旧值，{{WIKI_SPEC_VERSION}} 用 to_version；"
+                            "{{CLI_VERSION}} 用旧值，{{WIKI_FORMAT_VERSION}} 用 to_version；"
                             "(3) diff 旧文件 vs 渲染稿：旧文件**多出的行/段** = 本地定制，逐条列给用户裁定——"
                             "搬 MEMORY/（一行事实写 MEMORY/MEMORY.md 索引短条目；含 why 的建 "
                             "MEMORY/<slug>.md 完整条目 + 索引行）或丢弃；"
@@ -1743,10 +1743,10 @@ def build_upgrade_plan(
 
     plan = {
         "generated_at": today,
-        "from_version": current_spec,
-        "to_version": CURRENT_WIKI_SPEC,
+        "from_version": current_format,
+        "to_version": CURRENT_WIKI_FORMAT,
         "skill_doc": "SKILL.md（yzr-llm-wiki-management skill 根）",
-        "spec_doc": "references/lint-checklist.md（yzr-llm-wiki-management skill，check 语义参考）",
+        "format_doc": "references/lint-checklist.md（yzr-llm-wiki-management skill，check 语义参考）",
         "rule_doc": "references/upgrade-workflow.md（yzr-llm-wiki-management skill）",
         "actions": actions,
         "fixtures_actions": fixtures_actions,
@@ -1758,7 +1758,7 @@ def build_upgrade_plan(
             "frontmatter-retype：按 action.note 与 page-templates.md §一决定具体改法",
             "skipped_conflicts[] 永远不自动覆盖——转人工",
             "claudemd-to-agents-md-split：老 CLAUDE.md 正文搬到 AGENTS.md + CLAUDE.md 重写为薄壳",
-            "改完后用 Edit 把 AGENTS.md §七 Wiki Spec 版本行改为 to_version",
+            "改完后用 Edit 把 AGENTS.md §七 Wiki Format 版本行改为 to_version",
             "不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）",
             "不调 ingest / query / lint——保持职责单一",
             # fixtures：
@@ -1767,7 +1767,7 @@ def build_upgrade_plan(
             "fixtures-fix-anchor-merge / -anchor-schema / -anchor-symlink-matches 三条都是『多文件迁移』型 action——必须按 to_action 5 步走，单 Edit 不能完成",
             "fixtures-fix-strip-frontmatter 仅删首部 frontmatter 块，保留全文正文一字不动",
             "fixtures-fix-skeleton：按 expected 补缺失骨架字段（frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段），单 Edit 可落；成长型内容（index 类别 / log 历史 / MEMORY 经验 / tag bullet）不动",
-            "fixtures-fix-agents-md-resync：AGENTS.md 全量重渲染——§七 变量保留旧值（Wiki Spec 版本行用 to_version），旧文件多出的定制行/段逐条与用户裁定搬 MEMORY/ 或丢弃；其余以模板渲染稿为准，不做局部 Edit",
+            "fixtures-fix-agents-md-resync：AGENTS.md 全量重渲染——§七 变量保留旧值（Wiki Format 版本行用 to_version），旧文件多出的定制行/段逐条与用户裁定搬 MEMORY/ 或丢弃；其余以模板渲染稿为准，不做局部 Edit",
             "fixtures 改造与 lint-checklist §五『语义合并规则』配合读——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按 §五判断",
         ],
     }  # type: Dict[str, object]
@@ -1777,14 +1777,14 @@ def build_upgrade_plan(
 def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     """--check-version 子命令主入口。
 
-    - 解析 AGENTS.md（老 wiki fallback CLAUDE.md）§七 wiki_spec_version
+    - 解析 AGENTS.md（老 wiki fallback CLAUDE.md）§七 wiki_format_version
     - 探测已知 legacy 现场
     - 默认打印人读报告（不写文件）
     - --json 输出机器可读 JSON
     - --apply 把 upgrade plan 以 JSON 输出到 stdout（agent 修复路径的依据；不落盘）
     """
-    current_spec = parse_spec_version(wiki_root)
-    comparison = _compare_semver(current_spec, CURRENT_WIKI_SPEC)
+    current_format = parse_format_version(wiki_root)
+    comparison = _compare_semver(current_format, CURRENT_WIKI_FORMAT)
     legacy = detect_legacy_patterns(wiki_root)
 
     # 数 legacy pattern 总数（不算 conflicts，因为 conflicts 不进 plan）
@@ -1803,8 +1803,8 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
             needs_upgrade = True
 
     report = {
-        "current_spec": current_spec,
-        "skill_spec": CURRENT_WIKI_SPEC,
+        "current_format": current_format,
+        "skill_format": CURRENT_WIKI_FORMAT,
         "comparison": comparison,
         "needs_upgrade": needs_upgrade,
         "legacy_patterns": legacy["patterns"],  # type: ignore
@@ -1815,31 +1815,31 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     if json_mode:
         # JSON 模式：输出 report；apply 时再附 plan
         if apply:
-            plan = build_upgrade_plan(wiki_root, current_spec, legacy, fixtures_check)
+            plan = build_upgrade_plan(wiki_root, current_format, legacy, fixtures_check)
             report["upgrade_plan"] = plan
         print(json.dumps(report, indent=2, ensure_ascii=False))
         return 0
 
     # 人读模式
-    print("=== Wiki Spec 版本检查 ===")
-    print(f"  current_spec : {current_spec or '(解析失败)'}")
-    print(f"  skill_spec   : {CURRENT_WIKI_SPEC}")
+    print("=== Wiki Format 版本检查 ===")
+    print(f"  current_format : {current_format or '(解析失败)'}")
+    print(f"  skill_format   : {CURRENT_WIKI_FORMAT}")
     print(f"  comparison   : {comparison}")
     print(f"  needs_upgrade: {needs_upgrade}")
     print()
 
     # 当前版本比 SKILL 新 → 告警，不阻断
     if comparison == "newer":
-        print(f"[WARN] wiki 用比 SKILL 更新的 spec（{current_spec} > {CURRENT_WIKI_SPEC}）")
+        print(f"[WARN] wiki 用比 SKILL 更新的 format（{current_format} > {CURRENT_WIKI_FORMAT}）")
         print("       请更新本 skill 安装；本子命令不会修改 wiki")
         print()
         _print_fixtures_check(fixtures_check, indent="")
         return 0
 
     # 解析失败 → 提示用户填 CLAUDE.md §七
-    if current_spec is None:
-        print("[WARN] 无法解析 <wiki-root>/AGENTS.md（老 wiki CLAUDE.md）§七 'Wiki Spec 版本'")
-        print("       请确认该行存在且格式为: | Wiki Spec 版本 | 0.x.y |")
+    if current_format is None:
+        print("[WARN] 无法解析 <wiki-root>/AGENTS.md（老 wiki CLAUDE.md）§七 'Wiki Format 版本'")
+        print("       请确认该行存在且格式为: | Wiki Format 版本 | 0.x.y |")
         print("       解析失败不影响 legacy pattern 探测（下方继续输出）")
         print()
 
@@ -1876,7 +1876,7 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
 
     # apply 时把 upgrade plan 以 JSON 输出到 stdout（agent 直接消费；不落盘，升级无中间文件残留）
     if apply:
-        plan = build_upgrade_plan(wiki_root, current_spec, legacy, fixtures_check)
+        plan = build_upgrade_plan(wiki_root, current_format, legacy, fixtures_check)
         print("\n[PLAN] upgrade plan 已生成（stdout JSON 输出，agent 直接消费，不落盘）")
         print(
             f"       actions: {len(plan['actions'])}, skipped_conflicts: {len(plan['skipped_conflicts'])}, "  # type: ignore
@@ -1937,7 +1937,7 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--check-version",
         action="store_true",
-        help="扫描 wiki 的 spec 版本（AGENTS.md §七）与已知 legacy 老格式现场；默认 dry-run。加 --apply 输出 upgrade plan（stdout JSON，不落盘），加 --json 输出机器可读 JSON。互斥模式。",
+        help="扫描 wiki 的 format 版本（AGENTS.md §七）与已知 legacy 老格式现场；默认 dry-run。加 --apply 输出 upgrade plan（stdout JSON，不落盘），加 --json 输出机器可读 JSON。互斥模式。",
     )
     parser.add_argument(
         "--json",
@@ -1976,7 +1976,7 @@ def main(argv=None) -> int:
     all_findings = []  # type: List[str]
     info_notes = []  # type: List[str]  # 不计入 severity 过滤的"说明性输出"（如 raw-immutable 跳过原因）
     # 版本一致性优先报——落后/领先 SKILL 时提示走 --check-version 升级流程
-    all_findings.extend(check_spec_version(wiki_root))
+    all_findings.extend(check_format_version(wiki_root))
     raw_findings, raw_skip = check_raw_immutable(wiki_root, effective_use_git)
     all_findings.extend(raw_findings)
     if raw_skip:

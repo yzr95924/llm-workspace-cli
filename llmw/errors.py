@@ -39,7 +39,7 @@ class WikiExists(LlmwError):
 
 
 class WikiAlreadyInitialized(LlmwError):
-    """spec §8: 目标目录已含 CLAUDE.md 或 wiki/index.md,拒绝覆盖"""
+    """目标目录已含 CLAUDE.md 或 wiki/index.md,拒绝覆盖（骨架字节所有权不变量）"""
 
     exit_code = 1
     user_message = "wiki 目录已初始化"

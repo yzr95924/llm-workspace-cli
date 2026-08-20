@@ -3,10 +3,10 @@ name: yzr-llm-wiki-management
 description: |
   当用户和本地、单用户、复利型 Markdown 个人 wiki（Karpathy 'LLM owns wiki' 模式）打交道时
   使用本 skill——覆盖：初始搭建、批量摄取 raw/ 资料（论文 / 文章 / 剪藏 / 外部代码仓 symlink
-  接入）、跨页综合 / 对比 / 矛盾协调 / 答案归档回 wiki、矛盾 / 孤儿 / 过期摘要 lint、spec
+  接入）、跨页综合 / 对比 / 矛盾协调 / 答案归档回 wiki、矛盾 / 孤儿 / 过期摘要 lint、format
   升级迁移。坚持 raw/ 用户掌控 + wiki/ LLM 拥有 + AGENTS.md 单一真源 四层纪律。
   触发："把这篇论文摄取进 wiki" / "总结 wiki 里关于 X 的内容" / "wiki 里 A 和 B 说法矛盾，
-  帮我协调" / "扫一下 wiki 有没有孤儿页 / 过期摘要" / "升级 wiki / 迁移到最新 spec / 检查
+  帮我协调" / "扫一下 wiki 有没有孤儿页 / 过期摘要" / "升级 wiki / 迁移到最新 format / 检查
   wiki 版本" / "把 X 仓库（源码）纳入 wiki" / "想搭一个 wiki 管理 X"。
   不适用：云端 / 团队协作 wiki（Notion / Confluence / Outline / GitHub Wiki——走
   yzr-outline-wiki）。
@@ -14,7 +14,7 @@ metadata:
   author: Zuoru YANG
   category: knowledge-base
   modify time: 2026-08-17
-  wiki_spec_version: 0.38.0
+  wiki_format_version: 0.39.0
 ---
 
 # LLM Wiki Management
@@ -73,7 +73,7 @@ metadata:
   或 `wiki/syntheses/<slug>.md`
 - **lint** → `log` 中报告：raw/ 是否被改、孤儿页、断裂交叉引用、过期摘要、缺
   frontmatter、log.md 格式
-- **upgrade** → 跑 `llmw wiki lint --check-version` 输出 spec 版本 + legacy 现场
+- **upgrade** → 跑 `llmw wiki lint --check-version` 输出 format 版本 + legacy 现场
   报告；`--apply` 把 upgrade plan 以 JSON 输出到 stdout（不落盘）供 agent 按
   `references/upgrade-workflow.md` 走 Edit/Write 修复；详见 §5 Upgrade
 
@@ -96,7 +96,7 @@ metadata:
   语义合并——想往脚本里加"理解"就是边界被侵蚀的信号
 - **常量单一来源 + 版本防护**：`llmw.content.wiki_write` 从 `llmw.content.wiki_lint` /
   `llmw.content.log_format` import（VALID_TYPES / LOG_RETENTION_LIMIT / LOG_LINE_RE 等），
-  spec 改格式变更点不增；启动时 wiki §七 版本与 SKILL 不一致 → 警告"先 upgrade 再写"（不阻断）
+  format 改格式变更点不增；启动时 wiki §七 版本与 SKILL 不一致 → 警告"先 upgrade 再写"（不阻断）
 
 ### 四层架构——为什么是四层
 
@@ -104,11 +104,11 @@ metadata:
 四层各自承担一个责任，互相制衡：
 
 1. **`raw/` 真相之源**——用户只管策划原始资料，对 LLM 只读。**两处写权限例外**：
-   `raw/external/`（外部代码仓 symlink 接入，LLM 主导，spec §13.3）+ `raw/discussions/`
-   （协作草稿层，双方可写，spec §15）。完整纪律（含"wiki 与 raw 矛盾以 raw 为准"4 条）
+   `raw/external/`（外部代码仓 symlink 接入，LLM 主导，详见 external-repo.md）+ `raw/discussions/`
+   （协作草稿层，双方可写，详见 ingest-workflow.md §10）。完整纪律（含"wiki 与 raw 矛盾以 raw 为准"4 条）
    在 `<wiki-root>/AGENTS.md` §一（模板见
    `llmw/content/templates/wiki/agents-md-template.md`（CLI 包内）），操作细则在
-   核心原则 §1 + spec §13/§15。`raw/` 下子目录自由组织；
+   核心原则 §1 + external-repo.md / ingest-workflow.md §10。`raw/` 下子目录自由组织；
    `llmw wiki ingest-diff` 递归扫整棵 `raw/`（扩展名白名单 *.md/*.markdown/*.txt；跳过
    `assets/` + `discussions/`）。
 2. **`wiki/` 复利资产**——LLM 拥有这一层（5 个内容页子目录 + index.md）。人类**不写**
@@ -117,20 +117,20 @@ metadata:
    踩坑 / 用户偏好，用户不写。为什么放 `<wiki-root>/` 而非 `wiki/` 内：物理位置跟逻辑
    分层对齐（独立于 wiki/ 内容），将来 publish 时自然留作私有层不外传。`MEMORY.md`
    是索引单一真源（无 frontmatter），AGENTS.md 顶部 `@MEMORY/MEMORY.md` 加载，改只改
-   这一处、无副本漂移。操作细则在核心原则 §9 + 工作流 §4 + spec §5。
+   这一处、无副本漂移。操作细则在核心原则 §9 + 工作流 §4。
 4. **`AGENTS.md` 纪律配置（SSOT）+ `CLAUDE.md` 薄壳**——把"wiki 怎么写 / 写什么 /
    不写什么"的约定集中到 `AGENTS.md`（工具无关单一真源），是维护本 wiki 的 agent 的
    "宪法"；`CLAUDE.md` 是 `@AGENTS.md` 薄壳（`yzr-multi-agent-context` 方法：一套真源、
    多 agent 兼容）。顶部 `@MEMORY/MEMORY.md` + `@scripts/SCRIPTS.md` 两行 `@import` 收口 +
-   强制 Read 指令兜底（spec §5.1 + §14.3）。没有它，LLM 会退化成普通聊天机器人；
+   强制 Read 指令兜底（§14.3）。没有它，LLM 会退化成普通聊天机器人；
    有它，LLM 是"纪律严明的 wiki 维护者"。
 
 ### 四个核心操作——为什么是四个
 
 ingest / query / lint / upgrade 四个操作各自**双向回报**：ingest 让 query 更好用；
 query 让 wiki 更厚；lint 让 ingest 不会越积越乱；upgrade 让长跑 1-2 年的 wiki 在
-spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的本质。upgrade 与其他三个
-不同——它是**周期触发**而非每次 wiki 操作触发（spec 升版本时才跑），但缺了它老 wiki
+format 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的本质。upgrade 与其他三个
+不同——它是**周期触发**而非每次 wiki 操作触发（format 升版本时才跑），但缺了它老 wiki
 会**腐烂在格式层**而不是内容层，更难察觉。四者的输入 / 输出见「输入 / 输出 · 操作产物」。
 
 ## 执行原则 / 边界
@@ -211,7 +211,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
 
 11. **tag 白名单在 `wiki/tags.md`**——LLM auto-extend bullet +
     用户审计循环（删 bullet → 下次 lint 报 `tag-not-in-taxonomy` 由用户裁定）；`wiki/tags.md` 无
-    frontmatter，与 `MEMORY/MEMORY.md` 同形态。跨 spec 升级走 `llmw wiki lint --check-version --apply`。
+    frontmatter，与 `MEMORY/MEMORY.md` 同形态。跨 format 升级走 `llmw wiki lint --check-version --apply`。
     取值 / 解析 / 审计循环规则由 `wiki/tags.md` fixture 头部说明块承载（canonical，
     落盘进实例直接可读）。
 
@@ -227,8 +227,8 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
 ### 边界
 
 - **不**编辑 `raw/` 下任何文件——LLM 只读（两处写权限例外：`raw/external/` symlink 接入 +
-  `raw/discussions/` 协作草稿；完整规则见核心原则 §1 + spec §13.3/§15，**不得外推**到
-  papers / articles / clippings 等其他子树——滑坡防线见 spec §15.4）
+  `raw/discussions/` 协作草稿；完整规则见核心原则 §1 + external-repo.md / ingest-workflow.md §10，**不得外推**到
+  papers / articles / clippings 等其他子树——滑坡防线见 ingest-workflow.md §10.4）
 - **不**删除 `wiki/` 下的页面——用 `archived: true` 标记 + 从 index 移除；想真删直接删文件（启用 git 时用 `git rm`，未启用时用普通 `rm`）
 - **不**绕过 `AGENTS.md` 自创约定——若 AGENTS.md 没说的，**先问用户**再写
 - **不**在 query 时偷偷归档——必须先展示答案 + 询问用户
@@ -251,7 +251,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
 - 把 `llmw` 的确定性工具源码（`llmw.content` 的 lint / ingest-diff / fixtures / wiki_write）
   复制进 `<wiki-root>/scripts/`——工具由 llmw CLI 统一提供，复制只会产生版本漂移；
   本 wiki 自维护脚本若需要，应直接调 `llmw` 子命令并同时更新 `SCRIPTS.md` 索引段
-- 把外部代码仓接入走 `cp -r` 内嵌到 `raw/` 而非 `raw/external/` symlink——占用空间 + 违反 spec §13 纪律
+- 把外部代码仓接入走 `cp -r` 内嵌到 `raw/` 而非 `raw/external/` symlink——占用空间 + 违反 external-repo.md §1 纪律
 - 修改 anchor 的 `remote_url` / `branch` 字段——这两个字段是接入意图，
   不是机器状态（详见 [`references/external-repo.md`](references/external-repo.md) §二）
 - 绕过 anchor 直接 `ln -s`——没有对应 `[[entry]]` 的 symlink = lint 报
@@ -286,7 +286,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
 | "这次是单页 ingest，跳过 entity/concept 同步更快" | 知识孤岛 = wiki 复利亏空——单页也一样要 cross-link；"更快"是把当前 case 凌驾于复利结构之上 | 哪怕只挂 1 个 entity 页也要同步；交叉引用是 wiki 的 ROI 核心 |
 | "我把 source `cp` 进 raw/ 比走 `Write` + 创建 page 更直接" | raw/ 不可变 + raw/external/ 例外是 symlink 不是 cp——`cp` 进 raw/ 触发 `raw-external-anchor-mismatch` 一连串 finding | 用 `Edit/Write` 写 wiki/sources/`<slug>`.md；raw 是用户私有 |
 | "`reviewed: true` 是一周前人标的，我没改多少内容，留着就行" | `reviewed: true` 是"这一刻内容背书"快照，**任何** LLM 对正文的修改都让它失效（包括 typos / 字段补全）——留戳 = 假装审过 | 任何 Edit/Write 后**必须**删 `reviewed` + `reviewed_at` 两字段，回到默认未审核态 |
-| "外部代码仓我 cp -r 进 raw/ 也算接入，symlink 没必要" | cp -r 占用 wiki 仓磁盘 + 违反 spec §13——"也算"是把"接入意图"和"接入手段"混淆 | 走 `ln -s` 创建 symlink + 写 `.symlink-anchor.toml` 的 `[[entry]]` 块 |
+| "外部代码仓我 cp -r 进 raw/ 也算接入，symlink 没必要" | cp -r 占用 wiki 仓磁盘 + 违反 external-repo.md §1——"也算"是把"接入意图"和"接入手段"混淆 | 走 `ln -s` 创建 symlink + 写 `.symlink-anchor.toml` 的 `[[entry]]` 块 |
 | "这个 wiki 没 git，不写 log 也行" | log.md 记的是**操作语义**（ingest/query/lint）+ 近期活动速览（orient ritual 读它避免重复工作）——这是 git diff 不直接体现的；完整文件历史才靠 git | 任何 wiki 改动**必须**追加 log 条目（哪怕 wiki 无 git） |
 
 > **表内条目两类**：第 1 行 = 实跑 transcript 逐字摘录；其余 6 条 = 从 §反模式 / §边界
@@ -311,7 +311,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
 - "我觉得这一步对当前 case 不必要"
 - "用户没明说要我做这步"
 - "这样更快 / 更省 token / 更高效"
-- "spec 没禁止"
+- "约定没禁止"
 - "我已经做了等价的事" / "效果一样不算违反"
 - "先这样留着，回头再补"
 - "我自己生成字段比 frontmatter 严格写更灵活"
@@ -412,7 +412,7 @@ git 身份字段 → 创建 symlink + 写 anchor → 后续 `llmw wiki ingest-di
 2. 脚本覆盖（大类如下，权威清单见 [`references/lint-checklist.md`](references/lint-checklist.md)）：
    raw 不可变性 / frontmatter 字段 / 孤儿页 / 断链 / log.md 格式 / 过期摘要 / 页面体量
    / 认知质量与可信度信号（`reviewed` / `contested` / `contradictions`）/ `raw/external/`
-   symlink ↔ anchor 关联（spec §13）/ fixtures 一致性（见下文「fixtures 一致性检查」段）
+   symlink ↔ anchor 关联（external-repo.md）/ fixtures 一致性（见下文「fixtures 一致性检查」段）
 3. 脚本输出后 **agent 还要做半定性检查**：矛盾主张 / 缺失交叉引用 / 建议新摄取方向
 4. 报告 + 询问用户哪些修
 
@@ -444,9 +444,9 @@ AGENTS.md 模板 §五「Memory 纪律」+ 仓库根 `MEMORY/MEMORY.md` 索引�
 - 写新文件时保留原 `created` 字段；只更新 `updated`
 - 用户**不**直接编辑 MEMORY/——若用户想补充，先转告 agent 由 agent 写入
 
-### 5. Upgrade（升级 wiki spec）
+### 5. Upgrade（升级 wiki format）
 
-**触发**：用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / spec 升级 / 是否需要
+**触发**：用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / format 升级 / 是否需要
 reformat"；或 `llmw wiki lint` 报告 legacy warn。
 
 **职责切分**（避免与 ingest / lint 混淆）：
