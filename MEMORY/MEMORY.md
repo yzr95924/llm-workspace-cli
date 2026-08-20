@@ -39,6 +39,7 @@
 - [spec 版本号 bump：单仓三方对齐](spec-version-bump-single-repo.md) — SKILL.md frontmatter / lint_wiki.py CURRENT_WIKI_SPEC / llmw/__init__.py 同 commit 对齐；submodule 指针跨仓步骤已随迁移消失
 - [wiki-spec ↔ workspace-spec type enum 耦合](wiki-workspace-spec-type-coupling.md) — 改 wiki-spec §9 type 必须同步查 workspace-spec §13，否则"复用"引用悬空
 - [wiki/workspace 纪律文件 AGENTS.md SSOT + CLAUDE.md 薄壳](wiki-spec-0-11-agents-md-ssot.md) — 0.11.0/0.4.0 起纪律 SSOT 改 AGENTS.md + 薄壳；两 spec 对称，改 SSOT 引用要同步两 skill
+- [三方边界关系图](boundary-map.md) — 用户 + CLI + workspace skill + wiki skill 四方依赖方向 + 生命周期 + 产物归属指针 + 新能力判归 6 步有序测试；新增归属决策时先查
 
 ### 短条目（reminder，无需 why+how 展开）
 
