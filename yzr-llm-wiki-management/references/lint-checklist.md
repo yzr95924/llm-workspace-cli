@@ -21,7 +21,7 @@ Lint 分**两层**：
 2. **Semi-qualitative**（agent 检查，需理解语义）——本文件"半定性检查"段
 
 **与 `llmw wiki write` 的分工**：log / index / touch / new / memory 的**正路**是
-`llmw wiki write`（产物天然合规，见 SKILL.md §设计决策「机械 vs 判断」准入规则）；
+`llmw wiki write`（产物天然合规：输出是输入的纯函数 + lint 可 round-trip 验证）；
 lint 的 deterministic 检查兜底**带外手改**（用户 / agent 手工 Edit 的场景）。
 
 ## 一、调用方式

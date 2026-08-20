@@ -73,51 +73,6 @@ metadata:
   报告；`--apply` 把 upgrade plan 以 JSON 输出到 stdout（不落盘）供 agent 按
   `references/upgrade-workflow.md` 走 Edit/Write 修复；详见 §5 Upgrade
 
-## 设计决策
-
-### 机械 vs 判断——写操作进脚本的准入规则
-
-> **一个写操作进脚本（`llmw wiki write`），当且仅当：(1) 输出字节是输入的纯函数**
-> （不读正文、无权衡、无用户偏好）；**(2) lint 已有对应检查能验证产物**（round-trip
-> 可测：脚本产物必须 lint-clean）。**两条缺一 → 留 agent/md。迁移期一律 agent**
-> （迁移 = 格式未定之时，脚本只认识当前形态）。
-
-- **已固化**（五子命令都满足两条）：log 追加+截断 / index 条目增删 / touch `updated`+清
-  reviewed 戳 / new 脚手架（5 必填 frontmatter + H1，slug 校验 + 拒覆盖）/
-  memory 条目+索引行。**留 md**：摘要写作、entity/concept 是否新建、矛盾处理、query
-  综合与归档征询、语义合并——都要读内容做判断
-- **逃生舱**：手写始终合法、lint 兜底——脚本是默认路径不是闸门，agent 遇到脚本不支持
-  的形态退到 Edit/Write 不算违规
-- **脚本不自带内容知识**：不生成摘要、不嵌正文模板（SSOT 在 page-templates.md）、不做
-  语义合并——想往脚本里加"理解"就是边界被侵蚀的信号
-- **常量单一来源 + 版本防护**：`llmw.content.wiki_write` 从 `llmw.content.wiki_lint` /
-  `llmw.content.log_format` import（VALID_TYPES / LOG_RETENTION_LIMIT / LOG_LINE_RE 等），
-  format 改格式变更点不增；启动时 wiki §七 版本与 SKILL 不一致 → 警告"先 upgrade 再写"（不阻断）
-
-### 四层架构——为什么是四层
-
-参考 Karpathy gist 的核心论断：**"Knowledge 的累加依赖纪律，不依赖意志力"**。
-四层各自承担一个责任，互相制衡：
-
-1. **`raw/` 真相之源**——用户只管策划原始资料，对 LLM 只读。两处写权限例外（`raw/external/` symlink 接入 + `raw/discussions/` 协作草稿）的归属与完整纪律（含"wiki 与 raw 矛盾以 raw 为准"4 条）见 核心原则 §1 + [`external-repo.md`](references/external-repo.md) / [`ingest-workflow.md §10`](references/ingest-workflow.md#十rawdiscussions-草稿消化可选入口)。
-2. **`wiki/` 复利资产**——LLM 拥有这一层（5 个内容页子目录 + index.md）。人类**不写**
-   wiki 内容，只读 + 提问题。每次摄入新资料或回答新问题，wiki 都变得**更厚**而不是更乱。
-3. **`MEMORY/` agent 持久化记忆（与 `wiki/` 平级）**——LLM agent 工作中沉淀的经验 /
-   踩坑 / 用户偏好，用户不写。为什么放 `<wiki-root>/` 而非 `wiki/` 内：物理位置跟逻辑
-   分层对齐（独立于 wiki/ 内容），将来 publish 时自然留作私有层不外传。`MEMORY.md`
-   是索引单一真源（无 frontmatter），AGENTS.md 顶部 `@MEMORY/MEMORY.md` 加载，改只改
-   这一处、无副本漂移。操作细则在核心原则 §9 + 工作流 §4。
-4. **`AGENTS.md` 纪律配置（SSOT）+ `CLAUDE.md` 薄壳**——把"wiki 怎么写 / 写什么 /
-   不写什么"的约定集中到 `AGENTS.md`（工具无关单一真源），是维护本 wiki 的 agent 的
-    "宪法"；`CLAUDE.md` 是 `@AGENTS.md` 薄壳（薄壳方法：一套真源、
-    多 agent 兼容）。顶部 `@MEMORY/MEMORY.md` + `@scripts/SCRIPTS.md` 两行 `@import` 收口 +
-   强制 Read 指令兜底（§14.3）。没有它，LLM 会退化成普通聊天机器人；
-   有它，LLM 是"纪律严明的 wiki 维护者"。
-
-### 四个核心操作的复利关系
-
-四个操作双向回报：ingest 让 query 更好用、query 让 wiki 更厚、lint 让 ingest 不越积越乱、upgrade 让长跑 wiki 在 format 演进时不掉队——单独跑任一个都亏。四者的输入 / 输出见「输入 / 输出 · 操作产物」。
-
 ## 执行原则 / 边界
 
 ### 核心原则
@@ -144,112 +99,38 @@ metadata:
 > 四件套任一未读完不写任何 wiki 内容。100+ 页的 wiki 还应在 `wiki/` 全域
 > `Grep "<topic>"` 补一次——单看 index.md 可能漏掉 entity/concept 页之间的引用关系。
 
-1. **raw/ 由用户掌控，LLM 只读**（schema 见 `<wiki-root>/AGENTS.md` §一）——LLM 从不写/删/移 `raw/` 下文件；
-   用户可随时新增/更新 raw/（重新剪藏、重存 PDF 都算），改动由 ingest 重新消化（更新对应 source 页正文 +
-   `updated`，`llmw wiki ingest-diff --check-stale` 按 mtime vs source `updated` 标记待重新摄取项）
-   **两处写权限例外**：
-    - `raw/external/` 顶层（**扁平布局**）下 LLM 可主导创建 symlink + 写 anchor 的
-      `[[entry]]` 块（详 §1 批处理摄取外部代码仓子节 + external-repo.md §1.3）。`raw/external/`
-      接入的 **target 仓内文件**按角色分：wiki 维护操作（ingest / query / lint / upgrade）
-      中只读；**用户明确要求的开发协作**（修 bug / 重构）不属 wiki 操作、不受 raw/ 只读约束
-      （target 在仓外、由用户全权处置）——详 external-repo.md §1.3
-    - `raw/discussions/` 用户 + LLM **双方可写**的协作草稿层（不要求 frontmatter / 不进
-      index / 不写 log；`llmw wiki ingest-diff` 跳过、`raw-modified` lint 排除、`sources:` 不得指向它）；
-      草稿消化进 wiki 两条路（消化式 / 转正式 `mv`）都需用户确认——详 ingest-workflow.md §10
-2. **wiki/ 由 LLM 撰写**——用户从不手写 wiki 页面（编辑 AGENTS.md 除外，那是 schema）
-3. **AGENTS.md 是 schema 不是文档**——它承载 wiki 的纪律配置，不往里塞内容（完整纪律见
-   AGENTS.md 模板（CLI 包内）§六「本文件本身的纪律」）。
-    **写新纪律先判归属**：过在场 / 状态 / 人格三测试（wiki 属性；「做错」限定为状态
-    不合法 / 腐烂，写作质量类方法不算）→ 写模板；干活方法 /
-    工具 / 路由 → 留本文件。
- 4. **每次写入必更 log.md——追加一律走 `llmw wiki write log`**（格式 + 满
-    `LOG_RETENTION_LIMIT` 自动截断由脚本保证，见 §设计决策「机械 vs 判断」）；lint
-    `log-format` / `log-truncation-recommended` 只兜底带外手改
- 5. **每页必带 YAML frontmatter——新建页走 `llmw wiki write new`**（5 必填（`title` /
-    `type` / `created` / `updated` / `tags`）+ 推荐 `description`（`index.md` 条目摘要
-    从它来）由脚本脚手架保证；slug 校验 + 拒覆盖）。
-    **为什么是这 5 个**见 page-templates.md §一（OKF 字段齐全性 × lint
-   一致性的最小交集；少于 5 字段会让"抓腐烂"判定失效）。
-   **例外**：
-   - `wiki/index.md` = **6 键必填**（5 必填 + `okf_version`）/ `wiki/log.md` = **5 键必填**
-     （均省 `description`）
-   - `MEMORY/MEMORY.md` / `wiki/tags.md` = **无 frontmatter**（索引片段 + tag 白名单）
-   - `MEMORY/*.md` = **仅 `title` 必填**（其余 5 字段全 optional——MEMORY 是 agent
-     私有记忆，frontmatter 是可选 decoration）；`type` 若取扩到 7 类（5 内容页 + `memory` /
-     `memory-entry`）；`tags` 若取**不**走 `wiki/tags.md` 白名单；`reviewed` / `reviewed_at`
-     不进 lint 兜底（MEMORY 无"人工 review"语义角色）
-   **权威定义**（`type` 取值 / reserved 规则 / `sources` 字段特化 / 可信度信号
-   `reviewed` / `contested` / `contradictions`）见 [`references/page-templates.md`](references/page-templates.md) §一
-   ——本条不重抄，lint 阈值同步以该处为准。**`tags` 管理见 §核心原则 §11**。
-6. **交叉引用走相对路径**——`[link](sources/bigtable.md)`，不用绝对路径，不用 wikilink
-7. **index.md 是 wiki 内容页的单一入口**——所有非 log / 非 MEMORY 的页面必须在 `wiki/index.md` 中出现
-8. **query 的好答案必问"是否归档"**——能写回 wiki 的不要浪费在聊天里
-9. **`MEMORY/` 是 LLM agent 的私有记忆**——遇到踩坑、发现用户偏好、跨 ingest 关联
-   时主动追加；**新条目走 `llmw wiki write memory add`**（frontmatter 仅 `title` 必填 +
-   原子追加 `MEMORY.md` 索引行，`memory-not-indexed` 创建期免疫）；**不在 index.md
-   强制列出**。MEMORY 沉淀只改 `MEMORY.md` 这一份、无副本漂移。写入流程见工作流 §4。
-10. **LLM 修改已审核页必须清 `reviewed` 戳——每次编辑后跑 `llmw wiki write touch`**
-    （自动 `updated`=现在 + 删 `reviewed` / `reviewed_at`，见 §设计决策「机械 vs 判断」）；
-    `llmw wiki lint` 用 `reviewed-stale` 兜底。完整生命周期规则见
-    [page-templates.md](references/page-templates.md)「可信度与认知质量信号」段
-    （content-owned 纪律 canonical，详见 [page-templates.md §一「可选：可信度与认知质量信号」](references/page-templates.md#可选可信度与认知质量信号)）。
-
-11. **tag 白名单在 `wiki/tags.md`**——LLM auto-extend bullet +
-    用户审计循环（删 bullet → 下次 lint 报 `tag-not-in-taxonomy` 由用户裁定）；`wiki/tags.md` 无
-    frontmatter，与 `MEMORY/MEMORY.md` 同形态。跨 format 升级走 `llmw wiki lint --check-version --apply`。
-    取值 / 解析 / 审计循环规则由 `wiki/tags.md` fixture 头部说明块承载（canonical，
-    落盘进实例直接可读）。
-
-12. **本 wiki 自维护脚本走 `<wiki-root>/scripts/` + `SCRIPTS.md` 索引**——`SCRIPTS.md`
-   单段形态：每脚本以 `` - `<name>` — <一句话用途> `` one-liner 起头 + `### <name> — <label>`
-   子节含 4 要素契约（使用场景 / 调用约定 / 作用 / 可选前置依赖）。AGENTS.md 顶部
-   `@scripts/SCRIPTS.md` `@import` 自动加载全文——agent **必须**先看该索引行知道有哪些脚本，
-   再按需 `Read scripts/SCRIPTS.md` 取完整契约（`@import` 展开后即见），按"调用约定"显式执行，
-   **不**自动遍历 `scripts/`；改脚本只改 `SCRIPTS.md` 这一份。`scripts/` 不走 §9 5 必填、
-   不参与 `llmw wiki lint` 扫描、不复制 skill 自带脚本（版本漂移风险）。
-   使用纪律由 `scripts/SCRIPTS.md` fixture 头部说明块承载（canonical，落盘进实例直接可读）。
+1. **raw/ 由用户掌控，LLM 只读**——完整纪律（含两处写权限例外 + 滑坡防线 + target 角色切分）见 `<wiki-root>/AGENTS.md` §一 + [`references/external-repo.md`](references/external-repo.md) / [`references/ingest-workflow.md §10`](references/ingest-workflow.md#十rawdiscussions-草稿消化可选入口)
+2. **wiki/ 由 LLM 撰写**——用户不写 wiki 页（编辑 AGENTS.md 除外）；纪律见 `AGENTS.md` §一 `wiki/` 节
+3. **AGENTS.md 是本 wiki 纪律的 SSOT，不是文档**——禁手改（byte-owned by CLI）；自定义纪律沉淀去 MEMORY/（详见 `AGENTS.md` §六）
+4. **每次写入必更 log.md——追加走 `llmw wiki write log`**（格式 + `LOG_RETENTION_LIMIT` 截断由脚本保证）；lint 只兜底带外手改。**逃生舱**：脚本不支持的形态手写 Edit/Write 合法、lint 兜底——脚本是默认路径不是闸门
+5. **每页必带 YAML frontmatter——新建页走 `llmw wiki write new`**（5 必填 + 推荐 `description`）。权威定义（`type` 取值 / reserved / `sources` 特化 / 可信度信号）见 [`references/page-templates.md`](references/page-templates.md) §一；例外清单（index / log / MEMORY / MEMORY*）同节
+6. **交叉引用走相对路径**——`[link](sources/foo.md)`，禁用 wikilink / 绝对路径；详见 `AGENTS.md` §二.5
+7. **index.md 是 wiki 内容页的单一入口**——所有非 log / 非 MEMORY 页必须在 index.md 出现；详见 `AGENTS.md` §一 `wiki/index.md`
+8. **query 的好答案必问"是否归档"**——能写回 wiki 的不浪费在对话里；详见 `AGENTS.md` §四 + 工作流 §2
+9. **MEMORY/ 是 LLM agent 的私有记忆**——新条目走 `llmw wiki write memory add`；只改 `MEMORY/MEMORY.md` 这一份（无副本漂移）。物理位置在 `<wiki-root>/` 而非 `wiki/` 内 = publish 时自然留作私有层不外传；写入流程见工作流 §4
+10. **LLM 修改已审核页必须清 `reviewed` 戳**——每次编辑后跑 `llmw wiki write touch`；生命周期规则 canonical 见 [`page-templates.md`](references/page-templates.md#可选可信度与认知质量信号) "可信度与认知质量信号"段；lint 用 `reviewed-stale` 兜底
+11. **tag 白名单在 `wiki/tags.md`**——取值 / 解析 / 审计循环 canonical 在 fixture 头部说明块（落盘即读）；lint 语义见 [`lint-checklist.md §11`](references/lint-checklist.md#11-tag-taxonomy-校验)
+12. **scripts/ 由 `SCRIPTS.md` 索引承载**——`@import` 自动加载；agent 先看索引行再按需 Read，不自动遍历；详见 `AGENTS.md` §一 `scripts/` + fixture 头部说明块
 
 ### 边界
 
-- **不**编辑 `raw/` 下任何文件——LLM 只读（两处写权限例外：`raw/external/` symlink 接入 +
-  `raw/discussions/` 协作草稿；完整规则见核心原则 §1 + external-repo.md / ingest-workflow.md §10，**不得外推**到
-  papers / articles / clippings 等其他子树——滑坡防线见 ingest-workflow.md §10.4）
-- **不**删除 `wiki/` 下的页面——用 `archived: true` 标记 + 从 index 移除；想真删直接删文件（启用 git 时用 `git rm`，未启用时用普通 `rm`）
 - **不**绕过 `AGENTS.md` 自创约定——若 AGENTS.md 没说的，**先问用户**再写
 - **不**在 query 时偷偷归档——必须先展示答案 + 询问用户
 - **不**忽略 lint 报告——长期不 lint 的 wiki 一定会腐烂
-- **不**用 git 操作破坏 raw/ 不可变性——`git clean` / `git checkout -- raw/` 仅在启用 git
-  时适用；未启用 git 时没有"未提交改动"概念（lint 自动跳过此项）
-- **不**对 wiki 内文件用 Read 之外的工具做"自动"修改——所有修改走 Edit / Write 并
-  走 schema 约定
-- **不**忽略 `scripts/SCRIPTS.md` 索引直接遍历 `scripts/` 跑脚本——必须先 `Read` 索引定位工具
-  - 按段中调用约定执行（详见核心原则 §12）
+
+> 其余纪律（raw 只读、wiki 拥有、log/index/MEMORY/scripts、交叉引用、git 操作、编辑工具）
+> 与 `AGENTS.md` §一 §二 完全重合，详见该文件；不在此重抄。
 
 ### 反模式（绝对禁止）
 
 - 在 wiki 页面里手写"先写一段话再贴图"等散文式总结（散弹式散落口径冲突的根源）
 - 把同一个概念分散在多个 entities/ 文件里（必须先 search 是否已有同名页）
-- 改 wiki 不追加 log 条目就收工——失去操作语义记录（正路：`llmw wiki write log`，
-  见核心原则 §4）
-- 跨 wiki 互引但不更新对端 index（两套 wiki 同步是用户的责任）
-- 用 Obsidian-only 语法（`[[wikilink]]`、`![[embed]]`）——本 skill 假设通用 Markdown
-- 把 `llmw` 的确定性工具源码（`llmw.content` 的 lint / ingest-diff / fixtures / wiki_write）
-  复制进 `<wiki-root>/scripts/`——工具由 llmw CLI 统一提供，复制只会产生版本漂移；
-  本 wiki 自维护脚本若需要，应直接调 `llmw` 子命令并同时更新 `SCRIPTS.md` 索引段
-- 把外部代码仓接入走 `cp -r` 内嵌到 `raw/` 而非 `raw/external/` symlink——占用空间 + 违反 external-repo.md §1 纪律
-- 修改 anchor 的 `remote_url` / `branch` 字段——这两个字段是接入意图，
-  不是机器状态（详见 [`references/external-repo.md`](references/external-repo.md) §二）
-- 绕过 anchor 直接 `ln -s`——没有对应 `[[entry]]` 的 symlink = lint 报
-  `external-anchor-orphan`
-- 在 `raw/external/` 下开 `<source-name>/` 子目录——扁平布局，
-  所有 symlink 直接 in `external/`；违规子目录会被 lint 报 `external-source-name-invalid`
-- 把 `raw/discussions/` 或 `raw/external/` target 的可写性**外推**到 raw/ 其他子树——
-   "discussions/ 能改，papers/ 我也能改" / "target 能改，raw/ 也能改" 是典型滑坡
-   （discussions/ + external/ 是**仅有的**两处例外，其余 raw/ 子树 LLM 只读；防线见 ingest-workflow.md §10.4）
-- 让 `type: source` 页的 `sources:` 指向 `raw/discussions/`——草稿不是真相源，
-   lint 报 `source-in-discussions`（error）；要引用先走 ingest-workflow.md §10.3 转正式
-- 用 `raw/discussions/` 规避 ingest 纪律——把草稿内容塞进 wiki 页却不走 log / index /
-  清 `reviewed` 戳，即绕开 §15.3 provenance 约束
+- 改 wiki 不追加 log 条目就收工——失去操作语义记录（正路 `llmw wiki write log`，见 §核心原则 §4）
+- 跨 wiki 互引但不更新对端 index（同步是用户责任）
+
+> 其余反模式（raw 操作违规、wikilink、复制 llmw 源码、anchor 字段修改、external 子目录布局、
+> discussions 外推、source-in-discussions 等）与 `AGENTS.md` §一 §二 /
+> [`references/external-repo.md`](references/external-repo.md) §二 完全重合，详见该文件。
 
 ### 反合理化三件套（纪律型 skill 必带）
 
@@ -434,7 +315,7 @@ AGENTS.md 模板 §一「MEMORY/」节 + 仓库根 `MEMORY/MEMORY.md` 索引自�
 **触发**：用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / format 升级 / 是否需要
 reformat"；或 `llmw wiki lint` 报告 legacy warn。
 
-**职责：** CLI（`llmw wiki lint --check-version`）是探测器，只扫不修；agent 按 stdout JSON 返回的 upgrade plan + `fixtures_actions[]` 用 Edit/Write 修复。迁移期不走 `llmw wiki write`（准入规则例外，见 §设计决策「机械 vs 判断」）；迁移依据 SSOT = plan actions[] + upgrade-workflow.md §六；**不**追加 log 条目。
+**职责：** CLI（`llmw wiki lint --check-version`）是探测器，只扫不修；agent 按 stdout JSON 返回的 upgrade plan + `fixtures_actions[]` 用 Edit/Write 修复。迁移期不走 `llmw wiki write`（脚本只认识当前形态——迁移 = 格式流动期，硬编码会破坏）；迁移依据 SSOT = plan actions[] + upgrade-workflow.md §六；**不**追加 log 条目。
 
 **完整步骤**（含 fixtures 一致性检查 10 类约定文件 / `agents-md-template-sync` 处理 /
 语义合并规则 / 脚本 vs LLM 合并决策树 / 清理临时文件）见

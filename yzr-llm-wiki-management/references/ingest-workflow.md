@@ -229,49 +229,6 @@ url: <原始链接>
 
 ## 十、raw/discussions/ 草稿消化（可选入口）
 
-> **维护方**：**用户 + LLM 共有**。discussions/ 是 raw/ 内**第二处**写权限例外
-> （第一处是 §external 的 symlink + anchor）：一个用户 + LLM 双方可写的协作草稿层，
-> 承载临场讨论 / 设计草稿 / 待整理笔记。
-
-### §10.1 边界
-
-| 维度 | 规则 |
-| --- | --- |
-| 路径 | `<wiki-root>/raw/discussions/`（存在时适用本段语义） |
-| 谁可写 | 用户 + LLM **双方**可创建 / 编辑 / 删除——raw/ 内除 external 外唯一 LLM 可写子树 |
-| 性质 | 协作草稿——不是"用户掌控的真相源"，不要求 frontmatter，不参与复利结构 |
-| index / log | **不**进 `wiki/index.md`；写 discussions/ **不**追加 log（非 wiki 操作，显式豁免"每次写入必更 log"） |
-| git 跟踪 | 默认跟踪（与 raw/ 其余子树一致）；草稿随 wiki 仓一起进 git history |
-
-### §10.2 与 ingest / lint 的脚本契约
-
-discussions/ 的可写性靠三道脚本契约兜底，**不**靠自觉：
-
-1. **`llmw wiki ingest-diff`**——扫描 `raw/` 时跳过 `raw/discussions/`
-   （与 `assets/` 同机制）：草稿**不**被当 untracked 素材列出，避免诱导 LLM 把自己写的
-   草稿当 raw 真相 ingest 回 wiki（provenance 后门）
-2. **`llmw wiki lint` `raw-modified`**——raw 不可变性检查从 `git status` 改动里
-   **排除** `raw/discussions/` 路径：草稿的未提交改动**不**触发"raw 被违规改"告警
-3. **`llmw wiki lint` `source-in-discussions`**（error）——`type: source` 页的
-   `sources:` 字段**不得**指向 `raw/discussions/` 下任何路径：堵住"草稿直接被引用为真相源"
-   的后门。要引用其内容，先走 §10.3 把草稿转正式
-
-### §10.3 归档路径（草稿 → wiki 真相，两条都需用户确认）
-
-草稿消化进 wiki 有两条路径，**都需用户明确确认**：
-
-1. **消化式**（讨论结论型）——LLM 把结论写进 `wiki/` 对应页（syntheses / concepts /
-   comparisons），原稿留 / 删自便；走标准 ingest / query 流程（含 log 条目、index 同步）。
-   原稿不进 `sources:`
-2. **转正式**（草稿本身要被检索 / 引用）——用户确认后 LLM 把文件 `mv` 到
-   `raw/articles/`（或 `papers/` / `clippings/` 等合适子树），此后它回归**只读**真相源、
-   走标准 ingest（写 `wiki/sources/<slug>.md` + `sources:` 指向 mv 后的路径）。这是
-   raw/ 只读的**第二处 mv 例外**（第一处是 external 接入时的 symlink 创建）：表述为
-   "**仅限** discussions/ 迁出 + 用户明确要求"，迁入正式子树后 LLM **不可**再改
-
-### §10.4 滑坡防线（反模式）
-
-- ❌ 把 discussions/ 当成 wiki 的草稿箱——草稿不是"待消化的来源"，消化必须用户确认
-- ❌ source 页 `sources:` 指向 discussions/ 路径——先 mv 到正式子树再引
-- ❌ agent 顺手改 external target 仓内容时把改动写进 discussions/——角色切分不混淆
-- ❌ 把 discussions/ 外推成"raw/ 内所有子树都可写"——discussions/ 是**唯一**例外
+> **完整纪律**（路径 / 谁可写 / 脚本契约三道 / 归档路径两条 / 滑坡防线）已在
+> `<wiki-root>/AGENTS.md` §一 `raw/discussions/` 节承载——agent 运行期必读本项，
+> 此处不重抄。两条归档路径（消化式 / 转正式 `mv`）同样详见 AGENTS.md。

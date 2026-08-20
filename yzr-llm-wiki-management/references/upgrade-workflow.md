@@ -26,7 +26,7 @@ reformat"；或 `llmw wiki lint` 报告 legacy warn。
   `report.upgrade_plan`）+ [`upgrade-workflow.md`](upgrade-workflow.md)（§六 语义合并
   规则）用 Edit/Write 改 frontmatter / 移文件 / 补索引 / 改 AGENTS.md §七
 - **迁移期不走 `llmw wiki write`**——迁移 = 格式流动期，机械写命令只认识当前形态
-  （准入规则例外，见 SKILL.md §设计决策「机械 vs 判断」）
+  （迁移期例外：格式流动期脚本只认识当前形态，硬编码会破坏）
 - **迁移依据 SSOT** = plan `actions[]`（`remove` / `add_or_modify` / `to_action` 自含）
   与 本文件 §六（语义合并规则）——不另设历史档案；agent 与脚本都引用
 - **不**追加 log 条目——迁移是脚本运行，不是 wiki 操作事件
