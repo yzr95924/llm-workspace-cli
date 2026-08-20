@@ -1,18 +1,15 @@
 ---
 name: yzr-llm-workspace-management
 description: |
-  当用户要管理由 yzr-llm-wiki-management 维护的多个本地 wiki 时使用本 skill：在 workspace
-  层级扫描所有 wiki、生成与维护全局 INDEX.md / STATS.md / LINT.md，做跨 wiki 综合问答
-  （路由 / 合成 / 对比 / 局部），维护跨 wiki 交叉引用，做 workspace 级 lint，沉淀跨 wiki
-  agent 私有记忆到 MEMORY/。弥补 workspace CLI 只能管元数据不能感知内容的缺陷——CLI 负责
-  确定性元数据操作，本 skill 负责需要 LLM 判断的跨 wiki 决策。
-  触发："总结我所有 wiki 中关于 X 的内容" / "对比 wiki A 和 wiki B 对 Y 的看法" / "这个问题
-  该查哪个 wiki" / "扫一下我的 workspace" / "workspace 整体 lint" / "记一下：用户偏好按
-  时间线分 wiki" / "wiki A 的 X 在 wiki B 也有，加个链接" / "升级 workspace / 迁移到最新
-  format / 检查 workspace 版本"。
-  不适用：单 wiki 的 ingest / query / lint（走 yzr-llm-wiki-management）；workspace / wiki
-  元数据 CRUD（走 workspace CLI）；云端协作 wiki（走 yzr-outline-wiki）；一次性文档生成
-  （直接用普通文件写入流程）。
+  当用户要管理多个本地 LLM wiki（yzr-llm-wiki-management 体系）的 workspace 整体时使用本
+  skill——跨 wiki 扫描与全局索引（INDEX/STATS/LINT）、跨 wiki 问答（路由/合成/对比）、
+  跨 wiki 交叉引用、workspace 级 lint、跨 wiki 记忆（MEMORY/）。
+  触发："总结我所有 wiki 中关于 X" / "对比 wiki A 和 B 对 Y" / "这问题该查哪个 wiki" /
+  "扫一下我的 workspace" / "workspace 整体 lint" / "wiki A 的 X 在 B 也有，加个链接" /
+  "升级 workspace / 检查 workspace 版本"。只要涉及多个 wiki 或 workspace 整体——即使没
+  明说 workspace 或 skill 名，也务必使用本 skill。
+  不适用：单 wiki 操作（走 yzr-llm-wiki-management）；元数据 CRUD（走 workspace CLI）；
+  云端协作 wiki（走 yzr-outline-wiki）。
 metadata:
   author: Zuoru YANG
   category: knowledge-base
