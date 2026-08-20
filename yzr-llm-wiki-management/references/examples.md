@@ -10,18 +10,18 @@
 **执行**：
 
 ```text
-1. 告知用户：本 skill 不直接创建 wiki 仓；wiki 创建由 workspace CLI 负责
+1. 告知用户：本 skill 不直接创建 wiki 仓；wiki 创建由 workspace CLI（`llmw`）负责
    → 推荐路径建议在 ~/wiki/llm-systems
-2. 用户调 workspace CLI（具体命令以 CLI 文档为准）：
-   workspace wiki init "LLM Systems" --root ~/wiki/llm-systems
-    → CLI 按包内模板落盘目录 + AGENTS.md（SSOT）+ CLAUDE.md（薄壳）+ index.md + log.md + .gitignore
-   → CLI 不碰 git（git 由用户自行 init）
+2. 用户调 workspace CLI（具体命令以 `llmw wiki add --help` 为准）：
+    llmw wiki --name=llm-systems add --topic="LLM Systems"
+     → CLI 按包内模板落盘目录 + AGENTS.md（SSOT）+ CLAUDE.md（薄壳）+ index.md + log.md + .gitignore
+    → CLI 不碰 git（git 由用户自行 init）
 3. LLM agent 接管后：
-   → 读 ~/wiki/llm-systems/AGENTS.md 确认主题名替换正确（CLAUDE.md 是薄壳，行数 ≤ 30）
-   → 验证 wiki/index.md / wiki/log.md 存在且 frontmatter 完整
-   → 提示用户：raw/articles/ 作为"资料投放口"，可放剪藏 / PDF / 笔记
+    → 读 ~/wiki/llm-systems/AGENTS.md 确认主题名替换正确（CLAUDE.md 是 `@AGENTS.md` 薄壳）
+    → 验证 wiki/index.md / wiki/log.md 存在且 frontmatter 完整
+    → 提示用户：raw/articles/ 作为"资料投放口"，可放剪藏 / PDF / 笔记
 4. 提示用户：wiki 根目录内的 AGENTS.md 经薄壳 CLAUDE.md 自动加载（经薄壳加载的 agent），
-   或被原生读 AGENTS.md 的 agent 直读；别处工作时 skill 经 $LLM_WIKI_ROOT 按需读取，不必 symlink
+    或被原生读 AGENTS.md 的 agent 直读；别处工作时 skill 经 $LLM_WIKI_ROOT 按需读取，不必 symlink
 ```
 
 ## 样例二：ingest 一份原始资料
@@ -95,13 +95,13 @@
 **执行**：
 
 ```text
-1. 跑操作前置：Read ~/wiki/llm-systems/AGENTS.md (看到 §七 Wiki Format 版本 = 0.5.0；老 wiki 版本在 CLAUDE.md §七) +
+1. 跑操作前置：Read ~/wiki/llm-systems/AGENTS.md (看到 §七 Wiki Format 版本 = 0.38.0；老 wiki 版本在 CLAUDE.md §七) +
    wiki/index.md + wiki/log.md 最近 30 行
 2. 跑探测：
    llmw wiki --path ~/wiki/llm-systems lint --check-version
    脚本报告：
-     current_format : 0.5.0
-     skill_format   : 0.7.0
+     current_format : 0.38.0
+     skill_format   : 0.39.0
      comparison   : older
      needs_upgrade: true
      [LEGACY] 共 3 处老格式现场（示意输出）
@@ -119,7 +119,7 @@
 5. agent 从 stdout JSON 读 plan.actions[] 逐项 Edit/Write 修复:
    - 3 处 frontmatter-retype（wiki 内容页误用 reserved `type: memory` → agent 按页面真实语义
      裁定改为 5 类内容页之一；注：占位默认 `memory-entry` 仅适用于 MEMORY 桶，wiki 内容页必须替换）
-6. Edit 改 ~/wiki/llm-systems/AGENTS.md §七 "Wiki Format 版本" 0.5.0 → 0.7.0
+6. Edit 改 ~/wiki/llm-systems/AGENTS.md §七 "Wiki Format 版本" 0.38.0 → 0.39.0
 7. 重跑 llmw wiki lint --check-version 验证:
      needs_upgrade: false ✓ 完成
 8. 告诉用户完成，无残留冲突

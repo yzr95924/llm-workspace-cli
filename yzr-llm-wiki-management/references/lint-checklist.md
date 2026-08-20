@@ -134,7 +134,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 10. log.md 条目数（log-truncation）
 
 - `log-truncation-recommended`（warn）：条目数 > `LOG_RETENTION_LIMIT`
-  （`llmw.content.wiki_lint` 常量，默认 50）——完整历史靠 git（`git log -p -- wiki/log.md`）。正路：
+  （`llmw.content.wiki_lint` 常量）——完整历史靠 git（`git log -p -- wiki/log.md`）。正路：
   `llmw wiki write log` 写入时自动截断；带外手改超限才由 agent Edit 删最旧保最近 N
 
 ### 11. Tag Taxonomy 校验
@@ -198,7 +198,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 跑完 deterministic 检查后，agent 应当再做以下检查（**仅在 wiki 规模 < 200 页
 时人工做**——更大规模需 LLM-based 自动检查）：
 
-### 17. 矛盾主张
+### 16. 矛盾主张
 
 - 同一概念 / 实体在 ≥ 2 个页里被以**矛盾方式**描述（**内容层**矛盾，区别于 §二.13 的
   frontmatter `contested` 信号——后者是作者已标注、本项是 agent 主动发现未标注的）
@@ -208,31 +208,31 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
   `contradictions` 互指（让 §二.13 后续能持续追踪）
 - **严重性：warning**——可能需要更深入调研
 
-### 18. 缺失交叉引用
+### 17. 缺失交叉引用
 
 - 概念 X 出现在页面 A 的正文里，但 A 没有链接到 `concepts/x.md`
 - 例：`sources/foo.md` 提到 "self-attention" 但没链到 `concepts/self-attention.md`
 - 检查方法：grep 概念名 + 看是否生成了 link
 - **严重性：info**——是 lint 的最高频 finding
 
-### 19. 缺失 entity / concept 页
+### 18. 缺失 entity / concept 页
 
 - 重要概念（出现在 ≥ 3 个 source 页）但没有独立 entity / concept 页
 - 检查方法：grep 候选关键词 + 统计出现次数
 - **严重性：info**
 
-### 20. 调查方向建议
+### 19. 调查方向建议
 
 - 哪些主题"很热门"（多个 source 涉及）但 wiki 内的综合 / 对比页没有
 - 例：5 篇 source 提到 RAG，但 `syntheses/rag-evolution.md` 不存在
 - **严重性：info**——这是"建议新摄取 / 新合成"的机会
 
-### 21. 资料投放口是否堆积
+### 20. 资料投放口是否堆积
 
 - `raw/articles/` 是否有大量未摄取文件（跑 `llmw wiki ingest-diff` 即可知）
 - **严重性：info**——堆积太久会让 ingest 时信息过载
 
-### 22. 漂移点引用
+### 21. 漂移点引用
 
 - 正文引用上游可变、且无机制能感知其变化的事实——按
   [ingest-workflow.md §七](ingest-workflow.md#七正文引用的稳定性漂移点规避)
@@ -273,7 +273,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 2. **询问用户先修哪些**——不要一次全修（容易回退或引入新问题）
 3. 修完后**重新跑 lint 验证**——不要带着 fix 没验过的状态前进
 4. 若启用 git，重大修复 commit 时建议加 `lint: <summary>` 前缀；裸目录树 wiki 跳过 commit 步骤
-5. **若跑 fixtures-check**——按 §五 Decision tree 区分脚本 vs LLM 修；
+5. **若跑 fixtures-check**——按 [`upgrade-workflow.md` §6.6](upgrade-workflow.md#66-决策树脚本-vs-llm-合并) 区分脚本 vs LLM 修；
    `fixtures-fix-*` 系列可通过 Edit 落，`fixtures-fix-anchor-merge/-schema/-symlink-matches`
    三条要走 [`upgrade-workflow.md`](upgrade-workflow.md) §6.3 五步迁移（不是单 Edit）
 

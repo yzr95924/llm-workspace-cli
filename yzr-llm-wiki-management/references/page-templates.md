@@ -3,9 +3,8 @@
 按 `type` 分 5 种。**所有页面**共有 frontmatter 段（见下）+ 类型特定字段 + 自由正文。
 
 > **本文件是 content-owned 产物（wiki 内容页）纪律的 canonical**——frontmatter 字段
-> 全集 / 建页阈值 / 认知质量信号 / 矛盾处理 Update Policy 的唯一维护点（0.37.0 起
-> 从 AGENTS.md 模板迁入；模板不再承载写页规则）。改规则只改本文件 + bump
-> `wiki_format_version`。
+> 全集 / 建页阈值 / 认知质量信号 / 矛盾处理 Update Policy 的唯一维护点（AGENTS.md
+> 模板不再承载写页规则）。改规则只改本文件 + bump `wiki_format_version`。
 
 > **本章顺序说明**：下面按**教学序**列出（基础 → 综合：entity → concept → source
 > → comparison → synthesis）。`type` 取值表与目录结构对应——字母序：`comparison` /
@@ -69,12 +68,7 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 - `type`——驱动 lint 校验 + index 分组；合法值仅上述 5 种（`llmw wiki lint` 强制）。`index.md` /
   `log.md` 是 **reserved 文件**（结构见 §6 / §7），自带 frontmatter，其中 `type: index` /
   `type: log` 仅作标记、lint 跳过它们——不算概念页 type
-- `tags`——用于跨页搜索 + 未来可能的 dataview 查询。**取值必须严格在
-  `wiki/tags.md` 白名单内**——agent 在 ingest /
-  query 遇到新 tag 时**直接追加**到 `wiki/tags.md`（无需询问用户），保持字典随 wiki 生长；
-  用户可随时打开 `wiki/tags.md` **直接删除**误判的 bullet，下次 lint 把残留引用以
-  `tag-not-in-taxonomy`（info）报回来再裁定。详 lint 语义见
-  [`lint-checklist.md`](lint-checklist.md#11-tag-taxonomy-校验)
+- `tags`——用于跨页搜索 + 未来可能的 dataview 查询。**取值必须严格在 `wiki/tags.md` 白名单内**（取值 / 解析 / 审计循环 canonical 在 fixture 头部说明块；lint 语义见 [`lint-checklist.md` §11](lint-checklist.md#11-tag-taxonomy-校验)）
 - `created` / `updated`——**严格** `YYYY-MM-DD HH:MM` 格式（lint 解析用；
   `YYYY-MM-DD` 也接受，按精度宽容解析三种格式：date-only /
   HH:MM / HH:MM:SS）
@@ -123,7 +117,7 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 
 **两道闸门**：
 
-1. **纪律闸门**——生命周期纪律 canonical = 本节（0.37.0 起迁入；AGENTS.md 模板只留
+1. **纪律闸门**——生命周期纪律 canonical = 本节（AGENTS.md 模板只留
    "写页规则见 skill 页面模板文档"指针）
 2. **lint 兜底**——`reviewed-stale` 触发条件：`reviewed: true` 存在 **且** `updated > reviewed_at`，
    把 LLM 漏清戳的页面拎出来提示人复审
@@ -136,7 +130,7 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 - 已审过的页被 LLM 修改后，回到默认未审核状态，等人再次复审
 
 **矛盾处理 Update Policy**（ingest 时遇到"新资料与已有页冲突"时，**不要静默覆盖**，
-按以下顺序处理——0.37.0 起由本文件承载）：
+按以下顺序处理）：
 
 1. **先看日期**——更新的来源一般覆盖旧的；但若旧来源更权威（如官方技术报告 vs 博客），
    保留两者并进入第 2 步
@@ -478,7 +472,7 @@ ingest/query/lint/setup 行推荐带 HH:MM；date-only 也合法）：
 **lint 检查**：
 
 - 每行匹配正则
-- 滚动窗口：条目数 > `LOG_RETENTION_LIMIT`（50）时报 `log-truncation-recommended`；
+- 滚动窗口：条目数 > `LOG_RETENTION_LIMIT`（`llmw.content.wiki_lint` 常量）时报 `log-truncation-recommended`；
   正路 `llmw wiki write log` 写入时自动截断（frontmatter 不动）
 
 ## 三、模板使用规则
@@ -494,8 +488,8 @@ ingest/query/lint/setup 行推荐带 HH:MM；date-only 也合法）：
 ### 建页 / 追加 / 归档阈值（Page Thresholds）
 
 不是每个 entity / concept 都值得独立成页——没阈值 wiki 会被名词堆爆，几个月后 index 翻不到底。
-（0.37.0 起由本文件承载；**宁可错过一个 entity 也不要堆十个空页**——"克制"是 wiki 长期
-可用性的具体化，堆一千个空 entity 后 lint 报告会被噪声淹没。）
+**宁可错过一个 entity 也不要堆十个空页**——"克制"是 wiki 长期
+可用性的具体化，堆一千个空 entity 后 lint 报告会被噪声淹没。
 
 | 动作 | 触发条件 |
 | --- | --- |

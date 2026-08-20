@@ -86,18 +86,12 @@ reformat"；或 `llmw wiki lint` 报告 legacy warn。
    - 若 `needs_upgrade == false` 且无残留 legacy → 告知用户完成
    - 若仍有 → 报告残留 pattern + 转人工
 8. **清理临时文件**（验证通过后，保证 wiki 干净）：删升级过程产出的 `*.bak` 备份。
-   `.migration-plan.json` 已退役（改 stdout 输出，agent 内存持有），
-   wiki 根全程无此文件；`*.bak` 唯一产生点是 anchor 重写备份，已无需回滚，残留无意义且
-   `.gitignore` 已忽略。
 
-   ```bash
-   # `.bak` 唯一产生点是 raw/external/.symlink-anchor.toml 重写备份（深度 3），maxdepth 必须 ≥ 3；
-   # find 默认不 follow symlink，不会顺 raw/external/ 下的外部仓 symlink 扫进巨型代码树
-   find "$LLM_WIKI_ROOT" -maxdepth 3 -name '*.bak' -delete
-   ```
-
-   > **为何不再提 `.migration-plan.json`**：该文件已退役，升级全程 wiki 根**无此文件**，
-   > 残留 by construction 不可能（无需 `rm`）。`*.bak` 仍可能由 anchor 重写产生，故保留删除。
+    ```bash
+    # `.bak` 唯一产生点是 raw/external/.symlink-anchor.toml 重写备份（深度 3），maxdepth 必须 ≥ 3；
+    # find 默认不 follow symlink，不会顺 raw/external/ 下的外部仓 symlink 扫进巨型代码树
+    find "$LLM_WIKI_ROOT" -maxdepth 3 -name '*.bak' -delete
+    ```
 9. **不**追加 log 条目 / **不**触发 ingest / query / lint（保持职责单一）
 
 ## `--json` 联用

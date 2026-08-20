@@ -12,7 +12,6 @@ description: |
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  modify time: 2026-08-17
   wiki_format_version: 0.39.0
 ---
 
@@ -20,7 +19,7 @@ metadata:
 
 按 Karpathy [LLM Wiki 设计哲学](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
 维护一个**本地**、**复利累积**的知识库：用户只管读 + 提供资料 + 提问题，LLM 负责摘要、
-交叉引用、归档、簿记这些"无聊的部分"。和 `yzr-outline-wiki` 等云端 skill 的关键区别是
+交叉引用、归档、簿记这些"无聊的部分"。和各类云端 wiki skill 的关键区别是
 **本地文件 + 三层纪律**——vs 云端 MCP 单层文档。
 
 本 skill 提供三块交付物：
@@ -40,15 +39,13 @@ metadata:
 "何时使用 / 不适用"已在 frontmatter description（含触发词），正文不重抄。本节只补**出路**与
 正文独有负例：
 
-- **云端协作 wiki**（Notion / Confluence / Outline Wiki / GitHub Wiki）——走
-  `yzr-outline-wiki`（搜 / 读 / 写 / 编辑）。两套 skill 方向单向：本地研究沉淀 →
-  云端分享，不冲突
+- **云端协作 wiki**（Notion / Confluence / Outline Wiki / GitHub Wiki）——走对应的云端 wiki skill
 - **一次性文档生成**（不是累积型）——直接用普通文件写入流程
 - **没有 raw/ 资料 + 没有累积需求**——skill 的价值在"复利"，一次性整理用不上
 - **需强结构化数据库**（带 schema / SQL / 全文检索后端）——wiki 规模 ≤ 数百页时
   index.md 足够；超过该规模再考虑迁移到专用工具
 - **多人实时协作**——本 skill 假设单人使用（多账号实时协同走云端 wiki）
-- **系统设计文档写作**（单篇正式设计文档）——走 `yzr-sys-design-doc`
+- **系统设计文档写作**（单篇正式设计文档）——走专门的系统文档 skill
 
 ## 输入 / 输出
 
@@ -102,14 +99,7 @@ metadata:
 参考 Karpathy gist 的核心论断：**"Knowledge 的累加依赖纪律，不依赖意志力"**。
 四层各自承担一个责任，互相制衡：
 
-1. **`raw/` 真相之源**——用户只管策划原始资料，对 LLM 只读。**两处写权限例外**：
-   `raw/external/`（外部代码仓 symlink 接入，LLM 主导，详见 external-repo.md）+ `raw/discussions/`
-   （协作草稿层，双方可写，详见 ingest-workflow.md §10）。完整纪律（含"wiki 与 raw 矛盾以 raw 为准"4 条）
-   在 `<wiki-root>/AGENTS.md` §一（模板见
-   `llmw/content/templates/wiki/agents-md-template.md`（CLI 包内）），操作细则在
-   核心原则 §1 + external-repo.md / ingest-workflow.md §10。`raw/` 下子目录自由组织；
-   `llmw wiki ingest-diff` 递归扫整棵 `raw/`（扩展名白名单 *.md/*.markdown/*.txt；跳过
-   `assets/` + `discussions/`）。
+1. **`raw/` 真相之源**——用户只管策划原始资料，对 LLM 只读。两处写权限例外（`raw/external/` symlink 接入 + `raw/discussions/` 协作草稿）的归属与完整纪律（含"wiki 与 raw 矛盾以 raw 为准"4 条）见 核心原则 §1 + [`external-repo.md`](references/external-repo.md) / [`ingest-workflow.md §10`](references/ingest-workflow.md#十rawdiscussions-草稿消化可选入口)。
 2. **`wiki/` 复利资产**——LLM 拥有这一层（5 个内容页子目录 + index.md）。人类**不写**
    wiki 内容，只读 + 提问题。每次摄入新资料或回答新问题，wiki 都变得**更厚**而不是更乱。
 3. **`MEMORY/` agent 持久化记忆（与 `wiki/` 平级）**——LLM agent 工作中沉淀的经验 /
@@ -119,18 +109,14 @@ metadata:
    这一处、无副本漂移。操作细则在核心原则 §9 + 工作流 §4。
 4. **`AGENTS.md` 纪律配置（SSOT）+ `CLAUDE.md` 薄壳**——把"wiki 怎么写 / 写什么 /
    不写什么"的约定集中到 `AGENTS.md`（工具无关单一真源），是维护本 wiki 的 agent 的
-   "宪法"；`CLAUDE.md` 是 `@AGENTS.md` 薄壳（`yzr-multi-agent-context` 方法：一套真源、
-   多 agent 兼容）。顶部 `@MEMORY/MEMORY.md` + `@scripts/SCRIPTS.md` 两行 `@import` 收口 +
+    "宪法"；`CLAUDE.md` 是 `@AGENTS.md` 薄壳（薄壳方法：一套真源、
+    多 agent 兼容）。顶部 `@MEMORY/MEMORY.md` + `@scripts/SCRIPTS.md` 两行 `@import` 收口 +
    强制 Read 指令兜底（§14.3）。没有它，LLM 会退化成普通聊天机器人；
    有它，LLM 是"纪律严明的 wiki 维护者"。
 
-### 四个核心操作——为什么是四个
+### 四个核心操作的复利关系
 
-ingest / query / lint / upgrade 四个操作各自**双向回报**：ingest 让 query 更好用；
-query 让 wiki 更厚；lint 让 ingest 不会越积越乱；upgrade 让长跑 1-2 年的 wiki 在
-format 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的本质。upgrade 与其他三个
-不同——它是**周期触发**而非每次 wiki 操作触发（format 升版本时才跑），但缺了它老 wiki
-会**腐烂在格式层**而不是内容层，更难察觉。四者的输入 / 输出见「输入 / 输出 · 操作产物」。
+四个操作双向回报：ingest 让 query 更好用、query 让 wiki 更厚、lint 让 ingest 不越积越乱、upgrade 让长跑 wiki 在 format 演进时不掉队——单独跑任一个都亏。四者的输入 / 输出见「输入 / 输出 · 操作产物」。
 
 ## 执行原则 / 边界
 
@@ -206,7 +192,7 @@ format 演进时不掉队。**单独跑任一个都亏**——这就是"复利"�
     （自动 `updated`=现在 + 删 `reviewed` / `reviewed_at`，见 §设计决策「机械 vs 判断」）；
     `llmw wiki lint` 用 `reviewed-stale` 兜底。完整生命周期规则见
     [page-templates.md](references/page-templates.md)「可信度与认知质量信号」段
-    （content-owned 纪律 canonical，0.37.0 起从 AGENTS.md 模板迁入）。
+    （content-owned 纪律 canonical，详见 [page-templates.md §一「可选：可信度与认知质量信号」](references/page-templates.md#可选可信度与认知质量信号)）。
 
 11. **tag 白名单在 `wiki/tags.md`**——LLM auto-extend bullet +
     用户审计循环（删 bullet → 下次 lint 报 `tag-not-in-taxonomy` 由用户裁定）；`wiki/tags.md` 无
@@ -333,7 +319,7 @@ format 演进时不掉队。**单独跑任一个都亏**——这就是"复利"�
 **基本流程**：
 
 ```bash
-# 1. 调 workspace CLI 创建 wiki 仓（`--topic` 必填，`--model` 必须是 registry 里的 model_id）
+# 1. 调 workspace CLI 创建 wiki 仓（`--topic` 可选，缺省 = name；`--model` 若给必须是 registry 里的 model_id）
 llmw wiki --name=llm-systems add --topic="LLM Systems" --model=minimax-m3-1m
 # CLI 按包内模板落盘：目录结构 + AGENTS.md（SSOT）+ CLAUDE.md（薄壳）+
 # wiki/index.md + wiki/log.md + .gitignore + scripts/SCRIPTS.md +
@@ -448,32 +434,10 @@ AGENTS.md 模板 §一「MEMORY/」节 + 仓库根 `MEMORY/MEMORY.md` 索引自�
 **触发**：用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / format 升级 / 是否需要
 reformat"；或 `llmw wiki lint` 报告 legacy warn。
 
-**职责切分**（避免与 ingest / lint 混淆）：
+**职责：** CLI（`llmw wiki lint --check-version`）是探测器，只扫不修；agent 按 stdout JSON 返回的 upgrade plan + `fixtures_actions[]` 用 Edit/Write 修复。迁移期不走 `llmw wiki write`（准入规则例外，见 §设计决策「机械 vs 判断」）；迁移依据 SSOT = plan actions[] + upgrade-workflow.md §六；**不**追加 log 条目。
 
-- **CLI**（`llmw wiki lint --check-version`，内部直接调 `llmw.content` 的 fixtures
-  检查）= 探测器，只扫不修，输出报告 / `--apply` 时 stdout 输出 upgrade plan
-- **agent** = 修复者，按 stdout 返回的 upgrade plan（actions[] 自带
-  remove/add_or_modify/to_action）
-  用 Edit/Write 改
-   frontmatter / 移文件 / 补索引 / 同步 AGENTS.md 到模板（check `agents-md-template-sync` 报错时全量重渲染）；
-  走 plan.fixtures_actions[] 修约定文件；
-  语义合并按 [`references/upgrade-workflow.md` §六](references/upgrade-workflow.md#六语义合并规则) 走
-- **迁移期不走 `llmw wiki write`**——迁移 = 格式流动期，机械写命令只认识当前形态
-  （准入规则例外，见 §设计决策「机械 vs 判断」）
-- **迁移依据 SSOT** = plan actions[] + upgrade-workflow.md §六（语义合并）——
-  不另设历史档案；fixtures-check 的语义合并
-  走 upgrade-workflow.md §六（与 §三 字节合规分离）
-- **不**追加 log 条目（迁移是 CLI 运行，不是 wiki 操作事件）
-
-**fixtures 一致性检查**——`llmw wiki lint --check-version` 内部直接调
-`llmw.content` 的 fixtures 检查（同一进程，非子进程）
-扫 wiki 仓 10 类约定文件（AGENTS.md §七 / .gitignore / index.md / log.md / tags.md /
-MEMORY/MEMORY.md / MEMORY/*.md 条目 / SCRIPTS.md / .symlink-anchor.toml /
-wiki_metadata.toml），finding 并入
-`upgrade plan`（stdout JSON 输出）的 `fixtures_actions[]`（与 legacy `actions[]` 平行）。检查项数 breakdown 见
-[`references/lint-checklist.md`](references/lint-checklist.md)；其中 `agents-md-template-sync`
-对 AGENTS.md 整文做**模板渲染字节比对**——不一致走全量重渲染 + 本地定制搬
-MEMORY/（plan action `fixtures-fix-agents-md-resync`）。**简要流程** + 详细步骤 + 字段清单见
+**完整步骤**（含 fixtures 一致性检查 10 类约定文件 / `agents-md-template-sync` 处理 /
+语义合并规则 / 脚本 vs LLM 合并决策树 / 清理临时文件）见
 [`references/upgrade-workflow.md`](references/upgrade-workflow.md)。
 
 ## 参考样例
