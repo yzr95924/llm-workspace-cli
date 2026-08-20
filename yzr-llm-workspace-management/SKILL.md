@@ -11,7 +11,7 @@ description: |
   wiki 里的内容——即使没明说 workspace 或 skill 名，也务必使用本 skill。
   不适用：单 wiki 内操作（走 yzr-llm-wiki-management）；workspace / wiki 元数据配置、
   加删 wiki、session 启停等单条 llmw 命令操作（直接跑 llmw 即可，见 llmw --help，无需
-  加载本 skill）；云端协作 wiki（走 yzr-outline-wiki）。
+  加载本 skill）；云端协作 wiki（Notion / Confluence / Outline 等）。
 metadata:
   author: Zuoru YANG
   category: knowledge-base

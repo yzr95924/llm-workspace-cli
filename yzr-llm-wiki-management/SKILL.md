@@ -8,8 +8,7 @@ description: |
   触发："把这篇论文摄取进 wiki" / "总结 wiki 里关于 X 的内容" / "wiki 里 A 和 B 说法矛盾，
   帮我协调" / "扫一下 wiki 有没有孤儿页 / 过期摘要" / "升级 wiki / 迁移到最新 format / 检查
   wiki 版本" / "把 X 仓库（源码）纳入 wiki" / "想搭一个 wiki 管理 X"。
-  不适用：云端 / 团队协作 wiki（Notion / Confluence / Outline / GitHub Wiki——走
-  yzr-outline-wiki）。
+  不适用：云端 / 团队协作 wiki（Notion / Confluence / Outline / GitHub Wiki）。
 metadata:
   author: Zuoru YANG
   category: knowledge-base
