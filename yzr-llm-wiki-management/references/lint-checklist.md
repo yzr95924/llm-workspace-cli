@@ -303,10 +303,10 @@ spec §13 相关，详见 lint_wiki.py `check_external_symlinks` docstring。）
 - **不**评估内容质量（不是 fact-checker）——只看结构和纪律
 - **不**评估 frontmatter 的语义是否合理（只检查字段存在性 + 类型合法）
 - **不**取代 schema（`AGENTS.md`）——schema 是源头，lint 是脚本化检查
-- **fixtures 边界**——`check_wiki_fixtures.py` 扫「约定文件」
+- **fixtures 边界**——`llmw wiki check-fixtures` 扫「约定文件」
   （AGENTS.md §八 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
   MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
   wiki_metadata.toml）的合规性：
-  **`metadata.fixtures_check_count`** 条 check（13 条结构探测 + 7 条骨架字段比对，后者读
-  `references/fixtures/` 作 SSOT）；语义合并走 §五
-  由 LLM 判断——脚本不替代人。常规 lint 另跑 `check_spec_version`（§二前置）报版本漂移 warn
+   **`metadata.fixtures_check_count`** 条 check（13 条结构探测 + 7 条骨架字段比对，后者读
+   llmw 包内字节金标准作 SSOT）；语义合并走 §五
+   由 LLM 判断——脚本不替代人。常规 lint 另跑 `check_spec_version`（§二前置）报版本漂移 warn

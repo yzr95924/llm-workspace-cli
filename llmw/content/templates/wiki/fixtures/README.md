@@ -9,7 +9,7 @@ CLI 实现 wiki 仓时落盘的 `wiki/index.md` / `wiki/log.md` / `wiki/tags.md`
 CLI 把 fixtures 视为**带占位符的字节模板**：用用户传入的 mapping
 （`TOPIC_NAME` / `SETUP_DATE`）替换占位符后落盘。CLI 自身不做字节比对——完整 gate 走
 `scripts/test/smoke_fixtures.py`（CI 跑 real `llmw init` + `llmw wiki add` 后用
-`check_wiki_fixtures.py` 探测器断言 0 error）。
+`llmw wiki check-fixtures` 探测器断言 0 error）。
 
 > **注**：`scripts.md.txt` / `memory-index.txt` / `tags.md.txt` 是**无占位符**（直接落盘，
 > fixture 即字面量）；`index.md.txt` / `log.md.txt` 带占位符（渲染后 ≠ fixture）。
@@ -54,13 +54,13 @@ CLI 必须按 `mapping = {"TOPIC_NAME": <用户传入>, "SETUP_DATE": <today YYY
 
 ## AGENTS.md / CLAUDE.md 占位符（不在 fixture 范围）
 
-wiki 根有两份模板产物：**`AGENTS.md`（SSOT）** 由 CLI 拷 `references/agents-md-template.md`、
-**`CLAUDE.md`（薄壳）** 由 CLI 拷 `references/claude-md-template.md`。两者都**不在**本目录 fixture 覆盖范围
+wiki 根有两份模板产物：**`AGENTS.md`（SSOT）** 由 CLI 拷本目录上层的 `agents-md-template.md`、
+**`CLAUDE.md`（薄壳）** 由 CLI 拷同层的 `claude-md-template.md`。两者都**不在**本目录 fixture 覆盖范围
 （fixture 只覆盖 CLI init 时刻的"成品"，AGENTS.md / CLAUDE.md 是模板替换产物）。
 
 > **注**：AGENTS.md 虽不进 fixtures 字节比对，但**有独立的运行时同步检查**——
-> `check_wiki_fixtures.py` 的 `agents-md-template-sync` 从 wiki §八 提取 4 个变量值反向渲染
-> `references/agents-md-template.md`，与 wiki 实际 AGENTS.md 字节比对（spec §10.1）。机制同源：
+> `llmw wiki check-fixtures` 的 `agents-md-template-sync` 从 wiki §八 提取 4 个变量值反向渲染
+> 包内 `agents-md-template.md`，与 wiki 实际 AGENTS.md 字节比对（spec §10.1）。机制同源：
 > 都建立在"AGENTS.md = 模板 + 4 个占位符替换"这一事实上；区别只在本目录管 **init 时刻**、
 > template-sync 管 **init 之后的整个生命周期**（含 spec 升级重渲染）。
 
@@ -76,12 +76,12 @@ CLI 必须替换的占位符：
 CLI 替换后做内容级验证（不能用 fixture 字节比对）：
 
 1. AGENTS.md 的 4 个 `{{...}}` 占位符 + 薄壳 CLAUDE.md 的 `{{TOPIC_NAME}}` **全部被替换**——`grep -c '{{' AGENTS.md CLAUDE.md` 应为 0
-2. 生成的 AGENTS.md §八 "Wiki Spec 版本" 与本 skill `metadata.wiki_spec_version` 一致
+2. 生成的 AGENTS.md §八 "Wiki Spec 版本" 与 `llmw.WIKI_SPEC_VERSION` 常量一致（SKILL.md frontmatter 由 CI gate 与常量比对）
 
 ## 字节级一致性证据
 
 用固定测试 mapping `{TOPIC_NAME: "Test", SETUP_DATE: "2026-06-28 14:30"}` 渲染 fixtures 即得
-原 canonical/ 字面量——`test_check_wiki_fixtures.py` 的 `_fixture()` 与
+原 canonical/ 字面量——`tests/test_content_wiki_fixtures.py` 与
 `scripts/test/smoke_fixtures.py` 的探测器断言共同保证：CLI 或 fixture 任一改坏，
 CI 立即红。
 

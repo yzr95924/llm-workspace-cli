@@ -21,7 +21,7 @@
     1 = blocked_drift
     2 = 自验证失败 / 内部错误
 
-变量 SSOT: workspace.toml.created_at (setup_date) + SKILL.md metadata.workspace_spec_version
+变量 SSOT: workspace.toml.created_at (setup_date) + llmw.WORKSPACE_SPEC_VERSION（包内常量；SKILL.md 前端版本由 CI gate 与常量比对）
 + 版本常量；display_name 例外（workspace.toml 未存），仍需从现有 AGENTS.md §七 / H1 提取。
 """
 
@@ -35,7 +35,7 @@ from typing import Dict, List, Optional
 
 from llmw import WORKSPACE_SPEC_VERSION
 from llmw import __version__ as CLI_VERSION
-from llmw.config import workspace_spec_templates_dir
+from llmw.config import workspace_templates_dir
 from llmw.content import render as _render
 from llmw.content import upgrade as _wiki_upgrade
 from llmw.content import workspace_fixtures
@@ -145,7 +145,7 @@ def _render_growth_memory(old_text: str) -> str:
 
     memory-index.txt 无 frontmatter，结构 = H1 + 说明块 + `## 索引` + 占位 / 条目示例。
     """
-    fixture_text = _read_text(workspace_spec_templates_dir() / "fixtures" / "memory-index.txt")
+    fixture_text = _read_text(workspace_templates_dir() / "fixtures" / "memory-index.txt")
     if fixture_text is None:
         return old_text  # fixture 缺失 → 保持原样（让 check 报 error，self_verify 拦住）
     return _wiki_upgrade._render_growth_headers(old_text=old_text, fixture_text=fixture_text, rel_path="MEMORY.md")
@@ -243,7 +243,7 @@ def plan_resync(ws_root: Path) -> List[Dict[str, object]]:
         current = _read_text(p)
         if current is None:
             # MEMORY.md 不存在 → 直接用 fixture（CLI init 时该建，缺失则补）
-            fixture_text = _read_text(workspace_spec_templates_dir() / "fixtures" / "memory-index.txt")
+            fixture_text = _read_text(workspace_templates_dir() / "fixtures" / "memory-index.txt")
             plan.append(
                 {
                     "rel_path": rel,

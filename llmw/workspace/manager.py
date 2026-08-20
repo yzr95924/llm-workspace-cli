@@ -8,7 +8,7 @@ from typing import List, Optional
 from llmw import WORKSPACE_SPEC_VERSION, __version__
 from llmw._compat import TOMLDecodeError
 from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
-from llmw.config import workspace_spec_templates_dir
+from llmw.config import workspace_templates_dir
 from llmw.content.render import render_workspace_agents_md, render_workspace_claude_md
 from llmw.errors import (
     InvalidConfigKey,
@@ -152,7 +152,7 @@ def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
 
 
 def _write_workspace_memory_index(workspace_root: Path) -> None:
-    """spec §9.1: 拷 references/fixtures/memory-index.txt → <workspace>/MEMORY/MEMORY.md (索引)。
+    """spec §9.1: 拷包内 fixtures/memory-index.txt → <workspace>/MEMORY/MEMORY.md (索引)。
 
     无 frontmatter、被 <workspace>/CLAUDE.md 用 @MEMORY/MEMORY.md import 会话常驻。
     幂等 (spec §9.1): 已存在则跳过——MEMORY 是 LLM agent 私有记忆,init 重跑不应覆盖。
@@ -166,7 +166,7 @@ def _write_workspace_memory_index(workspace_root: Path) -> None:
         # spec §9.1 idempotent: 已存在即跳过;由 skill 在 cross-wiki MEMORY 工作时维护
         return
 
-    refs = workspace_spec_templates_dir()
+    refs = workspace_templates_dir()
     if not refs.is_dir():
         raise SkillMissing(
             f"找不到 workspace SKILL references/ 目录: {refs}",
@@ -177,7 +177,7 @@ def _write_workspace_memory_index(workspace_root: Path) -> None:
     except OSError as e:
         raise SetupFailed(
             f"读取 workspace MEMORY.md fixture 失败: {e.filename}",
-            hint="检查 yzr-llm-workspace-management/references/fixtures/ 是否完整",
+            hint="检查 llmw/content/templates/workspace/fixtures/ 是否完整",
         )
 
     (workspace_root / "MEMORY").mkdir(parents=True, exist_ok=True)

@@ -11,7 +11,6 @@ CLI，只读 skill 侧模板 + fixtures。
 
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -21,25 +20,20 @@ from pathlib import Path
 from llmw.content.render import render_wiki_agents_md
 
 REPO = Path(__file__).resolve().parents[1]
-SKILL_ROOT = REPO / "yzr-llm-wiki-management"
-AGENTS_TEMPLATE = (SKILL_ROOT / "references" / "agents-md-template.md").read_text(
-    encoding="utf-8"
-)
-FIXTURES_DIR = SKILL_ROOT / "references" / "fixtures"
-WIKI_GITIGNORE = (SKILL_ROOT / "references" / "fixtures" / "gitignore.txt").read_text(
-    encoding="utf-8"
-)
+TEMPLATES_WIKI = REPO / "llmw" / "content" / "templates" / "wiki"
+AGENTS_TEMPLATE = (TEMPLATES_WIKI / "agents-md-template.md").read_text(encoding="utf-8")
+FIXTURES_DIR = TEMPLATES_WIKI / "fixtures"
+WIKI_GITIGNORE = (FIXTURES_DIR / "gitignore.txt").read_text(encoding="utf-8")
 
 OLD_VERSION = "0.25.0"  # 真实历史版本——永远小于当前 target_spec
 
 
 def _target_spec():
-    """读 SKILL.md metadata.wiki_spec_version（与 llmw.config 同一 SSOT）。"""
-    text = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
-    m = re.search(r"^[ \t]*wiki_spec_version:[ \t]*(\S+)[ \t]*$", text, re.MULTILINE)
-    if not m:
-        raise AssertionError("SKILL.md 缺 metadata.wiki_spec_version")
-    return m.group(1).strip()
+    """包内常量 llmw.WIKI_SPEC_VERSION（与 SKILL.md frontmatter 同 commit 对齐，CI gate 守护）。"""
+    sys.path.insert(0, str(REPO))
+    import llmw
+
+    return llmw.WIKI_SPEC_VERSION
 
 
 TARGET_SPEC = _target_spec()

@@ -20,7 +20,7 @@ import re
 from pathlib import Path
 from typing import Dict
 
-from llmw.config import wiki_spec_templates_dir, workspace_spec_templates_dir
+from llmw.config import wiki_templates_dir, workspace_templates_dir
 from llmw.errors import SetupFailed
 
 
@@ -56,7 +56,7 @@ def _read_template(path: Path) -> str:
 
 def render_wiki_agents_md(*, topic: str, setup_date: str, cli_version: str, spec_version: str) -> str:
     """渲染 wiki <wiki-root>/AGENTS.md（模板 4 占位符）。"""
-    refs = wiki_spec_templates_dir()
+    refs = wiki_templates_dir()
     tmpl = _read_template(refs / "agents-md-template.md")
     return _substitute(
         tmpl,
@@ -71,21 +71,21 @@ def render_wiki_agents_md(*, topic: str, setup_date: str, cli_version: str, spec
 
 def render_wiki_claude_md(*, topic: str) -> str:
     """渲染 wiki <wiki-root>/CLAUDE.md 薄壳（模板仅 {{TOPIC_NAME}}）。"""
-    refs = wiki_spec_templates_dir()
+    refs = wiki_templates_dir()
     tmpl = _read_template(refs / "claude-md-template.md")
     return _substitute(tmpl, {"TOPIC_NAME": topic})
 
 
 def render_wiki_index_md(*, topic: str, setup_date: str) -> str:
     """渲染 wiki/index.md 初始骨架（来自 fixtures/index.md.txt，2 占位符）。"""
-    refs = wiki_spec_templates_dir()
+    refs = wiki_templates_dir()
     tmpl = _read_template(refs / "fixtures" / "index.md.txt")
     return _substitute(tmpl, {"TOPIC_NAME": topic, "SETUP_DATE": setup_date})
 
 
 def render_wiki_log_md(*, topic: str, setup_date: str) -> str:
     """渲染 wiki/log.md 初始骨架（来自 fixtures/log.md.txt，2 占位符）。"""
-    refs = wiki_spec_templates_dir()
+    refs = wiki_templates_dir()
     tmpl = _read_template(refs / "fixtures" / "log.md.txt")
     return _substitute(tmpl, {"TOPIC_NAME": topic, "SETUP_DATE": setup_date})
 
@@ -95,7 +95,7 @@ def render_wiki_log_md(*, topic: str, setup_date: str) -> str:
 
 def render_workspace_agents_md(*, display_name: str, setup_date: str, cli_version: str, spec_version: str) -> str:
     """渲染 workspace <workspace>/AGENTS.md（模板 4 占位符）。"""
-    refs = workspace_spec_templates_dir()
+    refs = workspace_templates_dir()
     tmpl = _read_template(refs / "workspace-agents-md-template.md")
     return _substitute(
         tmpl,
@@ -110,6 +110,6 @@ def render_workspace_agents_md(*, display_name: str, setup_date: str, cli_versio
 
 def render_workspace_claude_md(*, display_name: str) -> str:
     """渲染 workspace <workspace>/CLAUDE.md 薄壳（模板仅 {{WORKSPACE_DISPLAY_NAME}}）。"""
-    refs = workspace_spec_templates_dir()
+    refs = workspace_templates_dir()
     tmpl = _read_template(refs / "workspace-claude-md-template.md")
     return _substitute(tmpl, {"WORKSPACE_DISPLAY_NAME": display_name})

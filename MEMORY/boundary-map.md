@@ -23,33 +23,32 @@ metadata:
 ## V2 依赖方向 DAG
 
 ```
-                   ┌── references/（模板 + fixtures） ──┐
-                   │                                    ▼
-           ┌───────┴─ 两 skill 仓 ───────┐       ┌─── llmw CLI
-           │   workspace skill           │       │   （init / upgrade / check-fixtures /
-           │       │                     │       │    scribe / session spawn / model）
-           │       │ 委托单 wiki 操作    │       │
-           │       ▼                     │       │
-           │   wiki skill                │       │
-           └─────▲─▲─────────────────────┘       │
-                 │ │                              │
-    agent ───────┘ └─────── 跑 ───────────────────┘
-    （按 skill         llmw upgrade /
-     纪律行事）         check-fixtures
+            ┌───────── 两 skill 仓（纯文本）─────────┐       ┌─── llmw CLI 包（代码+资源自包含）
+            │   workspace skill                     │       │   llmw/content/templates/ 内建
+            │       │                               │       │   全部模板+fixtures 字节金标准
+            │       │ 委托单 wiki 操作              │       │   （init / upgrade / check-fixtures /
+            │       ▼                               │       │    scribe / session spawn / model）
+            │   wiki skill                          │       │
+            └─────▲─▲───────────────────────────────┘       │
+                  │ │                                      │
+     agent ───────┘ └─────── 跑 ─────────────────────────────┘
+     （按 skill         llmw upgrade /
+      纪律行事）         check-fixtures
 
-    agent ──提供字节──▶ CLI scribe【协作边】
-                        （wiki_write / ingest-diff：
-                         agent 决定字节，CLI 纯函数落盘）
+     agent ──提供字节──▶ CLI scribe【协作边】
+                         （wiki_write / ingest-diff：
+                          agent 决定字节，CLI 纯函数落盘）
 
-    用户 ──跑──▶ llmw init / add / remove / enter / config / model（元数据 CRUD）
-    用户 ──改──▶ AGENTS.md / CLAUDE.md（宪法）
-    用户 ──写──▶ <wiki>/raw/（原始资料）
-    用户 ──建──▶ git 仓（CLI 不碰 git）
+     用户 ──跑──▶ llmw init / add / remove / enter / config / model（元数据 CRUD）
+     用户 ──改──▶ AGENTS.md / CLAUDE.md（宪法）
+     用户 ──写──▶ <wiki>/raw/（原始资料）
+     用户 ──建──▶ git 仓（CLI 不碰 git）
 ```
 
 **单向约束（反向依赖全禁）**：
 
-- skill 文本**不**读 CLI 代码（CLI 重构不能让 skill 失效）
+- **CLI 代码不读 skill 文件**——运行期资源全部内建 `llmw/content/templates/`（2026-08-20 收敛；spec 版本号 SSOT = `llmw/__init__.py` 常量，SKILL.md frontmatter 由 CI gate 比对）
+- skill 文本**不**读 CLI 代码（CLI 重构不能让 skill 失效）；spec 指向 CLI 资产只用命令名（`llmw check-fixtures`）不用包内路径
 - skill **不**解析 CLI 输出做元数据读取（直读 toml 更可靠；CLI 输出是人类的，文本可能改）
 - wiki skill **不知** workspace skill 存在（workspace → wiki 是单委托；反向会破坏 DAG）
 - agent（workspace skill）**不**执行元数据写——"让 CLI 写"的语义是"告诉用户跑 CLI"，人类决策
@@ -60,13 +59,13 @@ metadata:
 
 | 阶段 | 主导方 | CLI 角色 |
 | --- | --- | --- |
-| **init** | CLI | 建目录、写骨架（字节来自 references/ 模板 + fixtures） |
+| **init** | CLI | 建目录、写骨架（字节来自包内 `llmw/content/templates/` 模板 + fixtures） |
 | **成长** | agent（两 skill 下） | 仅按需被 agent 跑 `check-fixtures` 探测一致性 |
 | **upgrade** | agent 跑 `llmw upgrade` | CLI 引擎执行：workspace 骨架（4 类）+ 每 wiki 聚合；3 终态 JSON 输出；agent 解读并处理 `blocked_drift` |
 | **delete** | CLI | 带备份删 |
 | **元数据 CRUD** | 用户 | skill 建议 → 用户跑 `llmw wiki ...` 命令，人类执行（agent 不代行） |
 
-`templates_version` 跨仓语义：workspace.toml 里的 `workspace_spec=X; wiki_spec=Y` 双分量，归 CLI 写（`upgrade` 时 bump）；`wiki_spec` 分量的语义源是 wiki SKILL.md frontmatter 的 `wiki_spec_version`。
+`templates_version` 跨仓语义：workspace.toml 里的 `workspace_spec=X; wiki_spec=Y` 双分量，归 CLI 写（`upgrade` 时 bump）；版本号 SSOT = `llmw/__init__.py` 常量（SKILL.md frontmatter 与常量由 CI gate 比对，同 commit 改两处）。
 
 ## V4 产物归属（指针）
 

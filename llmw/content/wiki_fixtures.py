@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""check_wiki_fixtures.py — fixtures 一致性检查（升级时专用）
+"""wiki_fixtures — fixtures 一致性检查（升级时专用；CLI 入口 `llmw wiki check-fixtures`）
 
 按 wiki-spec（§3/§4/§5/§6/§9.1/§10/§13/§14 各节）的 fixture 视角，校验一个已存在 wiki 的
 "约定文件"（AGENTS.md §八 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
 MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
-wiki_metadata.toml）是否满足当前 wiki spec 的结构要求。本脚本只校验**结构性字节合规**；
+wiki_metadata.toml）是否满足当前 wiki spec 的结构要求。本模块只校验**结构性字节合规**；
 语义合并（frontmatter 字段升级 / index 重复条目 / 多 MEMORY 条目归并等）由
-upgrade-workflow.md §六 + LLM agent 走 migration plan 时处理——本脚本不替代。
+upgrade-workflow.md §六 + LLM agent 走 migration plan 时处理——本模块不替代。
 
 用法:
-  python3 check_wiki_fixtures.py [<WIKI_ROOT>] [--json] [--target-spec <semver>]
+  llmw wiki check-fixtures --path=<WIKI_ROOT> [--json] [--target-spec <semver>]
 
-缺省 --target-spec 时读 SKILL.md metadata.wiki_spec_version 作为"目标 spec"。
+缺省 --target-spec 时读 llmw.WIKI_SPEC_VERSION（包内常量；SKILL.md 前端的版本 SSOT 由 CI gate 比对）。
 standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 tomli/tomllib。
 
 退出码:
@@ -24,12 +24,12 @@ standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 to
   `--apply` 以 stdout JSON 输出并 call 它的活）；standalone 调用方只能看到 stdout/JSON 报告。
 - 21 条 check（13 条结构探测 + 7 条骨架字段比对 + 1 条模板自检 `template-no-outbound-refs`）；
   下一个 wiki spec 升级只需新增 register 条目 / SKELETON_SPECS 描述符。骨架信号硬编码在
-  SKELETON_SPECS（与 references/fixtures/ 一致，改 fixtures 时手工同步描述符）；
-  唯独 .gitignore 走 references/fixtures/gitignore.txt 自动跟随。
+  SKELETON_SPECS（与包内 fixtures/ 一致，改 fixtures 时手工同步描述符）；
+  唯独 .gitignore 走包内 fixtures/gitignore.txt 自动跟随。
 - `template-no-outbound-refs`：模板零出边引用是架构不变量（纪律正文唯一维护点 =
   模板；spec / SKILL.md / page-templates.md 单向指入模板），由该 check 机械强制。
 - AGENTS.md 走**模板渲染比对**（`agents-md-template-sync`）：从 wiki §八 提取
-  主题/创建日期/CLI 版本三变量 + wiki 自钉 spec 版本，渲染 references/agents-md-template.md
+  主题/创建日期/CLI 版本三变量 + wiki 自钉 spec 版本，渲染包内 agents-md-template.md
   后字节比对——一次性覆盖"旧版本残留 + 本地改动"全部漂移，取代 0.25.0- 的两条存在性检查
   （has-at-imports / top-read-directive）。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
 - 复用 lint_wiki / log_format 的常量（MEMORY_SUBDIR / EXTERNAL_SUBDIR / ANCHOR_FILENAME /
@@ -50,7 +50,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 # 常量 SSOT 在 wiki_lint / log_format，import 不复制。
 from llmw import WIKI_SPEC_VERSION
 from llmw import __version__ as CLI_VERSION
-from llmw.config import wiki_spec_templates_dir
+from llmw.config import wiki_templates_dir
 from llmw.content.log_format import LOG_LINE_RE  # noqa: E402
 from llmw.content.render import render_wiki_agents_md
 from llmw.content.wiki_lint import (  # noqa: E402
@@ -77,7 +77,7 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": "AGENTS.md",
         "rule_ref": "wiki-spec.md §10.1",
-        "desc": "AGENTS.md 与 references/agents-md-template.md 渲染稿字节一致（§八 四变量替换后）；定制纪律应沉淀到 MEMORY/",
+        "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（§八 四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
         "id": "template-no-outbound-refs",
@@ -185,7 +185,7 @@ def _read_text(path: Path) -> Optional[str]:
 
 
 def _skill_spec_version() -> Optional[str]:
-    """wiki spec 版本（SSOT = SKILL.md frontmatter，经 llmw.config 单源读取）。"""
+    """wiki spec 版本（SSOT = llmw.WIKI_SPEC_VERSION 包内常量）。"""
     return WIKI_SPEC_VERSION
 
 
@@ -193,7 +193,7 @@ def _compare_semver(a: Optional[str], b: Optional[str]) -> str:
     """返 'equal' / 'older' / 'newer' / 'unknown'。
 
     本地保留（非 lint_wiki import）：lint_wiki._compare_semver 假定 skill 参数非 None，
-    check 的 target_spec 可能为 None（SKILL.md 缺失时），需更宽容的缺值处理。
+    check 的 current_spec 可能为 None（wiki §八 版本钉定时），需更宽容的缺值处理。
     """
     if not a or not b:
         return "unknown"
@@ -434,7 +434,7 @@ def _scan_template_outbound_refs(text):
 
 
 def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """references/agents-md-template.md 不含任何指向 skill 目录的出边引用。
+    """包内 agents-md-template.md 不含任何指向 skill 目录的出边引用。
 
     模板随 init 拷贝进每个 wiki 成为 AGENTS.md——wiki 侧 agent 读不到 skill 目录，模板内
     一切 `wiki-spec.md` / `page-templates.md` / `lint-checklist.md` / `SKILL.md` /
@@ -442,11 +442,11 @@ def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Di
     携带——全部改写为自包含措辞）。skill 目录内文件 → 模板 单向引用由本 check
     机械强制；对每个 wiki 报告同一结果（模板是全局文件），违反时 error 逼 skill 侧修复。
     """
-    out = {"passed": True, "severity": "error", "file": "references/agents-md-template.md"}  # type: Dict[str, object]
-    template = _read_text(wiki_spec_templates_dir() / "agents-md-template.md")
+    out = {"passed": True, "severity": "error", "file": "agents-md-template.md"}  # type: Dict[str, object]
+    template = _read_text(wiki_templates_dir() / "agents-md-template.md")
     if template is None:
         out["passed"] = None
-        out["skipped"] = "references/agents-md-template.md 未找到（无法模板自检）"
+        out["skipped"] = "agents-md-template.md 未找到（无法模板自检）"
         return out
     hits = _scan_template_outbound_refs(template)
     if hits:
@@ -804,9 +804,9 @@ def check_wiki_metadata_reads_satisfied(wiki_root: Path, info: Dict[str, str]) -
 
 
 # ============================================================================
-# 骨架字段级比对——gitignore 读 references/fixtures/；
+# 骨架字段级比对——gitignore 读包内 fixtures/；
 # 其余骨架信号（frontmatter 键 / H1 / 说明块 / ## 标题）硬编码在 SKELETON_SPECS
-# 描述符里（与 references/fixtures/*.txt 一致），改 fixtures 时手工同步描述符。
+# 描述符里（与包内 fixtures/*.txt 一致），改 fixtures 时手工同步描述符。
 # 纯骨架件（.gitignore/tags.md/SCRIPTS.md/MEMORY.md）全字段骨架比对；成长件
 # （index.md/log.md）只比结构必填（frontmatter 键 + H1 + 说明块），不动成长内容。
 # 只有 index.md.txt/log.md.txt 带占位符，其余文件 fixture 即字面量。
@@ -814,12 +814,12 @@ def check_wiki_metadata_reads_satisfied(wiki_root: Path, info: Dict[str, str]) -
 
 
 def _fixtures_dir() -> Path:
-    """references/fixtures/（带占位符模板；gitignore 走此）。"""
-    return wiki_spec_templates_dir() / "fixtures"
+    """包内 fixtures/（带占位符模板；gitignore 走此）。"""
+    return wiki_templates_dir() / "fixtures"
 
 
 def _load_fixture_text(name: str) -> Optional[str]:
-    """读 references/fixtures/<name>；失败返 None。"""
+    """读包内 fixtures/<name>；失败返 None。"""
     return _read_text(_fixtures_dir() / name)
 
 
@@ -995,7 +995,7 @@ def _make_skeleton_check(spec: Dict[str, object]) -> Callable[[Path, Dict[str, s
         missing = _check_skeleton_signals(wiki_text, sigs)
         if missing:
             out["passed"] = False
-            out["expected"] = f"骨架信号对齐 references/fixtures/；详见 {rule_ref}"
+            out["expected"] = f"骨架信号对齐包内 fixtures/；详见 {rule_ref}"
             out["actual"] = "; ".join(missing)
         return out
 
@@ -1164,7 +1164,7 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--target-spec",
         default=None,
-        help="目标 wiki spec 版本（缺省读 SKILL.md metadata.wiki_spec_version）",
+        help="目标 wiki spec 版本（缺省读 llmw.WIKI_SPEC_VERSION 包内常量）",
     )
     parser.add_argument(
         "--list-rules",

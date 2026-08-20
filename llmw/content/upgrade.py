@@ -211,9 +211,9 @@ def _render_byte_owned(*, topic: str, setup_date: str) -> Dict[str, str]:
 
 def _render_fixture(fixture_name: str) -> str:
     """读 reference fixture 文本 + 替换占位符；返原始文本（不做 substitute，caller 按需）。"""
-    from llmw.config import wiki_spec_templates_dir
+    from llmw.config import wiki_templates_dir
 
-    return _render._read_template(wiki_spec_templates_dir() / fixture_name)
+    return _render._read_template(wiki_templates_dir() / fixture_name)
 
 
 def _apply_substitute(text: str, *, topic: str, setup_date: str) -> str:

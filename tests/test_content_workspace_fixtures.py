@@ -10,7 +10,6 @@ stdlib unittest + subprocess 调真实模块（无 mock）：在 tmp 目录搭 s
 
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -18,16 +17,16 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-SKILL_ROOT = REPO / "yzr-llm-workspace-management"
-AGENTS_TEMPLATE = (
-    SKILL_ROOT / "references" / "workspace-agents-md-template.md"
-).read_text(encoding="utf-8")
-CLAUDE_TEMPLATE = (
-    SKILL_ROOT / "references" / "workspace-claude-md-template.md"
-).read_text(encoding="utf-8")
-FIXTURES_MEMORY_INDEX = (
-    SKILL_ROOT / "references" / "fixtures" / "memory-index.txt"
-).read_text(encoding="utf-8")
+TEMPLATES_WS = REPO / "llmw" / "content" / "templates" / "workspace"
+AGENTS_TEMPLATE = (TEMPLATES_WS / "workspace-agents-md-template.md").read_text(
+    encoding="utf-8"
+)
+CLAUDE_TEMPLATE = (TEMPLATES_WS / "workspace-claude-md-template.md").read_text(
+    encoding="utf-8"
+)
+FIXTURES_MEMORY_INDEX = (TEMPLATES_WS / "fixtures" / "memory-index.txt").read_text(
+    encoding="utf-8"
+)
 
 OLD_VERSION = "0.6.2"  # 真实历史版本——永远小于当前 target_spec
 
@@ -76,14 +75,11 @@ OLD_AGENTS_MD = """# Old Workspace — LLM 维护守则
 
 
 def _target_spec():
-    """读 SKILL.md metadata.workspace_spec_version（与脚本同一 SSOT）。"""
-    text = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
-    m = re.search(
-        r"^[ \t]*workspace_spec_version:[ \t]*(\S+)[ \t]*$", text, re.MULTILINE
-    )
-    if not m:
-        raise AssertionError("SKILL.md 缺 metadata.workspace_spec_version")
-    return m.group(1).strip()
+    """包内常量 llmw.WORKSPACE_SPEC_VERSION（与 SKILL.md frontmatter 同 commit 对齐，CI gate 守护）。"""
+    sys.path.insert(0, str(REPO))
+    import llmw
+
+    return llmw.WORKSPACE_SPEC_VERSION
 
 
 TARGET_SPEC = _target_spec()

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""check_workspace_fixtures.py — workspace fixtures 一致性检查（升级时专用）
+"""workspace_fixtures — workspace fixtures 一致性检查（升级时专用；CLI 入口 `llmw check-fixtures`）
 
 按 workspace-spec §4 / §10 / §17 + SKILL.md §6 的 fixture 视角，校验一个已存在 workspace 的
 "约定文件"（AGENTS.md / CLAUDE.md / .gitignore / MEMORY/MEMORY.md / workspace.toml
-templates_version）是否满足当前 workspace spec 的结构要求。本脚本只校验**结构性字节合规**；
-修复由 agent 按报告里的 fix 动作走 SKILL.md §6 Migrate 工作流——本脚本不写任何文件。
+templates_version）是否满足当前 workspace spec 的结构要求。本模块只校验**结构性字节合规**；
+修复由 agent 按报告里的 fix 动作走 SKILL.md §6 Upgrade 工作流——本模块不写任何文件。
 
 用法:
-  python3 check_workspace_fixtures.py [<WORKSPACE_ROOT>] [--json] [--target-spec <semver>]
+  llmw check-fixtures --workspace=<WORKSPACE_ROOT> [--json] [--target-spec <semver>]
 
-缺省 --target-spec 时读 SKILL.md metadata.workspace_spec_version 作为"目标 spec"。
+缺省 --target-spec 时读 llmw.WORKSPACE_SPEC_VERSION（包内常量；SKILL.md 前端的版本 SSOT 由 CI gate 比对）。
 standalone（不依赖其他脚本 / 第三方库；Python 3.7+）。
 
 退出码:
@@ -40,7 +40,7 @@ from typing import Dict, List, Optional, Tuple
 
 from llmw import WORKSPACE_SPEC_VERSION
 from llmw import __version__ as CLI_VERSION
-from llmw.config import workspace_spec_templates_dir
+from llmw.config import workspace_templates_dir
 from llmw.content.render import render_workspace_agents_md, render_workspace_claude_md
 
 ENV_WORKSPACE_ROOT = "LLMW_WORKSPACE"
@@ -71,14 +71,14 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": "AGENTS.md",
         "rule_ref": "workspace-spec.md §17.1",
-        "desc": "AGENTS.md 与 references/workspace-agents-md-template.md 渲染稿字节一致（§六 四变量替换后）；定制纪律应沉淀到 MEMORY/",
+        "desc": "AGENTS.md 与包内 workspace-agents-md-template.md 渲染稿字节一致（§六 四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
         "id": "claude-md-template-sync",
         "severity": "error",
         "file": "CLAUDE.md",
         "rule_ref": "workspace-spec.md §4 + §17.1",
-        "desc": "CLAUDE.md 薄壳与 references/workspace-claude-md-template.md 渲染稿字节一致（仅 {{WORKSPACE_DISPLAY_NAME}} 替换）",
+        "desc": "CLAUDE.md 薄壳与包内 workspace-claude-md-template.md 渲染稿字节一致（仅 {{WORKSPACE_DISPLAY_NAME}} 替换）",
     },
     {
         "id": "gitignore-skeleton",
@@ -111,9 +111,9 @@ CHECK_REGISTRY = [
     {
         "id": "template-no-outbound-refs",
         "severity": "error",
-        "file": "references/workspace-agents-md-template.md",
+        "file": "workspace-agents-md-template.md",
         "rule_ref": "workspace-spec.md §4 + §17.3",
-        "desc": "references/workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用（workspace-spec.md / workspace-claude-md-template.md / SKILL.md / references/ / skill 名 / 阿拉伯数字 §节号；零白名单）",
+        "desc": "workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用（workspace-spec.md / workspace-claude-md-template.md / SKILL.md / references/ / skill 名 / 阿拉伯数字 §节号；零白名单）",
     },
 ]
 
@@ -127,7 +127,7 @@ def _read_text(path: Path) -> Optional[str]:
 
 
 def _skill_spec_version() -> Optional[str]:
-    """workspace spec 版本（SSOT = SKILL.md frontmatter，经 llmw.config 单源读取）。"""
+    """workspace spec 版本（SSOT = llmw.WORKSPACE_SPEC_VERSION 包内常量）。"""
     return WORKSPACE_SPEC_VERSION
 
 
@@ -198,8 +198,8 @@ def _render_agents_template(template: str, vars: Dict[str, Optional[str]], spec:
 
 
 def _agents_reference() -> Tuple[Optional[str], Path]:
-    """读 references/workspace-agents-md-template.md（脚本相对路径）。"""
-    tpl_path = workspace_spec_templates_dir() / "workspace-agents-md-template.md"
+    """读包内 workspace-agents-md-template.md。"""
+    tpl_path = workspace_templates_dir() / "workspace-agents-md-template.md"
     return _read_text(tpl_path), tpl_path
 
 
@@ -331,7 +331,7 @@ def check_claude_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
     仍需从 AGENTS.md §六 表 / H1 提取。
     """
     out = {"passed": True, "severity": "error", "file": "CLAUDE.md"}  # type: Dict[str, object]
-    tpl_path = workspace_spec_templates_dir() / "workspace-claude-md-template.md"
+    tpl_path = workspace_templates_dir() / "workspace-claude-md-template.md"
     if not tpl_path.is_file():
         out["passed"] = None
         out["skipped"] = f"{tpl_path} 未找到（无法模板比对）"
@@ -445,7 +445,7 @@ def check_gitignore_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str, o
 def check_memory_index_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
     """check#5: MEMORY/MEMORY.md 骨架（无 frontmatter + H1 + 说明块 + ## 索引）。
 
-    成长内容（## 索引 下的经验条目）不动；文件缺失按 references/fixtures/memory-index.txt 重建。
+    成长内容（## 索引 下的经验条目）不动；文件缺失按包内 fixtures/memory-index.txt 重建。
     """
     out = {"passed": True, "severity": "error", "file": "MEMORY/MEMORY.md"}  # type: Dict[str, object]
     text = _read_text(ws_root / "MEMORY" / "MEMORY.md")
@@ -455,7 +455,7 @@ def check_memory_index_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str
         out["actual"] = "MEMORY/MEMORY.md 不存在"
         out["fix"] = {
             "type": "workspace-fix-memory-index-init",
-            "to_action": "按 references/fixtures/memory-index.txt 逐字创建 MEMORY/MEMORY.md",
+            "to_action": "按包内 fixtures/memory-index.txt 逐字创建 MEMORY/MEMORY.md",
         }
         return out
 
@@ -603,7 +603,7 @@ def _scan_template_outbound_refs(text):
 
 
 def check_template_no_outbound_refs(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """references/workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用。
+    """包内 workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用。
 
     模板随 init 拷贝进 workspace 成为 AGENTS.md——workspace 侧 agent 读不到 skill 目录，模板内
     一切 `workspace-spec.md` / `workspace-claude-md-template.md` / `SKILL.md` /
@@ -612,11 +612,11 @@ def check_template_no_outbound_refs(ws_root: Path, info: Dict[str, str]) -> Dict
     check 机械强制；对每个 workspace 报告同一结果（模板是全局文件），违反时 error 逼
     skill 侧修复。
     """
-    out = {"passed": True, "severity": "error", "file": "references/workspace-agents-md-template.md"}  # type: Dict[str, object]
-    template = _read_text(workspace_spec_templates_dir() / "workspace-agents-md-template.md")
+    out = {"passed": True, "severity": "error", "file": "workspace-agents-md-template.md"}  # type: Dict[str, object]
+    template = _read_text(workspace_templates_dir() / "workspace-agents-md-template.md")
     if template is None:
         out["passed"] = None
-        out["skipped"] = "references/workspace-agents-md-template.md 未找到（无法模板自检）"
+        out["skipped"] = "workspace-agents-md-template.md 未找到（无法模板自检）"
         return out
     hits = _scan_template_outbound_refs(template)
     if hits:
@@ -754,7 +754,7 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--target-spec",
         default=None,
-        help="目标 workspace spec 版本（缺省读 SKILL.md metadata.workspace_spec_version）",
+        help="目标 workspace spec 版本（缺省读 llmw.WORKSPACE_SPEC_VERSION 包内常量）",
     )
     parser.add_argument(
         "--list-rules",

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """CI smoke gate：fresh llmw init + wiki → 两探测器 → 断言结构合规。
 
-兑现 [[check-fixtures-as-executable-truth]]：CLI 改坏骨架 / 两 SKILL 改坏 fixtures
+兑现 [[check-fixtures-as-executable-truth]]：CLI 改坏骨架 / fixtures 同步漂移
 都让本 gate 红。双向覆盖。
 
 断言策略：两探测器所有 error 级 check passed=True（允许 skipped/null）。
-版本常量与两 SKILL frontmatter 同仓，版本漂移（CLI 忘 bump / SKILL 先 bump）也会被
-gate 抓住。
+版本常量（llmw.WIKI_SPEC_VERSION / WORKSPACE_SPEC_VERSION）与两 SKILL.md
+frontmatter 的 *_spec_version 由本 gate 比对，漂移即挂。
 
 standalone，Python 3.7+（与项目最低支持版本对齐）。用法：``python3 scripts/test/smoke_fixtures.py``
 """
@@ -15,12 +15,54 @@ standalone，Python 3.7+（与项目最低支持版本对齐）。用法：``pyt
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+
+
+def _check_spec_version_alignment():
+    """版本门：SKILL.md frontmatter *_spec_version 必须 == llmw 包内常量。
+
+    读 SKILL.md frontmatter 与 llmw.WIKI_SPEC_VERSION / WORKSPACE_SPEC_VERSION 比对；
+    任一不一致即 exit 1。这是 [[spec-version-bump-single-repo]] 的机械 gate（纪律升级为 gate）。
+    """
+    sys.path.insert(0, str(REPO))
+    import llmw
+
+    cases = [
+        ("yzr-llm-wiki-management", "wiki_spec_version", llmw.WIKI_SPEC_VERSION),
+        (
+            "yzr-llm-workspace-management",
+            "workspace_spec_version",
+            llmw.WORKSPACE_SPEC_VERSION,
+        ),
+    ]
+    drifts = []
+    for skill_dir, key, expected in cases:
+        skill_md = REPO / skill_dir / "SKILL.md"
+        text = skill_md.read_text(encoding="utf-8")
+        m = re.search(rf"^[ \t]*{key}:[ \t]*(\S+)[ \t]*$", text, re.MULTILINE)
+        if m is None:
+            drifts.append(f"{skill_md}: 未找到 {key} 字段")
+            continue
+        frontmatter_value = m.group(1).strip()
+        if frontmatter_value != expected:
+            drifts.append(
+                f"{skill_dir}: SKILL.md {key}={frontmatter_value} != llmw.{key.rstrip('_version').upper()}_SPEC_VERSION={expected}"
+            )
+    if drifts:
+        sys.stderr.write("FAIL: spec 版本对齐检查失败:\n")
+        for d in drifts:
+            sys.stderr.write(f"  {d}\n")
+        sys.stderr.write(
+            "修复：按 MEMORY/spec-version-bump-single-repo.md 同 commit 改 SKILL.md frontmatter + llmw/__init__.py 常量\n"
+        )
+        raise SystemExit(1)
+    print("[OK] spec 版本对齐：SKILL.md frontmatter == llmw 包内常量")
 
 
 def _llmw(args):
@@ -77,6 +119,7 @@ def _assert_all_error_pass(args, label):
 
 
 def main():
+    _check_spec_version_alignment()
     with tempfile.TemporaryDirectory(prefix="llmw-smoke-") as tmp:
         ws = Path(tmp) / "ws"
 

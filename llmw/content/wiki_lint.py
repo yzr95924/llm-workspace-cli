@@ -1739,10 +1739,10 @@ def build_migration_plan(
                 "from_file": "CLAUDE.md",
                 "to_action": (
                     "把 <wiki_root>/CLAUDE.md 的全部纪律正文（SSOT 内容）搬到 <wiki_root>/AGENTS.md。"
-                    "AGENTS.md 顶部按 references/agents-md-template.md 的说明块格式：SSOT 声明 + agent 中立"
+                    "AGENTS.md 顶部按 agents-md-template.md（包内模板）的说明块格式：SSOT 声明 + agent 中立"
                     "读取机制段 + @import 行（@MEMORY/MEMORY.md + @scripts/SCRIPTS.md），随后接原 CLAUDE.md"
                     "正文（§一~§八）。然后把 <wiki_root>/CLAUDE.md 重写为薄壳（@AGENTS.md + 薄壳声明，"
-                    "参考 references/claude-md-template.md），保留已替换的主题名。若 AGENTS.md 已存在——内容"
+                    "参考 claude-md-template.md（包内模板）），保留已替换的主题名。若 AGENTS.md 已存在——内容"
                     "相同则跳过；不同给迁移冲突，转人工。AGENTS.md §八 Wiki Spec 版本由后续通用步骤改为 to_version。"
                 ),
             }
@@ -1804,7 +1804,7 @@ def build_migration_plan(
                             "AGENTS.md 全量重渲染（模板同步机制，4 步）："
                             "(1) 从旧 AGENTS.md §八 提取 主题 / 创建日期 / CLI 版本（主题 fallback："
                             "H1 `# <主题> Wiki — LLM 维护守则`）；"
-                            "(2) 渲染 references/agents-md-template.md——{{TOPIC_NAME}} / {{SETUP_DATE}} / "
+                            "(2) 渲染包内 agents-md-template.md——{{TOPIC_NAME}} / {{SETUP_DATE}} / "
                             "{{CLI_VERSION}} 用旧值，{{WIKI_SPEC_VERSION}} 用 to_version；"
                             "(3) diff 旧文件 vs 渲染稿：旧文件**多出的行/段** = 本地定制，逐条列给用户裁定——"
                             "搬 MEMORY/（一行事实写 MEMORY/MEMORY.md 索引短条目；含 why 的建 "
@@ -1893,14 +1893,14 @@ def build_migration_plan(
                     }
                 )
             elif cid.endswith(("-skeleton", "-frontmatter-complete", "-init-rules-complete")):
-                # 骨架字段级比对 check（信号来自 references/fixtures/；
+                # 骨架字段级比对 check（信号来自包内 fixtures/；
                 # 新增 *-skeleton 类 check 自动匹配此分支）
                 fixtures_actions.append(
                     {
                         **base,
                         "type": "fixtures-fix-skeleton",
                         "to_action": (
-                            f"Edit {fpath}：按 references/fixtures/（gitignore 见 "
+                            f"Edit {fpath}：按包内 fixtures/（gitignore 见 "
                             "fixtures/gitignore.txt）"
                             "补齐 expected 列出的缺失骨架字段（frontmatter 键 / H1 / 说明块 / "
                             "段标题 / .gitignore 段）。成长型内容（index 类别下条目 / log 历史 / "

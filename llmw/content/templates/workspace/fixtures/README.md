@@ -1,7 +1,7 @@
 # Fixtures
 
 workspace CLI init 时落盘的 `<workspace>/MEMORY/MEMORY.md` 的**字节金标准**——与
-`yzr-llm-wiki-management` 的 fixtures 机制同构（兄弟 skill，同一套字节金标准约定）。
+wiki management 侧的 fixtures 机制同构（同仓兄弟包，同一套字节金标准约定）。
 
 ## 范围
 
@@ -23,4 +23,4 @@ workspace CLI init 时落盘的 `<workspace>/MEMORY/MEMORY.md` 的**字节金标
 CLI init 时把 `memory-index.txt` **逐字拷贝**为 `<workspace>/MEMORY/MEMORY.md`（无占位符）。
 完整 gate 走 `llmw check-fixtures` 探测器断言（CLI 仓 CI 跑 real `llmw init` 后执行）。
 
-详细 schema + 维护纪律见 [`workspace-spec.md` §9](../workspace-spec.md#9-workspace-memoryskill-维护)。
+详细 schema + 维护纪律见 workspace-spec §9（`yzr-llm-workspace-management/references/workspace-spec.md`）。

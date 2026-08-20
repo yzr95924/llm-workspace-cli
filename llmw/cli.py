@@ -178,7 +178,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_check_fixtures.add_argument(
         "--target-spec",
         default=None,
-        help="目标 workspace spec 版本（缺省读 SKILL.md metadata.workspace_spec_version）",
+        help="目标 workspace spec 版本（缺省读 llmw.WORKSPACE_SPEC_VERSION 包内常量）",
     )
     p_check_fixtures.add_argument(
         "--list-rules",
@@ -368,7 +368,7 @@ def build_parser() -> argparse.ArgumentParser:
     pw_cf.add_argument(
         "--target-spec",
         default=None,
-        help="目标 wiki spec 版本（缺省读 SKILL.md metadata.wiki_spec_version）",
+        help="目标 wiki spec 版本（缺省读 llmw.WIKI_SPEC_VERSION 包内常量）",
     )
     pw_cf.add_argument(
         "--list-rules",

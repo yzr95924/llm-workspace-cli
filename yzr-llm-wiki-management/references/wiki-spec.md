@@ -9,11 +9,11 @@
 >
 > **spec 只承载设计不变量**：CLI 的具体实现形式——命令名、占位符语法 / 渲染机制、版本戳编码格式、
 > `.gitignore` 栅栏标记、CLI 源码路径等——一律**不进 spec**（实现方法多样，spec 钉死只会反向限制
-> CLI 开发）。这些细节的唯一权威是 [`check_wiki_fixtures.py`](../scripts/check_wiki_fixtures.py)
-> （可执行契约）+ [`references/fixtures/`](fixtures/)（字节金标准）+ CLI 代码；本 spec 提及时只描述
-> 设计意图 + 指向探测器，不复制字节。
+> CLI 开发）。这些细节的唯一权威是 `llmw wiki check-fixtures` 探测器（可执行契约）
+> + llmw 包内字节金标准（CLI 维护）+ CLI 代码；本 spec 提及时只描述
+> 设计意图 + 指向探测器命令，不复制字节，不指向 llmw 包内资源路径。
 >
-> **结构合规的可执行真源**是 [`scripts/check_wiki_fixtures.py`](../scripts/check_wiki_fixtures.py)——
+> **结构合规的可执行真源**是 `llmw wiki check-fixtures`（CLI 探测命令）——
 > 本 spec 是它的人类可读说明；两者不一致时**以探测器为准**（spec 滞后不构成 CLI 违规；
 > 探测器 pass 即合规）。
 >
@@ -106,7 +106,7 @@
   未来 publish 时 MEMORY 自然留作私有层不外传
 - **`wiki/tags.md` 是 wiki 仓的"tag 白名单"**——LLM agent 拥有，存放本 wiki
   允许使用的 tag 集合；裸 bullet 列表，**无 frontmatter**（与 MEMORY.md 同——元数据不是
-  wiki 内容页）；不在 `wiki/index.md` 强制列出；CLI init 时刻按 `references/fixtures/`
+   wiki 内容页）；不在 `wiki/index.md` 强制列出；CLI init 时刻按 llmw 包内字节金标准
   生成空白模板，LLM 与用户共同确认主题分类后填充。详见 §9「§9.1 tag 白名单来源」
 - `raw/` 下子树分两类：**通用分类占位**（`articles/` / `assets/` 等，用户自由组织原始资料，
   无强制语义）与**有专门语义的子树**——`external/`（§13，外部仓 symlink 接入）、
@@ -136,7 +136,7 @@
 
 > **authority**：下表是 **SKILL 的读取契约**，authority 在 SKILL（读方决定读什么）；
 > toml 字段全集 authority 在 CLI。「SKILL 读的字段 CLI 是否仍提供」由
-> `check_wiki_fixtures.py` 的 `wiki-metadata-reads-satisfied` check 校验（读取契约的可执行 gate）。
+> `llmw wiki check-fixtures` 的 `wiki-metadata-reads-satisfied` check 校验（读取契约的可执行 gate）。
 
 - **skill 读取的字段**（workspace skill `scan` 生成 INDEX / STATS 用）：
   `name` / `topic` / `display_name` / `description` / `tags` / `created_at`
@@ -192,7 +192,7 @@
 ### AGENTS.md（SSOT）
 
 - 路径：`<wiki-root>/AGENTS.md`
-- 内容来源：本仓 `references/agents-md-template.md`（**权威 canonical 模板**）
+- 内容来源：llmw 包内 `agents-md-template.md`（**权威 canonical 模板**，内建 `llmw/content/templates/wiki/`）
 - CLI 按 canonical 模板生成，差异**仅限 4 个 per-wiki 值**（模板替换机制——占位符语法 / 渲染引擎——归 CLI，spec 不规定）：
   - 主题名（用户传入的人类可读字符串，如 `"LLM Systems"`、`"Distributed Systems"`）
   - 创建日期（当天，`YYYY-MM-DD HH:MM`；lint 也接受 `YYYY-MM-DD`，详见 §9 字段说明）
@@ -200,15 +200,16 @@
   - CLI 自身版本号
 - 模板顶部说明块的自述（"由 workspace CLI 在初始化时按本 skill 的官方模板拷贝生成"）为
   **自包含措辞**——模板是引用图汇点，**零出边**（不指向任何 skill 目录文件；由
-  `check_wiki_fixtures.py` 的 `template-no-outbound-refs` check 强制），CLI **不得修改**
+  `llmw wiki check-fixtures` 的 `template-no-outbound-refs` check 强制），CLI **不得修改**
 
 > **纪律正文唯一副本（canonical）**：模板与各 spec 节共享的纪律正文，**唯一维护点在
-> [`agents-md-template.md`](agents-md-template.md)**——wiki 侧读不到 skill 目录，模板必须
+> [`agents-md-template.md`](../../llmw/content/templates/wiki/agents-md-template.md)**
+> （llmw 包内资产）——wiki 侧读不到模板原文，模板必须
 > 自包含，故它就是副本宿主。本 spec / page-templates.md / SKILL.md 只保留各自**独有**
 > 内容（机制契约 / rationale / 骨架 / digest + 指针），凡与模板重复的逐字纪律句以
 > 「纪律正文见模板 §X」指针代替。**改纪律只改模板对应段 + bump `wiki_spec_version`**；
 > spec 侧仅在机制变化时才跟改。引用方向**单向**：spec / page-templates / SKILL.md →
-> 模板；模板**不**含任何指向 skill 目录的引用（由 `check_wiki_fixtures.py` 的
+> 模板；模板**不**含任何指向 skill 目录的引用（由 `llmw wiki check-fixtures` 的
 > `template-no-outbound-refs` check 机械强制）。
 >
 > **新纪律归属判据**：写一条新规则前先判它属于哪一层——一句话判据：**它是「wiki 的
@@ -229,7 +230,7 @@
 ### CLAUDE.md（薄壳）
 
 - 路径：`<wiki-root>/CLAUDE.md`
-- 内容来源：本仓 `references/claude-md-template.md`（薄壳模板，`@AGENTS.md` + 声明，≤ 30 行）
+- 内容来源：llmw 包内 `claude-md-template.md`（薄壳模板，`@AGENTS.md` + 声明，≤ 30 行）
 - CLI 按薄壳模板生成，差异仅限主题名一个值（不持 spec 版本——版本在 AGENTS.md §八）
 - 不含纪律正文；AGENTS.md 顶部 `@MEMORY/MEMORY.md` / `@scripts/SCRIPTS.md` `@import`
   由 AGENTS.md 自身携带，薄壳内**不**再额外挂 import；仅 `@AGENTS.md` 一行
@@ -253,7 +254,7 @@
 | `updated` | `YYYY-MM-DD HH:MM`（= today） |
 
 - 正文骨架：5 个空类别段（按字母序），各带一句"暂无内容"占位
-- **字面量见 fixtures**：`references/fixtures/index.md.txt`
+- **字面量由 CLI 维护**：`wiki/index.md` 结构（探测命令 `llmw wiki check-fixtures`）
 
 ## §4 wiki/log.md
 
@@ -292,7 +293,7 @@
   > `HH:MM`（`HH:MM:SS` 也合法）可选；`YYYY-MM-DD`（date-only）也合法——lint 按精度宽容解析三种格式。
 
 - 后续条目由 LLM 在 ingest / query / lint 时按相同格式追加，CLI 不必写
-- **字面量见 fixtures**：`references/fixtures/log.md.txt`
+- **字面量由 CLI 维护**：`wiki/log.md` 结构（探测命令 `llmw wiki check-fixtures`）
 
 ### §4.1 Log retention（滚动窗口）
 
@@ -322,8 +323,8 @@
 - 路径：`<wiki-root>/MEMORY/`
 - 目录名 `MEMORY` **大写**，区别于 `raw/` `wiki/` `wiki/index.md` 等小写目录/文件——这是为了
   在文件浏览器里一眼区分"agent 私有记忆"与"wiki 内容"
-- **`MEMORY/MEMORY.md`（索引）——CLI init 时刻写入**（fixtures 字面量见
-  `references/fixtures/memory-index.txt`）；由 `<wiki-root>/AGENTS.md` 顶部一行
+- **`MEMORY/MEMORY.md`（索引）——CLI init 时刻写入**（字节金标准由 llmw 包维护，命令
+  `llmw wiki check-fixtures` 探测）；由 `<wiki-root>/AGENTS.md` 顶部一行
   `@MEMORY/MEMORY.md` `@import` 加载到所有读 AGENTS.md 的 agent（加载机制详见 §5.1）
 - 其余 `*.md` 经验条目由 LLM 在工作中追加，**文件命名与 wiki 内容页一致**；
   frontmatter 走 §5.2 的 **1 必填（`title`）+ optional 字段**规则（与 wiki 内容页 5 必填
@@ -352,7 +353,7 @@
   **无**双写漂移 / L1 膨胀风险
 - MEMORY 沉淀自由增长——索引活在 `MEMORY/MEMORY.md` 单一真源，AGENTS.md 单行 `@import` 引用不占 L1
   词数预算，无需条数护栏
-- **字面量见 fixtures**：`references/fixtures/memory-index.txt`（MEMORY.md 无占位符，fixture 即字面量）
+- **字面量由 CLI 维护**：`MEMORY/MEMORY.md` 结构（MEMORY 无占位符；探测命令 `llmw wiki check-fixtures`）
 
 ### §5.2 MEMORY/*.md（非 MEMORY.md）
 
@@ -387,8 +388,8 @@
 ## §6 .gitignore
 
 `.gitignore` **无论是否 opt-in git 都生成**（无 git 时是无害空操作，便于后续补 git）。完整字节
-SSOT 在 [`references/fixtures/gitignore.txt`](fixtures/gitignore.txt)——CLI 按该文件逐字
-落盘，`scripts/check_wiki_fixtures.py` 的 `gitignore-init-rules-complete` check 做字段级
+SSOT 由 CLI 包内字节金标准维护——CLI 按包内字面量逐字
+落盘，`llmw wiki check-fixtures` 的 `gitignore-init-rules-complete` check 做字段级
 骨架比对。**必含 4 段**：OS / 编辑器忽略 / Obsidian 配置 / 临时文件 / 外部代码仓 symlink
 （保留 `raw/external/.symlink-anchor.toml` 元数据）；**必不**忽略 `wiki/`、`raw/`
 （除 `raw/external/*` 例外）、`CLAUDE.md`、`.gitignore` 自身。
@@ -471,7 +472,7 @@ CLI **不**生成 `wiki/{entities,concepts,sources,comparisons,syntheses}/` 下�
 内容页文件，避免 wiki 内容页 schema 与 tag 字典混在一起：
 
 - **主流位置**：`<wiki-root>/wiki/tags.md`——LLM agent 拥有，**裸 bullet 列表，
-  无 frontmatter**；CLI init 时刻按 `references/fixtures/` 生成空白模板，agent 在
+  无 frontmatter**；CLI init 时刻按包内字节金标准生成空白模板，agent 在
   ingest / query 过程中自动追加新 tag
 - **fallback**（`wiki/tags.md` 缺失时）：`<wiki-root>/AGENTS.md` 的 `### Tag Taxonomy`
   段——`lint_wiki.py --check-version --apply` 可把 tag 字典迁到 `wiki/tags.md`
@@ -564,11 +565,12 @@ compared:
 **设计不变量**：AGENTS.md 必须记录本 wiki 创建时对齐的 wiki spec 版本 + CLI 版本（薄壳 CLAUDE.md 不持版本），
 使 skill `migrate` 能探测版本漂移。具体承载形式（AGENTS.md §八 表）+ 模板替换机制（占位符语法 /
 渲染引擎）+ 版本号来源（CLI 内部机制）都归 CLI，spec 不规定。「CLI 记录的 spec 版本是否与 SKILL
-当前版本对齐」由 `check_wiki_fixtures.py` 校验（读取契约的可执行 gate）。
+当前版本对齐」由 `llmw wiki check-fixtures` 校验（读取契约的可执行 gate）。
 
-spec 版本号的 SSOT 是本 skill `SKILL.md` 的 `metadata.wiki_spec_version` 字段（本 spec 不重复钉号，
-避免双源漂移）。skill 与 CLI 同仓分发：bump 只改 `SKILL.md` frontmatter 一处——`lint_wiki.py`
-与 CLI 侧常量均运行时读取该字段，不再维护副本。
+spec 版本号的 SSOT 是 `llmw/__init__.py` 的 `WIKI_SPEC_VERSION` 常量（本 spec 不重复钉号，
+避免双源漂移）。SKILL.md frontmatter 的 `metadata.wiki_spec_version` 必须与该常量一致——
+CI fixtures-smoke job 机械比对（`scripts/test/smoke_fixtures.py`），bump 时同 commit 改两处
+（详见 MEMORY/spec-version-bump-single-repo.md）。
 
 **LLM 在每次操作前比对** AGENTS.md §八（无 AGENTS.md 时 fallback CLAUDE.md §八）的 "Wiki Spec 版本" 与 SKILL.md
 `metadata.wiki_spec_version`；不一致时**警告用户**（不阻断——CLI 可能支持多个 spec 版本）。
@@ -579,9 +581,9 @@ spec 版本号的 SSOT 是本 skill `SKILL.md` 的 `metadata.wiki_spec_version` 
 （全在 H1 + §八 表格）；正文 §一~§七 + §九 是纪律文本，跨 wiki 逐字相同。因此一致性校验
 **不**做"存在性断言"，做**模板渲染字节比对**：
 
-- `check_wiki_fixtures.py` 的 `agents-md-template-sync`（error）：从 wiki §八 提取
+- `llmw wiki check-fixtures` 的 `agents-md-template-sync`（error）：从 wiki §八 提取
   主题 / 创建日期 / CLI 版本（主题 fallback H1 `# <主题> Wiki — LLM 维护守则`）+
-  wiki 自钉 spec 版本，渲染 `references/agents-md-template.md` 后与 wiki 实际 AGENTS.md
+  wiki 自钉 spec 版本，渲染包内 `agents-md-template.md` 后与 wiki 实际 AGENTS.md
   字节比对——任何不一致（旧版本残留 / 本地改动）都报错。
 - 修复 = **全量重渲染**（plan action `fixtures-fix-agents-md-resync`）：§八 变量保留旧值
   （wiki spec 版本用迁移目标版本），其余以模板渲染稿为准——**不**做局部 Edit。
@@ -802,7 +804,7 @@ anchor 的 `remote_url` / `branch` 是**可选**的 git 身份字段——记录
 ## §14 scripts/——本 wiki 仓扩展脚本目录
 
 > **维护方**：CLI 在 init 时刻**始终创建** `scripts/` 目录 + 拷贝空 `SCRIPTS.md`
-> 骨架（参考 `references/fixtures/scripts.md.txt`）；后续**用户 + LLM agent 共有**
+> 骨架（字节金标准由 llmw 包维护，命令 `llmw wiki check-fixtures` 探测）；后续**用户 + LLM agent 共有**
 > ——用户可手写 / LLM agent 可补——只要维持 `SCRIPTS.md` 索引同步。
 >
 > **agent 侧使用纪律见模板「scripts/」段（canonical 副本）**——本节只留机制契约与
@@ -846,7 +848,7 @@ anchor 的 `remote_url` / `branch` 是**可选**的 git 身份字段——记录
   Read 即可，**不**需要在 AGENTS.md 单独投影 one-liner
 - **更新纪律**：脚本增删时**只改这一份**（`scripts/SCRIPTS.md`）——AGENTS.md 单行
   `@import` 引用同步指向 `SCRIPTS.md` 全文，**不**需要再同步 AGENTS.md
-- **骨架**（CLI init 时刻拷贝）——字面量模板进 `references/fixtures/scripts.md.txt`
+- **骨架**（CLI init 时刻拷贝）——字面量由 llmw 包内字节金标准维护，命令 `llmw wiki check-fixtures` 探测
   （字节权威，本 spec 不复制）；形态：无 frontmatter、`## 索引` 单段（one-liner +
   4 要素子节），见 §14.4
 - **无**占位符——SCRIPTS.md 是 wiki 内的"脚本契约",与 `MEMORY/MEMORY.md` / `wiki/tags.md`
@@ -965,7 +967,7 @@ discussions/ 是 raw/ 总纪律的第二处例外——纪律型 skill 最怕"�
 CLI 在生成完成后，可执行以下验证：
 
 1. **字节级对比(渲染后)**:CLI 用一组固定测试值（主题名 / 创建日期等 per-wiki 变量取测试常量）渲染,
-   产物与本仓 `references/fixtures/` 下对应文件（占位符按同组测试值替换后）**逐字一致**——
+    产物与 llmw 包内字节金标准对应文件（占位符按同组测试值替换后）**逐字一致**——
    fixtures 是唯一字节金标准（跨仓时代的 canonical/ 双份已删）。
 2. **正则自检**：生成的 `wiki/log.md` 首条条目匹配 §4 正则
 3. **frontmatter 解析**：生成的 `wiki/index.md` / `wiki/log.md` 能被

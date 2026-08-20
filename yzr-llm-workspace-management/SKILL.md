@@ -308,9 +308,10 @@ skill 的 upgrade 工作流（按工作流名引用：走 `yzr-llm-wiki-manageme
 
 - **必读**：[`references/workspace-spec.md`](references/workspace-spec.md)——workspace 根
   9 类文件的归属 + skill 读取契约（含 §4 AGENTS.md / CLAUDE.md + §9 MEMORY/）
-- **必读**：[`references/workspace-agents-md-template.md`](references/workspace-agents-md-template.md)——
-  `<workspace>/AGENTS.md`（SSOT）的 canonical 模板字节金标准（CLI init 时按此拷）；薄壳 `<workspace>/CLAUDE.md`
-  见 [`workspace-claude-md-template.md`](references/workspace-claude-md-template.md)
+- **必读**：[`workspace-agents-md-template.md`](../llmw/content/templates/workspace/workspace-agents-md-template.md)——
+  `<workspace>/AGENTS.md`（SSOT）的 canonical 模板字节金标准（内建 `llmw/content/templates/workspace/`，
+  CLI init 时按此拷）；薄壳 `<workspace>/CLAUDE.md`
+  见 [`workspace-claude-md-template.md`](../llmw/content/templates/workspace/workspace-claude-md-template.md)
 - **必读**：`yzr-llm-wiki-management` SKILL.md 的 `references/wiki-spec.md`——
   单 wiki 内的目录 / frontmatter / 命名约束（本 skill 操作 wiki 时遵循）
 - **委托目标**：`yzr-llm-wiki-management` SKILL.md——

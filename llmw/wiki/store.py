@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from llmw._compat import toml_loads, toml_dump
-from llmw.config import templates_dir
+from llmw.config import metadata_templates_dir
 from llmw.errors import (
     InvalidTagValue,
     InvalidWikiName,
@@ -111,7 +111,7 @@ def save(wiki_dir: Path, meta: WikiMetadata) -> None:
 
 def create_skeleton(wiki_dir: Path, name: str, topic: str) -> WikiMetadata:
     """add 时调用：从 templates/wiki_metadata.toml.template 拷出实例"""
-    template_path = templates_dir() / "wiki_metadata.toml.template"
+    template_path = metadata_templates_dir() / "wiki_metadata.toml.template"
     template = template_path.read_text(encoding="utf-8")
     now = now_iso8601()
     text = (

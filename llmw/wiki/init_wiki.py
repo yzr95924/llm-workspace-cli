@@ -21,7 +21,7 @@ git 红线(spec §7): CLI 绝不碰 git——init 仅落盘目录树 + .gitkeep 
 
 from pathlib import Path
 
-from llmw.config import wiki_spec_templates_dir
+from llmw.config import wiki_templates_dir
 from llmw.content.render import (
     render_wiki_agents_md,
     render_wiki_claude_md,
@@ -104,17 +104,17 @@ def render_and_write(
         spec §7: 本函数不碰 git——仅落盘目录树 + .gitkeep 占位 + 8 份字面量
         产物;所有 git 操作由用户自行触发(调用方负责打印手动 hint)。
     """
-    refs = wiki_spec_templates_dir()
+    refs = wiki_templates_dir()
     if not refs.is_dir():
         raise SkillMissing(
-            f"找不到 SKILL references/ 目录: {refs}",
-            hint="检查 yzr-llm-wiki-management/references/ 是否完整（SKILL 随 CLI 同仓）",
+            f"找不到包内 templates/wiki/ 目录: {refs}",
+            hint="llmw/content/templates/wiki/ 目录缺失（CLI 包完整性受损）",
         )
     fixtures = refs / "fixtures"
     if not fixtures.is_dir():
         raise SetupFailed(
             f"fixtures 目录缺失: {fixtures}",
-            hint="检查 references/fixtures/ 是否完整",
+            hint="检查 llmw/content/templates/wiki/fixtures/ 是否完整",
         )
 
     # 渲染 4 份有占位符的文件（走 llmw.content.render 单一入口）
@@ -137,7 +137,7 @@ def render_and_write(
     except OSError as e:
         raise SetupFailed(
             f"读取 fixture 失败: {e.filename}",
-            hint="检查 references/fixtures/ 是否完整（SKILL 随 CLI 同仓）",
+            hint="检查 llmw/content/templates/wiki/fixtures/ 是否完整",
         )
 
     # 字节金标准自检不放在此处:fixtures 是带占位符模板,用户态 mapping 不匹配固定测试值,

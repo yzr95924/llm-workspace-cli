@@ -3,7 +3,8 @@
 > 本文档约定 workspace 仓的**出生形态骨架** + 各文件的**归属关系**（谁写谁读）+
 > **skill 读取契约**（scan / Q&A / migrate 实际读取的字段）+ 安全约束。
 >
-> **依赖方向（单向）**：`workspace CLI → SKILL`（CLI 运行时读 SKILL 的 fixtures / 模板落盘骨架）。
+> **依赖方向（单向）**：CLI 包自包含全部骨架资产（模板 + fixtures 内建 `llmw/content/templates/`，
+> 运行时零读 skill 目录）；skill 文本只以命令名指路 CLI 探测器。
 > SKILL **不反向依赖** CLI 实现——toml（`workspace.toml` / `wiki_metadata.toml` +
 > CLI 内部配置 toml）的**字段全集 schema 归 CLI 代码 SSOT**（CLI 是这些文件的唯一写方；
 > 字段随 CLI 演进出/入，如簿记 / 模型路由 / session 启动等 config 字段）。
@@ -11,8 +12,8 @@
 > **spec 只承载设计不变量**：CLI 的具体实现形式——命令名、占位符语法 / 渲染机制、版本戳编码格式、
 > `.gitignore` 栅栏标记、环境变量名、CLI 源码路径等——一律**不进 spec**（实现方法多样，spec 钉死
 > 只会反向限制 CLI 开发）。这些细节的唯一权威是 `llmw check-fixtures`（CLI 命令，可执行契约）
-> + [`references/fixtures/`](fixtures/)（字节金标准）+ CLI 代码；本 spec 提及时只描述
-> 设计意图 + 指向探测器，不复制字节。
+> + llmw 包内字节金标准（CLI 维护）+ CLI 代码；本 spec 提及时只描述
+> 设计意图 + 指向探测器命令，不复制字节，不指向 llmw 包内资源路径。
 >
 > **结构合规的可执行真源**是 `llmw check-fixtures`（CLI 命令，完整规则清单可用
 > `llmw check-fixtures --list-rules` 内省）——本 spec 是它的人类可读说明；两者不一致时
@@ -184,7 +185,7 @@
 ### AGENTS.md（SSOT）
 
 - 路径：`<workspace-root>/AGENTS.md`
-- 内容来源：本仓 `references/workspace-agents-md-template.md`（**权威 canonical 模板**）
+- 内容来源：llmw 包内 `workspace-agents-md-template.md`（**权威 canonical 模板**，内建 `llmw/content/templates/workspace/`）
 - CLI 按 canonical 模板生成，差异**仅限 4 个 per-workspace 值**（模板替换机制——占位符语法 / 渲染引擎——
   归 CLI，spec 不规定）：
   - workspace display name（默认取创建日期或人类指定字符串，如 `"LLM Wiki Workspace"`）
@@ -201,7 +202,7 @@
 ### CLAUDE.md（薄壳）
 
 - 路径：`<workspace-root>/CLAUDE.md`
-- 内容来源：本仓 `references/workspace-claude-md-template.md`（薄壳模板，`@AGENTS.md` + 声明，≤ 30 行）
+- 内容来源：llmw 包内 `workspace-claude-md-template.md`（薄壳模板，`@AGENTS.md` + 声明，≤ 30 行）
 - CLI 按薄壳模板生成，差异仅限 workspace display name 一个值（薄壳不持 spec 版本——版本在 AGENTS.md 「当前配置」表）
 - 不含纪律正文、不含 `@MEMORY` import（那条在 AGENTS.md 内）；仅 `@AGENTS.md` 一行
 
@@ -423,7 +424,7 @@
   - 判别尺度见[模板 §五](workspace-agents-md-template.md)「条目形式按事实颗粒度选」（canonical 副本）
 - lint `memory-not-indexed` 兜底——`MEMORY/*.md`（排除 `MEMORY.md`）未在索引列出时报该项；
   短条目无 `.md` 不进该检查
-- **内容来源 / 字面量**：[`references/fixtures/memory-index.txt`](fixtures/memory-index.txt)
+- **内容来源 / 字面量**：由 llmw 包内字节金标准维护（命令 `llmw check-fixtures` 探测）
   （MEMORY.md 无占位符，fixture 即字面量）。CLI init **逐字拷贝**生成 `<workspace>/MEMORY/MEMORY.md`——与
   wiki-spec §5.1 走相同的 fixtures 字节金标准模式（无占位符字面量文件进 fixtures/；
   有占位符的 `AGENTS.md` / `CLAUDE.md` 模板仍在 references/ 根，走 §4 内容级验证）。初始索引为空，注释用纯文字

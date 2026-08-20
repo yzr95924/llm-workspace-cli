@@ -17,11 +17,11 @@ llmw = "llmw.cli:main"
 [tool.setuptools]
 packages = ["llmw", "llmw.workspace", "llmw.wiki", "llmw.models", "llmw.content"]
 
-# ruff 全局配置：wiki SKILL 目录自带局部 ruff 配置（行宽 120 + 规则族）；
-# workspace SKILL 目录无 .py 文件，无需局部 ruff 覆盖；根配置只声明 target。
+[tool.setuptools.package-data]
+"llmw.content" = ["templates/**/*.md", "templates/**/*.md.txt", "templates/**/*.template", "templates/**/*.txt"]
+
 [tool.ruff]
-# ruff 新版默认开启 preview rules,会扫出 ~90 个新规则错误
-# (FA100/I001/UP032/RUF100 等),用于 CI lint 误伤修复。
-# 显式关闭 preview,锁住稳定规则集——本地 ruff 0.15.20 与 CI 最新版都生效。
+# ruff 全局配置：仓库无局部 ruff.toml（CLI 包 + 两 SKILL 目录都无 .py 残留），
+# 统一走根配置，只锁 preview + target。
 preview = false
 target-version = "py37"

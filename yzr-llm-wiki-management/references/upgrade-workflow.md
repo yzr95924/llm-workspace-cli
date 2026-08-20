@@ -121,18 +121,17 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
 ## fixtures 字段更新清单
 
 > **本节回答"升级时每个约定文件要对齐什么"**——集中一处，避免散落在 SKILL.md / spec 各处。
-> 权威信号清单是 `scripts/check_wiki_fixtures.py` 的 `SKELETON_SPECS` + `CHECK_REGISTRY`（数 = SKILL.md `metadata.fixtures_check_count`）；
+> 权威信号清单是 `llmw.content.wiki_fixtures` 的 `SKELETON_SPECS` + `CHECK_REGISTRY`（数 = SKILL.md `metadata.fixtures_check_count`）；
 > 本节只做 agent 视角的分类与指路，**不重抄字段名**（否则三处漂移）。
 
-升级 wiki spec 时，约定文件（fixtures）必须对齐当前 spec 的骨架。`check_wiki_fixtures.py`
-读 `references/fixtures/` 作 SSOT 做字段级骨架比对（gitignore 见 `fixtures/gitignore.txt`，
-改 fixtures → check 自动跟随）。
+升级 wiki spec 时，约定文件（fixtures）必须对齐当前 spec 的骨架。`llmw wiki check-fixtures`
+读 llmw 包内字节金标准作 SSOT 做字段级骨架比对（改包内字节金标准 → check 自动跟随）。
 
 ### 模板渲染件（整文以模板为准）
 
 | 文件 | 模板源 | per-wiki 变量（迁移时保留旧值） |
 | --- | --- | --- |
-| `AGENTS.md` | `references/agents-md-template.md` | 主题（H1 + §八）/ 创建日期 / CLI 版本（§八）；`{{WIKI_SPEC_VERSION}}` 用 `to_version` |
+| `AGENTS.md` | llmw 包内 `agents-md-template.md` | 主题（H1 + §八）/ 创建日期 / CLI 版本（§八）；`{{WIKI_SPEC_VERSION}}` 用 `to_version` |
 
 → 升级时：`agents-md-template-sync` 提取 §八 变量渲染模板后**字节比对**；任何不一致
 （旧版本残留 / 本地改动）产 `fixtures-fix-agents-md-resync` action，agent 走全量重渲染
@@ -172,8 +171,8 @@ step 8 会清）；`.migration-plan.json` 已不再产生（migrate 改 stdout �
 
 ### 权威源指针
 
-- 骨架信号定义：`scripts/check_wiki_fixtures.py` 的 `SKELETON_SPECS` + `CHECK_REGISTRY`
-- 字节金标准：`references/fixtures/*.txt`（index/log 带占位符，按迁移锚点 mapping 渲染后比对；gitignore 见 `references/fixtures/gitignore.txt`）
+- 骨架信号定义：`llmw.content.wiki_fixtures` 的 `SKELETON_SPECS` + `CHECK_REGISTRY`
+- 字节金标准：包内 llmw 字节金标准（index/log 带占位符，按迁移锚点 mapping 渲染后比对）
 - 语义合并（跨条目归并）：见 §六
 
 ## 与现有 lint 检查的协同
@@ -193,9 +192,9 @@ step 8 会清）；`.migration-plan.json` 已不再产生（migrate 改 stdout �
 
 ## 六、语义合并规则
 
-> `scripts/lint_wiki.py --check-version --apply` 以 stdout JSON 输出的 migration plan（含 `actions[]`
+> `llmw wiki lint --check-version --apply` 以 stdout JSON 输出的 migration plan（含 `actions[]`
 > 修内容页 frontmatter + `fixtures_actions[]` 修约定文件）走 agent 执行时，**结构性字节合规**
-> 由 `scripts/check_wiki_fixtures.py` 扫并产出 `fixtures-fix-*` action；**跨 entry 的语义合并**
+> 由 `llmw wiki check-fixtures` 扫并产出 `fixtures-fix-*` action；**跨 entry 的语义合并**
 > （老字段升级、index 重复条目、多 MEMORY 条目归并、0.16.0 → 0.17.0 anchor 多 entry 合并）
 > 由 agent 按本节规则走——脚本不替代语义判断。
 
