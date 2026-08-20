@@ -598,8 +598,17 @@ spec 版本号的 SSOT 是 `llmw/__init__.py` 的 `WIKI_SPEC_VERSION` 常量（�
 CI fixtures-smoke job 机械比对（`scripts/test/smoke_fixtures.py`），bump 时同 commit 改两处
 （详见 MEMORY/spec-version-bump-single-repo.md）。
 
-**LLM 在每次操作前比对** AGENTS.md §七（无 AGENTS.md 时 fallback CLAUDE.md §七）的 "Wiki Spec 版本" 与 SKILL.md
-`metadata.wiki_spec_version`；不一致时**警告用户**（不阻断——CLI 可能支持多个 spec 版本）。
+**版本语义**：版本号 = 实例契约版本。bump 仅当**现有实例需要 reconcile**（模板 / fixture
+头部 / `.gitignore` managed 块字节变化；lint 强制的内容 schema 变化；新增会让旧实例 fail
+的 check）。纯 skill 文档变化 / CLI 内部重构 / 工作流 prose 演进 **不** bump（避免
+全实例版本行 churn）。判别式：`llmw upgrade --apply` 会不会对现有实例产生超出版本行的
+diff，或 lint 会不会对旧实例产生新的 error/warn？会 → bump；不会 → 不 bump。
+
+**版本漂移由工具机械探测**：`llmw wiki lint` 报 `wiki-spec-version-stale`、
+`llmw wiki write` 启动时 warning、`llmw check-fixtures` 的
+`agents-version-is-current` 与 `agents-md-template-sync`。agent 响应工具输出即可，
+**不**需要每次操作前主动比对 AGENTS.md §七 与 SKILL.md frontmatter。升级流程见
+upgrade-workflow.md。
 
 ### §10.1 AGENTS.md 模板同步
 

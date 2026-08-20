@@ -36,7 +36,7 @@
 
 **SKILL 与 spec（2026-08-18 起两 SKILL 同仓）**
 
-- [spec 版本号 bump：包内常量 + CI gate](spec-version-bump-single-repo.md) — SSOT = `llmw/__init__.py` 常量；SKILL.md frontmatter 由 `scripts/test/smoke_fixtures.py` 比对；bump 同 commit 改两处
+- [spec 版本号 bump：包内常量 + CI gate](spec-version-bump-single-repo.md) — SSOT = `llmw/__init__.py` 常量；bump 判别式：现有实例需要 reconcile 才 bump；文档/重构不 bump
 - [wiki-spec ↔ workspace-spec type enum 耦合](wiki-workspace-spec-type-coupling.md) — 改 wiki-spec §9 type 必须同步查 workspace-spec §13，否则"复用"引用悬空
 - [wiki/workspace 纪律文件 AGENTS.md SSOT + CLAUDE.md 薄壳](wiki-spec-0-11-agents-md-ssot.md) — 0.11.0/0.4.0 起纪律 SSOT 改 AGENTS.md + 薄壳；两 spec 对称，改 SSOT 引用要同步两 skill
 - [三方边界关系图](boundary-map.md) — 用户 + CLI + workspace skill + wiki skill 四方依赖方向 + 生命周期 + 产物归属指针 + 新能力判归 6 步有序测试；新增归属决策时先查

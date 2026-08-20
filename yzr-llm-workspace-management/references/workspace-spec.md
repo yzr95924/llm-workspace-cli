@@ -565,10 +565,17 @@ CLI 在以下情况必须拒绝并退出（**非零退出码**）：
 spec 不规定。「CLI 记录的 spec 版本是否与 SKILL 当前版本对齐」由 `llmw check-fixtures`
 的相关 check 校验（读取契约的可执行 gate）。
 
-"当前 spec 版本"的 SSOT 是 [`yzr-llm-workspace-management`](../SKILL.md) SKILL.md
-`metadata.workspace_spec_version`（本 spec 不重复钉号，避免双源漂移）。版本落后
+"当前 spec 版本"的 SSOT 是 `llmw/__init__.py` 的 `WORKSPACE_SPEC_VERSION` 常量
+（本 spec 不重复钉号，避免双源漂移）。SKILL.md frontmatter 的
+`metadata.workspace_spec_version` 必须与该常量一致——CI fixtures-smoke job 机械比对
+（`scripts/test/smoke_fixtures.py`），bump 时同 commit 改两处。版本落后
 由 `llmw upgrade` 自动修复（dry-run 预览 / `--apply` 落盘 / `--yes` 确认覆盖自定义）；
 `llmw check-fixtures` 也报告该信息但不写盘（探测职责）。
+
+**版本语义**：版本号 = 实例契约版本。bump 仅当**现有实例需要 reconcile**（模板 / fixture
+头部 / `.gitignore` managed 块字节变化；新增会让旧实例 fail 的 check）。纯 skill 文档
+变化 / CLI 内部重构 **不** bump（避免全实例版本行无意义 churn）。判别式：`llmw upgrade --apply`
+会不会对现有实例产生超出版本行的 diff？
 
 ## §15 命名约束
 

@@ -14,7 +14,7 @@ metadata:
   author: Zuoru YANG
   category: knowledge-base
   modify time: 2026-08-17
-  wiki_spec_version: 0.37.0
+  wiki_spec_version: 0.38.0
 ---
 
 # LLM Wiki Management
