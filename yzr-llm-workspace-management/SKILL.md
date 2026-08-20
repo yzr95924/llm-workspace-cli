@@ -339,9 +339,11 @@ frontmatter 仅 `title` 必填；`type` 若写固定 `workspace-memory`（与 wi
 | `wikis` | `cross-query` / `workspace-memory` | `cross-query` 是 / `workspace-memory` 推荐 | 涉及的 wiki 名列表 |
 | `description` | 所有 | 推荐 | 一句话 |
 
+字段**语义**写法（怎么写好 `title` / `description` / `tags`）SSOT = `yzr-llm-wiki-management` page-templates.md §一。
+
 ### A8. 命名约束
 
-本表只承载 **skill 写盘文件**的命名约束（这些文件 CLI 不读写、无机械 gate，约束唯一承载点 = 本节）。wiki name（`llmw wiki add` 创建时校验）与 CLI 内部标识符归 CLI（见 A9）；wiki 命名推荐风格见 `<workspace>/AGENTS.md` §二。
+本表只承载 **skill 写盘文件**的命名约束（这些文件 CLI 不读写、无机械 gate，约束唯一承载点 = 本节）。wiki name（`llmw wiki add` 创建时校验）与 CLI 内部标识符归 CLI；wiki 命名推荐风格见 `<workspace>/AGENTS.md` §二。
 
 | 维度 | 规则 | 适用对象 |
 | --- | --- | --- |
@@ -349,11 +351,3 @@ frontmatter 仅 `title` 必填；`type` 若写固定 `workspace-memory`（与 wi
 | MEMORY 文件名 | kebab-case `^[a-z0-9][a-z0-9-]*$` | `<workspace>/MEMORY/*.md`（MEMORY.md 例外） |
 | frontmatter 字段名 | 严格小写 + 下划线 | 所有 workspace 级 markdown |
 | frontmatter `type` 值 | 严格小写 + 连字符（`workspace-index` / `workspace-memory` 等） | 所有 workspace 级 markdown |
-
-### A9. 不在本节范围内
-
-- toml 字段全集 schema（归 CLI 代码 SSOT）
-- cross-wiki Q&A / 交叉引用 / lint / MEMORY 的**工作流**（归本 SKILL.md 主体各节）
-- frontmatter 字段的**语义**写法（归 LLM 写作视角，参照 yzr-llm-wiki-management page-templates.md §一）
-- Obsidian / 编辑器偏好
-- 单 wiki 操作（ingest / query / lint / wiki 内容页契约 → 走 `yzr-llm-wiki-management`）
