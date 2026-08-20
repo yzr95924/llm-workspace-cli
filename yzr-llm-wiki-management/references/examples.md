@@ -95,7 +95,7 @@
 **执行**：
 
 ```text
-1. 跑操作前置：Read ~/wiki/llm-systems/AGENTS.md (看到 §八 Wiki Spec 版本 = 0.5.0；老 wiki 版本在 CLAUDE.md §八) +
+1. 跑操作前置：Read ~/wiki/llm-systems/AGENTS.md (看到 §七 Wiki Spec 版本 = 0.5.0；老 wiki 版本在 CLAUDE.md §七) +
    wiki/index.md + wiki/log.md 最近 30 行
 2. 跑探测：
    python3 yzr-llm-wiki-management/scripts/lint_wiki.py ~/wiki/llm-systems --check-version
@@ -121,7 +121,7 @@
 5. agent 从 stdout JSON 读 plan.actions[] 逐项 Edit/Write 修复:
    - 12 处 frontmatter-rename（其中 11 处直接改，1 处冲突跳过转人工）
    - 0 处其它（`type-memory-value` 已退役，老 wiki 中 `type: memory` 由 lint `invalid-type` 单独报）
-6. Edit 改 ~/wiki/llm-systems/AGENTS.md §八 "Wiki Spec 版本" 0.5.0 → 0.7.0
+6. Edit 改 ~/wiki/llm-systems/AGENTS.md §七 "Wiki Spec 版本" 0.5.0 → 0.7.0
 7. 重跑 lint_wiki.py --check-version 验证:
      needs_migration: false ✓ 完成
      报告残留: wiki/sources/<legacy-page>.md [CONFLICT] 等待用户裁定

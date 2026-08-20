@@ -44,7 +44,7 @@ python3 yzr-llm-wiki-management/scripts/lint_wiki.py "$LLM_WIKI_ROOT" --severity
 
 ### 子命令 `--check-version`
 
-扫当前 wiki 的 spec 版本（解析 `<wiki-root>/AGENTS.md` §八；老 wiki fallback
+扫当前 wiki 的 spec 版本（解析 `<wiki-root>/AGENTS.md` §七；老 wiki fallback
 `<wiki-root>/CLAUDE.md`）与本 skill `metadata.wiki_spec_version`（脚本常量
 `CURRENT_WIKI_SPEC`）比对 + 扫已知 legacy 现场（`confidence-field` /
 `type-memory-value`）+ 自动调 fixtures 检查：
@@ -69,13 +69,13 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ### 前置：wiki 版本一致性
 
-每次常规 lint 都查 `<wiki-root>/AGENTS.md` §八 与 `CURRENT_WIKI_SPEC` 一致性（实现：
+每次常规 lint 都查 `<wiki-root>/AGENTS.md` §七 与 `CURRENT_WIKI_SPEC` 一致性（实现：
 `check_spec_version()`，与 `--check-version` 同源）——日常 lint 就能感知版本漂移：
 
 - `wiki-spec-version-stale`（warn）：版本**落后** SKILL → 跑 `--check-version --apply`
   走升级流程（SKILL.md §5 Migrate）
 - `wiki-spec-version-ahead`（warn）：版本**领先** SKILL → 更新本 skill 安装对齐
-- `wiki-spec-version-unparsed`（warn）：§八 行无法解析 → 跑 `--check-version` 诊断
+- `wiki-spec-version-unparsed`（warn）：§七 行无法解析 → 跑 `--check-version` 诊断
 - 一致（equal）→ 无 finding
 
 ### 1. `raw/` 不可变性
@@ -304,9 +304,9 @@ spec §13 相关，详见 lint_wiki.py `check_external_symlinks` docstring。）
 - **不**评估 frontmatter 的语义是否合理（只检查字段存在性 + 类型合法）
 - **不**取代 schema（`AGENTS.md`）——schema 是源头，lint 是脚本化检查
 - **fixtures 边界**——`llmw wiki check-fixtures` 扫「约定文件」
-  （AGENTS.md §八 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
+  （AGENTS.md §七 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
   MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
   wiki_metadata.toml）的合规性：
-   **`metadata.fixtures_check_count`** 条 check（13 条结构探测 + 7 条骨架字段比对，后者读
-   llmw 包内字节金标准作 SSOT）；语义合并走 §五
+   check 清单以 `llmw wiki check-fixtures --json` 输出为准（CLI 内部注册表唯一真源；
+   结构探测 + 骨架字段比对两类，后者读 llmw 包内字节金标准作 SSOT）；语义合并走 §五
    由 LLM 判断——脚本不替代人。常规 lint 另跑 `check_spec_version`（§二前置）报版本漂移 warn

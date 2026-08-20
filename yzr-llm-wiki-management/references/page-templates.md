@@ -2,6 +2,11 @@
 
 按 `type` 分 5 种。**所有页面**共有 frontmatter 段（见下）+ 类型特定字段 + 自由正文。
 
+> **本文件是 content-owned 产物（wiki 内容页）纪律的 canonical**——frontmatter 字段
+> 全集 / 建页阈值 / 认知质量信号 / 矛盾处理 Update Policy 的唯一维护点（0.37.0 起
+> 从 AGENTS.md 模板迁入；模板不再承载写页规则）。改规则只改本文件 + bump
+> `wiki_spec_version`。
+
 > **本章顺序说明**：下面按**教学序**列出（基础 → 综合：entity → concept → source
 > → comparison → synthesis）。spec 强制**字母序**用于目录结构与 `type` 取值表——
 > 见 [wiki-spec.md §1 / §9](wiki-spec.md)。
@@ -19,7 +24,7 @@
   - [7. `log.md`（log）](#7-logmdlog)
 - [三、模板使用规则](#三模板使用规则)
 
-> **frontmatter 写法约束**（与 `scripts/ingest_diff.py` 的轻量 YAML 解析器对齐）：仅支持单行
+> **frontmatter 写法约束**（与 `llmw wiki ingest-diff` 内的轻量 YAML 解析器对齐）：仅支持单行
 > `key: value`、inline 数组 `[a, b, c]`、`- item` 列表项三种形式。**不要**使用多行折叠 `>` /
 > `|`、YAML 锚点 `&` / `*`、嵌套 map——脚本会静默解析失败、返回空 dict、后续 ingest 与 lint
 > 行为未定义。
@@ -95,9 +100,10 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 
 #### 生命周期规则（LLM 必读）
 
-「`reviewed: true` 是背书快照、**不是永久标签**，LLM 任何正文修改都让戳失效」的纪律正文
-见 [`agents-md-template.md`](agents-md-template.md) §二「认知质量信号」（canonical 副本）；
-本节只承载判定表 + lint 语义：
+**生命周期纪律（LLM 必读）**：`reviewed: true` 是"我对这一刻的内容背书"的快照，
+**不是永久标签**——任何对页面正文的 LLM 修改都让戳失效，必须**删除** `reviewed` +
+`reviewed_at` 回到默认未审核状态，由人重新审。`llmw wiki lint` 用 `reviewed-stale`
+兜底（`reviewed: true` 存在且 `updated > reviewed_at` 时给 warn）。判定表 + lint 语义如下：
 
 | 事件 | 对 `reviewed` / `reviewed_at` 的操作 |
 | --- | --- |
@@ -108,8 +114,8 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 
 **两道闸门**：
 
-1. **纪律闸门**——生命周期纪律的 canonical 副本 = `agents-md-template.md` §二（模板随
-   init 渲染进每个 wiki 的 AGENTS.md）；本节只承载判定表 / lint 语义，不再逐字重复
+1. **纪律闸门**——生命周期纪律 canonical = 本节（0.37.0 起迁入；AGENTS.md 模板只留
+   "写页规则见 skill 页面模板文档"指针）
 2. **lint 兜底**——`reviewed-stale` 触发条件：`reviewed: true` 存在 **且** `updated > reviewed_at`，
    把 LLM 漏清戳的页面拎出来提示人复审
 
@@ -120,8 +126,17 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
   应先裁定冲突再标
 - 已审过的页被 LLM 修改后，回到默认未审核状态，等人再次复审
 
-**矛盾处理的完整 Update Policy**（ingest 时遇到"新资料与已有页冲突"怎么做）见
-[`agents-md-template.md`](agents-md-template.md)「矛盾处理 Update Policy」段——本节只定义字段语义。
+**矛盾处理 Update Policy**（ingest 时遇到"新资料与已有页冲突"时，**不要静默覆盖**，
+按以下顺序处理——0.37.0 起由本文件承载）：
+
+1. **先看日期**——更新的来源一般覆盖旧的；但若旧来源更权威（如官方技术报告 vs 博客），
+   保留两者并进入第 2 步
+2. **判定是否真矛盾**——版本差异（同一对象 v1 vs v2 的某个属性）、上下文差异
+   （不同评测条件）不算矛盾，加注明即可；确属矛盾进入第 3 步
+3. **显式记录两种说法**——在页面正文写出 A 说 X（来源 + 日期）、B 说 Y（来源 + 日期），
+   不要"和稀泥"挑一个；双方 frontmatter 都设 `contested: true` + `contradictions` 互指
+4. **等 lint 复审**——下次 lint 会把 `contested` 页拎出来；与用户一起裁定后，
+   移除 `contested`（如该页已审核，按生命周期规则判断是否需重新审）
 
 ## 二、各类型模板
 
@@ -396,8 +411,8 @@ updated: YYYY-MM-DD HH:MM
 ```markdown
 # <Topic> Wiki
 
-> 本 wiki 由 LLM 维护，用户只读 + 提供 raw 资料 + 提问题。
-> Schema 见 [`../AGENTS.md`](../AGENTS.md)。
+> 本 wiki 由 LLM 维护，用户只读 + 提供 raw 资料 + 提问题。边界纪律见
+> [`../AGENTS.md`](../AGENTS.md)；条目纪律与扩容护栏见本文件头部说明块（canonical）。
 
 ## Entities
 
@@ -445,7 +460,7 @@ updated: YYYY-MM-DD HH:MM
 ingest/query/lint/setup 行推荐带 HH:MM；date-only 也合法）：
 
 ```markdown
-## [2026-06-24 14:30] setup | Initial scaffold by yzr-llm-wiki-management
+## [2026-06-24 14:30] setup | Initial scaffold by llmw CLI
 ## [2026-06-24 14:35] ingest | <source page title>
 ## [2026-06-24 15:10] query | <answer summary>
 ## [2026-06-24 16:00] lint | First health check
@@ -455,7 +470,7 @@ ingest/query/lint/setup 行推荐带 HH:MM；date-only 也合法）：
 
 - 每行匹配正则
 - 滚动窗口：条目数 > `LOG_RETENTION_LIMIT`（50）时报 `log-truncation-recommended`；
-  正路 `wiki_write.py log` 写入时自动截断（frontmatter 不动）
+  正路 `llmw wiki write log` 写入时自动截断（frontmatter 不动）
 
 ## 三、模板使用规则
 
@@ -466,3 +481,17 @@ ingest/query/lint/setup 行推荐带 HH:MM；date-only 也合法）：
 5. **完整正文示例**——本文件只留 frontmatter SSOT + 极简骨架（节名 + `...` 占位）；
    真实 wiki 里 5 类模板的填充实例见 [`examples.md`](examples.md) 样例二 / 样例三
    （source 摘要 + 综合 markdown）——按需 Read，无需把详细实例塞进本文件
+
+### 建页 / 追加 / 归档阈值（Page Thresholds）
+
+不是每个 entity / concept 都值得独立成页——没阈值 wiki 会被名词堆爆，几个月后 index 翻不到底。
+（0.37.0 起由本文件承载；**宁可错过一个 entity 也不要堆十个空页**——"克制"是 wiki 长期
+可用性的具体化，堆一千个空 entity 后 lint 报告会被噪声淹没。）
+
+| 动作 | 触发条件 |
+| --- | --- |
+| **新建 entity / concept 页** | 该 entity / concept 在 ≥ 2 个 source 页中被提到 **或** 是某 source 页的中心主题 |
+| **追加到已有页** | source 页提到一个已被覆盖的 entity / concept——追加"参考来源"段即可（不重写） |
+| **不创建页** | 路过提及（脚注 / 一次出现的名字）、领域外的细节、与本 wiki 主题无关 |
+| **拆分页** | 单页正文超过阈值（SSOT = `llmw wiki lint` 的 `PAGE_SIZE_THRESHOLD` 常量）——拆成子主题 + cross-link |
+| **归档页** | 内容被完全取代 / 主题域变化——加 `archived: true`、从 `index.md` 移除（log 走 `ingest` 或 `lint` op，记一条说明性条目） |

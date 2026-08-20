@@ -2,7 +2,7 @@
 """wiki_fixtures — fixtures 一致性检查（升级时专用；CLI 入口 `llmw wiki check-fixtures`）
 
 按 wiki-spec（§3/§4/§5/§6/§9.1/§10/§13/§14 各节）的 fixture 视角，校验一个已存在 wiki 的
-"约定文件"（AGENTS.md §八 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
+"约定文件"（AGENTS.md §七 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
 MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
 wiki_metadata.toml）是否满足当前 wiki spec 的结构要求。本模块只校验**结构性字节合规**；
 语义合并（frontmatter 字段升级 / index 重复条目 / 多 MEMORY 条目归并等）由
@@ -28,7 +28,7 @@ standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 to
   唯独 .gitignore 走包内 fixtures/gitignore.txt 自动跟随。
 - `template-no-outbound-refs`：模板零出边引用是架构不变量（纪律正文唯一维护点 =
   模板；spec / SKILL.md / page-templates.md 单向指入模板），由该 check 机械强制。
-- AGENTS.md 走**模板渲染比对**（`agents-md-template-sync`）：从 wiki §八 提取
+- AGENTS.md 走**模板渲染比对**（`agents-md-template-sync`）：从 wiki §七 提取
   主题/创建日期/CLI 版本三变量 + wiki 自钉 spec 版本，渲染包内 agents-md-template.md
   后字节比对——一次性覆盖"旧版本残留 + 本地改动"全部漂移，取代 0.25.0- 的两条存在性检查
   （has-at-imports / top-read-directive）。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
@@ -70,14 +70,14 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": "AGENTS.md",
         "rule_ref": "wiki-spec.md §10",
-        "desc": "AGENTS.md §八 Wiki Spec 版本行需与 --target-spec 一致",
+        "desc": "AGENTS.md §七 Wiki Spec 版本行需与 --target-spec 一致",
     },
     {
         "id": "agents-md-template-sync",
         "severity": "error",
         "file": "AGENTS.md",
         "rule_ref": "wiki-spec.md §10.1",
-        "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（§八 四变量替换后）；定制纪律应沉淀到 MEMORY/",
+        "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（§七 四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
         "id": "template-no-outbound-refs",
@@ -193,7 +193,7 @@ def _compare_semver(a: Optional[str], b: Optional[str]) -> str:
     """返 'equal' / 'older' / 'newer' / 'unknown'。
 
     本地保留（非 lint_wiki import）：lint_wiki._compare_semver 假定 skill 参数非 None，
-    check 的 current_spec 可能为 None（wiki §八 版本钉定时），需更宽容的缺值处理。
+    check 的 current_spec 可能为 None（wiki §七 版本钉定时），需更宽容的缺值处理。
     """
     if not a or not b:
         return "unknown"
@@ -291,7 +291,7 @@ def _parse_anchor_minimal(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
 
 
 def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """AGENTS.md §八 spec 行与 --target-spec 一致"""
+    """AGENTS.md §七 spec 行与 --target-spec 一致"""
     target_spec = info.get("target_spec") or None
     out = {  # type: Dict[str, object]
         "passed": True,
@@ -325,7 +325,7 @@ def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obj
             break
     if found_version is None:
         out["passed"] = False  # type: ignore
-        out["actual"] = "(无法解析 §八 Wiki Spec 版本行)"
+        out["actual"] = "(无法解析 §七 Wiki Spec 版本行)"
         out["expected"] = target_spec
         return out
     out["file"] = source_file  # type: ignore
@@ -362,7 +362,7 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
         out["skipped"] = "AGENTS.md 不存在"
         return out
 
-    # 变量 SSOT: 从 wiki_metadata.toml 读 topic/created_at（不从 AGENTS.md §八 反提取）
+    # 变量 SSOT: 从 wiki_metadata.toml 读 topic/created_at（不从 AGENTS.md §七 反提取）
     try:
         meta = wiki_store.load(wiki_root)
     except WikiMetadataCorrupt as e:

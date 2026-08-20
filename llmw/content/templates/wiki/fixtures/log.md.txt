@@ -6,4 +6,15 @@ created: {{SETUP_DATE}}
 updated: {{SETUP_DATE}}
 ---
 
-## [{{SETUP_DATE}}] setup | Initial scaffold by yzr-llm-wiki-management
+> 近期活动速览（滚动窗口）——完整操作历史靠 git（`git log -p -- wiki/log.md`）。
+>
+> **追加纪律**：每次 ingest / query / lint 后**必须**追加一条；正路走
+> `llmw wiki write log`（格式 + 滚动窗口截断自动保证），带外手改按下列格式并手工截断。
+>
+> **格式**：`## [YYYY-MM-DD HH:MM] <op> | <title>`（op ∈ `ingest` / `query` / `lint` /
+> `setup`；日期也接受 `YYYY-MM-DD`）。`setup` 首条由 llmw CLI 初始化时写入；格式不符
+> 会被 `llmw wiki lint` 报告。标题简洁、不超过一行；URL / 详细摘要写在对应页面里。
+>
+> **滚动窗口**：条目数 > 50 时删最旧的保最近 50 条（本文件 frontmatter 不动）。
+
+## [{{SETUP_DATE}}] setup | Initial scaffold by llmw CLI

@@ -14,7 +14,7 @@ metadata:
   author: Zuoru YANG
   category: knowledge-base
   modify time: 2026-08-17
-  wiki_spec_version: 0.36.0
+  wiki_spec_version: 0.37.0
 ---
 
 # LLM Wiki Management
@@ -97,7 +97,7 @@ metadata:
   语义合并——想往脚本里加"理解"就是边界被侵蚀的信号
 - **常量单一来源 + 版本防护**：`llmw.content.wiki_write` 从 `llmw.content.wiki_lint` /
   `llmw.content.log_format` import（VALID_TYPES / LOG_RETENTION_LIMIT / LOG_LINE_RE 等），
-  spec 改格式变更点不增；启动时 wiki §八 版本与 SKILL 不一致 → 警告"先 upgrade 再写"（不阻断）
+  spec 改格式变更点不增；启动时 wiki §七 版本与 SKILL 不一致 → 警告"先 upgrade 再写"（不阻断）
 
 ### 四层架构——为什么是四层
 
@@ -174,7 +174,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
      草稿消化进 wiki 两条路（消化式 / 转正式 `mv`）都需用户确认——详 wiki-spec §15
 2. **wiki/ 由 LLM 撰写**——用户从不手写 wiki 页面（编辑 AGENTS.md 除外，那是 schema）
 3. **AGENTS.md 是 schema 不是文档**——它承载 wiki 的纪律配置，不往里塞内容（完整纪律见
-   AGENTS.md 模板（CLI 包内）§七「本文件本身的纪律」）。
+   AGENTS.md 模板（CLI 包内）§六「本文件本身的纪律」）。
    **写新纪律先判归属**：过在场 / 状态 / 人格三测试（wiki 属性；「做错」限定为状态
    不合法 / 腐烂，写作质量类方法不算）→ 写模板；干活方法 /
    工具 / 路由 → 留本文件——判据 SSOT 见 [wiki-spec.md §2](references/wiki-spec.md#2-agentsmdssot-claudemd薄壳)
@@ -207,13 +207,15 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
 10. **LLM 修改已审核页必须清 `reviewed` 戳——每次编辑后跑 `llmw wiki write touch`**
     （自动 `updated`=现在 + 删 `reviewed` / `reviewed_at`，见 §设计决策「机械 vs 判断」）；
     `llmw wiki lint` 用 `reviewed-stale` 兜底。完整生命周期规则见
-    AGENTS.md 模板（CLI 包内）§二「认知质量信号」（纪律 canonical 副本）。
+    [page-templates.md](references/page-templates.md)「可信度与认知质量信号」段
+    （content-owned 纪律 canonical，0.37.0 起从 AGENTS.md 模板迁入）。
 
 11. **tag 白名单在 `wiki/tags.md`**（详
    [wiki-spec.md §9.1](references/wiki-spec.md#91-tag-白名单来源)）——LLM auto-extend bullet +
    用户审计循环（删 bullet → 下次 lint 报 `tag-not-in-taxonomy` 由用户裁定）；`wiki/tags.md` 无
    frontmatter，与 `MEMORY/MEMORY.md` 同形态。跨 spec 升级走 `llmw wiki lint --check-version --apply`。
-   `agents-md-template.md`「Tag Taxonomy」段承载同一规则（纪律 canonical 副本 = 模板，wiki 侧 AGENTS.md 由它渲染）。
+   取值 / 解析 / 审计循环规则由 `wiki/tags.md` fixture 头部说明块承载（canonical，
+   落盘进实例直接可读）。
 
 12. **本 wiki 自维护脚本走 `<wiki-root>/scripts/` + `SCRIPTS.md` 索引**（详
    [wiki-spec.md §14](references/wiki-spec.md#14-scripts本-wiki-仓扩展脚本目录)）——`SCRIPTS.md`
@@ -223,13 +225,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
    再按需 `Read scripts/SCRIPTS.md` 取完整契约（`@import` 展开后即见），按"调用约定"显式执行，
    **不**自动遍历 `scripts/`；改脚本只改 `SCRIPTS.md` 这一份。`scripts/` 不走 §9 5 必填、
    不参与 `llmw wiki lint` 扫描、不复制 skill 自带脚本（版本漂移风险）。
-   `agents-md-template.md`「scripts/ —— 本 wiki 仓的自维护脚本目录」段承载同一规则（canonical 副本 = 模板）。
-
-13. **yzr 个人工作习惯**——**canonical 副本 =
-    AGENTS.md 模板（CLI 包内）§九**（纪律正文唯一维护点；
-    习惯清单以该节为准，此处不枚举——增改习惯只改模板，不动本文件、不升
-    `wiki_spec_version`，老 wiki 由 `agents-md-template-sync` 字节比对独立探测后重渲染）。
-    触发本 skill 的会话对用户输出前先 `Read` 该段一次——这些习惯适用于一切面向用户的输出。
+   使用纪律由 `scripts/SCRIPTS.md` fixture 头部说明块承载（canonical，落盘进实例直接可读）。
 
 ### 边界
 
@@ -477,7 +473,7 @@ reformat"；或 `llmw wiki lint` 报告 `legacy-confidence-field` 等迁移期 w
 
 **fixtures 一致性检查**——`llmw wiki lint --check-version` 内部直接调
 `llmw.content` 的 fixtures 检查（同一进程，非子进程）
-扫 wiki 仓 10 类约定文件（AGENTS.md §八 / .gitignore / index.md / log.md / tags.md /
+扫 wiki 仓 10 类约定文件（AGENTS.md §七 / .gitignore / index.md / log.md / tags.md /
 MEMORY/MEMORY.md / MEMORY/*.md 条目 / SCRIPTS.md / .symlink-anchor.toml /
 wiki_metadata.toml），finding 并入
 `migration plan`（stdout JSON 输出）的 `fixtures_actions[]`（与 legacy `actions[]` 平行）。检查项数 breakdown 见

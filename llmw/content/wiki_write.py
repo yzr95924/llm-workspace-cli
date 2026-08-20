@@ -21,7 +21,7 @@
   memory  新建 MEMORY 条目（仅 title 必填 frontmatter）+ 原子追加 MEMORY.md 索引行
           `python3 wiki_write.py <WIKI_ROOT> memory add --slug foo --title "Foo" [--index-line "一句话"]`
 
-版本错位警告：wiki §八 钉定版本与 SKILL 的 CURRENT_WIKI_SPEC 不一致时警告"先 upgrade 再写"
+版本错位警告：wiki §七 钉定版本与 SKILL 的 CURRENT_WIKI_SPEC 不一致时警告"先 upgrade 再写"
 ——防新格式写进老 wiki。只警告不阻断（逃生舱：用户对老 wiki 有意写入时仍可用）。
 
 退出码：0 = 成功（含 no-op）；2 = 运行错误 / 参数错误。
@@ -70,7 +70,7 @@ def _now():
 
 
 def _warn_version(wiki_root):
-    """wiki §八 钉定版本与 SKILL 不一致时打警告（stderr，不阻断）"""
+    """wiki §七 钉定版本与 SKILL 不一致时打警告（stderr，不阻断）"""
     pinned = parse_spec_version(Path(wiki_root))
     if pinned and pinned != CURRENT_WIKI_SPEC:
         print(

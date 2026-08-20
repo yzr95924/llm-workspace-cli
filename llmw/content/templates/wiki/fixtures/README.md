@@ -3,6 +3,8 @@
 CLI 实现 wiki 仓时落盘的 `wiki/index.md` / `wiki/log.md` / `wiki/tags.md`
 / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` / `.gitignore` 六个文件的**字节金标准**。
 同仓后 fixtures 是唯一字节金标准（跨仓时代的 `references/canonical/` 双份已删）。
+0.37.0 起各 fixture 头部说明块承载该文件的**操作纪律 canonical**（原在 AGENTS.md 模板
+§一各段与 skill spec——规则跟着维护者走，落盘进实例 agent 直接读）。
 
 ## 用法
 
@@ -59,7 +61,7 @@ wiki 根有两份模板产物：**`AGENTS.md`（SSOT）** 由 CLI 拷本目录�
 （fixture 只覆盖 CLI init 时刻的"成品"，AGENTS.md / CLAUDE.md 是模板替换产物）。
 
 > **注**：AGENTS.md 虽不进 fixtures 字节比对，但**有独立的运行时同步检查**——
-> `llmw wiki check-fixtures` 的 `agents-md-template-sync` 从 wiki §八 提取 4 个变量值反向渲染
+> `llmw wiki check-fixtures` 的 `agents-md-template-sync` 从 wiki §七 提取 4 个变量值反向渲染
 > 包内 `agents-md-template.md`，与 wiki 实际 AGENTS.md 字节比对（spec §10.1）。机制同源：
 > 都建立在"AGENTS.md = 模板 + 4 个占位符替换"这一事实上；区别只在本目录管 **init 时刻**、
 > template-sync 管 **init 之后的整个生命周期**（含 spec 升级重渲染）。
@@ -70,13 +72,13 @@ CLI 必须替换的占位符：
 |---|---|---|
 | `{{TOPIC_NAME}}` | 用户传入的主题名 | AGENTS.md + CLAUDE.md（薄壳） |
 | `{{SETUP_DATE}}` | 当天日期 `YYYY-MM-DD HH:MM` | AGENTS.md |
-| `{{WIKI_SPEC_VERSION}}` | CLI 当前兼容的 wiki spec 版本 | AGENTS.md §八（薄壳不持版本） |
+| `{{WIKI_SPEC_VERSION}}` | CLI 当前兼容的 wiki spec 版本 | AGENTS.md §七（薄壳不持版本） |
 | `{{CLI_VERSION}}` | CLI 自身版本号 | AGENTS.md |
 
 CLI 替换后做内容级验证（不能用 fixture 字节比对）：
 
 1. AGENTS.md 的 4 个 `{{...}}` 占位符 + 薄壳 CLAUDE.md 的 `{{TOPIC_NAME}}` **全部被替换**——`grep -c '{{' AGENTS.md CLAUDE.md` 应为 0
-2. 生成的 AGENTS.md §八 "Wiki Spec 版本" 与 `llmw.WIKI_SPEC_VERSION` 常量一致（SKILL.md frontmatter 由 CI gate 与常量比对）
+2. 生成的 AGENTS.md §七 "Wiki Spec 版本" 与 `llmw.WIKI_SPEC_VERSION` 常量一致（SKILL.md frontmatter 由 CI gate 与常量比对）
 
 ## 字节级一致性证据
 
@@ -93,7 +95,7 @@ fixtures 只承载 **CLI init 时刻的骨架字节**；内容在 init 之后由
 | 文件 | fixture 覆盖（骨架） | 成长内容（fixture 外） |
 |---|---|---|
 | `wiki/index.md` | frontmatter + H1 + 说明块 + 5 类别 H2 标题 | 类别下每篇 ingest 产出的 page bullet / 链接 |
-| `wiki/log.md` | frontmatter + H1 + 说明块 + 第一条 setup 条目 | 之后每次 ingest / query / lint 追加的条目 |
+| `wiki/log.md` | frontmatter + 说明块 + 第一条 setup 条目 | 之后每次 ingest / query / lint 追加的条目 |
 | `wiki/tags.md` | H1 + 说明块（空 bullet 列表） | agent 按需追加的 tag bullet |
 | `MEMORY/MEMORY.md` | H1 + 说明块 + `## 索引` 段标题 | 索引下每条经验条目 |
 | `scripts/SCRIPTS.md` | H1 + 说明块 + `## 索引` 段标题 | 用户 / agent 追加的脚本条目 |

@@ -202,14 +202,18 @@
   **自包含措辞**——模板是引用图汇点，**零出边**（不指向任何 skill 目录文件；由
   `llmw wiki check-fixtures` 的 `template-no-outbound-refs` check 强制），CLI **不得修改**
 
-> **纪律正文唯一副本（canonical）**：模板与各 spec 节共享的纪律正文，**唯一维护点在
-> CLI 包内 `agents-md-template.md`**
-> （llmw 包内资产）——wiki 侧读不到模板原文，模板必须
-> 自包含，故它就是副本宿主。本 spec / page-templates.md / SKILL.md 只保留各自**独有**
-> 内容（机制契约 / rationale / 骨架 / digest + 指针），凡与模板重复的逐字纪律句以
-> 「纪律正文见模板 §X」指针代替。**改纪律只改模板对应段 + bump `wiki_spec_version`**；
-> spec 侧仅在机制变化时才跟改。引用方向**单向**：spec / page-templates / SKILL.md →
-> 模板；模板**不**含任何指向 skill 目录的引用（由 `llmw wiki check-fixtures` 的
+> **纪律正文唯一副本（canonical），按产物所有权分两档**：
+> - **byte-owned / header-owned 产物**（AGENTS.md 模板正文 + 各 fixture 头部说明块）——
+>   纪律 canonical = 模板 / fixture 头部自身（llmw 包内资产，落盘进实例后 agent 直接读）。
+>   改纪律只改模板对应段或 fixture 头部 + bump `wiki_spec_version`。
+> - **content-owned 产物**（wiki 内容页）——纪律 canonical = 本 skill 的
+>   `page-templates.md`（字段全集 / 建页阈值 / 认知质量信号 / 矛盾处理）。
+>   改规则只改 page-templates.md + bump `wiki_spec_version`。
+>
+> 本 spec / SKILL.md 只保留各自**独有**内容（机制契约 / rationale / 骨架 / digest +
+> 指针），凡与 canonical 重复的逐字纪律句以「纪律见 X」指针代替；spec 侧仅在机制变化时
+> 才跟改。引用方向**单向**：spec / SKILL.md → 模板 / fixture 头部 / page-templates；
+> 模板**不**含任何指向 skill 目录的引用（由 `llmw wiki check-fixtures` 的
 > `template-no-outbound-refs` check 机械强制）。
 >
 > **新纪律归属判据**：写一条新规则前先判它属于哪一层——一句话判据：**它是「wiki 的
@@ -231,7 +235,7 @@
 
 - 路径：`<wiki-root>/CLAUDE.md`
 - 内容来源：llmw 包内 `claude-md-template.md`（薄壳模板，`@AGENTS.md` + 声明，≤ 30 行）
-- CLI 按薄壳模板生成，差异仅限主题名一个值（不持 spec 版本——版本在 AGENTS.md §八）
+- CLI 按薄壳模板生成，差异仅限主题名一个值（不持 spec 版本——版本在 AGENTS.md §七）
 - 不含纪律正文；AGENTS.md 顶部 `@MEMORY/MEMORY.md` / `@scripts/SCRIPTS.md` `@import`
   由 AGENTS.md 自身携带，薄壳内**不**再额外挂 import；仅 `@AGENTS.md` 一行
 
@@ -254,6 +258,7 @@
 | `updated` | `YYYY-MM-DD HH:MM`（= today） |
 
 - 正文骨架：5 个空类别段（按字母序），各带一句"暂无内容"占位
+- **agent 侧条目纪律与扩容护栏见 `wiki/index.md` fixture 头部说明块（canonical）**
 - **字面量由 CLI 维护**：`wiki/index.md` 结构（探测命令 `llmw wiki check-fixtures`）
 
 ## §4 wiki/log.md
@@ -262,8 +267,8 @@
 > 后续所有 ingest / query / lint 条目由 **LLM agent** 追加 + 维护滚动窗口（见 §4.1）。
 > CLI 不参与 log.md 的后续追加。
 >
-> **agent 侧使用纪律见模板「log.md」段（canonical 副本）**——本节只留 CLI / 机制契约：
-> frontmatter、首条字面量、权威正则、滚动窗口截断实现。
+> **agent 侧使用纪律见 `wiki/log.md` fixture 头部说明块（canonical）**——本节只留
+> CLI / 机制契约：frontmatter、首条字面量、权威正则、滚动窗口截断实现。
 
 - 路径：`<wiki-root>/wiki/log.md`
 - frontmatter（**5 字段必填**，同 §3 但 `type=log`、`okf_version` 不出现）：
@@ -279,7 +284,7 @@
 - 首条 log 条目（**CLI init 时刻写**）：
 
   ```text
-  ## [<SETUP_DATE>] setup | Initial scaffold by yzr-llm-wiki-management
+  ## [<SETUP_DATE>] setup | Initial scaffold by llmw CLI
   ```
 
   例：setup 时间为 `2026-07-27 14:30` 时，log 条目为 `## [2026-07-27 14:30] setup | ...`
@@ -333,7 +338,7 @@
 - **MEMORY 不在 `wiki/index.md` 中强制列出**——它是 agent 私有入口，不需要 wiki 单一入口约束；
   但每条 `*.md` **必须**在 `MEMORY/MEMORY.md` 索引中列出一行（lint `memory-not-indexed` 兜底漏列）
 - **条目形式按事实颗粒度选**——完整条目（`MEMORY/<slug>.md` + 索引行）/ 短条目（索引行
-  直记）的判别尺度与格式纪律正文见模板「MEMORY/」段（canonical 副本）；本节只补 lint
+  直记）的判别尺度与格式纪律正文见 `MEMORY/MEMORY.md` fixture 头部说明块（canonical）；本节只补 lint
   语义：`memory-not-indexed` 只兜底"有 .md 但未索引"，不强制反向（短条目无 .md，不进该检查）
 
 ### §5.1 MEMORY/MEMORY.md（索引）
@@ -476,9 +481,9 @@ CLI **不**生成 `wiki/{entities,concepts,sources,comparisons,syntheses}/` 下�
   ingest / query 过程中自动追加新 tag
 - **fallback**（`wiki/tags.md` 缺失时）：`<wiki-root>/AGENTS.md` 的 `### Tag Taxonomy`
   段——`lint_wiki.py --check-version --apply` 可把 tag 字典迁到 `wiki/tags.md`
-- 解析规则、bullet 格式约束、`tag-not-in-taxonomy` lint 行为权威定义在
-  [`agents-md-template.md`](agents-md-template.md)「Tag Taxonomy」段；
-  本 skill `scripts/lint_wiki.py` 是实现 SSOT
+- 解析规则、bullet 格式约束、取值规则（kebab-case / 3-7 / 审计循环）、
+  `tag-not-in-taxonomy` lint 行为权威定义在 `wiki/tags.md` fixture 头部说明块
+  （canonical，落盘进实例）；llmw CLI 的 lint 实现是 executable SSOT
 
 **为什么 tag 白名单独立成 `wiki/tags.md`**：
 
@@ -541,8 +546,8 @@ compared:
 
 ### 可选可信度与认知质量字段（LLM 按需写，全部可选）
 
-> 字段语义权威定义在 [`agents-md-template.md`](agents-md-template.md) §二「认知质量信号」
-> （canonical 副本）；本表只列 CLI 自检用的字段类型，不重复语义。CLI 自检不要求这些字段存在——
+> 字段语义权威定义在 [`page-templates.md`](page-templates.md)「可信度与认知质量信号」段
+> （content-owned 纪律 canonical）；本表只列 CLI 自检用的字段类型，不重复语义。CLI 自检不要求这些字段存在——
 > `reviewed` / `reviewed_at` 是人工审核背书信号，`contested` / `contradictions` 是
 > 认知冲突未裁定告警；两类正交。
 
@@ -563,7 +568,7 @@ compared:
 ## §10 版本钉死
 
 **设计不变量**：AGENTS.md 必须记录本 wiki 创建时对齐的 wiki spec 版本 + CLI 版本（薄壳 CLAUDE.md 不持版本），
-使 skill `migrate` 能探测版本漂移。具体承载形式（AGENTS.md §八 表）+ 模板替换机制（占位符语法 /
+使 skill `migrate` 能探测版本漂移。具体承载形式（AGENTS.md §七 表）+ 模板替换机制（占位符语法 /
 渲染引擎）+ 版本号来源（CLI 内部机制）都归 CLI，spec 不规定。「CLI 记录的 spec 版本是否与 SKILL
 当前版本对齐」由 `llmw wiki check-fixtures` 校验（读取契约的可执行 gate）。
 
@@ -572,20 +577,20 @@ spec 版本号的 SSOT 是 `llmw/__init__.py` 的 `WIKI_SPEC_VERSION` 常量（�
 CI fixtures-smoke job 机械比对（`scripts/test/smoke_fixtures.py`），bump 时同 commit 改两处
 （详见 MEMORY/spec-version-bump-single-repo.md）。
 
-**LLM 在每次操作前比对** AGENTS.md §八（无 AGENTS.md 时 fallback CLAUDE.md §八）的 "Wiki Spec 版本" 与 SKILL.md
+**LLM 在每次操作前比对** AGENTS.md §七（无 AGENTS.md 时 fallback CLAUDE.md §七）的 "Wiki Spec 版本" 与 SKILL.md
 `metadata.wiki_spec_version`；不一致时**警告用户**（不阻断——CLI 可能支持多个 spec 版本）。
 
 ### §10.1 AGENTS.md 模板同步
 
 `AGENTS.md` 的 per-wiki 变量只有 4 个——主题 / 创建日期 / CLI 版本 / Wiki Spec 版本
-（全在 H1 + §八 表格）；正文 §一~§七 + §九 是纪律文本，跨 wiki 逐字相同。因此一致性校验
+（全在 H1 + §七 表格）；正文其余节是纪律文本，跨 wiki 逐字相同。因此一致性校验
 **不**做"存在性断言"，做**模板渲染字节比对**：
 
-- `llmw wiki check-fixtures` 的 `agents-md-template-sync`（error）：从 wiki §八 提取
+- `llmw wiki check-fixtures` 的 `agents-md-template-sync`（error）：从 wiki §七 提取
   主题 / 创建日期 / CLI 版本（主题 fallback H1 `# <主题> Wiki — LLM 维护守则`）+
   wiki 自钉 spec 版本，渲染包内 `agents-md-template.md` 后与 wiki 实际 AGENTS.md
   字节比对——任何不一致（旧版本残留 / 本地改动）都报错。
-- 修复 = **全量重渲染**（plan action `fixtures-fix-agents-md-resync`）：§八 变量保留旧值
+- 修复 = **全量重渲染**（plan action `fixtures-fix-agents-md-resync`）：§七 变量保留旧值
   （wiki spec 版本用迁移目标版本），其余以模板渲染稿为准——**不**做局部 Edit。
   旧文件中多出的本地定制行/段由 agent 逐条列给用户裁定：搬 `MEMORY/`（一行事实写
   MEMORY.md 索引短条目；含 why 的建 `MEMORY/<slug>.md` 完整条目 + 索引行）或丢弃。
@@ -642,7 +647,8 @@ CLI 生成的产物必须满足以上规则；否则后续 lint 会立即报错�
 ```
 
 - **扁平结构**：所有外部仓的 symlink 直接放在 `raw/external/` 下，不用
-  `<source-name>/` 子目录分组。anchor 文件**单文件**记录所有 entries。
+  `<source-name>/` 子目录分组（违反 → lint 报 `external-source-name-invalid`，error，
+  需用户确认后改扁平）。anchor 文件**单文件**记录所有 entries。
 - **symlink 命名**：必须 kebab-case `^[a-z0-9][a-z0-9-]*$`（与 wiki 内容页命名一致）
 - **anchor 文件位置**：固定 `<wiki-root>/raw/external/.symlink-anchor.toml`
 - **anchor ↔ symlink 关联**：每个 `[[entry]]` 的 `symlink` 字段对应 `raw/external/`
@@ -807,14 +813,14 @@ anchor 的 `remote_url` / `branch` 是**可选**的 git 身份字段——记录
 > 骨架（字节金标准由 llmw 包维护，命令 `llmw wiki check-fixtures` 探测）；后续**用户 + LLM agent 共有**
 > ——用户可手写 / LLM agent 可补——只要维持 `SCRIPTS.md` 索引同步。
 >
-> **agent 侧使用纪律见模板「scripts/」段（canonical 副本）**——本节只留机制契约与
-> 实现细节（路径 / 索引骨架 / 4 要素 / 权限 / 原子更新）。
+> **agent 侧使用纪律见 `scripts/SCRIPTS.md` fixture 头部说明块（canonical）**——本节只留
+> 机制契约与实现细节（路径 / 索引骨架 / 4 要素 / 权限 / 原子更新）。
 
 ### §14.1 设计动机
 
-- skill 自带脚本（`scripts/lint_wiki.py` / `ingest_diff.py` / `log_format.py`）
+- llmw CLI 自带的确定性子命令（`llmw wiki lint / ingest-diff / write`）
   满足**通用**wiki 工作流；本 wiki 个性化的扩展（批量 PDF prep、特定主题的
-  ingest 模板、外部 CLI 胶水、自动 hook）**不**适合 ship 进本 skill 的 scripts/
+  ingest 模板、外部 CLI 胶水、自动 hook）**不**适合 ship 进 CLI
 - 走**用户/项目级别**就地维护——既享受 git tracking 又不被 skill 版本约束
 
 ### §14.2 路径约定

@@ -13,7 +13,7 @@ wiki_lint — deterministic 健康检查（llmw wiki lint）
 --no-git 跳过 raw/ 的 git status 检查（CI 或裸仓场景）。默认**自动检测**：
   仅当 wiki 根目录在 git 仓内且 raw/ 被 git 跟踪时才跑 raw 不可变性检查；
   裸目录树 / 无 git / raw 未纳入 git → 自动跳过并打印提示（不报错，不阻断）。
---check-version 扫描当前 wiki 的 spec 版本（解析 AGENTS.md §八 "Wiki Spec 版本"），
+--check-version 扫描当前 wiki 的 spec 版本（解析 AGENTS.md §七 "Wiki Spec 版本"），
   与本 skill metadata.wiki_spec_version 比对，列出老格式 legacy 现场。默认仅打印报告
    （不动任何文件）；加 `--apply` 把 migration plan 以 JSON 输出到 **stdout**（agent 直接
    消费，**不落盘**——升级全程 wiki 根无任何中间文件残留）供按 references/upgrade-workflow.md
@@ -1415,7 +1415,7 @@ def severity_of(finding: str) -> str:
 # 职责：纯探测（不动 wiki 内容）；agent 拿到 plan 后按 references/upgrade-workflow.md 走 Edit/Write 修复。
 # ---------------------------------------------------------------------------
 
-# CLAUDE.md §八 表格行匹配：
+# CLAUDE.md §七 表格行匹配：
 # | Wiki Spec 版本 | 0.7.0 |
 # 兼容用户编辑后的格式变体（多余空格、备注尾部等）；semver 走单独正则抓取。
 CLAUDE_VERSION_ROW_RE = re.compile(r"^\s*\|\s*Wiki Spec 版本\s*\|\s*([^|]+?)\s*\|")
@@ -1423,14 +1423,14 @@ SEMVER_RE = re.compile(r"\d+\.\d+\.\d+")
 
 
 def parse_spec_version(wiki_root: Path) -> Optional[str]:
-    """从 wiki 纪律 SSOT §八 表里抽 "Wiki Spec 版本"。
+    """从 wiki 纪律 SSOT §七 表里抽 "Wiki Spec 版本"。
 
     SSOT 是 <wiki-root>/AGENTS.md（薄壳 CLAUDE.md 不持版本）。
     老 wiki（0.10.0-）：SSOT 是 <wiki-root>/CLAUDE.md，按候选顺序 fallback 兼容。
 
     返回 semver 字符串（如 "0.11.0"）；找不到或解析失败返回 None。
 
-    设计权衡：仅解析 §八 表的"Wiki Spec 版本"行，不扫描全文（避免误抓正文里出现的
+    设计权衡：仅解析 §七 表的"Wiki Spec 版本"行，不扫描全文（避免误抓正文里出现的
     版本号）。用户编辑表格时若格式被破坏（例如把"Wiki Spec 版本"改成"Wiki 版本"），
     解析失败——提示用户人工填回，而不是猜。
     """
@@ -1467,7 +1467,7 @@ def check_spec_version(wiki_root: Path) -> List[str]:
     current = parse_spec_version(wiki_root)
     if current is None:
         findings.append(
-            "wiki-spec-version-unparsed: AGENTS.md §八「Wiki Spec 版本」行无法解析"
+            "wiki-spec-version-unparsed: AGENTS.md §七「Wiki Spec 版本」行无法解析"
             "（缺 AGENTS.md / CLAUDE.md 或表格格式破坏）——"
             "跑 `lint_wiki.py --check-version` 诊断"
         )
@@ -1475,12 +1475,12 @@ def check_spec_version(wiki_root: Path) -> List[str]:
     cmp = _compare_semver(current, CURRENT_WIKI_SPEC)
     if cmp == "older":
         findings.append(
-            f"wiki-spec-version-stale: AGENTS.md §八 版本 {current} 落后 SKILL {CURRENT_WIKI_SPEC}——"
+            f"wiki-spec-version-stale: AGENTS.md §七 版本 {current} 落后 SKILL {CURRENT_WIKI_SPEC}——"
             "跑 `lint_wiki.py --check-version --apply` 走升级流程"
         )
     elif cmp == "newer":
         findings.append(
-            f"wiki-spec-version-ahead: AGENTS.md §八 版本 {current} 领先 SKILL {CURRENT_WIKI_SPEC}——"
+            f"wiki-spec-version-ahead: AGENTS.md §七 版本 {current} 领先 SKILL {CURRENT_WIKI_SPEC}——"
             "更新本 skill 安装（lint_wiki.py）对齐"
         )
     # equal / unknown → 无 finding
@@ -1740,9 +1740,9 @@ def build_migration_plan(
                     "把 <wiki_root>/CLAUDE.md 的全部纪律正文（SSOT 内容）搬到 <wiki_root>/AGENTS.md。"
                     "AGENTS.md 顶部按 agents-md-template.md（包内模板）的说明块格式：SSOT 声明 + agent 中立"
                     "读取机制段 + @import 行（@MEMORY/MEMORY.md + @scripts/SCRIPTS.md），随后接原 CLAUDE.md"
-                    "正文（§一~§八）。然后把 <wiki_root>/CLAUDE.md 重写为薄壳（@AGENTS.md + 薄壳声明，"
+                    "正文（§一~§七）。然后把 <wiki_root>/CLAUDE.md 重写为薄壳（@AGENTS.md + 薄壳声明，"
                     "参考 claude-md-template.md（包内模板）），保留已替换的主题名。若 AGENTS.md 已存在——内容"
-                    "相同则跳过；不同给迁移冲突，转人工。AGENTS.md §八 Wiki Spec 版本由后续通用步骤改为 to_version。"
+                    "相同则跳过；不同给迁移冲突，转人工。AGENTS.md §七 Wiki Spec 版本由后续通用步骤改为 to_version。"
                 ),
             }
         )
@@ -1787,7 +1787,7 @@ def build_migration_plan(
                         **base,
                         "type": "fixtures-fix-agents-version",
                         "to_action": (
-                            f"Edit {fpath} §八 Wiki Spec 版本行单元格改为 `{expected}`（实际为 `{actual}`）——"
+                            f"Edit {fpath} §七 Wiki Spec 版本行单元格改为 `{expected}`（实际为 `{actual}`）——"
                             "参考 lint-checklist.md §三.1 + wiki-spec.md §10"
                         ),
                     }
@@ -1801,14 +1801,14 @@ def build_migration_plan(
                         "type": "fixtures-fix-agents-md-resync",
                         "to_action": (
                             "AGENTS.md 全量重渲染（模板同步机制，4 步）："
-                            "(1) 从旧 AGENTS.md §八 提取 主题 / 创建日期 / CLI 版本（主题 fallback："
+                            "(1) 从旧 AGENTS.md §七 提取 主题 / 创建日期 / CLI 版本（主题 fallback："
                             "H1 `# <主题> Wiki — LLM 维护守则`）；"
                             "(2) 渲染包内 agents-md-template.md——{{TOPIC_NAME}} / {{SETUP_DATE}} / "
                             "{{CLI_VERSION}} 用旧值，{{WIKI_SPEC_VERSION}} 用 to_version；"
                             "(3) diff 旧文件 vs 渲染稿：旧文件**多出的行/段** = 本地定制，逐条列给用户裁定——"
                             "搬 MEMORY/（一行事实写 MEMORY/MEMORY.md 索引短条目；含 why 的建 "
                             "MEMORY/<slug>.md 完整条目 + 索引行）或丢弃；"
-                            "(4) Write 渲染稿覆盖 AGENTS.md——成长内容仅 §八 四行变量，其余以模板为准"
+                            "(4) Write 渲染稿覆盖 AGENTS.md——成长内容仅 §七 四行变量，其余以模板为准"
                         ),
                     }
                 )
@@ -1933,7 +1933,7 @@ def build_migration_plan(
             "frontmatter-retype：按 action.note 与 wiki-spec §5.2 决定具体改法",
             "skipped_conflicts[] 永远不自动覆盖——转人工",
             "claudemd-to-agents-md-split：老 CLAUDE.md 正文搬到 AGENTS.md + CLAUDE.md 重写为薄壳",
-            "改完后用 Edit 把 AGENTS.md §八 Wiki Spec 版本行改为 to_version",
+            "改完后用 Edit 把 AGENTS.md §七 Wiki Spec 版本行改为 to_version",
             "不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）",
             "不调 ingest / query / lint——保持职责单一",
             # fixtures：
@@ -1942,7 +1942,7 @@ def build_migration_plan(
             "fixtures-fix-anchor-merge / -anchor-schema / -anchor-symlink-matches 三条都是『多文件迁移』型 action——必须按 to_action 5 步走，单 Edit 不能完成",
             "fixtures-fix-strip-frontmatter 仅删首部 frontmatter 块，保留全文正文一字不动",
             "fixtures-fix-skeleton：按 expected 补缺失骨架字段（frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段），单 Edit 可落；成长型内容（index 类别 / log 历史 / MEMORY 经验 / tag bullet）不动",
-            "fixtures-fix-agents-md-resync：AGENTS.md 全量重渲染——§八 变量保留旧值（Wiki Spec 版本行用 to_version），旧文件多出的定制行/段逐条与用户裁定搬 MEMORY/ 或丢弃；其余以模板渲染稿为准，不做局部 Edit",
+            "fixtures-fix-agents-md-resync：AGENTS.md 全量重渲染——§七 变量保留旧值（Wiki Spec 版本行用 to_version），旧文件多出的定制行/段逐条与用户裁定搬 MEMORY/ 或丢弃；其余以模板渲染稿为准，不做局部 Edit",
             "fixtures 改造与 lint-checklist §五『语义合并规则』配合读——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按 §五判断",
         ],
     }  # type: Dict[str, object]
@@ -1952,7 +1952,7 @@ def build_migration_plan(
 def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     """--check-version 子命令主入口。
 
-    - 解析 AGENTS.md（老 wiki fallback CLAUDE.md）§八 wiki_spec_version
+    - 解析 AGENTS.md（老 wiki fallback CLAUDE.md）§七 wiki_spec_version
     - 探测已知 legacy 现场
     - 默认打印人读报告（不写文件）
     - --json 输出机器可读 JSON
@@ -2011,9 +2011,9 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
         _print_fixtures_check(fixtures_check, indent="")
         return 0
 
-    # 解析失败 → 提示用户填 CLAUDE.md §八
+    # 解析失败 → 提示用户填 CLAUDE.md §七
     if current_spec is None:
-        print("[WARN] 无法解析 <wiki-root>/AGENTS.md（老 wiki CLAUDE.md）§八 'Wiki Spec 版本'")
+        print("[WARN] 无法解析 <wiki-root>/AGENTS.md（老 wiki CLAUDE.md）§七 'Wiki Spec 版本'")
         print("       请确认该行存在且格式为: | Wiki Spec 版本 | 0.x.y |")
         print("       解析失败不影响 legacy pattern 探测（下方继续输出）")
         print()
@@ -2112,7 +2112,7 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--check-version",
         action="store_true",
-        help="扫描 wiki 的 spec 版本（AGENTS.md §八）与已知 legacy 老格式现场；默认 dry-run。加 --apply 输出 migration plan（stdout JSON，不落盘），加 --json 输出机器可读 JSON。互斥模式。",
+        help="扫描 wiki 的 spec 版本（AGENTS.md §七）与已知 legacy 老格式现场；默认 dry-run。加 --apply 输出 migration plan（stdout JSON，不落盘），加 --json 输出机器可读 JSON。互斥模式。",
     )
     parser.add_argument(
         "--json",

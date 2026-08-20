@@ -13,7 +13,7 @@ wiki-spec 0.11.0 + workspace-spec 0.4.0 起：wiki / workspace 产物的纪律�
 
 - `@import`（`@MEMORY/MEMORY.md` / `@scripts/SCRIPTS.md`）写在 **AGENTS.md 内**，不进薄壳
   （最坏当显式指针 + orient ritual 显式 Read 兜底）
-- 版本号在 **AGENTS.md**（wiki §八 / workspace §六），薄壳不持版本——
+- 版本号在 **AGENTS.md**（wiki §七 / workspace §六），薄壳不持版本——
   `lint_wiki.py::parse_spec_version` 优先 AGENTS.md、fallback CLAUDE.md（兼容老 wiki）
 - `lint_wiki.py` 有 `claudemd-not-thinshell` legacy pattern + `claudemd-to-agents-md-split`
   migrate action（老 CLAUDE.md SSOT → AGENTS.md + 薄壳）；workspace 侧无 lint 脚本，迁移靠 CLI
