@@ -44,9 +44,12 @@
 ## 目录
 
 - [§1 目录结构](#1-目录结构)
+  - [§1.1 wiki_metadata.toml（CLI 维护）](#11-wiki_metadatatomlcli-维护)
+  - [§1.2 骨架所有权四分表（CLI 渲染 vs agent 写入边界）](#12-骨架所有权四分表cli-渲染-vs-agent-写入边界)
 - [§2 AGENTS.md（SSOT）+ CLAUDE.md（薄壳）](#2-agentsmdssot-claudemd薄壳)
 - [§3 wiki/index.md](#3-wikiindexmd)
 - [§4 wiki/log.md](#4-wikilogmd)
+  - [§4.1 Log retention（滚动窗口）](#41-log-retention滚动窗口)
 - [§5 MEMORY/](#5-memory)
   - [§5.1 MEMORY/MEMORY.md（索引）](#51-memorymemorymd索引)
   - [§5.2 MEMORY/*.md（非 MEMORY.md）](#52-memorymd非-memorymd)
@@ -54,12 +57,30 @@
 - [§7 Git 初始化（opt-in，默认跳过）](#7-git-初始化opt-in默认跳过)
 - [§8 拒绝条件（强约束）](#8-拒绝条件强约束)
 - [§9 Frontmatter 字段全集（CLI 引用，非生成内容页）](#9-frontmatter-字段全集cli-引用非生成内容页)
+  - [§9.1 tag 白名单来源](#91-tag-白名单来源)
 - [§10 版本钉死](#10-版本钉死)
+  - [§10.1 AGENTS.md 模板同步](#101-agentsmd-模板同步)
 - [§11 命名约束（影响 CLI 生成的产物）](#11-命名约束影响-cli-生成的产物)
 - [§12 不在本 spec 范围内](#12-不在本-spec-范围内)
 - [§13 raw/external/——外部代码仓接入](#13-rawexternal外部代码仓接入可选)
+  - [§13.1 路径约定](#131-路径约定)
+  - [§13.2 `.symlink-anchor.toml` Schema（必填 + git 身份字段可选）](#132-symlink-anchortoml-schema必填--git-身份字段可选)
+  - [§13.3 责任切分（用户 + LLM 共有）](#133-责任切分用户--llm-共有)
+  - [§13.4 .gitignore 增强](#134-gitignore-增强)
+  - [§13.5 git 身份字段（可选）](#135-git-身份字段可选)
+  - [§13.6 anchor 结构迁移（手工）](#136-anchor-结构迁移手工)
 - [§14 scripts/——本 wiki 仓扩展脚本目录](#14-scripts本-wiki-仓扩展脚本目录)
+  - [§14.1 设计动机](#141-设计动机)
+  - [§14.2 路径约定](#142-路径约定)
+  - [§14.3 索引 `SCRIPTS.md`（AGENTS.md 顶部 `@import` 加载）](#143-索引-scriptsmdagentsmd-顶部-import-加载)
+  - [§14.4 每工具一段的契约(LLM / 用户共同维护)](#144-每工具一段的契约llm--用户共同维护)
+  - [§14.5 纪律(硬化约束)](#145-纪律硬化约束)
+  - [§14.6 与已有索引模式对照](#146-与已有索引模式对照)
 - [§15 raw/discussions/——协作草稿层](#15-rawdiscussions协作草稿层可选)
+  - [§15.1 动机与边界](#151-动机与边界)
+  - [§15.2 与 ingest / lint 的契约（脚本豁免）](#152-与-ingest--lint-的契约脚本豁免)
+  - [§15.3 归档路径（草稿 → wiki 真相，两条都需用户确认）](#153-归档路径草稿--wiki-真相两条都需用户确认)
+  - [§15.4 滑坡防线（反模式）](#154-滑坡防线反模式)
 - [附录 A：CLI 实现自检建议](#附录-acli-实现自检建议)
 
 ## §1 目录结构
@@ -229,7 +250,7 @@
 >
 > 偏「过程 / 工具 / 路由」（orient 流程、脚本命令、迁移与评估流程）→ 留 SKILL.md
 > （digest + 指针）。灰色案例——log 格式：格式规范与滚动窗口是 wiki 合法状态 → 模板；
-> 「正路走 `wiki_write.py log`」模板只留工具名一句，参数 / 源码 / 常量归 skill。
+> 「正路走 `llmw wiki write log`」模板只留工具名一句，参数 / 源码 / 常量归 skill。
 
 ### CLAUDE.md（薄壳）
 
@@ -309,7 +330,7 @@
 - **滚动窗口**：`log.md` 只保**最近 50 条**操作条目（滚动窗口阈值，lint 兜底见下）。按正则
   `^## \[\d{4}-\d{2}-\d{2}\]` 计，不含 frontmatter 与空白行
 - **截断时机**（两层）：
-  1. **写入时**——`wiki_write.py log` 追加后自动截断保最近 N 条（正路）；
+  1. **写入时**——`llmw wiki write log` 追加后自动截断保最近 N 条（正路）；
      带外手改（直接 Edit）时由 agent 按本条规则手工截断
   2. **lint 兜底**——lint 在条目数超过上限时报 `log-truncation-recommended`
      （warning），agent 看到后截断
@@ -334,7 +355,7 @@
 - 其余 `*.md` 经验条目由 LLM 在工作中追加，**文件命名与 wiki 内容页一致**；
   frontmatter 走 §5.2 的 **1 必填（`title`）+ optional 字段**规则（与 wiki 内容页 5 必填
   解耦——MEMORY 是 agent 私有，frontmatter 是可选 decoration）
-  （lint 校验实现见本 skill `scripts/lint_wiki.py`，不归本 spec）
+  （lint 校验实现见本 skill `llmw.content.wiki_lint`，不归本 spec）
 - **MEMORY 不在 `wiki/index.md` 中强制列出**——它是 agent 私有入口，不需要 wiki 单一入口约束；
   但每条 `*.md` **必须**在 `MEMORY/MEMORY.md` 索引中列出一行（lint `memory-not-indexed` 兜底漏列）
 - **条目形式按事实颗粒度选**——完整条目（`MEMORY/<slug>.md` + 索引行）/ 短条目（索引行
@@ -375,7 +396,7 @@
 - `type` 取值另有 2 类 memory 扩展（与 spec §9 的「5 类内容页 + 2 类 reserved」并列）：
   - `memory`——MEMORY/*.md 自用语义，区别于 wiki 5 类内容页
   - `memory-entry`——`memory` 同义别名
-- lint 校验（实现见本 skill `scripts/lint_wiki.py`）：
+- lint 校验（实现归 CLI `llmw.content.wiki_lint`）：
   - **仅 `title` 必填**；其余 5 字段全 optional
   - `type` 若取则必须合法（含 `memory` / `memory-entry`）
   - `tags` 若取则必须是 list
@@ -480,7 +501,7 @@ CLI **不**生成 `wiki/{entities,concepts,sources,comparisons,syntheses}/` 下�
   无 frontmatter**；CLI init 时刻按包内字节金标准生成空白模板，agent 在
   ingest / query 过程中自动追加新 tag
 - **fallback**（`wiki/tags.md` 缺失时）：`<wiki-root>/AGENTS.md` 的 `### Tag Taxonomy`
-  段——`lint_wiki.py --check-version --apply` 可把 tag 字典迁到 `wiki/tags.md`
+  段——`llmw wiki lint --check-version --apply` 可把 tag 字典迁到 `wiki/tags.md`
 - 解析规则、bullet 格式约束、取值规则（kebab-case / 3-7 / 审计循环）、
   `tag-not-in-taxonomy` lint 行为权威定义在 `wiki/tags.md` fixture 头部说明块
   （canonical，落盘进实例）；llmw CLI 的 lint 实现是 executable SSOT
@@ -802,7 +823,7 @@ anchor 的 `remote_url` / `branch` 是**可选**的 git 身份字段——记录
 ### §13.6 anchor 结构迁移（手工）
 
 `raw/external/` 采用扁平 + 单 TOML anchor 形态（§13.1）。非扁平布局 / JSON anchor 等
-结构差异由 `lint_wiki.py --check-version --apply` **手工**迁移（差异大、自动迁移易出错）；
+结构差异由 `llmw wiki lint --check-version --apply` **手工**迁移（差异大、自动迁移易出错）；
 步骤见 [`upgrade-workflow.md` §六](upgrade-workflow.md#六语义合并规则)（§6.3）。
 
 ---
@@ -867,7 +888,7 @@ SCRIPTS.md 内的"分节契约"采用 `### <name> — <label>` 子节(在 `## �
 
 | 要素 | 例子 | 用途 |
 | --- | --- | --- |
-| **使用场景** | "用户给出 N 个 PDF 想一次摄取; 或 `ingest_diff.py` 返回 ≥ 3 个 untracked" | agent 触发条件(口吻匹配"何时该调") |
+| **使用场景** | "用户给出 N 个 PDF 想一次摄取; 或 `llmw wiki ingest-diff` 返回 ≥ 3 个 untracked" | agent 触发条件(口吻匹配"何时该调") |
 | **调用约定** | `python3 scripts/<name>.py "<wiki-root>" [args]` | 一行可粘贴;wiki-root 的传递方式（环境变量 / 位置参数 / cwd）按 SKILL/CLI 既有约定，spec 不钉 |
 | **作用** | "本脚本做一次聚合 ingest:per-N 调一次 ingest,完成后用 `--bulk-rebuild-index` 一次性更新" | 解释做什么、产出什么、副作用范围 |
 | **前置依赖**(可选) | "需 `pip install pypdf`;需环境变量 `PAPERS_DIR`" | 显式声明非标依赖,避免 agent 误跑 |
@@ -882,7 +903,7 @@ agent Read 时第一眼看到的 hook），下面紧跟 4 要素段落——只�
   §6 `.gitignore` 模板**不**额外排 `scripts/` ——不写例外规则
 - **frontmatter**:**不**写——scripts/ 是代码,非 wiki 内容页(`scripts/*.py` 走 PEP 723
   inline metadata 或 shebang,不由本 spec 规定)
-- **lint**:scripts/ **不**参与 `lint_wiki.py` 扫描（扫描自然不递归
+- **lint**:scripts/ **不**参与 `llmw wiki lint` 扫描（扫描自然不递归
   `scripts/`,且 §9 5 必填只对 `wiki/{entities,concepts,sources,comparisons,syntheses}/*.md`
   与 `<wiki-root>/MEMORY/*.md` 走）——脚本的代码质量由用户 / agent 自行负责,
   不在 SKILL 范围内
@@ -936,14 +957,14 @@ agent Read 时第一眼看到的 hook），下面紧跟 4 要素段落——只�
 
 discussions/ 的可写性靠三道脚本契约兜底，**不**靠自觉：
 
-1. **`ingest_diff.py`**——扫描 `raw/` 时跳过 `raw/discussions/`
+1. **`llmw wiki ingest-diff`**——扫描 `raw/` 时跳过 `raw/discussions/`
    （与 `assets/` 同机制）：草稿**不**被当 untracked 素材列出，避免诱导 LLM 把自己写的
    草稿当 raw 真相 ingest 回 wiki（provenance 后门）
-2. **`lint_wiki.py` raw-modified**——raw 不可变性检查从 `git status` 改动里
+2. **`llmw wiki lint` `raw-modified`**——raw 不可变性检查从 `git status` 改动里
    **排除** `raw/discussions/` 路径：草稿的未提交改动**不**触发"raw 被违规改"告警
    （`raw/external/` 的 symlink 本身被 §13.4 `.gitignore` 排除，不会进 git status，
    故本排除只针对 discussions/）
-3. **`lint_wiki.py` source-in-discussions**（error）——`type: source` 页的
+3. **`llmw wiki lint` `source-in-discussions`**（error）——`type: source` 页的
    `sources:` 字段**不得**指向 `raw/discussions/` 下任何路径：堵住"草稿直接被引用为真相源"
    的后门。要引用其内容，先走 §15.3 把草稿转正式
 
@@ -979,4 +1000,4 @@ CLI 在生成完成后，可执行以下验证：
 3. **frontmatter 解析**：生成的 `wiki/index.md` / `wiki/log.md` 能被
    SKILL 的 frontmatter 解析器正确解析（MEMORY.md 无 frontmatter，不在此列）
 4. **结构自检**：5 个内容页子目录 + `MEMORY/` 全部存在；MEMORY 目录含 MEMORY.md
-5. **lint 跑通**：生成的 wiki 仓跑 `scripts/lint_wiki.py` 应返回 exit code 0
+5. **lint 跑通**：生成的 wiki 仓跑 `llmw.content.wiki_lint` 应返回 exit code 0

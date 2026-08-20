@@ -30,7 +30,7 @@ anchor 文件**进 git** 是这一机制的根：
 | 触发场景 | 用户感知 |
 | --- | --- |
 | 在新机器 `git clone` wiki 仓后，symlink 不存在 | `ls raw/external/` 看到 `.symlink-anchor.toml` 但没 symlink 文件 |
-| 跑 `lint_wiki.py` 时大量 `external-target-dead` | target 路径在新机器不存在 |
+| 跑 `llmw wiki lint` 时大量 `external-target-dead` | target 路径在新机器不存在 |
 | 用户主动在新机器重建（"我换了电脑 / 加了一台机器"） | 同上 |
 
 ## 重建步骤（agent 驱动）
@@ -112,7 +112,7 @@ readlink -f "raw/external/${SYMLINK_NAME}"
 
 # lint 跑通（不应再报 external-target-dead / external-symlink-missing）
 # 注意 lint 端会做 Path(target).expanduser()，所以 '~/src/...' 形式 + 同 home 布局下不报 dead
-python3 ../path/to/scripts/lint_wiki.py .
+llmw wiki --path . lint
 ```
 
 ## 与日常接入的关系
@@ -138,5 +138,5 @@ python3 ../path/to/scripts/lint_wiki.py .
 | --- | --- | --- |
 | `git clone` 失败：remote not found | `remote_url` 拼错 / 已删除 / 私有 repo 缺凭据 | 检查 remote_url；私有 repo 配 SSH key 或 token |
 | `readlink -f` 显示 anchor 路径不存在 | symlink 写错 / target 未建好 | 检查 step 3 4 路径字面量 |
-| `lint_wiki.py` 报 `external-symlink-missing` | anchor entry 有但 symlink 未建（Step 4 漏跑 / 失败） | 回到 Step 4 补建 symlink |
+| `llmw wiki lint` 报 `external-symlink-missing` | anchor entry 有但 symlink 未建（Step 4 漏跑 / 失败） | 回到 Step 4 补建 symlink |
 | 找不到 `git` CLI | 新机器没装 git | 装 git 后重跑；`git clone` 依赖 git CLI |

@@ -175,8 +175,8 @@
 > 收敛为薄壳（`@AGENTS.md` + 声明），仅供经薄壳自动加载的 agent 读到 SSOT。原生读 `AGENTS.md` 的
 > 其他 agent 直读 SSOT，不依赖薄壳。改纪律请改 `AGENTS.md`，不要改 `CLAUDE.md` 薄壳。
 >
-> **维护方**：CLI 在 init 时刻按 [`workspace-agents-md-template.md`](workspace-agents-md-template.md)
-> （SSOT）+ [`workspace-claude-md-template.md`](workspace-claude-md-template.md)（薄壳）拷两份模板生成。
+> **维护方**：CLI 在 init 时刻按包内 `workspace-agents-md-template.md`（SSOT）+
+> `workspace-claude-md-template.md`（薄壳）两份模板渲染生成（模板内建 llmw 包）。
 > 后续修改由 **用户** 完成（AGENTS.md 是 workspace 的 schema，是用户的"宪法"）。
 > LLM agent **不得编辑** AGENTS.md / CLAUDE.md；如需变更 schema，**先与用户确认**。
 > **升级例外**：`llmw upgrade --apply`（§17）可按模板全量重渲染两份文件（byte-owned 分类，
@@ -387,7 +387,7 @@
 > - ❌ **不**写一次性观察——直接 chat，不写 MEMORY
 >
 > **纪律正文唯一副本（canonical）**：MEMORY 的"何时写 / 不写 / 条目形式 / 判别尺度"纪律正文
-> 唯一维护点在 [`workspace-agents-md-template.md`](workspace-agents-md-template.md) §五——模板随
+> 唯一维护点在 llmw 包内 `workspace-agents-md-template.md` §五——模板随
 > init 拷进 workspace（workspace 侧读者可达），故它就是副本宿主。本节只保留**机制契约**
 > （路径 / frontmatter 字段 / lint 语义 / CLI init 行为）；凡与模板重复的逐字纪律句以
 > 「纪律正文见模板 §五」指针代替。**改纪律只改模板 §五 + bump `workspace_spec_version`**。
@@ -398,7 +398,7 @@
 - 目录名 `MEMORY` **大写**，区别于小写 `raw` / `wiki` / `cross_queries` 等目录
 - **MEMORY 不在 `INDEX.md` 中强制列出**——它是 agent 私有入口，不需要 workspace 单一入口约束
 - **条目形式按事实颗粒度选**——完整 / 短两条写法的纪律正文见
-  [模板 §五](workspace-agents-md-template.md)（**canonical 副本**）；本节只留机制事实：
+  包内模板 §五（**canonical 副本**）；本节只留机制事实：
   短条目与完整条目可在同一 `MEMORY/MEMORY.md` 共存；lint `memory-not-indexed` 只兜底
   "有 .md 但未索引"，不强制反向（短条目无 .md，不进该检查）
 - 命名约束：详见 §15
@@ -421,7 +421,7 @@
   口径分裂）+ `## 索引` 段。索引行两种格式共存：
   - **完整条目**：`- <slug> — <一句话摘要> → [正文](<slug>.md)`（指向 §9.2 的 `MEMORY/<slug>.md`）
   - **短条目**：`- <一句话事实>`（无链接，对应无 `.md` 文件的索引行 reminder）
-  - 判别尺度见[模板 §五](workspace-agents-md-template.md)「条目形式按事实颗粒度选」（canonical 副本）
+  - 判别尺度见包内模板 §五「条目形式按事实颗粒度选」（canonical 副本）
 - lint `memory-not-indexed` 兜底——`MEMORY/*.md`（排除 `MEMORY.md`）未在索引列出时报该项；
   短条目无 `.md` 不进该检查
 - **内容来源 / 字面量**：由 llmw 包内字节金标准维护（命令 `llmw check-fixtures` 探测）
@@ -448,13 +448,13 @@
   - **必须**在 `MEMORY/MEMORY.md` 索引列出一行（skill 写 memory 时同步追加；
     lint `memory-not-indexed` 兜底漏列——severity = info，不阻断但提示）
   - 短条目无对应 `.md` 文件，frontmatter 5 必填仅约束完整条目；判别尺度见
-    [模板 §五](workspace-agents-md-template.md)（canonical 副本）
+    包内模板 §五（canonical 副本）
 
 ### §9.3 何时写 / 不写
 
 **写**（按 [`SKILL.md` §5 memory](../SKILL.md) 触发）——何时写 / 不写的完整清单
 （跨 wiki 关联 / 用户偏好 / lint 模式 / 综合经验 vs 单 wiki 观察 / 综合答案 / 一次性观察）
-见[模板 §五](workspace-agents-md-template.md)（**canonical 副本**），本节不重复正文。
+见包内模板 §五（**canonical 副本**），本节不重复正文。
 
 ### §9.4 创建时机
 

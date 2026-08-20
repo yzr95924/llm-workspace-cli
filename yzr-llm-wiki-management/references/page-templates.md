@@ -57,7 +57,7 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 - `title`——人类可读标题，不要带文件扩展名
 - `description`——**推荐**（OKF v0.1 推荐字段）。一句话总结本页；`index.md` 条目摘要从它来，
   避免在 index 里手写第二份、与正文漂移（lint 抓不到这种不一致）
-- `type`——驱动 lint 校验 + index 分组；合法值仅上述 5 种（`lint_wiki.py` 强制）。`index.md` /
+- `type`——驱动 lint 校验 + index 分组；合法值仅上述 5 种（`llmw wiki lint` 强制）。`index.md` /
   `log.md` 是 **reserved 文件**（结构见 §6 / §7），自带 frontmatter，其中 `type: index` /
   `type: log` 仅作标记、lint 跳过它们——不算概念页 type
 - `tags`——用于跨页搜索 + 未来可能的 dataview 查询。**取值必须严格在

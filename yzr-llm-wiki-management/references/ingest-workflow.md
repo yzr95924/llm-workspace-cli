@@ -15,7 +15,7 @@ like RAG... There's no accumulation."** Ingest 是把 RAG（每次查询时重�
 **主动触发**：用户说"摄取 X 到 wiki" / "把 raw/articles/foo.md ingest" /
 "raw/articles/ 里这批都摄取一下"。
 
-**被动触发**：用户跑 `ingest_diff.py` 发现未摄取项，问"这些是不是要 ingest"。
+**被动触发**：用户跑 `llmw wiki ingest-diff` 发现未摄取项，问"这些是不是要 ingest"。
 
 **定期触发**：用户设 cron / 习惯——每周一次把 `raw/articles/` 新增的全部 ingest。
 
@@ -25,7 +25,7 @@ like RAG... There's no accumulation."** Ingest 是把 RAG（每次查询时重�
 
 ```bash
 # 日常：同时找全新文件 + raw 被更新过的已归档文件
-python3 yzr-llm-wiki-management/scripts/ingest_diff.py "$LLM_WIKI_ROOT" --check-stale
+llmw wiki --path "$LLM_WIKI_ROOT" ingest-diff --check-stale
 ```
 
 - 扫 `raw/` 递归，对照所有 `wiki/sources/*.md` 的 `frontmatter.sources` 建立 raw 路径 → source 页映射
@@ -58,14 +58,14 @@ python3 yzr-llm-wiki-management/scripts/ingest_diff.py "$LLM_WIKI_ROOT" --check-
 > 正文显式记录两种说法）。这是 `contested` 信号最常见的产生时机。
 >
 > **生命周期纪律（stale-raw / 重摄取）**：被更新的 source 页如果原来 `reviewed: true`，
-> 编辑完跑 `wiki_write.py touch`（自动 `updated`=现在 + 删 `reviewed`/`reviewed_at`）。
+> 编辑完跑 `llmw wiki write touch`（自动 `updated`=现在 + 删 `reviewed`/`reviewed_at`）。
 > 事件表与"两道闸门"细节见 [page-templates.md §一「生命周期规则」](page-templates.md#生命周期规则llm-必读)。
 
 1. **完整读取 raw 资料**——若是 PDF / 图片，先做 OCR / 视觉识别
 2. **提取元数据**：标题、作者 / 来源、发布时间、URL（若有）、关键标签
 3. **生成 slug**——kebab-case 短标题（例 `attention-is-all-you-need`），文件名
    `<slug>.md`
-4. **脚手架走 `wiki_write.py new --type source --slug ... --title ... --sources raw/...`**
+4. **脚手架走 `llmw wiki write new --type source --slug ... --title ... --sources raw/...`**
    （自动生成 5 必填 frontmatter + H1，slug 校验 + 拒覆盖）——然后 Edit 写正文，
    使用 source 模板（见 [`page-templates.md`](page-templates.md) §二.3）：
    - frontmatter：title / description（一句话摘要，index 摘要从它来）/ type=source /
@@ -99,7 +99,7 @@ python3 yzr-llm-wiki-management/scripts/ingest_diff.py "$LLM_WIKI_ROOT" --check-
 
 ### Step 5：更新 `wiki/index.md`
 
-- `wiki_write.py index add <wiki/sources/<slug>.md>`（或新建的 entity / concept 页）
+- `llmw wiki write index add <wiki/sources/<slug>.md>`（或新建的 entity / concept 页）
   ——脚本从页 frontmatter 抽 title / description，定位类别段、字母序插入
   （条目格式 `- [<title>](<path>) — <description>`，摘要直接复制 frontmatter
   `description` 防漂移）
@@ -108,7 +108,7 @@ python3 yzr-llm-wiki-management/scripts/ingest_diff.py "$LLM_WIKI_ROOT" --check-
 
 ### Step 6：追加 `log.md`
 
-- `wiki_write.py log --op ingest --title "<source 页 title>"`——严格格式 + 超过
+- `llmw wiki write log --op ingest --title "<source 页 title>"`——严格格式 + 超过
   `LOG_RETENTION_LIMIT` 自动截断保最近 N 条（frontmatter 不动），脚本保证
 - 一次 ingest 多个文件 → **重复 `--title`**（每条对应一个 source 页）；
   批处理走 `--bulk --topic ... --count ...`（见 §五）
@@ -127,7 +127,7 @@ python3 yzr-llm-wiki-management/scripts/ingest_diff.py "$LLM_WIKI_ROOT" --check-
 
 > **权威定义在 [`page-templates.md §一`](page-templates.md#一共有-frontmatter-段) +
 > [`§二.3`](page-templates.md#3-source资料页)**——本节只列 source 页的特化字段注意事项，
-> 不重抄字段全集。frontmatter 骨架由 `wiki_write.py new` 生成，本节讲字段**语义**。
+> 不重抄字段全集。frontmatter 骨架由 `llmw wiki write new` 生成，本节讲字段**语义**。
 
 **source 页特有字段**：
 
@@ -158,7 +158,7 @@ url: <原始链接>
 > 主 SKILL.md §1 Ingest 只留 pointer；批处理的详细 5 步 + 为什么批处理 +
 > log 标题前缀约定一律写在本节。
 
-当 `ingest_diff.py` 返回 ≥ 3 个待摄取文件，或用户明确说"把这堆一起 ingest / 整批过稿"，
+当 `llmw wiki ingest-diff` 返回 ≥ 3 个待摄取文件，或用户明确说"把这堆一起 ingest / 整批过稿"，
 走批处理路径而非逐份处理。批处理的关键是**一次聚合、一次写入、一次索引**——
 避免 N 次重复 search / N 次 index 更新 / N 条 log。
 
@@ -170,11 +170,11 @@ url: <原始链接>
 3. **一次 search**——用 `Grep` 在 `wiki/` 全域搜所有候选 entity / concept 名称，**一次**
    搜完（不要 N 次）；产出"已存在 / 待新建"两栏
 4. **一次写入**——按以下顺序成片写：
-   - source 页（`wiki_write.py new` 脚手架 + Edit 正文，按主题聚类而非 raw 文件名
+   - source 页（`llmw wiki write new` 脚手架 + Edit 正文，按主题聚类而非 raw 文件名
      顺序——主题相近的先写，便于交叉引用）
    - entity / concept 页（先建新的，再更新已有的——追加"参考来源"段，不重写）
-   - `wiki/index.md`（所有改动落定后**一次** `wiki_write.py index add`；不要每写一页更一次 index）
-   - `wiki/log.md`（`wiki_write.py log --op ingest --bulk --topic "<主题概览>" --count <N>`，
+   - `wiki/index.md`（所有改动落定后**一次** `llmw wiki write index add`；不要每写一页更一次 index）
+   - `wiki/log.md`（`llmw wiki write log --op ingest --bulk --topic "<主题概览>" --count <N>`，
      标题里把本批主题说清；不再逐文件分别追加 ingest 条目——避免 log 被一次 ingest 撑爆）
 5. **报告**——告诉用户哪些是新建页、哪些是更新页、哪些 entity / concept 因聚合而合并
 
@@ -213,16 +213,16 @@ url: <原始链接>
 ## 八、Ingest 失败的常见原因
 
 - **raw 文件不可读**（PDF 加密、图片 OCR 失败）——提示用户处理源文件
-- **已存在同名 source 页**——用 Edit 更新而不是 Write 覆盖（`wiki_write.py new` 也会拒覆盖）
-- **wiki/index.md 缺类别段**——`wiki_write.py index add` 报错并指路 page-templates §6 骨架
+- **已存在同名 source 页**——用 Edit 更新而不是 Write 覆盖（`llmw wiki write new` 也会拒覆盖）
+- **wiki/index.md 缺类别段**——`llmw wiki write index add` 报错并指路 page-templates §6 骨架
   手动补类别段（或走 migrate fixtures 修复，CLI 拒绝覆盖已有 wiki）
-- **log 追加失败**——`wiki_write.py log` 报错信息自明（缺 log.md / 缺 --title 等）
+- **log 追加失败**——`llmw wiki write log` 报错信息自明（缺 log.md / 缺 --title 等）
 
 ## 九、反模式
 
 - ❌ 一份资料写 5 个 source 页（粒度过细）——按"主题"分，不是按"raw 文件 1:1"
 - ❌ source 页只复制 raw 内容——必须消化、提炼、加 cross-refs
 - ❌ entity / concept 页"重写式更新"——只 append "Sources" 段
-- ❌ 跳过 `wiki_write.py log`——失去操作语义记录
-- ❌ 跳过 `wiki_write.py index add`——wiki 失去单一入口
+- ❌ 跳过 `llmw wiki write log`——失去操作语义记录
+- ❌ 跳过 `llmw wiki write index add`——wiki 失去单一入口
 - ❌ 跨主题的 entity 混在一起——本 skill 假设一个 wiki 一个主题；跨主题用不同的 wiki

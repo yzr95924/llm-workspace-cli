@@ -17,19 +17,19 @@ base is not the reading or the thinking — it's the bookkeeping." Lint 把 book
 
 Lint 分**两层**：
 
-1. **Deterministic**（脚本检查，可程序化）——`scripts/lint_wiki.py`
+1. **Deterministic**（脚本检查，可程序化）——`llmw.content.wiki_lint`
 2. **Semi-qualitative**（agent 检查，需理解语义）——本文件"半定性检查"段
 
-**与 `wiki_write.py` 的分工**：log / index / touch / new / memory 的**正路**是
-`wiki_write.py`（产物天然合规，见 SKILL.md §设计决策「机械 vs 判断」准入规则）；
+**与 `llmw wiki write` 的分工**：log / index / touch / new / memory 的**正路**是
+`llmw wiki write`（产物天然合规，见 SKILL.md §设计决策「机械 vs 判断」准入规则）；
 lint 的 deterministic 检查兜底**带外手改**（用户 / agent 手工 Edit 的场景）。
 
 ## 一、调用方式
 
 ```bash
-python3 yzr-llm-wiki-management/scripts/lint_wiki.py "$LLM_WIKI_ROOT"
+llmw wiki --path "$LLM_WIKI_ROOT" lint
 # 或带严重性过滤
-python3 yzr-llm-wiki-management/scripts/lint_wiki.py "$LLM_WIKI_ROOT" --severity error
+llmw wiki --path "$LLM_WIKI_ROOT" lint --severity error
 ```
 
 退出码：0 = 干净；1 = 有问题（看输出）；2 = 运行错误。
@@ -50,21 +50,21 @@ python3 yzr-llm-wiki-management/scripts/lint_wiki.py "$LLM_WIKI_ROOT" --severity
 `type-memory-value`）+ 自动调 fixtures 检查：
 
 ```bash
-python3 yzr-llm-wiki-management/scripts/lint_wiki.py "$LLM_WIKI_ROOT" --check-version --json
+llmw wiki --path "$LLM_WIKI_ROOT" lint --check-version --json
 # 加 --apply 输出 migration plan（stdout JSON，不落盘）供 agent 按 [`upgrade-workflow.md`](upgrade-workflow.md) 走 Edit/Write 修复
-python3 yzr-llm-wiki-management/scripts/lint_wiki.py "$LLM_WIKI_ROOT" --check-version --apply --json
+llmw wiki --path "$LLM_WIKI_ROOT" lint --check-version --apply --json
 ```
 
 行为：默认 dry-run（只打印报告，不动文件）；`--apply` 以 stdout JSON 输出 migration
 plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_actions[]`）；
 标记冲突页 → agent 跳过 + 转人工；**互斥模式**，不写 log 条目。
-完整 agent 修复路径见 [SKILL.md §5 Migrate](../SKILL.md#5-migrate升级-wiki-spec)；
+完整 agent 修复路径见 [SKILL.md §5 Upgrade](../SKILL.md#5-upgrade升级-wiki-spec)；
 迁移依据 SSOT = plan `actions[]`（remove/add_or_modify/to_action 自含）+
 [`upgrade-workflow.md` §六](upgrade-workflow.md#六语义合并规则)。
 
 ## 二、Deterministic 检查清单（脚本执行）
 
-> 机制细节（实现用的正则 / 函数 / 分支条件）在 `lint_wiki.py` docstring——本节只给
+> 机制细节（实现用的正则 / 函数 / 分支条件）在 `llmw.content.wiki_lint` docstring——本节只给
 > 口径：**finding 名 / 严重性 / 触发 / 修法**。
 
 ### 前置：wiki 版本一致性
@@ -73,7 +73,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 `check_spec_version()`，与 `--check-version` 同源）——日常 lint 就能感知版本漂移：
 
 - `wiki-spec-version-stale`（warn）：版本**落后** SKILL → 跑 `--check-version --apply`
-  走升级流程（SKILL.md §5 Migrate）
+  走升级流程（SKILL.md §5 Upgrade）
 - `wiki-spec-version-ahead`（warn）：版本**领先** SKILL → 更新本 skill 安装对齐
 - `wiki-spec-version-unparsed`（warn）：§七 行无法解析 → 跑 `--check-version` 诊断
 - 一致（equal）→ 无 finding
@@ -119,18 +119,18 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 - `index-missing`（error）：`wiki/index.md` 不存在
 - `orphan-page`（error）：非 index / log 页未被 index 引用。正路：
-  `wiki_write.py index add`；修法：补条目或按 archive 流程从 index 移除
+  `llmw wiki write index add`；修法：补条目或按 archive 流程从 index 移除
 
 ### 6. log.md 格式
 
 - `log-missing`（error）：`wiki/log.md` 不存在
 - `log-format`（warn）：行不匹配正则（见 [page-templates.md §7](page-templates.md#7-logmdlog)）——
-  破坏 `grep "^## \[" log.md` 可用性。正路：`wiki_write.py log`；修法：改行
+  破坏 `grep "^## \[" log.md` 可用性。正路：`llmw wiki write log`；修法：改行
 
 ### 7. 过期摘要
 
 - `stale-summary`（warn）：`type: source` 且 `updated` 距今 > `STALE_SUMMARY_DAYS`
-  （lint_wiki.py 常量）。修法：复查源文件是否有更新，重摄取
+  （`llmw.content.wiki_lint` 常量）。修法：复查源文件是否有更新，重摄取
 
 ### 8. 文件名规范
 
@@ -142,9 +142,9 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ### 10. log.md 条目数（log-truncation）
 
-- `log-truncation-recommended`（warn）：条目数 > `LOG_RETENTION_LIMIT`（lint_wiki.py
-  常量，默认 50）——完整历史靠 git（`git log -p -- wiki/log.md`）。正路：
-  `wiki_write.py log` 写入时自动截断；带外手改超限才由 agent Edit 删最旧保最近 N
+- `log-truncation-recommended`（warn）：条目数 > `LOG_RETENTION_LIMIT`
+  （`llmw.content.wiki_lint` 常量，默认 50）——完整历史靠 git（`git log -p -- wiki/log.md`）。正路：
+  `llmw wiki write log` 写入时自动截断；带外手改超限才由 agent Edit 删最旧保最近 N
 
 ### 11. Tag Taxonomy 校验
 
@@ -161,7 +161,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 12. 页面体量
 
 - `oversized-page`（warn）：5 类内容页正文**非空行数** > `PAGE_SIZE_THRESHOLD`
-  （lint_wiki.py 常量，与 AGENTS.md「Page Thresholds」对齐；MEMORY 无上限——spec §5.2）
+  （`llmw.content.wiki_lint` 常量，与 AGENTS.md「Page Thresholds」对齐；MEMORY 无上限——spec §5.2）
 - 修法：拆成子主题页 + cross-link
 
 ### 13. 可信度与认知质量信号（reviewed / contested / contradictions）
@@ -173,7 +173,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 - `pending-review`（info）：非 log/index 页未含 `reviewed: true`——新常态，仅提示
 - `reviewed-stale`（warn）：`reviewed: true` 存在但 `updated > reviewed_at`——LLM 修改后
-  漏清戳。正路：编辑后 `wiki_write.py touch`；修法：删两字段回未审核态
+  漏清戳。正路：编辑后 `llmw wiki write touch`；修法：删两字段回未审核态
 - `invalid-reviewed-value`（warn）：取值非严格 `true`（`"true"` / `yes` / `1` / `false`）
 - `reviewed-at-missing`（warn）：`reviewed: true` 但缺 `reviewed_at`
 - `reviewed-at-orphan`（warn）：`reviewed_at` 存在但缺 `reviewed: true`
@@ -188,7 +188,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 - `memory-not-indexed`（info）：`MEMORY/*.md`（非 `MEMORY.md`）未在 MEMORY.md
   `## 索引` 段列出——下次 `@import` 加载后该条目不可见。正路：
-  `wiki_write.py memory add`（原子追加索引行）；修法：追加一行 `- [Title](<slug>.md) — 一句话`
+  `llmw wiki write memory add`（原子追加索引行）；修法：追加一行 `- [Title](<slug>.md) — 一句话`
 - `memory-index-dangling`（warn）：索引指向的 `<slug>.md` 不存在（索引与磁盘脱节；
   短条目 `- 一句话事实` 无链接、不算）
 - MEMORY.md 不存在 → 静默跳过（老 wiki 迁移期）
@@ -240,7 +240,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ### 21. 资料投放口是否堆积
 
-- `raw/articles/` 是否有大量未摄取文件（跑 `ingest_diff.py` 即可知）
+- `raw/articles/` 是否有大量未摄取文件（跑 `llmw wiki ingest-diff` 即可知）
 - **严重性：info**——堆积太久会让 ingest 时信息过载
 
 ### 22. 漂移点引用
@@ -267,7 +267,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 （external symlink ↔ anchor 关联的 finding 全家：`external-anchor-missing` /
 `external-anchor-corrupt` / `external-source-name-invalid` / `external-symlink-missing` /
 `external-anchor-orphan` / `external-target-drift`——
-spec §13 相关，详见 lint_wiki.py `check_external_symlinks` docstring。）
+spec §13 相关，详见 `llmw.content.wiki_lint` 的 `check_external_symlinks` docstring。）
 
 ## 五、Semantic-merge 规则
 
@@ -299,7 +299,7 @@ spec §13 相关，详见 lint_wiki.py `check_external_symlinks` docstring。）
 ## 八、lint 的边界
 
 - **不**自动修——只报告；修由用户 / agent 决定（机械字节操作的"正路"是
-  `wiki_write.py`，lint 不兼任 writer）
+  `llmw wiki write`，lint 不兼任 writer）
 - **不**评估内容质量（不是 fact-checker）——只看结构和纪律
 - **不**评估 frontmatter 的语义是否合理（只检查字段存在性 + 类型合法）
 - **不**取代 schema（`AGENTS.md`）——schema 是源头，lint 是脚本化检查

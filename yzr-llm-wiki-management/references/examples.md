@@ -31,15 +31,15 @@
 **执行**：
 
 ```text
-1. ingest_diff.py 确认这是未摄取文件
+1. llmw wiki ingest-diff 确认这是未摄取文件
 2. Read raw/articles/distributed-systems-overview.md 全文
-3. wiki_write.py new --type source --slug distributed-systems-overview --title "Distributed Systems Overview" --sources raw/articles/...md --tags distributed-systems,consensus
+3. llmw wiki write new --type source --slug distributed-systems-overview --title "Distributed Systems Overview" --sources raw/articles/...md --tags distributed-systems,consensus
    → Edit 写正文：摘要 + 关键概念 + 主要权衡 + 与同类工作的关系
 4. 检查 concepts/distributed-systems.md, concepts/consensus.md 是否已存在
    - 不存在：创建并把本次贡献写进
    - 存在：追加"参考来源"段
-5. wiki_write.py index add wiki/sources/distributed-systems-overview.md
-6. wiki_write.py log --op ingest --title "Distributed Systems Overview"
+5. llmw wiki write index add wiki/sources/distributed-systems-overview.md
+6. llmw wiki write log --op ingest --title "Distributed Systems Overview"
 7. 若启用 git，建议 commit；裸目录树 wiki 跳过此步
 ```
 
@@ -57,10 +57,10 @@
    <Concept B> 强调 <特点 2>（来源 sources/<source-b>.md）..."
 4. 询问用户："这段对比适合归档为 wiki/comparisons/<concept-a>-vs-<concept-b>.md 吗？"
 5. 用户同意后：
-   - `wiki_write.py new --type comparison --slug <concept-a>-vs-<concept-b> --title ...`
+   - `llmw wiki write new --type comparison --slug <concept-a>-vs-<concept-b> --title ...`
      脚手架 + 按 references/page-templates.md §二 comparison 模板写正文
-   - `wiki_write.py index add wiki/comparisons/<concept-a>-vs-<concept-b>.md`
-   - `wiki_write.py log --op query --title "<Concept A> vs <Concept B>"`
+   - `llmw wiki write index add wiki/comparisons/<concept-a>-vs-<concept-b>.md`
+   - `llmw wiki write log --op query --title "<Concept A> vs <Concept B>"`
 ```
 
 ## 样例四：lint 发现腐烂迹象
@@ -70,7 +70,7 @@
 **执行**：
 
 ```text
-1. python3 yzr-llm-wiki-management/scripts/lint_wiki.py ~/wiki/llm-systems
+1. llmw wiki --path ~/wiki/llm-systems lint
 2. 脚本报告：
    - raw/ 干净（启用 git 时 git status clean；未启用时此项自动跳过 + 输出顶部
      `[NOTES] raw-immutable-skipped: 未启用 git（无 .git/）` 提示）
@@ -98,7 +98,7 @@
 1. 跑操作前置：Read ~/wiki/llm-systems/AGENTS.md (看到 §七 Wiki Spec 版本 = 0.5.0；老 wiki 版本在 CLAUDE.md §七) +
    wiki/index.md + wiki/log.md 最近 30 行
 2. 跑探测：
-   python3 yzr-llm-wiki-management/scripts/lint_wiki.py ~/wiki/llm-systems --check-version
+   llmw wiki --path ~/wiki/llm-systems lint --check-version
    脚本报告：
      current_spec : 0.5.0
      skill_spec   : 0.7.0
@@ -116,13 +116,13 @@
    "应用全部（除 1 处冲突转人工）/ 部分应用 / 仅看清单?"
    用户: "应用全部"
 4. 生成 plan（stdout 输出，不落盘）：
-   python3 yzr-llm-wiki-management/scripts/lint_wiki.py ~/wiki/llm-systems --check-version --apply --json
+   llmw wiki --path ~/wiki/llm-systems lint --check-version --apply --json
    → report.migration_plan 随 stdout JSON 返回（agent 内存持有，wiki 根无文件）
 5. agent 从 stdout JSON 读 plan.actions[] 逐项 Edit/Write 修复:
    - 12 处 frontmatter-rename（其中 11 处直接改，1 处冲突跳过转人工）
    - 0 处其它（`type-memory-value` 已退役，老 wiki 中 `type: memory` 由 lint `invalid-type` 单独报）
 6. Edit 改 ~/wiki/llm-systems/AGENTS.md §七 "Wiki Spec 版本" 0.5.0 → 0.7.0
-7. 重跑 lint_wiki.py --check-version 验证:
+7. 重跑 llmw wiki lint --check-version 验证:
      needs_migration: false ✓ 完成
      报告残留: wiki/sources/<legacy-page>.md [CONFLICT] 等待用户裁定
 8. 告诉用户完成 + 1 处冲突转人工

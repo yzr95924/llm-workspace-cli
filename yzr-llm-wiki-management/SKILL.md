@@ -76,7 +76,7 @@ metadata:
   frontmatter、log.md 格式
 - **migrate** → 跑 `llmw wiki lint --check-version` 输出 spec 版本 + legacy 现场
   报告；`--apply` 把 migration plan 以 JSON 输出到 stdout（不落盘）供 agent 按
-  `references/upgrade-workflow.md` 走 Edit/Write 修复；详见 §5 Migrate
+  `references/upgrade-workflow.md` 走 Edit/Write 修复；详见 §5 Upgrade
 
 ## 设计决策
 
@@ -449,7 +449,7 @@ git 身份字段 → 创建 symlink + 写 anchor → 后续 `llmw wiki ingest-di
 - 写新文件时保留原 `created` 字段；只更新 `updated`
 - 用户**不**直接编辑 MEMORY/——若用户想补充，先转告 agent 由 agent 写入
 
-### 5. Migrate（升级 wiki spec）
+### 5. Upgrade（升级 wiki spec）
 
 **触发**：用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / spec 升级 / 是否需要
 reformat"；或 `llmw wiki lint` 报告 `legacy-confidence-field` 等迁移期 warn。

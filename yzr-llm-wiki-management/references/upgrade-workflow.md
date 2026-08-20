@@ -1,6 +1,6 @@
-# Migrate（升级 wiki spec）详细流程
+# Upgrade（升级 wiki spec）详细流程
 
-> 主 SKILL.md §5 Migrate 只留 pointer；详细流程按需 Read 本文件。
+> 主 SKILL.md §5 Upgrade 只留 pointer；详细流程按需 Read 本文件。
 > **迁移依据的唯一 SSOT = lint plan 的 `actions[]`
 > （自带 `remove` / `add_or_modify` / `to_action`）+ 本文件 §六 语义合并规则**——
 > 今后任何 breaking 变更的迁移指令必须落本文件 §六，不再另设历史档案；
@@ -9,7 +9,7 @@
 ## 触发
 
 用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / spec 升级 / 是否需要
-reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 warn。
+reformat"；或 `llmw wiki lint` 报告 `legacy-confidence-field` 等迁移期 warn。
 
 ## 为什么需要这一步
 
@@ -21,12 +21,12 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
 
 ## 职责切分（**关键**——避免与 ingest / lint 混淆）
 
-- **脚本**（`scripts/lint_wiki.py --check-version`）= 探测器。只扫不修，输出报告 / `--apply`
+- **脚本**（`llmw wiki lint --check-version`）= 探测器。只扫不修，输出报告 / `--apply`
   时把 migration plan 以 JSON 输出到 stdout，**不**改任何 wiki 内容 / **不**落盘
 - **agent**（本节定义）= 修复者。按 stdout 返回的 migration plan（`--apply --json` 的
   `report.migration_plan`）+ [`upgrade-workflow.md`](upgrade-workflow.md)（§六 语义合并
   规则）用 Edit/Write 改 frontmatter / 移文件 / 补索引 / 改 AGENTS.md §七
-- **迁移期不走 `wiki_write.py`**——迁移 = 格式流动期，机械写命令只认识当前形态
+- **迁移期不走 `llmw wiki write`**——迁移 = 格式流动期，机械写命令只认识当前形态
   （准入规则例外，见 SKILL.md §设计决策「机械 vs 判断」）
 - **迁移依据 SSOT** = plan `actions[]`（`remove` / `add_or_modify` / `to_action` 自含）
   与 本文件 §六（语义合并规则）——不另设历史档案；agent 与脚本都引用
@@ -38,14 +38,14 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
 2. **跑探测**：
 
    ```bash
-   python3 scripts/lint_wiki.py "$LLM_WIKI_ROOT" --check-version
+   llmw wiki --path "$LLM_WIKI_ROOT" lint --check-version
    ```
 
    - 解析 `<wiki-root>/AGENTS.md` §七 "Wiki Spec 版本"——拿到 `current_spec`
-   - 与本 skill `metadata.wiki_spec_version`（`scripts/lint_wiki.py` 顶部常量
-     `CURRENT_WIKI_SPEC`）比对：相等 / 老 / 新
+   - 与 CLI 包内常量 `llmw.WIKI_SPEC_VERSION`（= SKILL.md frontmatter
+     `wiki_spec_version`，CI gate 对齐）比对：相等 / 老 / 新
    - 扫已知 legacy 现场：老字段（`confidence`）+ 其它受 spec 演进影响的内容（legacy
-     pattern 清单见 `scripts/lint_wiki.py` 的 `LEGACY_PATTERN_KEYS`，修复语义由
+     pattern 清单见 `llmw.content.wiki_lint` 的 `LEGACY_PATTERN_KEYS`，修复语义由
      plan `actions[]` 的 `to_action` / `remove` / `add_or_modify` 字段自含）
      - 退役 `type` 值（`type: memory`）
    - 标记冲突页（同时含老字段与新字段）→ `conflicts[]`，**agent 不覆盖**
@@ -57,7 +57,7 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
 4. **生成 plan**（用户同意应用时）—— **不落盘**，stdout 输出：
 
    ```bash
-   python3 scripts/lint_wiki.py "$LLM_WIKI_ROOT" --check-version --apply --json
+   llmw wiki --path "$LLM_WIKI_ROOT" lint --check-version --apply --json
    ```
 
    plan 随 **stdout JSON** 返回（`report.migration_plan`），agent 在**内存**里持有——
@@ -73,7 +73,7 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
 6. **同步 `<wiki-root>/AGENTS.md` 到当前模板**（模板渲染比对机制，wiki-spec §10.1）：
    - plan 含 `fixtures-fix-agents-md-resync` 时按其 `to_action` 走 4 步：
      (1) 从旧 AGENTS.md §七 提取 主题 / 创建日期 / CLI 版本（主题 fallback H1）；
-     (2) 渲染 [`agents-md-template.md`](agents-md-template.md)——三变量用旧值，
+     (2) 渲染包内 `agents-md-template.md`（llmw CLI 自动完成）——三变量用旧值，
      `{{WIKI_SPEC_VERSION}}` 用 `to_version`；
      (3) diff 旧文件 vs 渲染稿，旧文件**多出的行/段** = 本地定制——逐条列给用户裁定：
      搬 `MEMORY/`（一行事实写 MEMORY.md 索引短条目；含 why 建 `MEMORY/<slug>.md` 完整
@@ -83,7 +83,7 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
      用 Edit 把 §七 Wiki Spec 版本行改为 `to_version` 即可
    - 这是**迁移本身**的操作，**不**触及 reviewed 戳机制（AGENTS.md 不参与 SKILL.md
      核心原则 §10 的 `reviewed-stale` 兜底）
-7. **验证**：重跑 `lint_wiki.py --check-version`：
+7. **验证**：重跑 `llmw wiki lint --check-version`：
    - 若 `needs_migration == false` 且无残留 legacy → 告知用户完成
    - 若仍有 → 报告残留 pattern + 转人工
 8. **清理临时文件**（验证通过后，保证 wiki 干净）：删升级过程产出的 `*.bak` 备份。
@@ -180,7 +180,7 @@ step 8 会清）；`.migration-plan.json` 已不再产生（migrate 改 stdout �
 - 迁移后会**自然清理** `legacy-confidence-field` warn（lint §二.13.C）
 - 迁移**不**触及 `reviewed-stale` warn（页面正文未改，仅字段重命名；按 SKILL.md
   核心原则 §10 "LLM 修改页面正文"边界，本操作属于元数据重命名，不算正文修改——但若用户谨慎，
-  可在迁移后跑 `lint_wiki.py --severity warn` 让人工审视 reviewed 戳）
+  可在迁移后跑 `llmw wiki lint --severity warn` 让人工审视 reviewed 戳）
 - 与 `--migrate-confidence`（单点硬编码迁移）的关系：`--migrate-confidence`
   保留仅供旧用法兼容；新流程一律走 `--check-version --apply`（覆盖其功能 + 范围更广）
 
@@ -202,7 +202,7 @@ step 8 会清）；`.migration-plan.json` 已不再产生（migrate 改 stdout �
 
 - `confidence: <v>` 单独存在 → 删 `confidence`；若 `v == high` 则加 `reviewed: true` +
   `reviewed_at: <migrate-day YYYY-MM-DD>`。`<migrate-day>` 取 plan 的
-  `generated_at` 字段（lint_wiki.py 在 `--apply` 时生成，随 stdout JSON 输出）
+  `generated_at` 字段（`llmw wiki lint` 在 `--apply` 时生成，随 stdout JSON 输出）
 - 同时含 `confidence` + `reviewed` → **`legacy-confidence-conflict`**，转人工裁定，
   永远不进 plan（已在 plan["skipped_conflicts"] 里标红）
 - `type: memory` / `type: memory-entry`（MEMORY 扩展类型）→ **保留原样**——

@@ -56,7 +56,7 @@ Query 是 wiki 的"消费侧"——把多份资料综合成答案，**好答案�
 ```
 
 **为什么需要这一步**：wiki 的复利价值依赖"已沉淀主张可被信任"——人工审过的页面
-（`reviewed: true`）应作为优先引用源，未审页面作为补充并显式标注。`lint_wiki.py` §二.13
+（`reviewed: true`）应作为优先引用源，未审页面作为补充并显式标注。`llmw wiki lint` §二.13
 会把未审页面标 `pending-review`（info），但 query 时是否优先采信是 agent 决策，不在 lint 范围内。
 
 ### Step 2.6：综合答案时优先采信 reviewed
@@ -111,9 +111,9 @@ Query 是 wiki 的"消费侧"——把多份资料综合成答案，**好答案�
   让每个论点都能不重读 raw 就回溯到具体 source——这是 synthesis 区别于 source 摘要的关键
 - 正文引用上游易变事实时同样过感知测试——见
   [ingest-workflow.md §七](ingest-workflow.md#七正文引用的稳定性漂移点规避) 漂移点规避
-- 脚手架：`wiki_write.py new --type comparison|synthesis --slug ... --title ...`
-- 同步 index：`wiki_write.py index add <page>`
-- 追加 log：`wiki_write.py log --op query --title "<title>"`
+- 脚手架：`llmw wiki write new --type comparison|synthesis --slug ... --title ...`
+- 同步 index：`llmw wiki write index add <page>`
+- 追加 log：`llmw wiki write log --op query --title "<title>"`
 
 ### Step 6：若启用 git，建议 commit（同 ingest）；裸目录树 wiki 跳过此步
 
