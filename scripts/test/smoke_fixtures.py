@@ -32,6 +32,15 @@ def _check_spec_version_alignment():
     """
     sys.path.insert(0, str(REPO))
     import llmw
+    from llmw.config import DEFAULT_WORKSPACE
+
+    # 防常量抄写 slip（2026-08-20 config.py 重写时 DEFAULT_WORKSPACE 曾丢 "-wiki"，
+    # 所有测试都显式传 --workspace 故无兜底）：默认路径与仓内 18 处文档引用一致
+    expected_default = Path.home() / "yzr-llm-wiki-workspace"
+    if DEFAULT_WORKSPACE != expected_default:
+        raise SystemExit(
+            f"FAIL: DEFAULT_WORKSPACE={DEFAULT_WORKSPACE} != {expected_default}（抄写 slip？）"
+        )
 
     cases = [
         ("yzr-llm-wiki-management", "wiki_spec_version", llmw.WIKI_SPEC_VERSION),

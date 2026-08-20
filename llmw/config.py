@@ -5,7 +5,7 @@ from pathlib import Path
 
 from llmw.errors import WorkspaceNotFound
 
-DEFAULT_WORKSPACE = Path.home() / "yzr-llm-workspace"
+DEFAULT_WORKSPACE = Path.home() / "yzr-llm-wiki-workspace"
 
 CONTENT_DIR = Path(__file__).resolve().parent / "content"
 
