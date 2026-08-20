@@ -15,7 +15,7 @@ metadata:
 | --- | --- | --- |
 | **用户（owner）** | 拥有 `raw/` 内容、`AGENTS.md` / `CLAUDE.md`（宪法）、git、元数据 CRUD 决策 | 不执行字节级骨架渲染 |
 | **llmw CLI** | 确定性操作唯一执行者（零 LLM 判断）：元数据 toml CRUD、骨架渲染（字节来自模板）、`check-fixtures` 探测、`upgrade` 引擎、session 启动（tmux/byobu）、model registry/overlay | 不写 `raw/` / `wiki/` 语义内容（机械 scribe 协作边除外，见 V2）；不读 `os.environ` 当 model 真相源 |
-| **agent（按 workspace skill 纪律行事）** | 跨 wiki 判断（零代码）：scan / INDEX / STATS、query 路由/合成/对比、link、workspace lint、跨 wiki MEMORY | 不写 wiki 内部（委托 wiki skill）；不跑元数据 CRUD（只告诉用户） |
+| **agent（按 workspace skill 纪律行事）** | 跨 wiki 判断（零代码）：scan / INDEX / STATS、query 路由/合成/对比、link、workspace lint、跨 wiki MEMORY；**在场时可代跑 llmw**（读类直接执行、写类经用户确认后执行、api_key 类恒用户亲自执行） | 不写 wiki 内部（委托 wiki skill）；不手写元数据 toml（写类操作必须经 CLI，schema/原子写/唯一性约束由 CLI 保证） |
 | **agent（按 wiki skill 纪律行事）** | 单 wiki 判断（零代码）：ingest、query、单 wiki lint、单 wiki MEMORY | 不知 workspace skill 存在（DAG 单向）；不写 `raw/`（用户所有） |
 
 > **"skill"与"agent"的区分**——skill = 规则文本（被加载的 SKILL.md + references/）；agent = 按这份规则行事的执行者。行为者永远是 agent；skill 只是哪份规则书。V2 行为者标注用 agent 而非 skill。
@@ -51,7 +51,7 @@ metadata:
 - skill 文本**不**读 CLI 代码（CLI 重构不能让 skill 失效）；格式契约指向 CLI 资产只用命令名（`llmw check-fixtures`）不用包内路径
 - skill **不**解析 CLI 输出做元数据读取（直读 toml 更可靠；CLI 输出是人类的，文本可能改）
 - wiki skill **不知** workspace skill 存在（workspace → wiki 是单委托；反向会破坏 DAG）
-- agent（workspace skill）**不**执行元数据写——"让 CLI 写"的语义是"告诉用户跑 CLI"，人类决策
+- **agent（workspace skill）代跑 llmw 的边界**——读/探测/升级类命令直接执行；写类（改 workspace / wiki 元数据、影响运行中 session）先给用户确认后再执行；**api_key 类命令始终由用户亲自执行**（secret 不过 agent）。不手写 toml——元数据写必须经 CLI（schema 校验 / 原子写 / 唯一性约束由 CLI 保证）。历史："让 CLI 写"曾被解读为"只告诉用户"（2026-08-21 前）；修订为"skill 在场时可代跑以闭环 UX，同时保留不手写 toml 的防线"
 
 **唯一例外（协作边）**：agent 提供字节 → CLI 机械落盘（`wiki_write.py` / `ingest_diff.py`）。CLI 不审内容语义，只做 log 追加 / index 挂载 / frontmatter 校验等纯函数。字节来自 agent 即 I-1（"CLI 永不创作语义内容"）不违反。
 
@@ -63,7 +63,7 @@ metadata:
 | **成长** | agent（两 skill 下） | 仅按需被 agent 跑 `check-fixtures` 探测一致性 |
 | **upgrade** | agent 跑 `llmw upgrade` | CLI 引擎执行：workspace 骨架（4 类）+ 每 wiki 聚合；3 终态 JSON 输出；agent 解读并处理 `blocked_drift` |
 | **delete** | CLI | 带备份删 |
-| **元数据 CRUD** | 用户 | skill 建议 → 用户跑 `llmw wiki ...` 命令，人类执行（agent 不代行） |
+| **元数据 CRUD** | 用户（agent 可代跑经确认的写类命令；api_key 类恒用户执行） | skill 建议 → 用户确认后代跑 / 用户直接跑 llmw；CLI 负责 schema 校验 + schema_version 自愈 |
 
 `templates_version` 跨仓语义：workspace.toml 里的 `workspace_format=X; wiki_format=Y` 双分量，归 CLI 写（`upgrade` 时 bump）；版本号 SSOT = `llmw/__init__.py` 常量（SKILL.md frontmatter 与常量由 CI gate 比对，同 commit 改两处）。
 
@@ -94,7 +94,7 @@ metadata:
 格式流动期（新旧形态并存时）的写操作 → **agent**（脚本只认识当前形态，硬编码 = 探测器要同时理解新旧）。格式稳定后进 CLI。
 
 **5. 元数据变更？**
-`workspace.toml` / `wiki_metadata.toml` / `workspace_models.toml` 结构变更 → **用户跑 CLI**（agent 只建议、不代行；CLI 负责 schema 校验 + schema_version 自愈）。
+`workspace.toml` / `wiki_metadata.toml` / `workspace_models.toml` 结构变更 → **CLI**（skill 在场时 agent 经用户确认代跑；api_key 类恒用户亲自执行；agent 不手写 toml）。
 
 ### 历史实例（作为判据参照）
 

@@ -236,8 +236,7 @@ agent CLI 子进程透传 `os.environ`、依赖 Local 层 `env` 块优先级稳�
   `MEMORY/MEMORY.md` 索引区以 `- **<短名>** — <一句事实>` 承载，不单独建 `.md`
 
 **判别尺度**：能否在 30 字内独立表达"为什么"或"将来怎么用"——能 → 短条目；不能 → 完整条目。
-纪律（追加末尾 / 不删既有 / frontmatter 三项必填 / `[[slug]]` 互链）见 [[memory-entry-conventions]]
-与 [[memory-persistence-policy]]。
+纪律（追加末尾 / 不删既有 / frontmatter 三项必填 / `[[slug]]` 互链）见 [[memory-entry-conventions]]。
 
 ## 开发注意事项
 

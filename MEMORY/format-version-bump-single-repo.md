@@ -12,10 +12,7 @@ SSOT = `llmw/__init__.py` 的两条硬编码常量：`WIKI_FORMAT_VERSION` / `WO
 CI fixtures-smoke job（`scripts/test/smoke_fixtures.py` 的 `_check_format_version_alignment`）
 机械比对——任何不一致即挂 job。
 
-**Why:** 2026-08-20 把 format 版本从运行时读 SKILL.md frontmatter 改为包内常量（公理 2 / 3：
-代码绝不读 L2 skill 目录；跨层一致性由 gate 而非运行时读文件守护）。之前 `import llmw` 依赖
-skill 目录存在——wheel 装完依旧残——是 [[boundary-map]] 三层划界原则的违规点。改为常量后
-`import llmw` 零依赖 L2，wheel 完整。CI gate 把"同 commit 改多处"的纪律升级为机械 gate。
+**Why:** 运行时读 SKILL.md frontmatter 会让 `import llmw` 依赖 L2 skill 目录存在（违反 [[boundary-map]] 包内资源内建原则——wheel 装完依旧残）。改为包内常量后 `import llmw` 零依赖 L2，wheel 完整。CI gate 把"同 commit 改多处"的纪律升级为机械 gate。
 
 **何时 bump**：版本号 = 实例契约版本。bump 仅当**现有实例需要 reconcile**：
 
@@ -42,9 +39,4 @@ frontmatter 的 `*_format_version`（同 commit，顺序任意）；③ 演进�
 （模板字节增行但字段集稳定）→ patch；实例出生形态变化或新增会让旧实例 fail 的 check
 → minor/breaking（迁移指令落 `references/upgrade-workflow.md` §六）。
 
-历史形态：
-- 2026-08-18：三处副本（SKILL.md frontmatter + lint_wiki.py CURRENT_WIKI_FORMAT + llmw/__init__.py）同仓同 commit
-- 2026-08-20 前：`llmw.config.skill_format_version()` 运行时读 SKILL.md，常量消失
-- 2026-08-20 起：回到硬编码常量 + CI gate（当前形态）
-
-关联 [[boundary-map]] 公理 2/3（包内资源内建原则）。
+关联 [[boundary-map]] 单向约束（包内资源内建原则）。

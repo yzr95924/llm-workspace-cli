@@ -15,12 +15,7 @@ Project > User；`env` 块属于 settings 层，会重新应用到 session。**L
 > 路径以 `~/.claude/settings.json` 为事实样例；其它 AI coding agent 命名空间可能不同（不读 `.claude/`），
 > 但 settings 层优先级语义通用（Local > User）。
 
-**Why:** 2026-06-29 排查「wiki 配了 minimax 却跑 glm」时发现：早期 `llmw wiki enter` 通过
-`subprocess.run(env=full_env)` 把 `ANTHROPIC_MODEL=minimax...` 注入子进程（OS 级正确），但 agent 内部
-又用 `~/.claude/settings.json` 的 `env` 块（全局 `glm-5.2[1m]`）盖回去了。Phase 2 改为：把 resolved model
-渲染进 `<wiki>/.claude/settings.local.json` 的 `env` 块（Local 层），让 agent 加载——Local 层优先级 > User
-层，overlay 稳赢；subprocess 透传 `os.environ` + **不传** `--setting-sources`，恢复 user 配置
-（`enabledPlugins` / `theme` / `statusLine` 等不受影响）。
+**Why:** agent 的 settings 链优先级 Managed > CLI args > Local > Project > User，`env` 块随 settings 层；Local 层优先级 > User 层——这是 `llmw wiki enter` 能赢 user env 块覆盖的关键。`subprocess.run(env=...)` 注入的 OS 级 env 会被 agent 内部的 settings env 块盖回去。
 
 **How to apply:**
 

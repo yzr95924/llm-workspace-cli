@@ -28,4 +28,4 @@ metadata:
   层（详见 [[agent-settings-env-precedence]]）
 - subprocess 透传 `os.environ`、不传 `--setting-sources`，恢复 user 配置
 
-关联 [[memory-persistence-policy]] [[agent-settings-env-precedence]]。
+关联 [[memory-entry-conventions]] [[agent-settings-env-precedence]]。

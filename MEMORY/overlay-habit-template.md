@@ -9,11 +9,7 @@ metadata:
 
 `llmw/models/overlay.py:_HABIT_TEMPLATE` 是**代码内常量**的"习惯级" env key 集合,
 随 `wiki enter` 一并写入 `<wiki>/.claude/settings.local.json`。**不**通过 CLI 配置、
-**不**入 `workspace_models.toml`、**不**入 toml schema。
-
-初始条目:
-- `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`(关闭非必要流量 / 遥测)
-- `CLAUDE_CODE_ATTRIBUTION_HEADER=0`(关闭 attribution header,API 侧不标记 llmw)
+**不**入 `workspace_models.toml`、**不**入 toml schema。当前初始条目见代码常量（隐私开关 + attribution 开关）。
 
 **Why:** registry 的本职是 "model 元数据 + 凭证",把"全 CLI 行为约定"(隐私开关、
 attribution 标记)塞进去会污染 schema;放 per-workspace toml 又会让"统一风格"裂开
