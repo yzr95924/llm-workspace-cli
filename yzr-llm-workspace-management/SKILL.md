@@ -27,7 +27,7 @@ metadata:
 两块交付物：
 
 - **SKILL.md（本文）**——工作流 + 边界
-- **确定性执行归 llmw CLI**——本 skill零代码，收敛为两条命令，不一致时以探测器为准：
+- **确定性执行归 llmw CLI**——本 skill **零代码**，收敛为两条命令，不一致时以探测器为准：
   - `llmw check-fixtures`：只探测（输出 drift 报告，不写盘）
   - `llmw upgrade`：workspace 骨架 + 逐 wiki 聚合确定性升级（默认 dry-run）
 
@@ -104,7 +104,7 @@ metadata:
    - 扫 `<wiki>/raw/` 递归拿原始资料数（仅计数，不读内容）
    - 读 `<wiki>/wiki/log.md` 末条拿 last activity
    - 读 `<wiki>/MEMORY/` 拿 memory files 数（仅文件名）
-3. 读 `<workspace>/MEMORY/MEMORY.md` 索引，按 wiki name 字母序聚合，写 INDEX.md（格式 A2）+ STATS.md（格式 A3）
+3. 读 `<workspace>/MEMORY/MEMORY.md` 索引，按 A2 排序规则聚合，写 INDEX.md + STATS.md（格式 A2/A3）
 4. 原子写（POSIX `tmp + fsync + rename`）
 5. 对话中报告："已刷新 INDEX.md / STATS.md，X 个 wiki，Y 个 page，Z 个原始资料"
 
@@ -141,8 +141,6 @@ metadata:
 3. **建议**：对话中列出候选对，让用户选哪些要加跨 wiki 链接
 4. **写入**：用户确认后，对每个涉及的 wiki，调用 `yzr-llm-wiki-management` 的 ingest 流程更新对应 entity / concept 页——追加"跨 wiki 引用"段（xref 格式见 `<workspace>/AGENTS.md` §二）
 
-**不变量**：本 skill 不直接编辑 `<wiki>/wiki/**`——一律通过 `yzr-llm-wiki-management` 的 ingest 流程（保持 wiki 内的 log.md 同步、frontmatter 5 必填、不变量等）。
-
 ### 4. Lint（workspace 级）
 
 **触发**："workspace lint" / "workspace 健康检查" / 定期（如每次 scan 时顺带）。
@@ -175,7 +173,7 @@ metadata:
 **流程**：
 
 1. 识别值得沉淀的观察 → scope 自检确认跨 wiki
-2. 按 `<workspace>/AGENTS.md` §五判完整 vs 短条目
+2. 判别条目形式（完整 / 短）
 3. 写入 `MEMORY/<slug>.md`（完整条目）或直接在 `MEMORY/MEMORY.md` 追加短条目一行
 4. **同步 `MEMORY.md` 索引一行**（漏写 = 下次读不到，lint `memory-not-indexed` 兜底）
 
@@ -221,7 +219,7 @@ metadata:
 
 ## 参考文件
 
-- **必读**：`<workspace>/AGENTS.md`（= `workspace-agents-md-template.md` 模板渲染稿，byte-owned）——workspace 级契约的 canonical，归属 §一 / xref §二 / query §三 / lint §四 / Memory §五 / 四分表 §六
+- **必读**：`<workspace>/AGENTS.md`（= `workspace-agents-md-template.md` 模板渲染稿，byte-owned）——workspace 级契约的 canonical
 - **单 wiki 契约**：`yzr-llm-wiki-management` SKILL.md + references/（本 skill 读 wiki 文件时按其契约理解，不直接写）
 - **CLI 文档**：workspace CLI（命令 `llmw`，与本 skill 同仓维护）——`init / add / remove / config / enter / model ...` 命令参考此处
 
@@ -245,7 +243,7 @@ metadata:
 ### A2. INDEX.md
 
 - 维护方：**skill** 在 `scan` 时写；CLI 不写
-- frontmatter 5 必填 + `type: workspace-index`；`title` 推荐 `"Workspace Index"`；`tags` 推荐 `[workspace, index]`
+- frontmatter 必填（A7） + `type: workspace-index`；`title` 推荐 `"Workspace Index"`；`tags` 推荐 `[workspace, index]`
 - 正文骨架：
 
   ```markdown
@@ -276,7 +274,7 @@ metadata:
 ### A3. STATS.md
 
 - 维护方：**skill** 在 `scan` 时一并写；与 INDEX.md 区别：结构化（表格）
-- frontmatter 5 必填 + `type: workspace-stats`
+- frontmatter 必填（A7） + `type: workspace-stats`
 - 正文骨架：`# <Workspace> — Workspace Stats` + `## Overview` 总表 + `## Per-wiki` 每 wiki 一节分表（pages / entities / concepts / sources / comparisons / syntheses / raw_files / last_log_entry / tags / memory_files）
 - skill 写入场景：`scan`（与 INDEX.md 同一次刷新）
 
@@ -284,22 +282,21 @@ metadata:
 
 - 维护方：**skill** 在 `query` 输出适合归档时 `Write`
 - 文件命名：`<slug>.md`，kebab-case `^[a-z0-9][a-z0-9-]*$`（A8）
-- frontmatter 5 必填 + `type: cross-query`；`tags` 推荐 `[workspace, cross-query, <涉及 wiki 的 tag>...]`；必填 `sources`（引用 wiki 内页路径数组）+ `wikis`（涉及 wiki 名数组）
+- frontmatter 必填（A7） + `type: cross-query`；`tags` 推荐 `[workspace, cross-query, <涉及 wiki 的 tag>...]`；必填 `sources`（引用 wiki 内页路径数组）+ `wikis`（涉及 wiki 名数组）
 - skill 写入场景：`query` 输出用户确认归档时
 
 ### A5. LINT.md
 
 - 维护方：**skill** 在 `lint` 时写最近一次报告（**不**累积，每次 lint 覆盖，是快照）
-- frontmatter 5 必填 + `type: workspace-lint`
+- frontmatter 必填（A7） + `type: workspace-lint`
 - 正文骨架：`# <Workspace> — Lint Report (<YYYY-MM-DD>)` + `## Per-wiki Issues`（每 wiki 一段，本 wiki 内 lint 走 yzr-llm-wiki-management）+ `## Workspace-level Issues`（跨 wiki 重复 entity / 未注册子目录 / STATS 过期 / MEMORY 索引一致 / ...)
 - skill 写入场景：`lint`（每次覆盖）
 
 ### A6. workspace MEMORY/
 
-- 维护方：CLI init 时刻创建空目录 + 写 `MEMORY/MEMORY.md` 索引占位；后续条目由 **skill** 写入 + 同步追加 MEMORY.md 索引一行。人类不写；CLI 不写
+- 维护方：CLI init 时创建空目录 + 写 `MEMORY/MEMORY.md` 索引占位；后续条目由 **skill** 写入 + 同步追加 MEMORY.md 索引一行。人类不写；CLI 不写
 - MEMORY 不在 INDEX.md 中强制列出（agent 私有入口）
 - **条目形式（完整 / 短）+ 何时写/不写 + 索引行格式** canonical = `<workspace>/AGENTS.md` §五（模板 §五 渲染稿，byte-owned），本附录不重复
-- **scope 严格区分**：跨 wiki 经验 → 本目录；单 wiki 观察 → `<wiki>/MEMORY/`；跨 wiki 综合答案 → `cross_queries/`；一次性观察 → chat（canonical = `<workspace>/AGENTS.md` §五）
 
 #### A6.1 MEMORY/MEMORY.md（索引）
 
