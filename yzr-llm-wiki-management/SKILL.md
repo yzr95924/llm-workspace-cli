@@ -108,7 +108,7 @@ metadata:
    `raw/external/`（外部代码仓 symlink 接入，LLM 主导，spec §13.3）+ `raw/discussions/`
    （协作草稿层，双方可写，spec §15）。完整纪律（含"wiki 与 raw 矛盾以 raw 为准"4 条）
    在 `<wiki-root>/AGENTS.md` §一（模板见
-   [`llmw/content/templates/wiki/agents-md-template.md`](../llmw/content/templates/wiki/agents-md-template.md)），操作细则在
+   `llmw/content/templates/wiki/agents-md-template.md`（CLI 包内）），操作细则在
    核心原则 §1 + spec §13/§15。`raw/` 下子目录自由组织；
    `llmw wiki ingest-diff` 递归扫整棵 `raw/`（扩展名白名单 *.md/*.markdown/*.txt；跳过
    `assets/` + `discussions/`）。
@@ -146,7 +146,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
 >    AGENTS.md 不含 tag 白名单（在 `wiki/tags.md`——见本节 §核心原则 §11）。AGENTS.md
 >    顶部一行 `@MEMORY/MEMORY.md` + 一行 `@scripts/SCRIPTS.md` `@import`——自动展开 `@import`
 >    的 agent 透明拿到 MEMORY / scripts 全文，不展开的由 AGENTS.md 顶部强制 Read 指令兜底
->    （详见 [`llmw/content/templates/wiki/agents-md-template.md`](../llmw/content/templates/wiki/agents-md-template.md) 顶部）。**别处由 skill
+>    （详见 `llmw/content/templates/wiki/agents-md-template.md`（CLI 包内） 顶部）。**别处由 skill
 >    按需读 AGENTS.md 时** 也走相同的 `@import` 链路，
 >    **不**需要单独 `Read MEMORY.md` 补齐索引（除非要看各 `<slug>.md` 正文）。
 > 2. `Read <$LLM_WIKI_ROOT>/wiki/index.md`——知道有哪些页、分布在哪些类别，避免重复创建 / 漏交叉引用
@@ -174,7 +174,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
      草稿消化进 wiki 两条路（消化式 / 转正式 `mv`）都需用户确认——详 wiki-spec §15
 2. **wiki/ 由 LLM 撰写**——用户从不手写 wiki 页面（编辑 AGENTS.md 除外，那是 schema）
 3. **AGENTS.md 是 schema 不是文档**——它承载 wiki 的纪律配置，不往里塞内容（完整纪律见
-   [`agents-md-template.md`](../llmw/content/templates/wiki/agents-md-template.md) §七「本文件本身的纪律」）。
+   AGENTS.md 模板（CLI 包内）§七「本文件本身的纪律」）。
    **写新纪律先判归属**：过在场 / 状态 / 人格三测试（wiki 属性；「做错」限定为状态
    不合法 / 腐烂，写作质量类方法不算）→ 写模板；干活方法 /
    工具 / 路由 → 留本文件——判据 SSOT 见 [wiki-spec.md §2](references/wiki-spec.md#2-agentsmdssot-claudemd薄壳)
@@ -207,7 +207,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
 10. **LLM 修改已审核页必须清 `reviewed` 戳——每次编辑后跑 `llmw wiki write touch`**
     （自动 `updated`=现在 + 删 `reviewed` / `reviewed_at`，见 §设计决策「机械 vs 判断」）；
     `llmw wiki lint` 用 `reviewed-stale` 兜底。完整生命周期规则见
-    [`agents-md-template.md`](../llmw/content/templates/wiki/agents-md-template.md) §二「认知质量信号」（纪律 canonical 副本）。
+    AGENTS.md 模板（CLI 包内）§二「认知质量信号」（纪律 canonical 副本）。
 
 11. **tag 白名单在 `wiki/tags.md`**（详
    [wiki-spec.md §9.1](references/wiki-spec.md#91-tag-白名单来源)）——LLM auto-extend bullet +
@@ -226,7 +226,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
    `agents-md-template.md`「scripts/ —— 本 wiki 仓的自维护脚本目录」段承载同一规则（canonical 副本 = 模板）。
 
 13. **yzr 个人工作习惯**——**canonical 副本 =
-    [`agents-md-template.md`](../llmw/content/templates/wiki/agents-md-template.md) §九**（纪律正文唯一维护点；
+    AGENTS.md 模板（CLI 包内）§九**（纪律正文唯一维护点；
     习惯清单以该节为准，此处不枚举——增改习惯只改模板，不动本文件、不升
     `wiki_spec_version`，老 wiki 由 `agents-md-template-sync` 字节比对独立探测后重渲染）。
     触发本 skill 的会话对用户输出前先 `Read` 该段一次——这些习惯适用于一切面向用户的输出。

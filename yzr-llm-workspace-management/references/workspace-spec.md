@@ -612,14 +612,14 @@ MEMORY/MEMORY.md / workspace.toml `templates_version`）会有意识地保留旧
 
 `llmw upgrade [--dry-run] [--apply] [--yes] [--json]` 两段式：
 
-1. **Phase 1 workspace 骨架**（`llmw/content/upgrade_workspace.py`）：
+1. **Phase 1 workspace 骨架**（CLI 内部升级引擎，入口 `llmw upgrade`）：
    - byte-owned (AGENTS.md / CLAUDE.md)：从现文件 §七 / H1 提取 4 个 per-workspace
      变量（display_name / setup_date / spec 版本 / CLI 版本）+ 模板渲染比对 → 字节不一致
      则按目标 spec 全量重渲染覆盖（4 变量保留现值，spec 版本用目标版本）
    - block-owned (.gitignore)：复用 `ensure_workspace_gitignore` 重生成 → 仅替换 llmw
      managed block，块外用户自定义规则不动
    - header-owned (MEMORY/MEMORY.md)：换头（说明块 + H1）+ 保留 `## 索引` growth 条目
-2. **Phase 2 逐 wiki 聚合**（`llmw/content/upgrade.py`）：每个注册 wiki 独立走 wiki upgrade
+2. **Phase 2 逐 wiki 聚合**（CLI 内部，逐 wiki 调 wiki 升级路径）：每个注册 wiki 独立走 wiki upgrade
 
 ### §17.2 3 终态 JSON 契约
 

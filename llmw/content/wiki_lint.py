@@ -1412,7 +1412,6 @@ def severity_of(finding: str) -> str:
 
 # ---------------------------------------------------------------------------
 # --check-version：扫描 wiki 的 spec 版本 + 老格式 legacy 现场
-# 设计见 yzr-llm-wiki-management/docs/superpowers/specs/<date>-migrate-design.md
 # 职责：纯探测（不动 wiki 内容）；agent 拿到 plan 后按 references/upgrade-workflow.md 走 Edit/Write 修复。
 # ---------------------------------------------------------------------------
 
@@ -1921,9 +1920,9 @@ def build_migration_plan(
         "generated_at": today,
         "from_version": current_spec,
         "to_version": CURRENT_WIKI_SPEC,
-        "skill_path": "yzr-llm-wiki-management/SKILL.md",
-        "spec_doc": "yzr-llm-wiki-management/references/wiki-spec.md",
-        "rule_doc": "yzr-llm-wiki-management/references/upgrade-workflow.md",
+        "skill_doc": "SKILL.md（yzr-llm-wiki-management skill 根）",
+        "spec_doc": "references/wiki-spec.md（yzr-llm-wiki-management skill）",
+        "rule_doc": "references/upgrade-workflow.md（yzr-llm-wiki-management skill）",
         "actions": actions,
         "fixtures_actions": fixtures_actions,
         "skipped_conflicts": legacy.get("conflicts", []),  # type: ignore

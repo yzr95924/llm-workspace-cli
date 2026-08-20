@@ -203,7 +203,7 @@
   `llmw wiki check-fixtures` 的 `template-no-outbound-refs` check 强制），CLI **不得修改**
 
 > **纪律正文唯一副本（canonical）**：模板与各 spec 节共享的纪律正文，**唯一维护点在
-> [`agents-md-template.md`](../../llmw/content/templates/wiki/agents-md-template.md)**
+> CLI 包内 `agents-md-template.md`**
 > （llmw 包内资产）——wiki 侧读不到模板原文，模板必须
 > 自包含，故它就是副本宿主。本 spec / page-templates.md / SKILL.md 只保留各自**独有**
 > 内容（机制契约 / rationale / 骨架 / digest + 指针），凡与模板重复的逐字纪律句以

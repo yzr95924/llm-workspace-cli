@@ -121,7 +121,7 @@ reformat"；或 `lint_wiki.py` 报告 `legacy-confidence-field` 等迁移期 war
 ## fixtures 字段更新清单
 
 > **本节回答"升级时每个约定文件要对齐什么"**——集中一处，避免散落在 SKILL.md / spec 各处。
-> 权威信号清单是 `llmw.content.wiki_fixtures` 的 `SKELETON_SPECS` + `CHECK_REGISTRY`（数 = SKILL.md `metadata.fixtures_check_count`）；
+> 权威信号清单在 CLI 内部（`llmw.content.wiki_fixtures` 的注册表；数 = SKILL.md `metadata.fixtures_check_count`）；
 > 本节只做 agent 视角的分类与指路，**不重抄字段名**（否则三处漂移）。
 
 升级 wiki spec 时，约定文件（fixtures）必须对齐当前 spec 的骨架。`llmw wiki check-fixtures`
@@ -171,7 +171,7 @@ step 8 会清）；`.migration-plan.json` 已不再产生（migrate 改 stdout �
 
 ### 权威源指针
 
-- 骨架信号定义：`llmw.content.wiki_fixtures` 的 `SKELETON_SPECS` + `CHECK_REGISTRY`
+- 骨架信号定义：CLI 内部注册表（`llmw wiki check-fixtures` 的信号来源；`--json` 输出即全部 check 清单）
 - 字节金标准：包内 llmw 字节金标准（index/log 带占位符，按迁移锚点 mapping 渲染后比对）
 - 语义合并（跨条目归并）：见 §六
 

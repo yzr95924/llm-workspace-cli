@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """log.md 行格式正则 + created/updated 时间解析的 SSOT。
 
-权威定义与 yzr-llm-wiki-management/references/page-templates.md §7 同步。
-若要改格式，必须**同时**改这里 + page-templates.md §7 + 同仓 AGENTS.md 中的格式说明。
+本模块是格式权威（executable truth）；yzr-llm-wiki-management 的
+page-templates.md 与实例 AGENTS.md 中的格式说明是文档描述，改格式时同步更新文档。
 
 三类符号：
 - `LOG_LINE_RE`：全 op（ingest/query/lint/setup）——用于 lint 验证 log.md 每行格式合法
@@ -36,7 +36,7 @@ def parse_date_or_datetime(s):
     return None
 
 
-# 文档 SSOT: yzr-llm-wiki-management/references/page-templates.md §7
+# 格式权威: 本模块（文档描述在 page-templates.md）
 # HH:MM 可选（regex 非锚定尾部）；老 wikis 仅 date 仍合法
 LOG_LINE_RE = re.compile(
     r"^## \[\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?\] "
