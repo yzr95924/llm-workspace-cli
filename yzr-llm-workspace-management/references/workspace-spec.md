@@ -329,8 +329,7 @@
 - frontmatter：通用 5 必填（规则见 §13）+ cross_query 特化：
   - `type` = `cross-query`（reserved，§13）
   - `tags` 推荐 `[workspace, cross-query, <涉及 wiki 的 tag>...]`
-  - `sources`（array，**必填**）：引用的 wiki 内页路径数组（相对 workspace 根，如 `huawei_storage_wiki/wiki/sources/foo.md`）
-  - `wikis`（array，**必填**）：涉及的 wiki 名列表
+  - `sources` / `wikis`（array，均必填，语义见 §13 类型特化字段表）
 
 - **skill 写入场景**：`query` 输出用户确认归档时
 - **CLI 写入场景**：**无**
@@ -417,7 +416,7 @@
   直读 SSOT；agent 在别处工作（skill 经 workspace 路径定位并读 AGENTS.md；具体定位途径——环境变量 /
   默认路径 / 显式传参——归 CLI session 设置，spec 不钉）时，`@` 不自动展开，
   由 AGENTS.md 顶部强制 Read 指令 + SKILL §0 启动检查显式 Read MEMORY.md 补齐
-- 正文骨架：顶部 1 段说明（本目录用途 + 何时写 / 命名 / 纪律指向 SKILL §5，**不**重复以免
+- 正文骨架：顶部 1 段说明（本目录用途 + 何时写 / 命名 /   纪律指向 `<workspace>/AGENTS.md` §五（模板 §五，canonical 纪律副本），**不**重复以免
   口径分裂）+ `## 索引` 段。索引行两种格式共存：
   - **完整条目**：`- <slug> — <一句话摘要> → [正文](<slug>.md)`（指向 §9.2 的 `MEMORY/<slug>.md`）
   - **短条目**：`- <一句话事实>`（无链接，对应无 `.md` 文件的索引行 reminder）
@@ -436,10 +435,7 @@
 - 命名约束：kebab-case `^[a-z0-9][a-z0-9-]*$`，见 §15
 - frontmatter：通用 5 必填（规则见 §13）+ 推荐 `description` / `wikis`（涉及 wiki 名数组）
 
-| `type` 取值 | 含义 |
-| --- | --- |
-| `entity` / `concept` / `source` / `comparison` / `synthesis` | 复用 wiki-spec §9 的 5 类内容页 enum（按记忆内容性质选） |
-| `workspace-memory` | 跨 wiki 关联 / 用户偏好 / lint 模式（**新增 reserved**，见 §13） |
+- `type` 取值：5 类 wiki 内容页 enum 或 `workspace-memory`（完整 enum 表见 §13），按记忆内容性质选
 
 - `wikis` 字段：数组，列涉及的 wiki 名；若该条记忆涉及全 workspace 而非特定 wiki，可省略
 - lint 校验：走与 wiki 内容页一致的 5 必填校验（`title` / `type` / `created` / `updated` / `tags`）
@@ -551,7 +547,7 @@ CLI 在以下情况必须拒绝并退出（**非零退出码**）：
 
 | 字段 | 适用 type | 必填 | 含义 |
 | --- | --- | --- | --- |
-| `sources` | `cross-query` | 是 | 引用的 wiki 内页路径数组（相对 workspace 根） |
+| `sources` | `cross-query` | 是 | 引用的 wiki 内页路径数组（相对 workspace 根，如 `huawei_storage_wiki/wiki/sources/foo.md`） |
 | `wikis` | `cross-query` / `workspace-memory` | 是（`cross-query`）/ 推荐（`workspace-memory`） | 涉及的 wiki 名列表 |
 | `description` | 所有 5 必填类 | 否 | 一句话 |
 

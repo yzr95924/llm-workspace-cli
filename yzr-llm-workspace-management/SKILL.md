@@ -11,7 +11,8 @@ description: |
   时间线分 wiki" / "wiki A 的 X 在 wiki B 也有，加个链接" / "升级 workspace / 迁移到最新
   spec / 检查 workspace 版本"。
   不适用：单 wiki 的 ingest / query / lint（走 yzr-llm-wiki-management）；workspace / wiki
-  元数据 CRUD（走 workspace CLI）；云端协作 wiki（走 yzr-outline-wiki）。
+  元数据 CRUD（走 workspace CLI）；云端协作 wiki（走 yzr-outline-wiki）；一次性文档生成
+  （直接用普通文件写入流程）。
 metadata:
   author: Zuoru YANG
   category: knowledge-base
@@ -35,18 +36,6 @@ metadata:
   - `llmw upgrade`：workspace 骨架 + 逐 wiki 聚合确定性升级（默认 dry-run）
   不一致时以探测器为准；spec 文档仅说明设计意图
 
-## 何时不使用
-
-"何时使用 / 不适用"已在 frontmatter description（含触发词），正文不重抄。本节只补**出路**：
-
-- **单个 wiki 的 ingest / query / lint**（含单 wiki 内 cross-page Q&A）——走
-  `yzr-llm-wiki-management` 的对应流程
-- **workspace / wiki 元数据 CRUD**（init / add / remove / config / enter / model ...）——
-  走 workspace CLI（如 `llmw`），本 skill 不调也不代跑
-- **云端协作 wiki**（Notion / Confluence / Outline Wiki / GitHub Wiki）——走
-  `yzr-outline-wiki`
-- **一次性文档生成**——直接用普通文件写入流程
-
 ## 输入 / 输出
 
 ### 启动时需具备的信息
@@ -60,7 +49,7 @@ metadata:
 ### 操作产物
 
 - **scan** → 写 `<workspace>/INDEX.md`（人类可读概览）+ `<workspace>/STATS.md`（结构化统计），
-  按 [spec §4 / §5](references/workspace-spec.md) 落盘
+  按 [spec §5 / §6](references/workspace-spec.md) 落盘
 - **query** → 对话中给出答案（带每 wiki 引用）；可选落 `<workspace>/cross_queries/<slug>.md`
   （需用户确认后归档；格式见 [spec §7](references/workspace-spec.md#7-cross_queriesskill-维护可选)）
 - **link** → 在涉及跨 wiki 引用的 wiki 各自的 source / entity 页追加跨 wiki 链接（走
@@ -226,7 +215,7 @@ workspace lint / 跨 wiki memory。
    - STATS.md 与 INDEX.md 的 wiki 列表是否一致
    - MEMORY 索引一致性：扫 `<workspace>/MEMORY/*.md`（排除 `MEMORY.md`），任一文件未在
      `MEMORY/MEMORY.md` 索引列出 → 报 `memory-not-indexed`（severity = info，与 wiki 侧
-     lint-checklist §14 对齐）
+      lint-checklist 对应条目对齐）
 2. **本 skill 做的半定性检查**：
    - 主题重叠的 wiki 是否需要合并
    - tag 体系是否混乱（同名 tag 含义不同 / 同含义 tag 命名不一）

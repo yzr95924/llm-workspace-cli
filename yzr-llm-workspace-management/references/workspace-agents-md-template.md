@@ -160,7 +160,7 @@ frontmatter 5 必填（`title` / `type` / `created` / `updated` / `tags`，**仅
 ## 七、当前配置
 
 > 本表 4 个变量（Workspace 名 / 创建日期 / Workspace Spec 版本 / CLI 版本）是仅有的
-> per-workspace 内容——spec 升级重渲染时**保留旧值**（`Workspace Spec 版本` 用迁移目标版本）。
+> per-workspace 内容——spec 升级重渲染时**保留旧值**（`Workspace Spec 版本` 用升级目标版本）。
 > 本文件特有纪律 / 偏好一律沉淀到 `MEMORY/`（由顶部 `@MEMORY/MEMORY.md` 加载，会话常驻），
 > 不写进本文件——否则升级重渲染时丢失。
 >
