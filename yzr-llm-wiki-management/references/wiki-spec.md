@@ -589,7 +589,7 @@ compared:
 ## §10 版本钉死
 
 **设计不变量**：AGENTS.md 必须记录本 wiki 创建时对齐的 wiki spec 版本 + CLI 版本（薄壳 CLAUDE.md 不持版本），
-使 skill `migrate` 能探测版本漂移。具体承载形式（AGENTS.md §七 表）+ 模板替换机制（占位符语法 /
+使 `llmw upgrade` 能探测版本漂移。具体承载形式（AGENTS.md §七 表）+ 模板替换机制（占位符语法 /
 渲染引擎）+ 版本号来源（CLI 内部机制）都归 CLI，spec 不规定。「CLI 记录的 spec 版本是否与 SKILL
 当前版本对齐」由 `llmw wiki check-fixtures` 校验（读取契约的可执行 gate）。
 
@@ -766,7 +766,7 @@ notes = "个人 TIL 仓库，按需重 ingest"
   5. **读**现有 `.symlink-anchor.toml`（如有）；**追加**新 `[[entry]]` 块；
      **写回**整个文件；首次创建则写完整文件含 `schema_version = 1` 顶层字段
 - **更新 entry 的 `target` 字段**（重建到新主机时——见 `external-repo-rebuild.md`）
-- **不**在 wiki 维护操作（ingest / query / lint / migrate）中修改 target 本身——
+- **不**在 wiki 维护操作（ingest / query / lint / upgrade）中修改 target 本身——
   librarian 角色下 target 仓内文件只读（外部仓是用户所有；不在仓内跑 `git pull` 之类）。
   **用户明确要求的开发协作**（修 bug / 重构 / 仓内 git 操作）**不**属 wiki 操作、**不**受
   raw/ 只读约束——target 在 wiki 仓外、有其自身 git、由用户全权处置。代码改动后的 wiki

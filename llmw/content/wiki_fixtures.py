@@ -6,7 +6,7 @@
 MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
 wiki_metadata.toml）是否满足当前 wiki spec 的结构要求。本模块只校验**结构性字节合规**；
 语义合并（frontmatter 字段升级 / index 重复条目 / 多 MEMORY 条目归并等）由
-upgrade-workflow.md §六 + LLM agent 走 migration plan 时处理——本模块不替代。
+upgrade-workflow.md §六 + LLM agent 走 upgrade plan 时处理——本模块不替代。
 
 用法:
   llmw wiki check-fixtures --path=<WIKI_ROOT> [--json] [--target-spec <semver>]
@@ -20,7 +20,7 @@ standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 to
   2 = 运行错误（路径 / 参数 / 文件 IO）
 
 设计权衡:
-- 该脚本不写文件，也不产出 migration plan（那是 lint_wiki.py --check-version
+- 该脚本不写文件，也不产出 upgrade plan（由 llmw wiki lint --check-version
   `--apply` 以 stdout JSON 输出并 call 它的活）；standalone 调用方只能看到 stdout/JSON 报告。
 - 21 条 check（13 条结构探测 + 7 条骨架字段比对 + 1 条模板自检 `template-no-outbound-refs`）；
   下一个 wiki spec 升级只需新增 register 条目 / SKELETON_SPECS 描述符。骨架信号硬编码在

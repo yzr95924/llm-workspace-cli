@@ -180,7 +180,7 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 
 - **`<workspace>/workspace.toml`**：schema v2；`schema_version` / `created_at` /
   `templates_version`（只读）+ `[wikis.<name>]` 注册表。只承载结构数据（运行时配置在
-  `workspace_local.toml`）。老 schema 首次 `load` 自愈迁移（`store._migrate_v1_to_v2`，幂等）。
+  `workspace_local.toml`）。老 v1 schema 已退役（`load` v1 直接拒）——2026-08 后不再有自愈路径。
 - **`<workspace>/workspace_local.toml`**：schema v1；`schema_version` / `created_at`（只读）+
   `enter_cli`（可 set/unset）。主机相关运行时配置——跨主机共用一个 git 仓
   会互相覆盖产生 churn，故拆出本地化。**不入 git**（与 `workspace_models.toml` 同一 gitignore

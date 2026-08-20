@@ -34,28 +34,19 @@ llmw wiki --path "$LLM_WIKI_ROOT" lint --severity error
 
 退出码：0 = 干净；1 = 有问题（看输出）；2 = 运行错误。
 
-### 子命令 `--migrate-confidence`（仅供旧用法兼容）
-
-老 wiki 中 `confidence: high/medium/low` 字段（已退役）一次性迁移到新
-`reviewed` + `reviewed_at`。行为：`high` → `reviewed: true` + `reviewed_at`（今天）；
-`medium` / `low` → 仅移除；遇冲突 → `migration-conflict` 跳过该页。输出
-`<N> migrated, <M> removed, <K> skipped (conflicts)`。**互斥模式**，不写 log 条目。
-新流程一律走 `--check-version --apply`；保留仅供旧脚本/CI 调用兼容。
-
 ### 子命令 `--check-version`
 
 扫当前 wiki 的 spec 版本（解析 `<wiki-root>/AGENTS.md` §七；老 wiki fallback
 `<wiki-root>/CLAUDE.md`）与本 skill `metadata.wiki_spec_version`（脚本常量
-`CURRENT_WIKI_SPEC`）比对 + 扫已知 legacy 现场（`confidence-field` /
-`type-memory-value`）+ 自动调 fixtures 检查：
+`CURRENT_WIKI_SPEC`）比对 + 扫已知 legacy 现场（`type-memory-value`）+ 自动调 fixtures 检查：
 
 ```bash
 llmw wiki --path "$LLM_WIKI_ROOT" lint --check-version --json
-# 加 --apply 输出 migration plan（stdout JSON，不落盘）供 agent 按 [`upgrade-workflow.md`](upgrade-workflow.md) 走 Edit/Write 修复
+# 加 --apply 输出 upgrade plan（stdout JSON，不落盘）供 agent 按 [`upgrade-workflow.md`](upgrade-workflow.md) 走 Edit/Write 修复
 llmw wiki --path "$LLM_WIKI_ROOT" lint --check-version --apply --json
 ```
 
-行为：默认 dry-run（只打印报告，不动文件）；`--apply` 以 stdout JSON 输出 migration
+行为：默认 dry-run（只打印报告，不动文件）；`--apply` 以 stdout JSON 输出 upgrade
 plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_actions[]`）；
 标记冲突页 → agent 跳过 + 转人工；**互斥模式**，不写 log 条目。
 完整 agent 修复路径见 [SKILL.md §5 Upgrade](../SKILL.md#5-upgrade升级-wiki-spec)；
@@ -181,8 +172,6 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 - `contested-page`（warn）：`contested: true` 的页——未解决矛盾，裁定后移除标记
 - `contradiction-target-missing`（warn）：`contradictions` 指向不存在的页
 - `contradiction-asymmetric`（warn）：A 列 B 但 B 未反向标注 A（字段要求**双向标注**）
-- `legacy-confidence-field`（warn）：出现已退役 `confidence:` 字段 → 跑
-  `--migrate-confidence`（建议保留 ≥ 1 个迁移周期，未触发可移除）
 
 ### 14. MEMORY.md 索引一致性
 
@@ -271,7 +260,7 @@ spec §13 相关，详见 `llmw.content.wiki_lint` 的 `check_external_symlinks`
 
 ## 五、Semantic-merge 规则
 
-> 语义合并规则（agent 走 migration plan 时的合并依据）已并入
+> 语义合并规则（agent 走 upgrade plan 时的合并依据）已并入
 > [`references/upgrade-workflow.md` §六](upgrade-workflow.md#六语义合并规则)——
 > 含 frontmatter 字段合并 / index 条目合并 / anchor TOML 迁移 5 步 / MEMORY 经验合并 /
 > log 严格保留 / 决策树。本节只留指针。

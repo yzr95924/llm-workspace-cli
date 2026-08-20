@@ -324,7 +324,7 @@ def cmd_memory(wiki_root, args):
         return f"memory 条目已存在：{entry_path}", 2
     index_path = mem_dir / "MEMORY.md"
     if not index_path.is_file():
-        return "memory add 需要 MEMORY/MEMORY.md 索引存在（缺失走 migrate 补，不自动创建）", 2
+        return "memory add 需要 MEMORY/MEMORY.md 索引存在（缺失走 fixtures-fix 补，不自动创建）", 2
     index_text = index_path.read_text(encoding="utf-8", errors="replace")
     if "## 索引" not in index_text:
         return "MEMORY/MEMORY.md 缺 `## 索引` 段", 2

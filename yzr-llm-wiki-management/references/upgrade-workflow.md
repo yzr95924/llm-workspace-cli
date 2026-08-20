@@ -9,28 +9,28 @@
 ## 触发
 
 用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / spec 升级 / 是否需要
-reformat"；或 `llmw wiki lint` 报告 `legacy-confidence-field` 等迁移期 warn。
+reformat"；或 `llmw wiki lint` 报告 legacy warn。
 
 ## 为什么需要这一步
 
 [`wiki-spec.md` §10](wiki-spec.md#10-版本钉死) 规定每个 wiki 仓在
 `<wiki-root>/AGENTS.md` §七 钉一份 `Wiki Spec 版本`（CLI init 时从本 skill
-`metadata.wiki_spec_version` 镜像）。spec 演进时，老 wiki 会**有意识地保留**部分旧字段（如 `confidence`）——避免一刀切破坏用户沉淀的内容。
+`metadata.wiki_spec_version` 镜像）。spec 演进时，老 wiki 会**有意识地保留**部分旧字段——避免一刀切破坏用户沉淀的内容。
 本节定义**检测 + 自动修复**的 workflow：让用户/agent 对着一份"按 spec 升级的清单"逐项
 把 wiki 推到与本 skill 一致的格式。
 
 ## 职责切分（**关键**——避免与 ingest / lint 混淆）
 
 - **脚本**（`llmw wiki lint --check-version`）= 探测器。只扫不修，输出报告 / `--apply`
-  时把 migration plan 以 JSON 输出到 stdout，**不**改任何 wiki 内容 / **不**落盘
-- **agent**（本节定义）= 修复者。按 stdout 返回的 migration plan（`--apply --json` 的
-  `report.migration_plan`）+ [`upgrade-workflow.md`](upgrade-workflow.md)（§六 语义合并
+  时把 upgrade plan 以 JSON 输出到 stdout，**不**改任何 wiki 内容 / **不**落盘
+- **agent**（本节定义）= 修复者。按 stdout 返回的 upgrade plan（`--apply --json` 的
+  `report.upgrade_plan`）+ [`upgrade-workflow.md`](upgrade-workflow.md)（§六 语义合并
   规则）用 Edit/Write 改 frontmatter / 移文件 / 补索引 / 改 AGENTS.md §七
 - **迁移期不走 `llmw wiki write`**——迁移 = 格式流动期，机械写命令只认识当前形态
   （准入规则例外，见 SKILL.md §设计决策「机械 vs 判断」）
 - **迁移依据 SSOT** = plan `actions[]`（`remove` / `add_or_modify` / `to_action` 自含）
   与 本文件 §六（语义合并规则）——不另设历史档案；agent 与脚本都引用
-- **不**追加 log 条目——迁移是脚本运行，不是 wiki 操作事件（与 `--migrate-confidence` 一致）
+- **不**追加 log 条目——迁移是脚本运行，不是 wiki 操作事件
 
 ## 流程（agent 驱动，与 SKILL.md §1-§4 风格一致）
 
@@ -44,7 +44,7 @@ reformat"；或 `llmw wiki lint` 报告 `legacy-confidence-field` 等迁移期 w
    - 解析 `<wiki-root>/AGENTS.md` §七 "Wiki Spec 版本"——拿到 `current_spec`
    - 与 CLI 包内常量 `llmw.WIKI_SPEC_VERSION`（= SKILL.md frontmatter
      `wiki_spec_version`，CI gate 对齐）比对：相等 / 老 / 新
-   - 扫已知 legacy 现场：老字段（`confidence`）+ 其它受 spec 演进影响的内容（legacy
+   - 扫已知 legacy 现场：受 spec 演进影响的内容（legacy
      pattern 清单见 `llmw.content.wiki_lint` 的 `LEGACY_PATTERN_KEYS`，修复语义由
      plan `actions[]` 的 `to_action` / `remove` / `add_or_modify` 字段自含）
      - 退役 `type` 值（`type: memory`）
@@ -60,7 +60,7 @@ reformat"；或 `llmw wiki lint` 报告 `legacy-confidence-field` 等迁移期 w
    llmw wiki --path "$LLM_WIKI_ROOT" lint --check-version --apply --json
    ```
 
-   plan 随 **stdout JSON** 返回（`report.migration_plan`），agent 在**内存**里持有——
+   plan 随 **stdout JSON** 返回（`report.upgrade_plan`），agent 在**内存**里持有——
    含 `actions[]`（每个含 file / type / rule_ref / remove / add_or_modify）+
    `skipped_conflicts[]` + `agent_rules[]`。**不落盘**任何中间文件，故无"plan 已存在"
    覆盖问题；中途暂停续跑直接重跑 `--apply`（确定性再生成同一份 plan）。
@@ -84,10 +84,10 @@ reformat"；或 `llmw wiki lint` 报告 `legacy-confidence-field` 等迁移期 w
    - 这是**迁移本身**的操作，**不**触及 reviewed 戳机制（AGENTS.md 不参与 SKILL.md
      核心原则 §10 的 `reviewed-stale` 兜底）
 7. **验证**：重跑 `llmw wiki lint --check-version`：
-   - 若 `needs_migration == false` 且无残留 legacy → 告知用户完成
+   - 若 `needs_upgrade == false` 且无残留 legacy → 告知用户完成
    - 若仍有 → 报告残留 pattern + 转人工
 8. **清理临时文件**（验证通过后，保证 wiki 干净）：删升级过程产出的 `*.bak` 备份。
-   `.migration-plan.json` **自 step 4 起不再产生**（改 stdout 输出，agent 内存持有），
+   `.migration-plan.json` 已退役（改 stdout 输出，agent 内存持有），
    wiki 根全程无此文件；`*.bak` 唯一产生点是 anchor 重写备份，已无需回滚，残留无意义且
    `.gitignore` 已忽略。
 
@@ -97,7 +97,7 @@ reformat"；或 `llmw wiki lint` 报告 `legacy-confidence-field` 等迁移期 w
    find "$LLM_WIKI_ROOT" -maxdepth 3 -name '*.bak' -delete
    ```
 
-   > **为何不再提 `.migration-plan.json`**：step 4 起该文件不再落盘，升级全程 wiki 根**无此文件**，
+   > **为何不再提 `.migration-plan.json`**：该文件已退役，升级全程 wiki 根**无此文件**，
    > 残留 by construction 不可能（无需 `rm`）。`*.bak` 仍可能由 anchor 重写产生，故保留删除。
 9. **不**追加 log 条目 / **不**触发 ingest / query / lint（保持职责单一）
 
@@ -166,7 +166,7 @@ ingest/query 流程维护，迁移不触及。
 `gitignore-init-rules-complete` 只查**段注释齐全 + 每段 ≥1 规则**，不绑死具体规则行——
 容忍用户删自己不用的编辑器规则（只用 VSCode 的删 `.idea/`、纯 Linux 的删 `.DS_Store`）。
 临时文件段 `*.tmp` / `*.bak` 建议保留（`*.bak` 是 anchor 重写备份的中断保险，升级末尾
-step 8 会清）；`.migration-plan.json` 已不再产生（migrate 改 stdout 输出 plan，不落盘），
+step 8 会清）；`.migration-plan.json` 已退役（现由 stdout 输出 upgrade plan，不落盘），
 `fixtures/gitignore.txt` 已移除该行，老 wiki 留着也无害。
 
 ### 权威源指针
@@ -177,12 +177,10 @@ step 8 会清）；`.migration-plan.json` 已不再产生（migrate 改 stdout �
 
 ## 与现有 lint 检查的协同
 
-- 迁移后会**自然清理** `legacy-confidence-field` warn（lint §二.13.C）
+- 迁移后会**自然清理** upgrade 期 legacy warn（lint 自动清理已迁移项）
 - 迁移**不**触及 `reviewed-stale` warn（页面正文未改，仅字段重命名；按 SKILL.md
   核心原则 §10 "LLM 修改页面正文"边界，本操作属于元数据重命名，不算正文修改——但若用户谨慎，
   可在迁移后跑 `llmw wiki lint --severity warn` 让人工审视 reviewed 戳）
-- 与 `--migrate-confidence`（单点硬编码迁移）的关系：`--migrate-confidence`
-  保留仅供旧用法兼容；新流程一律走 `--check-version --apply`（覆盖其功能 + 范围更广）
 
 ## 完整样例
 
@@ -192,7 +190,7 @@ step 8 会清）；`.migration-plan.json` 已不再产生（migrate 改 stdout �
 
 ## 六、语义合并规则
 
-> `llmw wiki lint --check-version --apply` 以 stdout JSON 输出的 migration plan（含 `actions[]`
+> `llmw wiki lint --check-version --apply` 以 stdout JSON 输出的 upgrade plan（含 `actions[]`
 > 修内容页 frontmatter + `fixtures_actions[]` 修约定文件）走 agent 执行时，**结构性字节合规**
 > 由 `llmw wiki check-fixtures` 扫并产出 `fixtures-fix-*` action；**跨 entry 的语义合并**
 > （老字段升级、index 重复条目、多 MEMORY 条目归并、0.16.0 → 0.17.0 anchor 多 entry 合并）
@@ -200,11 +198,6 @@ step 8 会清）；`.migration-plan.json` 已不再产生（migrate 改 stdout �
 
 ### 6.1 frontmatter 字段合并
 
-- `confidence: <v>` 单独存在 → 删 `confidence`；若 `v == high` 则加 `reviewed: true` +
-  `reviewed_at: <migrate-day YYYY-MM-DD>`。`<migrate-day>` 取 plan 的
-  `generated_at` 字段（`llmw wiki lint` 在 `--apply` 时生成，随 stdout JSON 输出）
-- 同时含 `confidence` + `reviewed` → **`legacy-confidence-conflict`**，转人工裁定，
-  永远不进 plan（已在 plan["skipped_conflicts"] 里标红）
 - `type: memory` / `type: memory-entry`（MEMORY 扩展类型）→ **保留原样**——
   MEMORY 桶的 `type` 字段两类均合法（spec §5.2）；
   无需迁到 `memory-entry` 也无需删除 `type`
@@ -282,7 +275,6 @@ anchor 从「每仓一份 `<source-name>/.symlink-anchor.json`（JSON object）�
 |---|---|
 | 结构性字节缺失（`.gitignore` 旧规则 / `MEMORY.md` 含 frontmatter） | 脚本 → `fixtures-fix-*` action；LLM 用 Edit 落 |
 | 跨多 entry 语义归并（`subpath` 拆多 symlink / 重复 MEMORY 合并） | 脚本只 plan；LLM 走 §6.3 / §6.4 规则用 Edit/Write 落 |
-| 冲突页（老 + 新字段共存，如 `confidence` + `reviewed`） | 转人工裁定 — 不进 plan；plan["skipped_conflicts"] 标红 |
 | log 类（历史 log 修订） | **不**动 — lint 永远不报 log 字段 |
 | 子目录 → 扁平（0.17.0 anchor 翻新） | 脚本只报 `symlink-anchor-flat-not-legacy`；LLM 走 §6.3 五步迁移 |
 

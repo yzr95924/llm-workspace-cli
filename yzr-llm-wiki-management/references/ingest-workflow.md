@@ -215,7 +215,7 @@ url: <原始链接>
 - **raw 文件不可读**（PDF 加密、图片 OCR 失败）——提示用户处理源文件
 - **已存在同名 source 页**——用 Edit 更新而不是 Write 覆盖（`llmw wiki write new` 也会拒覆盖）
 - **wiki/index.md 缺类别段**——`llmw wiki write index add` 报错并指路 page-templates §6 骨架
-  手动补类别段（或走 migrate fixtures 修复，CLI 拒绝覆盖已有 wiki）
+  手动补类别段（或走 upgrade fixtures 修复，CLI 拒绝覆盖已有 wiki）
 - **log 追加失败**——`llmw wiki write log` 报错信息自明（缺 log.md / 缺 --title 等）
 
 ## 九、反模式

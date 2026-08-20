@@ -103,27 +103,24 @@
      current_spec : 0.5.0
      skill_spec   : 0.7.0
      comparison   : older
-     needs_migration: true
-     [LEGACY] 共 12 处老格式现场（示意输出）
-       - confidence-field (12) → upgrade-workflow.md §6.1（依据 plan.actions[]）
-           wiki/sources/<legacy-page>.md  [CONFLICT] ← 同时有 reviewed，需人工裁定
+     needs_upgrade: true
+     [LEGACY] 共 3 处老格式现场（示意输出）
+       - type-memory-value (3) → upgrade-workflow.md §6.1（依据 plan.actions[]）
+           wiki/entities/<legacy-page>.md
            wiki/sources/<another-legacy>.md
            ...
-     [CONFLICTS] 1 处冲突页——agent 不自动覆盖
-       - wiki/sources/<legacy-page>.md: 同时含 legacy confidence 字段与 reviewed 字段
-     [HINT] 加 --apply 输出 migration plan（stdout JSON）供 agent 走 Edit/Write 修复
+     [HINT] 加 --apply 输出 upgrade plan（stdout JSON）供 agent 走 Edit/Write 修复
 3. agent 把报告转成对话式清单 + 询问用户:
-   "应用全部（除 1 处冲突转人工）/ 部分应用 / 仅看清单?"
+   "应用全部 / 部分应用 / 仅看清单?"
    用户: "应用全部"
 4. 生成 plan（stdout 输出，不落盘）：
    llmw wiki --path ~/wiki/llm-systems lint --check-version --apply --json
-   → report.migration_plan 随 stdout JSON 返回（agent 内存持有，wiki 根无文件）
+   → report.upgrade_plan 随 stdout JSON 返回（agent 内存持有，wiki 根无文件）
 5. agent 从 stdout JSON 读 plan.actions[] 逐项 Edit/Write 修复:
-   - 12 处 frontmatter-rename（其中 11 处直接改，1 处冲突跳过转人工）
-   - 0 处其它（`type-memory-value` 已退役，老 wiki 中 `type: memory` 由 lint `invalid-type` 单独报）
+   - 3 处 frontmatter-retype（wiki 内容页误用 reserved `type: memory` → agent 按页面真实语义
+     裁定改为 5 类内容页之一；注：占位默认 `memory-entry` 仅适用于 MEMORY 桶，wiki 内容页必须替换）
 6. Edit 改 ~/wiki/llm-systems/AGENTS.md §七 "Wiki Spec 版本" 0.5.0 → 0.7.0
 7. 重跑 llmw wiki lint --check-version 验证:
-     needs_migration: false ✓ 完成
-     报告残留: wiki/sources/<legacy-page>.md [CONFLICT] 等待用户裁定
-8. 告诉用户完成 + 1 处冲突转人工
+     needs_upgrade: false ✓ 完成
+8. 告诉用户完成，无残留冲突
 ```

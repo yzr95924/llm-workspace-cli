@@ -357,7 +357,7 @@ def build_parser() -> argparse.ArgumentParser:
     pw_lint.add_argument(
         "--apply",
         action="store_true",
-        help="与 --check-version 联用：把 migration plan 以 JSON 输出到 stdout",
+        help="与 --check-version 联用：把 upgrade plan 以 JSON 输出到 stdout",
     )
 
     pw_cf = wiki_sub.add_parser(

@@ -25,7 +25,7 @@ standalone（不依赖其他脚本 / 第三方库；Python 3.7+）。
   一次性覆盖"旧版本残留 + 本地改动"全部漂移。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
 - 版本新旧（agents-version-is-current）与正文同步（agents-md-template-sync）正交：
   后者渲染时用 workspace 自钉版本替换 {{WORKSPACE_SPEC_VERSION}}。
-- workspace.toml 的 wiki_spec 分量只展示不比对（跨 skill 指针：该跑各 wiki 的 migrate
+- workspace.toml 的 wiki_spec 分量只展示不比对（跨 skill 指针：该跑各 wiki 的 upgrade
   由 yzr-llm-wiki-management 负责，本脚本不读兄弟 skill 的版本）。
 """
 
@@ -106,7 +106,7 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": "workspace.toml",
         "rule_ref": "workspace-spec.md §2（SKILL 读取契约）",
-        "desc": "workspace.toml 含 SKILL scan/migrate 读取的字段：templates_version + 每个 [wikis.<name>] 的 path / created_at",
+        "desc": "workspace.toml 含 SKILL scan/upgrade 读取的字段：templates_version + 每个 [wikis.<name>] 的 path / created_at",
     },
     {
         "id": "template-no-outbound-refs",
@@ -489,7 +489,7 @@ def check_workspace_toml_templates_version(ws_root: Path, info: Dict[str, str]) 
     """check#6: workspace.toml templates_version 的 workspace_spec 分量与 target 一致（warn）。
 
     不阻断（spec §14：旧 spec 产物仍可读）。wiki_spec 分量只展示不比对——跨 skill
-    指针，提示用户跑各 wiki 的 migrate（yzr-llm-wiki-management），本脚本不读兄弟 skill 版本。
+    指针，提示用户跑各 wiki 的 upgrade（yzr-llm-wiki-management），本脚本不读兄弟 skill 版本。
     """
     out = {"passed": True, "severity": "warn", "file": "workspace.toml"}  # type: Dict[str, object]
     text = _read_text(ws_root / "workspace.toml")
@@ -516,7 +516,7 @@ def check_workspace_toml_templates_version(ws_root: Path, info: Dict[str, str]) 
         )
         out["fix"] = {
             "type": "workspace-fix-templates-version",
-            "to_action": f"migrate 收尾 Edit workspace.toml：templates_version 的 workspace_spec 分量改为 {info.get('target_spec') or '<target>'}（单字段，其余不动）",
+            "to_action": f"upgrade 收尾 Edit workspace.toml：templates_version 的 workspace_spec 分量改为 {info.get('target_spec') or '<target>'}（单字段，其余不动）",
         }
         return out
     cmp = _compare_semver(found, info.get("target_spec"))
@@ -527,7 +527,7 @@ def check_workspace_toml_templates_version(ws_root: Path, info: Dict[str, str]) 
         out["expected"] = info.get("target_spec")
         out["fix"] = {
             "type": "workspace-fix-templates-version",
-            "to_action": f"migrate 收尾 Edit workspace.toml：templates_version 的 workspace_spec 分量改为 {info.get('target_spec') or '<target>'}（单字段，其余不动）",
+            "to_action": f"upgrade 收尾 Edit workspace.toml：templates_version 的 workspace_spec 分量改为 {info.get('target_spec') or '<target>'}（单字段，其余不动）",
         }
     return out
 
@@ -538,13 +538,13 @@ NEXT_SECTION_RE = re.compile(r"^\[", re.MULTILINE)
 
 
 def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#7: workspace.toml 含 SKILL scan/migrate 读取的字段（读取契约自洽）。
+    """check#7: workspace.toml 含 SKILL scan/upgrade 读取的字段（读取契约自洽）。
 
     校验顶层 templates_version + 每个 [wikis.<name>] 的 path / created_at（SKILL scan
     遍历 + INDEX 排序用）。workspace.toml 不存在 → skip（复用 templates-version-sync
     的 skip 语义，不重复报）。minimal TOML 风格：只认 key = 行 + [section] 头，不引入 tomli。
 
-    读取契约 co-location：本 check 校验的字段 = SKILL scan/migrate 实际读取的字段。若 SKILL
+    读取契约 co-location：本 check 校验的字段 = SKILL scan/upgrade 实际读取的字段。若 SKILL
     将来新读 workspace.toml 某字段，必须同步加到这里 + workspace-spec §2「skill 读取的字段」
     表——两处（本 check / spec §2）一致，gate 才有效（清单漂移 = check 不报警 = gate 失效）。
     """

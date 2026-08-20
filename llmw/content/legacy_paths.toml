@@ -6,7 +6,7 @@
 #
 # 盘点原则：只登记已确认的路径变更 / 废弃骨架路径；不臆造（详见设计文档 §7.5）。
 #
-# 当前盘点结果（基于 migrate-workflow.md + spec 历史条款）：
+# 当前盘点结果（基于 upgrade-workflow.md + spec 历史条款）：
 # - 已确认的历史骨架路径变更：无。
 # - symlink-anchor-flat-not-legacy（0.17.0 anchor 翻新）属内容层 legacy，
 #   由 lint check + agent 处理，不入路径表。

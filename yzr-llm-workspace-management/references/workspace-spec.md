@@ -1,7 +1,7 @@
 # Workspace Spec（workspace 仓出生形态 + skill 读取契约）
 
 > 本文档约定 workspace 仓的**出生形态骨架** + 各文件的**归属关系**（谁写谁读）+
-> **skill 读取契约**（scan / Q&A / migrate 实际读取的字段）+ 安全约束。
+> **skill 读取契约**（scan / Q&A / upgrade 实际读取的字段）+ 安全约束。
 >
 > **依赖方向（单向）**：CLI 包自包含全部骨架资产（模板 + fixtures 内建 `llmw/content/templates/`，
 > 运行时零读 skill 目录）；skill 文本只以命令名指路 CLI 探测器。
@@ -141,7 +141,7 @@
 > toml 字段全集 authority 在 CLI（见上 SSOT 声明）。「SKILL 读的字段 CLI 是否仍提供」由
 > `llmw check-fixtures` 的 `workspace-toml-reads-satisfied` check 校验（读取契约的可执行 gate）。
 
-**skill 读取的字段**（`scan` / `migrate` 用）：
+**skill 读取的字段**（`scan` / `upgrade` 用）：
 
 | 字段 | 用途 |
 | --- | --- |

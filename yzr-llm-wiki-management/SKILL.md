@@ -35,7 +35,7 @@ metadata:
   （page-templates.md）、wiki-spec.md（wiki 仓出生形态 + skill 读取契约）、lint-checklist、
   external-repo-rebuild。骨架模板 + fixtures（CLI 字节级比对金标准）内建于
   `llmw/content/templates/wiki/`（CLI 包资产，`llmw wiki check-fixtures` 探测）、
-  upgrade-workflow.md §六 (语义合并规则，agent 走 migration plan 时的合并依据)
+  upgrade-workflow.md §六 (语义合并规则，agent 走 upgrade plan 时的合并依据)
 
 ## 何时不使用
 
@@ -60,7 +60,7 @@ metadata:
 | --- | --- | --- |
 | Wiki 根目录 | `LLM_WIKI_ROOT` 环境变量，或交互时问 | 例 `~/wiki/llm-systems` |
 | 主题名 | setup 时一次性指定，写入 `AGENTS.md` | 例 "LLM Systems" |
-| 操作类型 | 用户自然语言 | ingest / query / lint / migrate / setup |
+| 操作类型 | 用户自然语言 | ingest / query / lint / upgrade / setup |
 | 触发资料 | ingest 时给文件路径或目录 | 必须在 `raw/` 内 |
 
 ### 操作产物
@@ -74,8 +74,8 @@ metadata:
   或 `wiki/syntheses/<slug>.md`
 - **lint** → `log` 中报告：raw/ 是否被改、孤儿页、断裂交叉引用、过期摘要、缺
   frontmatter、log.md 格式
-- **migrate** → 跑 `llmw wiki lint --check-version` 输出 spec 版本 + legacy 现场
-  报告；`--apply` 把 migration plan 以 JSON 输出到 stdout（不落盘）供 agent 按
+- **upgrade** → 跑 `llmw wiki lint --check-version` 输出 spec 版本 + legacy 现场
+  报告；`--apply` 把 upgrade plan 以 JSON 输出到 stdout（不落盘）供 agent 按
   `references/upgrade-workflow.md` 走 Edit/Write 修复；详见 §5 Upgrade
 
 ## 设计决策
@@ -128,9 +128,9 @@ metadata:
 
 ### 四个核心操作——为什么是四个
 
-ingest / query / lint / migrate 四个操作各自**双向回报**：ingest 让 query 更好用；
-query 让 wiki 更厚；lint 让 ingest 不会越积越乱；migrate 让长跑 1-2 年的 wiki 在
-spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的本质。migrate 与其他三个
+ingest / query / lint / upgrade 四个操作各自**双向回报**：ingest 让 query 更好用；
+query 让 wiki 更厚；lint 让 ingest 不会越积越乱；upgrade 让长跑 1-2 年的 wiki 在
+spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的本质。upgrade 与其他三个
 不同——它是**周期触发**而非每次 wiki 操作触发（spec 升版本时才跑），但缺了它老 wiki
 会**腐烂在格式层**而不是内容层，更难察觉。四者的输入 / 输出见「输入 / 输出 · 操作产物」。
 
@@ -166,7 +166,7 @@ spec 演进时不掉队。**单独跑任一个都亏**——这就是"复利"的
    **两处写权限例外**：
    - `raw/external/` 顶层（**扁平布局**）下 LLM 可主导创建 symlink + 写 anchor 的
      `[[entry]]` 块（详 §1 批处理摄取外部代码仓子节 + wiki-spec §13.3）。`raw/external/`
-     接入的 **target 仓内文件**按角色分：wiki 维护操作（ingest / query / lint / migrate）
+     接入的 **target 仓内文件**按角色分：wiki 维护操作（ingest / query / lint / upgrade）
      中只读；**用户明确要求的开发协作**（修 bug / 重构）不属 wiki 操作、不受 raw/ 只读约束
      （target 在仓外、由用户全权处置）——详 wiki-spec §13.3
    - `raw/discussions/` 用户 + LLM **双方可写**的协作草稿层（不要求 frontmatter / 不进
@@ -452,13 +452,13 @@ git 身份字段 → 创建 symlink + 写 anchor → 后续 `llmw wiki ingest-di
 ### 5. Upgrade（升级 wiki spec）
 
 **触发**：用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / spec 升级 / 是否需要
-reformat"；或 `llmw wiki lint` 报告 `legacy-confidence-field` 等迁移期 warn。
+reformat"；或 `llmw wiki lint` 报告 legacy warn。
 
 **职责切分**（避免与 ingest / lint 混淆）：
 
 - **CLI**（`llmw wiki lint --check-version`，内部直接调 `llmw.content` 的 fixtures
-  检查）= 探测器，只扫不修，输出报告 / `--apply` 时 stdout 输出 migration plan
-- **agent** = 修复者，按 stdout 返回的 migration plan（actions[] 自带
+  检查）= 探测器，只扫不修，输出报告 / `--apply` 时 stdout 输出 upgrade plan
+- **agent** = 修复者，按 stdout 返回的 upgrade plan（actions[] 自带
   remove/add_or_modify/to_action）
   用 Edit/Write 改
   frontmatter / 移文件 / 补索引 / 同步 AGENTS.md 到模板（全量重渲染，wiki-spec §10.1）；
@@ -476,7 +476,7 @@ reformat"；或 `llmw wiki lint` 报告 `legacy-confidence-field` 等迁移期 w
 扫 wiki 仓 10 类约定文件（AGENTS.md §七 / .gitignore / index.md / log.md / tags.md /
 MEMORY/MEMORY.md / MEMORY/*.md 条目 / SCRIPTS.md / .symlink-anchor.toml /
 wiki_metadata.toml），finding 并入
-`migration plan`（stdout JSON 输出）的 `fixtures_actions[]`（与 legacy `actions[]` 平行）。检查项数 breakdown 见
+`upgrade plan`（stdout JSON 输出）的 `fixtures_actions[]`（与 legacy `actions[]` 平行）。检查项数 breakdown 见
 [`references/lint-checklist.md`](references/lint-checklist.md)；其中 `agents-md-template-sync`
 对 AGENTS.md 整文做**模板渲染字节比对**——不一致走全量重渲染 + 本地定制搬
 MEMORY/，详见 wiki-spec §10.1）。**简要流程** + 详细步骤 + 字段清单见
@@ -484,4 +484,4 @@ MEMORY/，详见 wiki-spec §10.1）。**简要流程** + 详细步骤 + 字段�
 
 ## 参考样例
 
-5 个完整样例（setup / ingest / query / lint / migrate）见 [`references/examples.md`](references/examples.md)——按需 Read。
+5 个完整样例（setup / ingest / query / lint / upgrade）见 [`references/examples.md`](references/examples.md)——按需 Read。

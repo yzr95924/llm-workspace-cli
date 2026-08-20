@@ -15,7 +15,7 @@ wiki_lint — deterministic 健康检查（llmw wiki lint）
   裸目录树 / 无 git / raw 未纳入 git → 自动跳过并打印提示（不报错，不阻断）。
 --check-version 扫描当前 wiki 的 spec 版本（解析 AGENTS.md §七 "Wiki Spec 版本"），
   与本 skill metadata.wiki_spec_version 比对，列出老格式 legacy 现场。默认仅打印报告
-   （不动任何文件）；加 `--apply` 把 migration plan 以 JSON 输出到 **stdout**（agent 直接
+   （不动任何文件）；加 `--apply` 把 upgrade plan 以 JSON 输出到 **stdout**（agent 直接
    消费，**不落盘**——升级全程 wiki 根无任何中间文件残留）供按 references/upgrade-workflow.md
    用 Edit/Write 修复；加 `--json` 输出机器可读 JSON。互斥模式。
 
@@ -116,12 +116,11 @@ CURRENT_WIKI_SPEC = WIKI_SPEC_VERSION
 # rule_ref 是迁移依据的溯源指针；修复语义自含于 plan actions 的 remove/add_or_modify/to_action
 # 字段 + references/upgrade-workflow.md §六（语义合并规则）——不另设历史档案。
 LEGACY_PATTERN_KEYS = {
-    "confidence-field": "upgrade-workflow.md §6.1",
-    # 0.19.0 反转：MEMORY/*.md 上 `type: memory` / `type: memory-entry` 重新合法（spec §5.2）；
-    # 本规则仅对 wiki 5 类内容页误用 reserved `type: memory` 报错。
+    # 历史迁移 pattern（confidence-field / claudemd-tag-section / claudemd-not-thinshell）
+    # 已于 2026-08 随"场景清零"退役删除；未来退役字段时按需注册新 key。
+    # 0.19.0 起保留的现行校验：MEMORY/*.md 上 `type: memory` / `type: memory-entry` 合法
+    # （spec §5.2）；本规则拦 wiki 5 类内容页误用 reserved `type: memory`。
     "type-memory-value": "upgrade-workflow.md §6.1 + wiki-spec.md §5.2",
-    "claudemd-tag-section": "upgrade-workflow.md step 5（action 自带 to_action）",
-    "claudemd-not-thinshell": "upgrade-workflow.md step 5（action 自带 to_action）+ agents-md-template.md",
 }
 
 # 严重性等级
@@ -773,21 +772,17 @@ def check_stale_summaries(wiki_root: Path, threshold_days: int = STALE_SUMMARY_D
 
 
 # Tag taxonomy 解析常量
-TAG_TAXONOMY_HEADER_RE = re.compile(r"^###\s+Tag Taxonomy")
 TAXONOMY_BULLET_RE = re.compile(r"^[-*]\s+(.+)$")
 TAG_KV_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 # Tag taxonomy 主流位置：wiki/tags.md，无 frontmatter，纯裸 bullet 列表。
 TAG_FILE_PRIMARY = "wiki/tags.md"
-# 旧格式 fallback：CLAUDE.md 的 `### Tag Taxonomy` 段。
-# 兼容 wiki 升级前未迁移 / 跨 spec 过渡期；新 wiki 不会写这一段。
-TAG_SECTION_HEADER = "### Tag Taxonomy"
 
 
 def _parse_tag_bullets(text: str) -> Set[str]:
     """从裸 bullet 文本里提取 kebab-case tag 集合
 
-    解析规则（兼容两种来源：wiki/tags.md 全文 / CLAUDE.md Tag Taxonomy 段内容）：
+    解析规则（来源：wiki/tags.md 全文）：
     - 每行形如 `- category：tag1 / tag2 / tag3`（中文 / 英文分隔符都支持）
       或 `- tag`（无分类）
     - 多个 tag 用 `/` `，` `,` 任一字符分隔
@@ -820,35 +815,10 @@ def _parse_tag_bullets(text: str) -> Set[str]:
     return tags
 
 
-def _extract_claudemd_tag_section(text: str) -> str:
-    """从 CLAUDE.md 全文抽出 `### Tag Taxonomy` 段的内容文本（不含 heading 自身）
-
-    段界定：到下一个 #/##/### 标题结束（heading 重复出现仍算段内）。
-    段内每行 raw 保留（空行 / code block / comment / bullet 混合），交由
-    `_parse_tag_bullets` 过滤。
-    """
-    out_lines = []  # type: List[str]
-    in_section = False
-    for line in text.splitlines():
-        stripped = line.strip()
-        if TAG_TAXONOMY_HEADER_RE.match(stripped):
-            in_section = True
-            continue
-        if in_section and re.match(r"^#{1,4}\s", stripped) and not TAG_TAXONOMY_HEADER_RE.match(stripped):
-            break
-        if not in_section:
-            continue
-        out_lines.append(line)
-    return "\n".join(out_lines)
-
-
 def parse_tag_taxonomy(wiki_root: Path) -> Set[str]:
     """读 tag 白名单，返回允许 tag 集合
 
-    来源优先级：
-    1. `<wiki_root>/wiki/tags.md`（**新主流位置**）—— LLM 拥有、按需扩展
-    2. fallback：`<wiki_root>/CLAUDE.md` 的 `### Tag Taxonomy` 段
-       （旧 wiki / 跨 spec 过渡期；迁移通过 `--check-version --apply` 完成）
+    来源：`<wiki_root>/wiki/tags.md`（LLM 拥有、按需扩展）。
 
     解析失败 / 文件不存在 / 解析出 0 个 tag → 返回空集合（调用方应静默跳过，
     避免新 setup 的 wiki 必报错）。
@@ -857,18 +827,6 @@ def parse_tag_taxonomy(wiki_root: Path) -> Set[str]:
     if primary.is_file():
         text = primary.read_text(encoding="utf-8", errors="replace")
         return _parse_tag_bullets(text)
-    # Legacy fallback：SSOT 的 Tag Taxonomy 段——优先 AGENTS.md，再老 CLAUDE.md
-    for candidate in ("AGENTS.md", "CLAUDE.md"):
-        spec_file = wiki_root / candidate
-        if not spec_file.is_file():
-            continue
-        try:
-            text = spec_file.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            return set()
-        section = _extract_claudemd_tag_section(text)
-        if section:
-            return _parse_tag_bullets(section)
     return set()
 
 
@@ -1016,10 +974,7 @@ def check_quality_signals(wiki_root):
     - contradiction-asymmetric（warn）：A 把 B 列入 contradictions 但 B 未反向标注 A
       （字段语义要求双向标注，见 page-templates.md §一）
 
-    C. 迁移期检测（0.5.0 → 0.7.0 过渡）：
-    - legacy-confidence-field（warn）：出现已退役的 confidence: 字段
-
-    D. index.md 标识漂移：
+    C. index.md 标识漂移：
     - index-review-badge-drift（warn）：wiki/index.md 上的 ✓/✗ 标识与被链页 frontmatter 不一致
 
     字段语义见 page-templates.md §一「可选：可信度与认知质量信号」。
@@ -1075,12 +1030,6 @@ def check_quality_signals(wiki_root):
         # pending-review: 未审核页面（新常态，info）
         if not is_reviewed:
             findings.append(f"pending-review: {rel} 未审核 — 待人工复审后置 reviewed: true")
-
-        # —— C. 迁移期检测 ——
-        if "confidence" in fm:
-            findings.append(
-                f"legacy-confidence-field: {rel} 含已退役 confidence 字段——请运行 `llmw wiki lint --check-version --apply` 按 plan 修复"
-            )
 
         # —— B. 认知质量信号 contested / contradictions ——
         if str(fm.get("contested", "")).strip().strip("\"'").lower() == "true":
@@ -1394,7 +1343,6 @@ def severity_of(finding: str) -> str:
             "reviewed-at-missing",
             "reviewed-at-orphan",
             "index-review-badge-drift",
-            "legacy-confidence-field",
             "contradiction-target-missing",
             "contradiction-asymmetric",
             "oversized-page",
@@ -1501,32 +1449,6 @@ def _run_fixtures_check(wiki_root: Path) -> Dict[str, object]:
         return {"skipped": True, "reason": f"fixtures check exec failed: {e}"}
 
 
-def _has_confidence_field(text: str) -> bool:
-    """frontmatter 顶层 `confidence: <value>` 行——不递归嵌套对象，匹配现存写法。"""
-    m = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
-    if not m:
-        return False
-    for line in m.group(1).splitlines():
-        if re.match(r"^\s*confidence:\s*\S+", line):
-            return True
-    return False
-
-
-def _has_legacy_confidence_conflict(text: str) -> bool:
-    """冲突页：同时含老 confidence 字段与新 reviewed 字段——agent 跳过 + 转人工。"""
-    m = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
-    if not m:
-        return False
-    has_confidence = False
-    has_reviewed = False
-    for line in m.group(1).splitlines():
-        if re.match(r"^\s*confidence:\s*\S+", line):
-            has_confidence = True
-        if re.match(r"^\s*reviewed:\s*\S+", line):
-            has_reviewed = True
-    return has_confidence and has_reviewed
-
-
 def _has_type_memory(page_rel: str, text: str) -> bool:
     """frontmatter `type: memory` 在 wiki 5 类内容页上误用——0.19.0 起仅对 wiki 内容页生效。
 
@@ -1557,17 +1479,13 @@ def _has_type_memory(page_rel: str, text: str) -> bool:
 def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
     """扫已知 legacy 现场，按 pattern key 分组 + 标记冲突。
 
-    返回结构（供 build_migration_plan 与 --json 输出复用）：
+    返回结构（供 build_upgrade_plan 与 --json 输出复用）：
     {
       "patterns": {
-        "confidence-field":     [{"file": "wiki/sources/x.md", "conflict": False}, ...],
         # 0.19.0+：仅 wiki 5 类内容页误用 reserved `type: memory` 触发；MEMORY/*.md 不进此列表
         "type-memory-value":    [{"file": "wiki/<entities|concepts|sources|comparisons|syntheses>/x.md", "conflict": False}],
-        "claudemd-tag-section": [{"file": "CLAUDE.md", "conflict": False}],
       },
-      "conflicts": [
-        {"file": "wiki/sources/<legacy-page>.md", "reason": "同时含 confidence + reviewed 字段"}
-      ],
+      "conflicts": [],
     }
     """
     pages = find_md_files(wiki_root)
@@ -1591,37 +1509,8 @@ def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
         text = p.read_text(encoding="utf-8", errors="replace")
         rel = p.relative_to(wiki_root).as_posix()
 
-        if _has_confidence_field(text):
-            conflict = _has_legacy_confidence_conflict(text)
-            out["patterns"]["confidence-field"].append({"file": rel, "conflict": conflict})  # type: ignore
-            if conflict:
-                out["conflicts"].append(  # type: ignore
-                    {"file": rel, "reason": "同时含 legacy confidence 字段与 reviewed 字段——agent 跳过 + 转人工裁定"}
-                )
-
         if _has_type_memory(rel, text):
             out["patterns"]["type-memory-value"].append({"file": rel, "conflict": False})  # type: ignore
-
-    # 文件级 legacy：CLAUDE.md 仍含 `### Tag Taxonomy` 段（移到 wiki/tags.md）
-    # 只要 heading 行存在就报 legacy——含 bullets 时迁移内容；空段只清 heading
-    claude_md = wiki_root / "CLAUDE.md"
-    if claude_md.is_file():
-        try:
-            claude_text = claude_md.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            claude_text = ""
-        if any(TAG_TAXONOMY_HEADER_RE.match(line.strip()) for line in claude_text.splitlines()):
-            out["patterns"]["claudemd-tag-section"].append(  # type: ignore
-                {"file": "CLAUDE.md", "conflict": False}
-            )
-        # claudemd-not-thinshell：CLAUDE.md 仍是 SSOT 形态——不含 `@AGENTS.md` 薄壳行
-        # 且行数 > 30（薄壳模板 ≤ 30 行）→ 老 wiki 未拆 SSOT，由 claudemd-to-agents-md-split 迁移
-        claude_lines = claude_text.splitlines()
-        has_agents_import = any(line.strip() == "@AGENTS.md" for line in claude_lines)
-        if not has_agents_import and len(claude_lines) > 30:
-            out["patterns"]["claudemd-not-thinshell"].append(  # type: ignore
-                {"file": "CLAUDE.md", "conflict": False}
-            )
 
     return out
 
@@ -1651,7 +1540,7 @@ def _compare_semver(current: Optional[str], skill: str) -> str:
     return "equal"
 
 
-def build_migration_plan(
+def build_upgrade_plan(
     wiki_root: Path,
     current_spec: Optional[str],
     legacy: Dict[str, object],
@@ -1668,27 +1557,6 @@ def build_migration_plan(
     actions = []  # type: List[Dict[str, object]]
     fixtures_actions = []  # type: List[Dict[str, object]]
 
-    # confidence-field → 0.5.0/0.7.0 迁移规则
-    for entry in legacy["patterns"]["confidence-field"]:  # type: ignore
-        if entry["conflict"]:  # type: ignore
-            continue  # 冲突页不进 plan
-        fpath = entry["file"]  # type: ignore
-        # 读 frontmatter 拿 confidence 值——决定 migrated vs removed
-        full = wiki_root / fpath
-        text = full.read_text(encoding="utf-8", errors="replace")
-        fm = parse_frontmatter_simple(text)
-        conf_value = str(fm.get("confidence", "")).strip().strip("\"'").lower()
-        action = {
-            "file": fpath,
-            "type": "frontmatter-rename",
-            "rule_ref": LEGACY_PATTERN_KEYS["confidence-field"],
-            "remove": ["confidence"],
-            "add_or_modify": {},
-        }  # type: Dict[str, object]
-        if conf_value == "high":
-            action["add_or_modify"] = {"reviewed": True, "reviewed_at": today}  # type: ignore
-        actions.append(action)
-
     # type-memory-value → 0.19.0 迁移规则（仅作用于 wiki 5 类内容页；MEMORY/*.md 在 0.19.0+ 合法不会被此规则扫到）
     for entry in legacy["patterns"]["type-memory-value"]:  # type: ignore
         fpath = entry["file"]  # type: ignore
@@ -1701,49 +1569,6 @@ def build_migration_plan(
                 # 0.19.0 起 `memory-entry` 是合法扩展值；误用 reserved `type: memory` 应改为 wiki 内容页对应的 5 类之一（agent 按页面真实语义裁定）
                 "add_or_modify": {"type": "memory-entry"},  # 占位默认——agent 改 plan 时按页面语义替换
                 "note": "0.19.0 起仅 wiki 5 类内容页误用 reserved `type: memory` 触发；MEMORY/*.md 上 `type: memory` 已合法。Agent 应按页面真实语义决定：wiki 内容页改为对应 5 类（entity/concept/source/comparison/synthesis）之一；不要把 wiki 内容页改成 `memory-entry`（那是 MEMORY 桶的扩展值）。",
-            }
-        )
-
-    # claudemd-tag-section → 0.8.0+ 迁移规则：把 CLAUDE.md 的 Tag Taxonomy 段搬到 wiki/tags.md
-    # 一条组合动作：创建 wiki/tags.md + 删除 CLAUDE.md 中该段（含 heading + 子 bullet）
-    # 模式列表要么空要么含一个 CLAUDE.md 条目——按是否有 legacy 决定是否生成 action
-    if legacy["patterns"]["claudemd-tag-section"]:  # type: ignore
-        actions.append(
-            {
-                "file": "wiki/tags.md",
-                "type": "tag-taxonomy-migrate",
-                "rule_ref": LEGACY_PATTERN_KEYS["claudemd-tag-section"],
-                "from_file": "CLAUDE.md",
-                "section_header": TAG_SECTION_HEADER,
-                "to_action": (
-                    "读 CLAUDE.md 中 `### Tag Taxonomy` 段所有 bullet 内容"
-                    "（用本脚本 `_extract_claudemd_tag_section` 函数语义——到下一个 #/##/### 标题结束）。"
-                    "若段有 bullet：在 <wiki_root>/wiki/tags.md 写入该内容"
-                    "（无 frontmatter，文件顶部加简短 H1 标题如 `# Tags` + 一句说明，文末保留原 bullet 列表）；"
-                    "若段为空（heading 在无 bullet），跳过 wiki/tags.md 写入。"
-                    "完成后从 CLAUDE.md Edit 删除整个 `### Tag Taxonomy` 段"
-                    "（含 heading 行 + 直到下一标题前的所有 bullet / 空行）。"
-                    "若 wiki/tags.md 已存在，先检查内容是否相同——相同则跳过写入；不同给迁移冲突，转人工"
-                ),
-            }
-        )
-
-    # claudemd-not-thinshell → 0.11.0+ 迁移：老 CLAUDE.md（SSOT）拆为 AGENTS.md（SSOT）+ CLAUDE.md（薄壳）
-    if legacy["patterns"]["claudemd-not-thinshell"]:  # type: ignore
-        actions.append(
-            {
-                "file": "AGENTS.md",
-                "type": "claudemd-to-agents-md-split",
-                "rule_ref": LEGACY_PATTERN_KEYS["claudemd-not-thinshell"],
-                "from_file": "CLAUDE.md",
-                "to_action": (
-                    "把 <wiki_root>/CLAUDE.md 的全部纪律正文（SSOT 内容）搬到 <wiki_root>/AGENTS.md。"
-                    "AGENTS.md 顶部按 agents-md-template.md（包内模板）的说明块格式：SSOT 声明 + agent 中立"
-                    "读取机制段 + @import 行（@MEMORY/MEMORY.md + @scripts/SCRIPTS.md），随后接原 CLAUDE.md"
-                    "正文（§一~§七）。然后把 <wiki_root>/CLAUDE.md 重写为薄壳（@AGENTS.md + 薄壳声明，"
-                    "参考 claude-md-template.md（包内模板）），保留已替换的主题名。若 AGENTS.md 已存在——内容"
-                    "相同则跳过；不同给迁移冲突，转人工。AGENTS.md §七 Wiki Spec 版本由后续通用步骤改为 to_version。"
-                ),
             }
         )
 
@@ -1956,7 +1781,7 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     - 探测已知 legacy 现场
     - 默认打印人读报告（不写文件）
     - --json 输出机器可读 JSON
-    - --apply 把 migration plan 以 JSON 输出到 stdout（agent 修复路径的依据；不落盘）
+    - --apply 把 upgrade plan 以 JSON 输出到 stdout（agent 修复路径的依据；不落盘）
     """
     current_spec = parse_spec_version(wiki_root)
     comparison = _compare_semver(current_spec, CURRENT_WIKI_SPEC)
@@ -1966,22 +1791,22 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     total_patterns = 0
     for entries in legacy["patterns"].values():  # type: ignore
         total_patterns += len(entries)  # type: ignore
-    needs_migration = (comparison == "older") or (total_patterns > 0)
+    needs_upgrade = (comparison == "older") or (total_patterns > 0)
 
     # 调一次 fixtures-check——直接调 llmw.content 的 run_checks（同一进程）；
     # 输出并入 report["fixtures_check"]。调用失败时 fixtures_check 含 skipped=True，标识"未跑"。
     fixtures_check = _run_fixtures_check(wiki_root)
     if not fixtures_check.get("skipped"):
-        # 有 findings 时也可触发 needs_migration（fixture 不合规也算"待迁移"）
+        # 有 findings 时也可触发 needs_upgrade（fixture 不合规也算"待迁移"）
         f_sum = fixtures_check.get("summary", {})  # type: ignore
         if f_sum.get("error", 0) > 0 or f_sum.get("warn", 0) > 0:  # type: ignore
-            needs_migration = True
+            needs_upgrade = True
 
     report = {
         "current_spec": current_spec,
         "skill_spec": CURRENT_WIKI_SPEC,
         "comparison": comparison,
-        "needs_migration": needs_migration,
+        "needs_upgrade": needs_upgrade,
         "legacy_patterns": legacy["patterns"],  # type: ignore
         "conflicts": legacy["conflicts"],  # type: ignore
         "fixtures_check": fixtures_check,  # fixtures 结构化校验结果
@@ -1990,8 +1815,8 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     if json_mode:
         # JSON 模式：输出 report；apply 时再附 plan
         if apply:
-            plan = build_migration_plan(wiki_root, current_spec, legacy, fixtures_check)
-            report["migration_plan"] = plan
+            plan = build_upgrade_plan(wiki_root, current_spec, legacy, fixtures_check)
+            report["upgrade_plan"] = plan
         print(json.dumps(report, indent=2, ensure_ascii=False))
         return 0
 
@@ -2000,7 +1825,7 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     print(f"  current_spec : {current_spec or '(解析失败)'}")
     print(f"  skill_spec   : {CURRENT_WIKI_SPEC}")
     print(f"  comparison   : {comparison}")
-    print(f"  needs_migration: {needs_migration}")
+    print(f"  needs_upgrade: {needs_upgrade}")
     print()
 
     # 当前版本比 SKILL 新 → 告警，不阻断
@@ -2049,21 +1874,21 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     # fixtures-check 段
     _print_fixtures_check(fixtures_check, indent="")
 
-    # apply 时把 migration plan 以 JSON 输出到 stdout（agent 直接消费；不落盘，升级无中间文件残留）
+    # apply 时把 upgrade plan 以 JSON 输出到 stdout（agent 直接消费；不落盘，升级无中间文件残留）
     if apply:
-        plan = build_migration_plan(wiki_root, current_spec, legacy, fixtures_check)
-        print("\n[PLAN] migration plan 已生成（stdout JSON 输出，agent 直接消费，不落盘）")
+        plan = build_upgrade_plan(wiki_root, current_spec, legacy, fixtures_check)
+        print("\n[PLAN] upgrade plan 已生成（stdout JSON 输出，agent 直接消费，不落盘）")
         print(
             f"       actions: {len(plan['actions'])}, skipped_conflicts: {len(plan['skipped_conflicts'])}, "  # type: ignore
             f"fixtures_actions: {len(plan.get('fixtures_actions', []))}"  # type: ignore
         )
         print("       agent 按 plan.actions[] + plan.fixtures_actions[] 走 Edit/Write 修复（规则见 plan.rule_doc）")
-        print("--- migration-plan JSON begin ---")
+        print("--- upgrade-plan JSON begin ---")
         print(json.dumps(plan, indent=2, ensure_ascii=False))
-        print("--- migration-plan JSON end ---")
+        print("--- upgrade-plan JSON end ---")
     else:
         print()
-        print("[HINT] 加 --apply 输出 migration plan（stdout JSON）供 agent 走 Edit/Write 修复（默认 dry-run）")
+        print("[HINT] 加 --apply 输出 upgrade plan（stdout JSON）供 agent 走 Edit/Write 修复（默认 dry-run）")
         print("       加 --json  输出机器可读 JSON")
 
     return 0
@@ -2112,7 +1937,7 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--check-version",
         action="store_true",
-        help="扫描 wiki 的 spec 版本（AGENTS.md §七）与已知 legacy 老格式现场；默认 dry-run。加 --apply 输出 migration plan（stdout JSON，不落盘），加 --json 输出机器可读 JSON。互斥模式。",
+        help="扫描 wiki 的 spec 版本（AGENTS.md §七）与已知 legacy 老格式现场；默认 dry-run。加 --apply 输出 upgrade plan（stdout JSON，不落盘），加 --json 输出机器可读 JSON。互斥模式。",
     )
     parser.add_argument(
         "--json",
@@ -2122,7 +1947,7 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--apply",
         action="store_true",
-        help="与 --check-version 联用：把 migration plan 以 JSON 输出到 stdout 供 agent 修复（不落盘）",
+        help="与 --check-version 联用：把 upgrade plan 以 JSON 输出到 stdout 供 agent 修复（不落盘）",
     )
     args = parser.parse_args(argv)
 
