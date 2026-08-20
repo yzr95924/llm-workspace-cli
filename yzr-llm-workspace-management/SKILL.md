@@ -1,15 +1,17 @@
 ---
 name: yzr-llm-workspace-management
 description: |
-  当用户要管理多个本地 LLM wiki（yzr-llm-wiki-management 体系）的 workspace 整体时使用本
-  skill——跨 wiki 扫描与全局索引（INDEX/STATS/LINT）、跨 wiki 问答（路由/合成/对比）、
-  跨 wiki 交叉引用、workspace 级 lint、跨 wiki 记忆（MEMORY/）。
+  当用户要对多个本地 LLM wiki（yzr-llm-wiki-management 体系）的知识内容做跨 wiki 操作时
+  使用本 skill——从 workspace 全局视角：跨 wiki 扫描与索引（INDEX/STATS）、跨 wiki 问答
+  （路由/综合/对比）、跨 wiki 交叉引用与重复 entity 治理、workspace 级健康检查（LINT）、
+  跨 wiki 记忆（MEMORY/）、workspace format 升级。
   触发："总结我所有 wiki 中关于 X" / "对比 wiki A 和 B 对 Y" / "这问题该查哪个 wiki" /
-  "扫一下我的 workspace" / "workspace 整体 lint" / "wiki A 的 X 在 B 也有，加个链接" /
-  "升级 workspace / 检查 workspace 版本"。只要涉及多个 wiki 或 workspace 整体——即使没
-  明说 workspace 或 skill 名，也务必使用本 skill。
-  不适用：单 wiki 操作（走 yzr-llm-wiki-management）；元数据 CRUD（走 workspace CLI）；
-  云端协作 wiki（走 yzr-outline-wiki）。
+  "扫一下我的 workspace" / "统计所有 wiki 的页面数" / "workspace 健康检查" /
+  "wiki A 的 X 在 B 也有，加个链接" / "升级 workspace"。只要要读、汇总、对比或治理多个
+  wiki 里的内容——即使没明说 workspace 或 skill 名，也务必使用本 skill。
+  不适用：单 wiki 内操作（走 yzr-llm-wiki-management）；workspace / wiki 元数据配置、
+  加删 wiki、session 启停等单条 llmw 命令操作（直接跑 llmw 即可，见 llmw --help，无需
+  加载本 skill）；云端协作 wiki（走 yzr-outline-wiki）。
 metadata:
   author: Zuoru YANG
   category: knowledge-base
@@ -52,8 +54,12 @@ metadata:
 
 ### 与 workspace CLI 的边界
 
-本 skill 不调 workspace CLI（直接读 toml 比解析 CLI 输出更可靠；CLI 输出是给人看的）。
-要改 workspace.toml / wiki_metadata.toml → 告诉用户跑 `llmw` 命令，人类执行。
+本 skill 在场时可调 `llmw`——读 / 探测 / 升级类命令直接执行（子命令与参数见
+`llmw --help`，不枚举）；会改 workspace / wiki 元数据或影响运行中 session 的命令，
+先把完整命令给用户确认后再执行。
+
+**不手写 toml**——元数据写必须经 CLI（schema 校验 / 原子写 / 唯一性约束由 CLI
+保证）。**涉及 api_key 的命令始终由用户亲自执行**（secret 不过 agent）。
 
 ### 与 yzr-llm-wiki-management 的边界
 
@@ -212,7 +218,7 @@ metadata:
 1. skill 读 INDEX.md + 读每个 wiki 的 description / tags
 2. mode = **route**
 3. 返回："`huawei_storage_wiki` 主题是存储，不相关；`test` wiki 主题是 test，也不相关；建议新建一个 wiki（`llmw wiki --name=llm-inference add ...`）"
-4. **不**自动跑 `llmw wiki add`——告诉用户跑 CLI 命令
+4. 提议代跑 `llmw wiki --name=llm-inference add`——用户确认后执行（skill 在场做 route，顺手闭环）
 
 ## 参考文件
 
