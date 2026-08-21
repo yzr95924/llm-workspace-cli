@@ -95,8 +95,8 @@ CHECK_REGISTRY = [
         "id": "symlink-anchor-toml-schema",
         "severity": "error",
         "file": "raw/external/.symlink-anchor.toml",
-        "rule_ref": "external-repo.md §一（字段语义 SSOT = wiki 根 AGENTS.md raw/external 节；CLI 经 llmw wiki external 命令落盘）",
-        "desc": "raw/external/.symlink-anchor.toml（若存在）：合法 TOML + [[entry]] 数组 + 每 entry 必填 4 字段 + git 身份字段可选",
+        "rule_ref": "external-repo.md §一（agent 排查损坏时需读懂的字段语义 + 字段 SSOT = CLI `external_anchor._REQUIRED_FIELDS`）",
+        "desc": "raw/external/.symlink-anchor.toml（若存在）：合法 TOML + [[entry]] 数组 + 必填字段齐 + git 身份字段可选（schema SSOT = CLI `external_anchor` 模块）",
     },
     {
         "id": "symlink-anchor-toml-symlink-matches",

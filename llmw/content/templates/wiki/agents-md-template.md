@@ -49,9 +49,7 @@
 
   ```text
   raw/external/
-  ├── .symlink-anchor.toml         # TOML: schema_version=1 + [[entry]] 数组
-  │                                 # 每 entry: symlink / target / captured_at /
-  │                                 # kind='external-repo' 必填 + git 身份字段（可选）
+  ├── .symlink-anchor.toml         # TOML: schema_version=1 + [[entry]] 数组（字段英文自描述，写入全由 CLI 完成）
   ├── linux-kernel                  # symlink → ~/src/linux-kernel
   └── ray                          # symlink → ~/src/ray
   ```
@@ -64,19 +62,11 @@
     身份字段省略）；`target` 必须已存在、永不触碰 target 仓本体
   - 移除：`llmw wiki external remove <name>`——删 entry + 删 symlink；
     路径若是普通文件/目录会被拒（用户资产保护）；target 仓本体永不触碰
-  - 检视：`llmw wiki external list [--json]`——NAME/TARGET/REMOTE/BRANCH/STATUS
+  - 检视：`llmw wiki external list [--json]`
   - 跨主机重建：新机器 `git clone` wiki 仓后 symlink 全丢，跑
     `llmw wiki external rebuild [--target=NAME=PATH ...] [--yes]` 按 anchor 重建
     （target 不存在时按 `remote_url` clone + checkout `branch`；跨 home 布局用
     `--target=NAME=PATH` 覆盖，anchor 回写 `~/...` 形式）
-- **字段语义（agent 需读懂；schema SSOT 在 CLI，本文档仅作快速参考）**：
-  - 最小必填 4 字段：`symlink`（kebab-case `^[a-z0-9][a-z0-9-]*$`，
-    对应 `raw/external/` 同名 symlink）+ `target`（**推荐 `~/src/<name>`
-    home-relative**；也接受绝对路径）+ `captured_at`（接入当天 YYYY-MM-DD）+
-    `kind: "external-repo"`
-  - git 身份字段（可选）：`remote_url` + `branch`——跨机器 clone 重建时用；**不**
-    记 commit（anchor 记录"接入意图"，commit 是机器快照会腐坏）
-  - `notes`（可选）：agent 自由文本，机械 scribe 入 anchor
 - anchor / symlink 漂移（缺 anchor、解析失败、孤儿 symlink、target 失效、子目录
   布局、target 与 symlink 解析不一致）由 `llmw wiki lint` 机械探测，check 名以 lint
   输出为准

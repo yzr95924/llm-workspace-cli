@@ -46,6 +46,6 @@ TOML，事后靠 `external-anchor-corrupt` finding 兜底。这违反本仓其�
 
 - AGENTS.md：开篇红线 + I-1 ②/③ 类 + 模块边界表 `llmw.content` 行 + 数据流图 external 分支
 - 模板 `agents-md-template.md` raw/external 节：「LLM 可写」→「走 CLI 子命令」
-- skill `external-repo.md`：5 步接入 / 4 步重建 shell 流程收编为命令；原理 §2.1 与
-  字段语义 §1.1 保留
+- skill `external-repo.md`：接入 / 重建 shell 流程收编为 `llmw wiki external` 命令；
+  §一 承接字段语义 SSOT（agent 排查损坏场景用）+ §三 保留跨主机重建原理
 - [[external-anchor-cli-owned]] 自指

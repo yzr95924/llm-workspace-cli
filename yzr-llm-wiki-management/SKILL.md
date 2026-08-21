@@ -14,7 +14,7 @@ description: |
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  wiki_format_version: 0.41.0
+  wiki_format_version: 0.42.0
 ---
 
 # LLM Wiki Management

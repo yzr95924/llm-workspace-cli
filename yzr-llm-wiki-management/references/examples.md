@@ -72,8 +72,7 @@
 ```text
 1. llmw wiki --path=~/wiki/llm-systems lint
 2. 脚本报告：
-   - raw/ 干净（启用 git 时 git status clean；未启用时此项自动跳过 + 输出顶部
-     `[NOTES] raw-immutable-skipped: 未启用 git（无 .git/）` 提示）
+   - raw/ 干净（启用 git 时 git status clean；未启用时此项自动跳过 + 输出顶部 `[NOTES]` 提示跳过原因）
    - 3 个页面缺 updated 字段
    - 1 个失效引用：concepts/transformer.md 链到 sources/bigtable.md 但后者不存在
    - 5 个 source 页 updated 超过 stale 阈值（阈值见 [lint-checklist.md §二.7](lint-checklist.md)），建议复查
@@ -107,10 +106,8 @@
    - 裁定完 → 重跑 `llmw wiki --path=... upgrade --apply --yes` 落地
 4. 查内容页 legacy + 跑修复（lint 侧）：
     llmw wiki --path=~/wiki/llm-systems lint --check-version --json
-    → needs_upgrade: true；legacy 组（当前仅 type-memory-value）：
-          - 3 处老格式 → agent 按 plan `actions[]` 自含 `to_action` 用 Edit 落
+    → needs_upgrade: true；legacy 组（如有）：
+          - N 处老格式 → agent 按 plan `actions[]` 自含 `to_action` 用 Edit 落
 5. 验证：重跑 `llmw wiki --path=... upgrade` + `lint --check-version`
     → needs_upgrade: false ✓ 完成；upgrade 退出 done；无残留冲突
-6. 清理 .bak（anchor TOML 重写产生点）：
-    find "$LLM_WIKI_ROOT" -maxdepth 3 -name '*.bak' -delete
 ```

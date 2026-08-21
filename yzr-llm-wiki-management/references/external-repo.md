@@ -1,20 +1,33 @@
 # raw/external/——外部代码仓接入与跨主机重建
 
 > **维护方**：接入决策归用户 + agent；**symlink + anchor 写路径**统一走
-> `llmw wiki external` 子命令；target 仓本体永不触碰。命令面细节 + 字段语义 SSOT
-> 在 `AGENTS.md` `raw/external/` 节（会话常驻）——本文件只补充判断 / 原理 / 分诊。
+> `llmw wiki external` 子命令；target 仓本体永不触碰。命令面细节在
+> `AGENTS.md` `raw/external/` 节（会话常驻）；字段语义与失败兜底在本文件。
 
 ## 一、首次接入
 
 agent 主导两项判断（CLI 帮不上）：
 
 - **命名协商**：symlink `--name` 必须 kebab-case（`^[a-z0-9][a-z0-9-]*$`），
-  由 agent 与用户共同决定（如 `linux-kernel` / `ray`）
+  由 agent 与用户共同决定（如 `linux-kernel` / `ray`）；CLI 校验
+- **target 路径**：推荐 `~/src/<name>` home-relative 形式（跨主机重建友好；CLI
+  rebuild 自动回写此形式）
 - **notes 文本**：可选，agent 自由写（机械 scribe 入 anchor）
 
-命令：`llmw wiki external add <target> --name=<n> [--notes=...]`
-（CLI 自动建 symlink + 读 git 身份字段 + 原子写 anchor；target 必须已存在、永不触碰
-target 仓本体）。命令面细节 + 字段语义 SSOT 见 AGENTS.md；本文件不重复。
+命令：`llmw wiki external add <target> --name=<n> [--notes=...]`（CLI 自动建 symlink +
+读 git 身份字段 + 原子写 anchor；target 必须已存在、永不触碰 target 仓本体）。
+命令面细节（4 个子命令 + flag 用法）见 AGENTS.md `raw/external/` 节；本文件不再列举。
+
+### 字段语义（agent 只在排查损坏时需要读；写入全由 CLI 完成）
+
+- **必填 4 字段**：`symlink`（kebab-case）/ `target`（见上）/ `captured_at`（YYYY-MM-DD）/
+  `kind: "external-repo"`（未来可加新 kind，当前唯一）
+- **git 身份字段（可选）**：`remote_url` + `branch`——跨主机 clone 重建时用；**不**
+  记 commit（anchor 记录"接入意图"，commit 是机器快照会腐坏）
+- **`notes`（可选）**：agent 自由文本
+
+（schema SSOT = CLI `llmw.content.external_anchor._REQUIRED_FIELDS`；本文件仅列
+agent 判断侧所需的语义要点。）
 
 ## 二、`sources:` 元素类型（external 特化）
 
@@ -67,7 +80,6 @@ checkout branch + 建 symlink；target 不在且无 remote_url → 报 `unrebuil
 `--target=NAME=PATH` 覆盖或 remove 后重新 add）。验证：
 
 ```bash
-llmw wiki external list            # STATUS 应全 ok
 llmw wiki lint                     # external-* findings 应为 0
 ```
 
@@ -89,16 +101,8 @@ llmw wiki lint                     # external-* findings 应为 0
 - **损坏的 anchor 不要手改**——CLI add 遇到"文件存在但解析失败"会拒绝覆盖
   （保护修复现场）；正确流程：备份 → 手工修或删除，再用 `external add` 重建
 
-## 六、失败兜底
+---
 
-| 现象 | 原因 | 处理 |
-| --- | --- | --- |
-| `add` 报"target 不存在" | target 路径拼错 / 未创建 | 核对路径；非本机路径先 clone / mkdir |
-| `add` warn "target 不是 git 仓" | target 不在 git 内 | 可继续 add（`remote_url`/`branch` 省略）；若应是 git 仓则检查 target |
-| `remove` 报"路径是普通文件/目录，拒绝删除" | 路径被覆盖成真实文件 | 手工核对：若是资产用 `mv` 保留；若真是要删的 symlink 先排查 |
-| `add` 报"anchor 文件存在但解析失败" | 锚文件损坏（手改残留） | 备份后删除，或手工改对 TOML，再 `external add` 重建 entries |
-| `rebuild` 报 "clone ... failed" | remote_url 失效 / 私有 repo 缺凭据 / 网络 | git 配 SSH key 或 token；网络修复后重跑 |
-| `rebuild` 报"unrebuildable" | target 不存在且 anchor 无 remote_url | 用 `--target=NAME=PATH` 指定本地路径；或 remove 后再 add |
-| `lint` 报 `external-symlink-missing` | anchor 有 entry 但 symlink 未建 | `llmw wiki external rebuild --yes` |
-| `lint` 报 `external-target-drift` | target 被迁移但 anchor target 字段没更新 | 手工编辑 anchor 或 remove + add 到正确路径 |
-| `external ...` 报 "git 不在 PATH" | 新机器没装 git | 装 git 后重跑；add 身份字段会省略，rebuild 无法 clone |
+**失败兜底原则**：`llmw wiki external` 命令报错与 lint to_action 均为
+actionable-first 设计——消息自带修复路径，按 stderr / lint 输出行动即可；本节不留
+静态对照表，避免与 runtime 文案产生回声耦合。

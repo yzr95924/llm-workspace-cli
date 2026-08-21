@@ -1550,7 +1550,7 @@ def build_upgrade_plan(
                             "raw/external/.symlink-anchor.toml 损坏：CLI add 拒绝覆盖损坏文件"
                             "（保护手工修复现场）——备份后删除，或手工改对 TOML，再用"
                             " `llmw wiki external add <target> --name=<n>` 重建 entries。"
-                            "字段语义见 wiki 根 AGENTS.md raw/external 节（会话常驻）。"
+                            "字段语义见 external-repo.md §一；schema SSOT = CLI `external_anchor._REQUIRED_FIELDS`。"
                         ),
                     }
                 )

@@ -59,19 +59,13 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
    llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version
    ```
 
-    - 报告 `needs_upgrade` / legacy pattern groups（当前仅 `type-memory-value`）
-    - 若 legacy 有现场 → `--apply --json` 拿 stdout `actions[]`，agent 按 `to_action` 字段用 Edit 落
-    - **跳过 `skipped_conflicts[]`**——永不自动覆盖人工决策
+     - 报告 `needs_upgrade` / legacy pattern groups（如有 legacy 现场）
+     - 若 legacy 有现场 → `--apply --json` 拿 stdout `actions[]`，agent 按 `to_action` 字段用 Edit 落
+     - **跳过 `skipped_conflicts[]`**——永不自动覆盖人工决策
 
 5. **验证**：重跑 `llmw wiki upgrade` + `llmw wiki lint --check-version`：
    - `needs_upgrade == false` 且无残留 legacy + upgrade 退出 `done` → 告知用户完成
    - 仍有残留 → 报告残留 + 转人工
-
-**清理**：验证通过后删 `.bak` 备份（anchor TOML 重写唯一产生点，maxdepth 3 防扫进外部 symlink）：
-
-```bash
-find "$LLM_WIKI_ROOT" -maxdepth 3 -name '*.bak' -delete
-```
 
 **不**追加 log 条目 / **不**调用 ingest / query（保持职责单一）。
 

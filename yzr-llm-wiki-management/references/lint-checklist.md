@@ -240,7 +240,6 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 [ERROR] raw-modified: raw/articles/foo.md has uncommitted changes
 [ERROR] orphan-page: wiki/concepts/qux.md is not listed in wiki/index.md
 [WARN] reviewed-stale: wiki/concepts/<concept>.md reviewed=true reviewed_at=2026-06-15 但 updated=2026-07-01 — LLM 修改后未清 reviewed，建议重新审核
-[WARN] external-target-drift: raw/external/linux-kernel 当前 symlink 解析为 '/home/foo/src/linux-kernel'，但 anchor 记录 '/apsarapangu/disk10/src/linux-kernel'
 [INFO] memory-not-indexed: MEMORY/ocr-tips.md 未在 MEMORY.md 索引中列出
 ```
 
