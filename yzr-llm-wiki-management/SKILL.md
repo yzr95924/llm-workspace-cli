@@ -2,13 +2,15 @@
 name: yzr-llm-wiki-management
 description: |
   当用户和本地、单用户、复利型 Markdown 个人 wiki（Karpathy 'LLM owns wiki' 模式）打交道时
-  使用本 skill——覆盖：初始搭建、批量摄取 raw/ 资料（论文 / 文章 / 剪藏 / 外部代码仓 symlink
+  使用本 skill——覆盖：批量摄取 raw/ 资料（论文 / 文章 / 剪藏 / 外部代码仓 symlink
   接入）、跨页综合 / 对比 / 矛盾协调 / 答案归档回 wiki、矛盾 / 孤儿 / 过期摘要 lint、format
   升级迁移。坚持 raw/ 用户掌控 + wiki/ LLM 拥有 + AGENTS.md 单一真源 四层纪律。
   触发："把这篇论文摄取进 wiki" / "总结 wiki 里关于 X 的内容" / "wiki 里 A 和 B 说法矛盾，
   帮我协调" / "扫一下 wiki 有没有孤儿页 / 过期摘要" / "升级 wiki / 迁移到最新 format / 检查
-  wiki 版本" / "把 X 仓库（源码）纳入 wiki" / "想搭一个 wiki 管理 X"。
+  wiki 版本" / "把 X 仓库（源码）纳入 wiki"。
   不适用：云端 / 团队协作 wiki（Notion / Confluence / Outline / GitHub Wiki）。
+  **仅当 cwd 是 wiki 根（含 `wiki_metadata.toml` + AGENTS.md 骨架）时触发**；workspace 层
+  / 跨 wiki 场景走 `yzr-llm-workspace-management`；其它目录不适用。
 metadata:
   author: Zuoru YANG
   category: knowledge-base

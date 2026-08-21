@@ -74,6 +74,7 @@
 - **wiki skill 文本不节号引用 AGENTS.md 纪律** — 只在 wiki 目录触发，`CLAUDE.md` @import 自动加载，重抄 = 双源漂移面；skill 只按小节标题词（"`raw/external/` 节"）引用或完全不引。例外：§七（Wiki Format 版本）是 CLI 解析契约（`wiki_lint.py check_format_version` 按此行解析），属于代码级接口而非文档导航
 - **改 CLI 外部契约必同步 skill 引用** — 子命令 / flag / finding 名 / JSON 字段 / 终态词变更的 commit，必须同 commit grep `yzr-llm-wiki-management/` 并同步（当前绑定面：命令 ~93 处 + finding 54 个 + JSON 字段 16 处）。skill 与 CLI 同仓共演进，不建抽象间接层（skill 的存在理由是给 agent 精确可执行命令，间接层降执行质量）；skill 只绑 CLI 外部契约，不绑模块内部路径（`llmw.content.*`），模块路径属实现布局、拆模块即静默失效。语法面（命令/flag/风格）由 `scripts/test/check_skill_cli_contract.py` CI gate 兜底；语义面（行为描述如"只扫不修"）gate 管不到，靠本纪律人工保证
 - **命令表面 SSOT = llmw.cli.build_parser() 单一 argparse 树** — 模块 standalone 入口（`python -m llmw.content.*` + 各模块 main/__main__）已全部退役：内容模块是纯业务库（`run(wiki_root, **params)` 显式参数入口，run_upgrade 模式推广）；`wiki write` 子树经 `wiki_write.build_subparsers` 组合进 cli 树（无 REMAINDER 透传）。加 flag 只改 cli.py 一处（write 改 build_subparsers 一处）；`LLM_WIKI_ROOT` env fallback 移入 `_resolve_content_root`。**带值 flag 全局强制等号形式**（`--flag=VALUE`，SpaceFormNotAllowed）——skill 文档命令一律等号写法，gate 有风格检查兜底
+- **两 SKILL 触发域不对称（设计使然）** — wiki skill 仅在 cwd 为 wiki 根（含 `wiki_metadata.toml`）时触发（description gating 软约束；"初始搭建"覆盖 / "想搭一个 wiki"触发词已移除——`llmw wiki add` 接管，skill 无 bootstrap 职责）；workspace skill 相反，全局安装且**必须**全局可达（跨 wiki 问答可从任意目录发起，甚至可从某个 wiki 内目录发起，属合法路径；其 不适用段已写明单 wiki 操作走 wiki skill）。非对称是两 skill 的本质差异，不是疏漏；per-wiki symlink 物理隔离方案已备过但判复杂（qodercli 项目级 skill 约定未证实 + 安装矩阵变大），软约束够用，观察到误触发再升级
 
 ## 维护规则
 
