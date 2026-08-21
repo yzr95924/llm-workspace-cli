@@ -6,17 +6,22 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
 语义面（行为描述如"只扫不修"）gate 管不到，靠纪律人工保证。
 
 检查面（4 类）：
-  1. 命令调用（skill → CLI）：skill markdown 里的 `llmw ...` 调用，子命令路径 +
-     flag 必须存在于 SSOT 树；**带值 flag 必须等号形式**（CLI 全局拒绝空格分隔，
-     skill 写空格形式 = 运行即拒的静默 drift）。代码块严格校验；行内 backtick
-     只校验第二 token 为小写命令形态的片段，散文提及跳过
-  2. finding 名（双向）：lint-checklist 里 `` `name`（severity`` 模式 → 必须存在于
-     wiki_lint.py / wiki_fixtures.py 字面量；wiki_lint.py 的 finding 前缀 → 必须
-     在 skill 文本有文档（allowlist 收编有意不文档化的例外）
-  3. rule_ref（CLI → skill）：llmw/content/*.py 里的 "<file>.md §X" 指针 →
-     对应 skill 文件与小节标题必须存在
-  4. 终态词 / JSON 字段（skill → CLI）：upgrade-workflow 提到的终态词与 plan 字段
-     必须在 upgrade.py / wiki_lint.py 字面量存在
+  1. 命令调用（skill + 模板 + 仓根文档 → CLI）：skill markdown / byte-owned
+     模板（llmw/content/templates 全 md + fixtures *.txt）/ 仓根 AGENTS.md +
+     CLAUDE.md + README.md 里的 `llmw ...` 调用，子命令路径 + flag 必须存在于
+     SSOT 树；**带值 flag 必须等号形式**（CLI 全局拒绝空格分隔，写空格形式 =
+     运行即拒的静默 drift）；**行内命令不得跨换行**（跨行 span checker 提取
+     不到）。代码块严格校验；行内 backtick 只校验第二 token 为小写命令形态
+     的片段，散文提及跳过。**有意不扫 MEMORY/（含历史命令与反例，必误报）
+     与 tests/（可执行测试自带 loud failure）**。
+  2. finding 名（双向，skill 域）：lint-checklist 里 `` `name`（severity`` 模式
+     → 必须存在于 wiki_lint.py / wiki_fixtures.py 字面量；wiki_lint.py 的
+     finding 前缀 → 必须在 skill 文本有文档（allowlist 收编有意不文档化的
+     例外）
+  3. rule_ref（CLI → skill，skill 域）：llmw/content/*.py 里的 "<file>.md §X"
+     指针 → 对应 skill 文件与小节标题必须存在
+  4. 终态词 / JSON 字段（skill → CLI）：upgrade-workflow 提到的终态词与 plan
+     字段必须在 upgrade.py / wiki_lint.py 字面量存在
 
 命令表面 SSOT = llmw.cli.build_parser() 单一 argparse 树（write 子树经
 llmw.content.wiki_write.build_subparsers 组合；无模块 standalone 入口）。
@@ -37,14 +42,30 @@ sys.path.insert(0, str(REPO))
 
 WIKI_SKILL = REPO / "yzr-llm-wiki-management"
 CONTENT = REPO / "llmw" / "content"
+TEMPLATES = CONTENT / "templates"
 
+# 面 2/3/4（finding / rule_ref / 终态词）只走 skill 域——模板 / 仓根文档不是
+# finding 的文档真源，rule_ref 的目标是 skill 文件，升级终态词只定义在 skill 工作流里。
 SKILL_MDS = sorted(
     [p for p in WIKI_SKILL.rglob("*.md")]
     + [p for p in (REPO / "yzr-llm-workspace-management").rglob("*.md")]
 )
 
+# 面 1（命令 + 风格 + 跨行）扫全仓命令面。有意排除 MEMORY/（历史命令 + 反例
+# 必误报）与 tests/（可执行测试自带 loud failure）。templates 既含 byte-owned
+# 模板 md 也含 *.txt 内容 fixtures（都含 llmw 命令）。
+CONTRACT_MDS = sorted(
+    set(SKILL_MDS)
+    | set(TEMPLATES.rglob("*.md"))
+    | set(TEMPLATES.rglob("*.txt"))
+    | {REPO / "AGENTS.md", REPO / "CLAUDE.md", REPO / "README.md"}
+)
+
 FENCE_RE = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.DOTALL)
 INLINE_CMD_RE = re.compile(r"`(llmw[^`\n]*)`")
+# 跨行允许的正则——仅用于"发现本该行内命令被换行切开"的检查；非贪婪 + 排除
+# 单引号内 backtick，DOTALL 让 . 匹配换行。
+WRAPPED_INLINE_RE = re.compile(r"`(llmw[^`]*?)`", re.DOTALL)
 RULE_REF_RE = re.compile(
     r"(SKILL\.md|(?:upgrade-workflow|page-templates|lint-checklist|ingest-workflow"
     r"|query-workflow|external-repo|examples)\.md)(?:\s*§([一二三四五六七八九十0-9][0-9.]*)?)?"
@@ -139,6 +160,24 @@ def validate_cmd(tokens, root):
         if not t:
             i += 1
             continue
+        # README 风格的"或"写法：`[--X\|-Y]` / `[A|B]` ——按 `|` 拆开分别校验
+        if "|" in t:
+            alts = re.split(r"\\?\|", t)
+            for alt in alts:
+                a = alt.strip().lstrip("[").rstrip("]").strip("`")
+                if not a:
+                    continue
+                if a.startswith("--"):
+                    name = a.split("=", 1)[0]
+                    if _flag_consumes(chain_flags, name) is None:
+                        loc = " / ".join(k for k in _chain_path(tokens, i))
+                        return "未知 flag {}（{}）".format(name, loc)
+                elif a in subs:
+                    cur = subs[a]
+                    flags, subs = _walk_parser(cur)
+                    chain_flags.update(flags)
+            i += 1
+            continue
         if t.startswith("--"):
             name = t.split("=", 1)[0]
             consumes = _flag_consumes(chain_flags, name)
@@ -185,6 +224,19 @@ def _iter_inline_cmds(md_text):
         if not re.match(r"^[a-z][a-z0-9_-]*$|--", second):
             continue
         yield tokens
+
+
+def _iter_wrapped_inline(md_text):
+    """找出被换行切开的行内命令段（本该行内一条命令，跨行会被 INLINE 正则漏提）。
+
+    先剔除围栏代码块（FENCE_RE.sub），避免代码块内的单 backtick 被错误配对；
+    再用 DOTALL 正则匹配所有 backtick 段，含换行的即违例。
+    """
+    stripped = FENCE_RE.sub("", md_text)
+    for m in WRAPPED_INLINE_RE.finditer(stripped):
+        span = m.group(1)
+        if "\n" in span:
+            yield span
 
 
 # ---------- 2. finding 名（双向） ----------
@@ -247,33 +299,41 @@ def main():  # pylint: disable=too-many-branches
         "tokens": 0,
     }
 
-    # --- 1. 命令调用（含风格检查：带值 flag 必须等号形式）---
-    def _check_style(md_name, tokens):
+    # --- 1. 命令调用（含风格检查：带值 flag 必须等号形式；含跨行断命令检查）---
+    def _rel(p):
+        return str(p.relative_to(REPO))
+
+    def _check_style(rel_name, tokens):
         for tok in tokens:
             t = tok.strip("`[]")
             if t in value_flags:
                 errors.append(
                     "[style] {} :: `{}` 带值 flag 须等号形式（{}=VALUE；CLI 全局拒绝空格分隔）".format(
-                        md_name, t, t
+                        rel_name, t, t
                     )
                 )
 
-    for md in SKILL_MDS:
+    for md in CONTRACT_MDS:
+        rel = _rel(md)
         text = _read(md)
         for tokens in _iter_code_block_cmds(text):
             stats["cmds"] += 1
             err = validate_cmd(tokens[1:], root)
             if err:
-                errors.append("[cmd] {} :: {}".format(md.name, err))
-            _check_style(md.name, tokens[1:])
+                errors.append("[cmd] {} :: {}".format(rel, err))
+            _check_style(rel, tokens[1:])
         for tokens in _iter_inline_cmds(text):
             stats["cmds"] += 1
             err = validate_cmd(tokens[1:], root)
             if err:
-                errors.append(
-                    "[cmd-inline] {} :: `{}`".format(md.name, " ".join(tokens))
+                errors.append("[cmd-inline] {} :: `{}`".format(rel, " ".join(tokens)))
+            _check_style(rel, tokens[1:])
+        for span in _iter_wrapped_inline(text):
+            errors.append(
+                "[wrap] {} :: 行内命令不得跨换行（checker 提取需单行）：`{}`".format(
+                    rel, " ".join(span.split())
                 )
-            _check_style(md.name, tokens[1:])
+            )
 
     # --- 2. finding 名 ---
     src_findings = _findings_in_src()
@@ -334,8 +394,8 @@ def main():  # pylint: disable=too-many-branches
 
     # --- 报告 ---
     print(
-        "skill→CLI contract: {} cmd, {} fwd findings, {} bwd findings, "
-        "{} rule_refs, {} tokens".format(
+        "contract (skill+templates+repo-docs → CLI): {} cmd, {} fwd findings, "
+        "{} bwd findings, {} rule_refs, {} tokens".format(
             stats["cmds"],
             stats["fwd_findings"],
             stats["bwd_findings"],

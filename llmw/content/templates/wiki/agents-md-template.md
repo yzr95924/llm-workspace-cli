@@ -30,8 +30,8 @@
   - **用户可随时新增 / 更新 raw/**（重新剪藏、重存 PDF 都算）；这是用户的权限，
     不是违反纪律
   - raw 文件一旦被更新（同路径新内容），**由 ingest 重新消化**：更新对应 source
-    页的正文 + `updated` 字段，并在 `log.md` 追加一条 ingest。`llmw wiki ingest-diff
-    --check-stale` 会按 mtime vs source 页 `updated` 标记这类待重新摄取的文件
+    页的正文 + `updated` 字段，并在 `log.md` 追加一条 ingest。`llmw wiki ingest-diff --check-stale`
+    会按 mtime vs source 页 `updated` 标记这类待重新摄取的文件
   - raw 文件路径是 wiki 内 source 页的 `sources` 字段的"永久引用"——改名会断链
   - raw/ 的内容是真相之源；wiki 摘要如与 raw 矛盾，**以 raw 为准**
   - raw/ 进 git（本 wiki 的 `.gitignore` 不排除 `raw/`）；空目录在 init 时由 CLI 放 `.gitkeep` 占位（
