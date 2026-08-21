@@ -27,9 +27,9 @@ lint 的 deterministic 检查兜底**带外手改**（用户 / agent 手工 Edit
 ## 一、调用方式
 
 ```bash
-llmw wiki --path "$LLM_WIKI_ROOT" lint
+llmw wiki --path="$LLM_WIKI_ROOT" lint
 # 或带严重性过滤
-llmw wiki --path "$LLM_WIKI_ROOT" lint --severity error
+llmw wiki --path="$LLM_WIKI_ROOT" lint --severity=error
 ```
 
 退出码：0 = 干净；1 = 有问题（看输出）；2 = 运行错误。
@@ -41,9 +41,9 @@ llmw wiki --path "$LLM_WIKI_ROOT" lint --severity error
 `CURRENT_WIKI_FORMAT`）比对 + 扫已知 legacy 现场（`type-memory-value`）+ 自动调 fixtures 检查：
 
 ```bash
-llmw wiki --path "$LLM_WIKI_ROOT" lint --check-version --json
+llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version --json
 # 加 --apply 输出 upgrade plan（stdout JSON，不落盘）供 agent 按 [`upgrade-workflow.md`](upgrade-workflow.md) 走 Edit/Write 修复
-llmw wiki --path "$LLM_WIKI_ROOT" lint --check-version --apply --json
+llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version --apply --json
 ```
 
 行为：默认 dry-run（只打印报告，不动文件）；`--apply` 以 stdout JSON 输出 upgrade

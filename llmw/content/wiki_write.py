@@ -6,20 +6,21 @@
 能验证产物。五个子命令都满足两条。手写永远是 schema 合法的、lint 兜底——本脚本是
 **默认路径不是闸门**（agent 遇到脚本不支持的形态，退到 Edit/Write 不算违规）。
 
-子命令：
+子命令（经 `llmw wiki --path <WIKI_ROOT> write <sub>` 调用；子树 flag SSOT 在
+build_subparsers，由 llmw.cli 组合）：
   log     追加 wiki/log.md 条目（严格格式；写完自动截断保最近 LOG_RETENTION_LIMIT 条）
-          `python3 wiki_write.py <WIKI_ROOT> log --op ingest --title "..." [--title "..." ...]`
-          `python3 wiki_write.py <WIKI_ROOT> log --op ingest --bulk --topic "..." --count N`
+          `llmw wiki --path <WIKI_ROOT> write log --op ingest --title "..."`
+          `llmw wiki --path <WIKI_ROOT> write log --op ingest --bulk --topic "..." --count N`
   index   增删 wiki/index.md 条目（从页 frontmatter 派生 title/description，类别段内字母序）
-          `python3 wiki_write.py <WIKI_ROOT> index add <wiki/sources/foo.md>`
-          `python3 wiki_write.py <WIKI_ROOT> index remove <wiki/sources/foo.md>`
+          `llmw wiki --path <WIKI_ROOT> write index add <wiki/sources/foo.md>`
+          `llmw wiki --path <WIKI_ROOT> write index remove <wiki/sources/foo.md>`
   touch   编辑后更新：`updated`=现在 + 删 `reviewed` / `reviewed_at`（清审核戳）
-          `python3 wiki_write.py <WIKI_ROOT> touch <wiki/concepts/foo.md>`
+          `llmw wiki --path <WIKI_ROOT> write touch <wiki/concepts/foo.md>`
   new     新建内容页脚手架（frontmatter + H1；**不生成正文**——正文模板 SSOT 在
           references/page-templates.md，避免双源）
-          `python3 wiki_write.py <WIKI_ROOT> new --type source --slug foo --title "Foo" --sources raw/articles/foo.md [--description ...] [--tags a,b]`
+          `llmw wiki --path <WIKI_ROOT> write new --type source --slug foo --title "Foo" --sources raw/articles/foo.md [--description ...] [--tags a,b]`
   memory  新建 MEMORY 条目（仅 title 必填 frontmatter）+ 原子追加 MEMORY.md 索引行
-          `python3 wiki_write.py <WIKI_ROOT> memory add --slug foo --title "Foo" [--index-line "一句话"]`
+          `llmw wiki --path <WIKI_ROOT> write memory add --slug foo --title "Foo" [--index-line "一句话"]`
 
 版本错位警告：wiki §七 钉定版本与 SKILL 的 CURRENT_WIKI_FORMAT 不一致时警告"先 upgrade 再写"
 ——防新格式写进老 wiki。只警告不阻断（逃生舱：用户对老 wiki 有意写入时仍可用）。
@@ -27,7 +28,6 @@
 退出码：0 = 成功（含 no-op）；2 = 运行错误 / 参数错误。
 """
 
-import argparse
 import re
 import sys
 from datetime import datetime
@@ -345,11 +345,12 @@ def cmd_memory(wiki_root, args):
 # ---------- main ----------
 
 
-def build_parser():
-    parser = argparse.ArgumentParser(description="wiki 机械字节写操作（见 docstring 准入规则）")
-    parser.add_argument("wiki_root", help="wiki 根目录（含 AGENTS.md / wiki/ / MEMORY/）")
-    sub = parser.add_subparsers(dest="cmd", required=True)
+def build_subparsers(sub) -> None:
+    """把 log / index / touch / new / memory 挂到给定 subparsers action 上。
 
+    write 子树的 flag SSOT 在此——llmw.cli.build_parser() 经本函数组合出完整
+    命令树；无独立入口（入口唯一：`llmw wiki write <sub>`）。
+    """
     p_log = sub.add_parser("log", help=f"追加 log.md 条目（自动截断保最近 {LOG_RETENTION_LIMIT} 条）")
     p_log.add_argument("--op", required=True, choices=["ingest", "query", "lint", "setup"])
     p_log.add_argument("--title", action="append", help="条目标题（可重复）")
@@ -383,17 +384,11 @@ def build_parser():
     p_mem.add_argument("--index-line", default="", help="索引行一句话摘要")
     p_mem.set_defaults(func=cmd_memory)
 
-    return parser
 
-
-def main(argv=None):
-    args = build_parser().parse_args(argv)
-    _warn_version(args.wiki_root)
-    err, code = args.func(args.wiki_root, args)
+def dispatch(wiki_root, args) -> int:
+    """cli.py write dispatch 入口：按 args.func 分派到 cmd_*。"""
+    _warn_version(wiki_root)
+    err, code = args.func(wiki_root, args)
     if err:
         print(err, file=sys.stderr)
     return code
-
-
-if __name__ == "__main__":
-    sys.exit(main())

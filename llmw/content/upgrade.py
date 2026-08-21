@@ -24,10 +24,8 @@
 变量 SSOT: metadata toml + 版本常量（不从旧文件反提取，详见 render.py）。
 """
 
-import argparse
 import difflib
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -38,9 +36,6 @@ from llmw.content import render as _render
 from llmw.content import wiki_fixtures
 from llmw.fsutil import atomic_write
 from llmw.wiki import store as wiki_store
-
-ENV_LLM_WIKI_ROOT = "LLM_WIKI_ROOT"
-
 
 # ===== plan_resync: 计算 resync 计划（不写盘）=====
 
@@ -551,33 +546,3 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
             f"verified: error={verified.get('error', 0)} warn={verified.get('warn', 0)} pass={verified.get('pass', 0)}"
         )
     return 0
-
-
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="upgrade_wiki",
-        description="升级 wiki 骨架（重渲染 + legacy 路径 + 自检）",
-    )
-    parser.add_argument("wiki_root", nargs="?", help="wiki 根目录；默认从 $LLM_WIKI_ROOT 读")
-    parser.add_argument("--json", action="store_true", help="输出 JSON（3 终态契约）")
-    parser.add_argument("--dry-run", action="store_true", help="只输出计划不写盘")
-    parser.add_argument("--yes", "-y", action="store_true", help="覆盖 drift diff 时需此 flag")
-    args = parser.parse_args(argv)
-
-    if args.wiki_root:
-        wiki_root = Path(args.wiki_root).expanduser().resolve()
-    elif os.environ.get(ENV_LLM_WIKI_ROOT):
-        wiki_root = Path(os.environ[ENV_LLM_WIKI_ROOT]).expanduser().resolve()
-    else:
-        print("ERROR: 需提供 wiki_root 参数或设置 $LLM_WIKI_ROOT", file=sys.stderr)
-        return 2
-
-    if not wiki_root.is_dir():
-        print(f"ERROR: {wiki_root} 不是目录", file=sys.stderr)
-        return 2
-
-    return run_upgrade(wiki_root, dry_run=args.dry_run, yes=args.yes, as_json=args.json)
-
-
-if __name__ == "__main__":
-    sys.exit(main())

@@ -25,9 +25,7 @@
 + 版本常量；display_name 例外（workspace.toml 未存），仍需从现有 AGENTS.md §七 / H1 提取。
 """
 
-import argparse
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -42,8 +40,6 @@ from llmw.content import workspace_fixtures
 from llmw.fsutil import atomic_write
 from llmw.workspace import store as ws_store
 from llmw.workspace.gitignore import ensure_workspace_gitignore
-
-ENV_WORKSPACE_ROOT = "LLMW_WORKSPACE"
 
 # workspace 骨架 4 类文件
 _BYTE_OWNED = ("AGENTS.md", "CLAUDE.md")
@@ -483,36 +479,3 @@ def _emit(result: Dict[str, object], *, as_json: bool, to_err: bool = False) -> 
         stream = sys.stderr if to_err else sys.stdout
         for k, v in result.items():
             print(f"  {k}: {v}", file=stream)
-
-
-# ===== CLI entry =====
-
-
-def main(argv=None) -> int:
-    p = argparse.ArgumentParser(
-        prog="llmw-workspace-upgrade",
-        description="升级 workspace 根骨架（独立入口，便于手动调试）",
-    )
-    p.add_argument("workspace_root", nargs="?", help="workspace 根目录；默认 $LLMW_WORKSPACE")
-    p.add_argument("--apply", action="store_true", help="显式写盘（覆盖 dry-run 默认）")
-    p.add_argument("--yes", "-y", action="store_true", help="确认覆盖 drift diff")
-    p.add_argument("--json", action="store_true", help="JSON 输出")
-    args = p.parse_args(argv)
-
-    if args.workspace_root:
-        ws_root = Path(args.workspace_root).expanduser().resolve()
-    elif os.environ.get(ENV_WORKSPACE_ROOT):
-        ws_root = Path(os.environ[ENV_WORKSPACE_ROOT]).expanduser().resolve()
-    else:
-        print(f"[llmw] error: 请提供 ws_root 或设置 ${ENV_WORKSPACE_ROOT}", file=sys.stderr)
-        return 2
-    if not ws_root.is_dir():
-        print(f"[llmw] error: {ws_root} 不是目录", file=sys.stderr)
-        return 2
-
-    dry_run = not args.apply
-    return run_workspace_upgrade(ws_root, dry_run=dry_run, yes=args.yes, as_json=args.json)
-
-
-if __name__ == "__main__":
-    sys.exit(main())

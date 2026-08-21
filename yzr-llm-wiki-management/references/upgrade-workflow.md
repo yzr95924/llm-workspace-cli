@@ -44,7 +44,7 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 2. **跑 dry-run 看骨架计划**：
 
    ```bash
-   llmw wiki --path "$LLM_WIKI_ROOT" upgrade
+   llmw wiki --path="$LLM_WIKI_ROOT" upgrade
    ```
 
    默认 dry-run，输出 plan（含每个文件的 action：`render` / `growth-graft` / `create` /
@@ -55,12 +55,12 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
    - agent 逐条对比：本地定制 = AGENTS.md/CLAUDE.md 内**多出模板的行/段**，与用户裁定**搬
      MEMORY/**（一行事实写 MEMORY.md 索引短条目；含 why 建 `MEMORY/<slug>.md` 完整条目）
      或**丢弃**
-   - 裁定完 → 重跑 `llmw wiki --path ... upgrade --apply --yes` 落地
+   - 裁定完 → 重跑 `llmw wiki --path=... upgrade --apply --yes` 落地
 
 4. **查内容页 legacy + 跑修复**（lint 侧）：
 
    ```bash
-   llmw wiki --path "$LLM_WIKI_ROOT" lint --check-version
+   llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version
    ```
 
    - 报告 `needs_upgrade` / legacy pattern groups（当前仅 `type-memory-value`）

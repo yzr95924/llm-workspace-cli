@@ -171,7 +171,7 @@ readlink -f "raw/external/${SYMLINK_NAME}"
 
 # lint 跑通（不应再报 external-target-dead / external-symlink-missing）
 # 注意 lint 端会做 Path(target).expanduser()，所以 '~/src/...' 形式 + 同 home 布局下不报 dead
-llmw wiki --path . lint
+llmw wiki --path=. lint
 ```
 
 ---

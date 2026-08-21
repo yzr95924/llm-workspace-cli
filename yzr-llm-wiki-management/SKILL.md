@@ -228,9 +228,9 @@ SKILL 不动。
 
 1. 跑 `llmw wiki ingest-diff`（日常加 `--check-stale`）找出未摄取/待重摄文件清单
 2. **单篇对一下要点**——仅交互式单篇或少量场景：确认主题方向 / 重点交叉的 entity / 用户判断要保留
-3. 对每个文件：Read 全文 → 提取元数据 → `llmw wiki write new --type source ...` 建骨架 →
+3. 对每个文件：Read 全文 → 提取元数据 → `llmw wiki write new --type=source ...` 建骨架 →
    写正文（stale-raw 走 **Edit**,**不** Write 覆盖）→ 同步 entity/concept(只 append
-   "Sources" 段) → `llmw wiki write index add` → `llmw wiki write log --op ingest` →
+   "Sources" 段) → `llmw wiki write index add` → `llmw wiki write log --op=ingest` →
    **编辑过的页跑 `llmw wiki write touch`**
 4. **commit**（仅启用 git 时）：节奏由用户/agent 决定，**不**自动 commit
 
@@ -296,7 +296,7 @@ git 身份字段 → 创建 symlink + 写 anchor → 后续 `llmw wiki ingest-di
 wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明块 canonical）：
 
 1. 决定是否值得写——能否让未来 agent 工作更顺？
-2. 判别条目形式：**完整**（含 why+how 上下文）→ `llmw wiki write memory add --slug ... --title ...`
+2. 判别条目形式：**完整**（含 why+how 上下文）→ `llmw wiki write memory add --slug=... --title=...`
    建文件 + 索引行，再 Edit 写正文；**短**（纯 reminder）→ 直接 `MEMORY/MEMORY.md` 加一行索引
 3. 写正文——记录具体经验，含上下文 / 解决步骤 / 未来如何避免
 4. **不**追加 log 条目 / **不**在 wiki/index.md 列出（MEMORY 不走单一入口约束）

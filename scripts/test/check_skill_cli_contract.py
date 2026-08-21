@@ -7,8 +7,9 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
 
 检查面（4 类）：
   1. 命令调用（skill → CLI）：skill markdown 里的 `llmw ...` 调用，子命令路径 +
-     flag 必须存在于 llmw.cli argparse 树（代码块严格校验；行内 backtick 只校验
-     第二 token 为小写命令形态的片段，散文提及跳过）
+     flag 必须存在于 SSOT 树；**带值 flag 必须等号形式**（CLI 全局拒绝空格分隔，
+     skill 写空格形式 = 运行即拒的静默 drift）。代码块严格校验；行内 backtick
+     只校验第二 token 为小写命令形态的片段，散文提及跳过
   2. finding 名（双向）：lint-checklist 里 `` `name`（severity`` 模式 → 必须存在于
      wiki_lint.py / wiki_fixtures.py 字面量；wiki_lint.py 的 finding 前缀 → 必须
      在 skill 文本有文档（allowlist 收编有意不文档化的例外）
@@ -16,6 +17,9 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
      对应 skill 文件与小节标题必须存在
   4. 终态词 / JSON 字段（skill → CLI）：upgrade-workflow 提到的终态词与 plan 字段
      必须在 upgrade.py / wiki_lint.py 字面量存在
+
+命令表面 SSOT = llmw.cli.build_parser() 单一 argparse 树（write 子树经
+llmw.content.wiki_write.build_subparsers 组合；无模块 standalone 入口）。
 
 standalone，Python 3.7+（与项目最低支持版本对齐），stdlib only。
 用法：``python3 scripts/test/check_skill_cli_contract.py``
@@ -107,17 +111,19 @@ def _flag_consumes(flags, name):
     return cands[0] if len(cands) == 1 else None
 
 
-def _graft(parser, sub_name, new_parser):
-    """把委托式子命令的模块 parser 嫁接进树（改 action.choices 原对象）。"""
+def _collect_value_flags(parser, flags=None):
+    """递归收集全树的带值 flag（nargs None/1）——风格检查用。"""
+    if flags is None:
+        flags = set()
     for action in parser._actions:  # noqa: SLF001
         if isinstance(action, argparse._SubParsersAction):  # noqa: SLF001
-            if sub_name in action.choices:
-                action.choices[sub_name] = new_parser
-                return True
             for sp in action.choices.values():
-                if _graft(sp, sub_name, new_parser):
-                    return True
-    return False
+                _collect_value_flags(sp, flags)
+            continue
+        for opt in action.option_strings:
+            if opt.startswith("--") and action.nargs in (None, 1):
+                flags.add(opt)
+    return flags
 
 
 def validate_cmd(tokens, root):
@@ -227,14 +233,11 @@ def _section_exists(md_text, section):
 
 def main():  # pylint: disable=too-many-branches
     import llmw.cli  # pylint: disable=import-outside-toplevel
-    from llmw.content import wiki_write  # pylint: disable=import-outside-toplevel
 
+    # 命令表面 SSOT = llmw.cli.build_parser() 单一 argparse 树（write 子树由
+    # build_subparsers 组合进树，无第二定义处）
     root = llmw.cli.build_parser()
-    # 嫁接委托式子命令：cli.py 把 `wiki write` 的剩余参数 REMAINDER 透传给
-    # wiki_write 自己的 parser——flag 真源在模块侧，不在 cli.py 树上
-
-    if not _graft(root, "write", wiki_write.build_parser()):
-        raise RuntimeError("graft wiki write 失败")
+    value_flags = _collect_value_flags(root)
     errors = []
     stats = {
         "cmds": 0,
@@ -244,7 +247,17 @@ def main():  # pylint: disable=too-many-branches
         "tokens": 0,
     }
 
-    # --- 1. 命令调用 ---
+    # --- 1. 命令调用（含风格检查：带值 flag 必须等号形式）---
+    def _check_style(md_name, tokens):
+        for tok in tokens:
+            t = tok.strip("`[]")
+            if t in value_flags:
+                errors.append(
+                    "[style] {} :: `{}` 带值 flag 须等号形式（{}=VALUE；CLI 全局拒绝空格分隔）".format(
+                        md_name, t, t
+                    )
+                )
+
     for md in SKILL_MDS:
         text = _read(md)
         for tokens in _iter_code_block_cmds(text):
@@ -252,6 +265,7 @@ def main():  # pylint: disable=too-many-branches
             err = validate_cmd(tokens[1:], root)
             if err:
                 errors.append("[cmd] {} :: {}".format(md.name, err))
+            _check_style(md.name, tokens[1:])
         for tokens in _iter_inline_cmds(text):
             stats["cmds"] += 1
             err = validate_cmd(tokens[1:], root)
@@ -259,6 +273,7 @@ def main():  # pylint: disable=too-many-branches
                 errors.append(
                     "[cmd-inline] {} :: `{}`".format(md.name, " ".join(tokens))
                 )
+            _check_style(md.name, tokens[1:])
 
     # --- 2. finding 名 ---
     src_findings = _findings_in_src()

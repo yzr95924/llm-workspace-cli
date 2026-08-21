@@ -80,10 +80,18 @@ def build_minimal_wiki(root):
 
 
 def run_lint(root):
-    """跑 `python -m llmw.content.wiki_lint --no-git`，返回 (exit_code, stdout)。"""
+    """跑 `llmw wiki --path=<root> lint --no-git`（唯一 CLI 入口），返回 (exit_code, stdout)。"""
     env = dict(os.environ, PYTHONPATH=str(REPO))
     proc = subprocess.run(
-        [sys.executable, "-m", "llmw.content.wiki_lint", str(root), "--no-git"],
+        [
+            sys.executable,
+            "-m",
+            "llmw",
+            "wiki",
+            "--path=" + str(root),
+            "lint",
+            "--no-git",
+        ],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

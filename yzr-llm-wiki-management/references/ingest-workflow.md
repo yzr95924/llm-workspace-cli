@@ -25,7 +25,7 @@ like RAG... There's no accumulation."** Ingest 是把 RAG（每次查询时重�
 
 ```bash
 # 日常：同时找全新文件 + raw 被更新过的已归档文件
-llmw wiki --path "$LLM_WIKI_ROOT" ingest-diff --check-stale
+llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ```
 
 - 扫 `raw/` 递归，对照所有 `wiki/sources/*.md` 的 `frontmatter.sources` 建立 raw 路径 → source 页映射
@@ -65,7 +65,7 @@ llmw wiki --path "$LLM_WIKI_ROOT" ingest-diff --check-stale
 2. **提取元数据**：标题、作者 / 来源、发布时间、URL（若有）、关键标签
 3. **生成 slug**——kebab-case 短标题（例 `attention-is-all-you-need`），文件名
    `<slug>.md`
-4. **脚手架走 `llmw wiki write new --type source --slug ... --title ... --sources raw/...`**
+4. **脚手架走 `llmw wiki write new --type=source --slug=... --title=... --sources=raw/...`**
    （自动生成 5 必填 frontmatter + H1，slug 校验 + 拒覆盖）——然后 Edit 写正文，
    使用 source 模板（见 [`page-templates.md`](page-templates.md) §二.3）：
    - frontmatter：title / description（一句话摘要，index 摘要从它来）/ type=source /
@@ -108,7 +108,7 @@ llmw wiki --path "$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ### Step 6：追加 `log.md`
 
-- `llmw wiki write log --op ingest --title "<source 页 title>"`——严格格式 + 超过
+- `llmw wiki write log --op=ingest --title="<source 页 title>"`——严格格式 + 超过
   `LOG_RETENTION_LIMIT` 自动截断保最近 N 条（frontmatter 不动），脚本保证
 - 一次 ingest 多个文件 → **重复 `--title`**（每条对应一个 source 页）；
   批处理走 `--bulk --topic ... --count ...`（见 §五）
@@ -156,7 +156,7 @@ llmw wiki --path "$LLM_WIKI_ROOT" ingest-diff --check-stale
      顺序——主题相近的先写，便于交叉引用）
    - entity / concept 页（先建新的，再更新已有的——追加"参考来源"段，不重写）
    - `wiki/index.md`（所有改动落定后**一次** `llmw wiki write index add`；不要每写一页更一次 index）
-   - `wiki/log.md`（`llmw wiki write log --op ingest --bulk --topic "<主题概览>" --count <N>`，
+   - `wiki/log.md`（`llmw wiki write log --op=ingest --bulk --topic="<主题概览>" --count=<N>`，
      标题里把本批主题说清；不再逐文件分别追加 ingest 条目——避免 log 被一次 ingest 撑爆）
 5. **报告**——告诉用户哪些是新建页、哪些是更新页、哪些 entity / concept 因聚合而合并
 

@@ -38,10 +38,8 @@ standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 to
   差异：None 参数 / captured_at 空串的处理不同，check 需要更严格的宽容度）。
 """
 
-import argparse
 import difflib
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -173,7 +171,6 @@ GITIGNORE_TRACK_TOML_RE = re.compile(r"^!\s*raw/external/\.symlink-anchor\.toml\
 GITIGNORE_TRACK_LEGACY_RE = re.compile(r"^!\s*raw/external/\*?/?\.symlink-anchor\.json\s*(#.*)?$")
 GITIGNORE_EXCLUDE_EXTERNAL_RE = re.compile(r"^\s*raw/external/?\*?\s*(#.*)?$")
 YAML_FRONT_MATTER_RE = re.compile(r"^---\s*\n.*?\n---\s*\n", re.DOTALL)
-CL_LLM_WIKI_ROOT = "LLM_WIKI_ROOT"
 
 
 def _read_text(path: Path) -> Optional[str]:
@@ -1149,53 +1146,26 @@ def _rules_json() -> List[Dict[str, object]]:
     return out
 
 
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="check_wiki_fixtures",
-        description="检查已存在 wiki 的 fixtures 一致性（升级检查专用）",
-    )
-    parser.add_argument("wiki_root", nargs="?", help="wiki 根目录；默认从 $LLM_WIKI_ROOT 读")
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="输出机器可读 JSON 而不是人读报告",
-    )
-    parser.add_argument(
-        "--target-format",
-        default=None,
-        help="目标 wiki format 版本（缺省读 llmw.WIKI_FORMAT_VERSION 包内常量）",
-    )
-    parser.add_argument(
-        "--list-rules",
-        action="store_true",
-        help="内省：输出 CHECK_REGISTRY 规则清单（不扫描文件，无需 wiki_root）",
-    )
-    args = parser.parse_args(argv)
-
-    if args.list_rules:
-        if args.json:
-            print(json.dumps(_rules_json(), indent=2, ensure_ascii=False))
-        else:
-            print(_format_rules_md())
-        return 0
-
-    if args.wiki_root:
-        wiki_root = Path(args.wiki_root).expanduser().resolve()
-    elif os.environ.get(CL_LLM_WIKI_ROOT):
-        wiki_root = Path(os.environ[CL_LLM_WIKI_ROOT]).expanduser().resolve()
+def list_rules(as_json: bool = False) -> int:
+    """--list-rules 业务入口（自包含，无需 wiki_root）。"""
+    if as_json:
+        print(json.dumps(_rules_json(), indent=2, ensure_ascii=False))
     else:
-        print("ERROR: 需提供 wiki_root 参数或设置 $LLM_WIKI_ROOT", file=sys.stderr)
-        return 2
+        print(_format_rules_md())
+    return 0
 
+
+def run(wiki_root: Path, *, as_json: bool = False, target_format: Optional[str] = None) -> int:
+    """check-fixtures 业务入口（cli.py dispatch 直调；flag SSOT 在 llmw.cli argparse 树）。"""
     if not wiki_root.is_dir():
         print(f"ERROR: {wiki_root} 不是目录", file=sys.stderr)
         return 2
 
-    target_format = args.target_format or _skill_format_version()
+    target = target_format or _skill_format_version()
 
-    report = run_checks(wiki_root, target_format)
+    report = run_checks(wiki_root, target)
 
-    if args.json:
+    if as_json:
         print(json.dumps(report, indent=2, ensure_ascii=False))
     else:
         print(_format_human(report))
@@ -1205,7 +1175,3 @@ def main(argv=None) -> int:
     if s["error"] > 0:  # type: ignore
         return 1
     return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

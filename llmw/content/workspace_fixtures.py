@@ -29,10 +29,8 @@ standalone（不依赖其他脚本 / 第三方库；Python 3.7+）。
   由 yzr-llm-wiki-management 负责，本脚本不读兄弟 skill 的版本）。
 """
 
-import argparse
 import difflib
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -42,8 +40,6 @@ from llmw import WORKSPACE_FORMAT_VERSION
 from llmw import __version__ as CLI_VERSION
 from llmw.config import workspace_templates_dir
 from llmw.content.render import render_workspace_agents_md, render_workspace_claude_md
-
-ENV_WORKSPACE_ROOT = "LLMW_WORKSPACE"
 
 SEMVER_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 CREATED_AT_TOML_RE = re.compile(r'^\s*created_at\s*=\s*"([^"]+)"', re.MULTILINE)
@@ -743,49 +739,26 @@ def _rules_json() -> List[Dict[str, object]]:
     ]
 
 
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="check_workspace_fixtures",
-        description="检查已存在 workspace 的 fixtures 一致性（升级检查专用）",
-    )
-    parser.add_argument("workspace_root", nargs="?", help="workspace 根目录；默认从 $LLMW_WORKSPACE 读")
-    parser.add_argument("--json", action="store_true", help="输出机器可读 JSON 而不是人读报告")
-    parser.add_argument(
-        "--target-format",
-        default=None,
-        help="目标 workspace format 版本（缺省读 llmw.WORKSPACE_FORMAT_VERSION 包内常量）",
-    )
-    parser.add_argument(
-        "--list-rules",
-        action="store_true",
-        help="内省：输出 CHECK_REGISTRY 规则清单（不扫描文件，无需 workspace_root）",
-    )
-    args = parser.parse_args(argv)
-
-    if args.list_rules:
-        if args.json:
-            print(json.dumps(_rules_json(), indent=2, ensure_ascii=False))
-        else:
-            print(_format_rules_md())
-        return 0
-
-    if args.workspace_root:
-        ws_root = Path(args.workspace_root).expanduser().resolve()
-    elif os.environ.get(ENV_WORKSPACE_ROOT):
-        ws_root = Path(os.environ[ENV_WORKSPACE_ROOT]).expanduser().resolve()
+def list_rules(as_json: bool = False) -> int:
+    """--list-rules 业务入口（自包含，无需 workspace_root）。"""
+    if as_json:
+        print(json.dumps(_rules_json(), indent=2, ensure_ascii=False))
     else:
-        print("ERROR: 需提供 workspace_root 参数或设置 $LLMW_WORKSPACE", file=sys.stderr)
-        return 2
+        print(_format_rules_md())
+    return 0
 
+
+def run(ws_root: Path, *, as_json: bool = False, target_format: Optional[str] = None) -> int:
+    """workspace check-fixtures 业务入口（cli.py dispatch 直调；flag SSOT 在 llmw.cli argparse 树）。"""
     if not ws_root.is_dir():
         print(f"ERROR: {ws_root} 不是目录", file=sys.stderr)
         return 2
 
-    target_format = args.target_format or _skill_format_version()
+    target = target_format or _skill_format_version()
 
-    report = run_checks(ws_root, target_format)
+    report = run_checks(ws_root, target)
 
-    if args.json:
+    if as_json:
         print(json.dumps(report, indent=2, ensure_ascii=False))
     else:
         print(_format_human(report))
@@ -795,7 +768,3 @@ def main(argv=None) -> int:
     if s["error"] > 0:  # type: ignore
         return 1
     return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

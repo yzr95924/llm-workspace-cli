@@ -332,9 +332,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pw_stop.add_argument("--yes", "-y", action="store_true")
 
-    # ---- 内容层子命令（确定性执行；flags 与行为真源在 llmw/content/* 的 main()）----
-    # --name/--path 由 CLI 解析出 wiki root，其余 flag 显式列出（--help 可发现），
-    # 组装 argv 转发给模块 main()——模块是 flag 行为唯一真源。
+    # ---- 内容层子命令（确定性执行；命令表面 SSOT = 本函数的 argparse 树）----
+    # 除 write 外 flags 均在此定义；write 子树的 flag SSOT 在
+    # llmw.content.wiki_write.build_subparsers（cli 经它组合出完整树）——
+    # 无第二入口（模块 main 已退役，业务入口为各模块 run()）。
     pw_lint = wiki_sub.add_parser(
         "lint",
         help="deterministic 健康检查（含 format 版本 / legacy 现场探测）",
@@ -418,13 +419,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="机械字节写操作（log / index / touch / new / memory）",
         parents=[common],
     )
-    pw_write.add_argument(
-        "write_args",
-        nargs=argparse.REMAINDER,
-        metavar="...",
-        help="子命令参数（log --op=... / index add <page> / touch <page> / new --type=... / memory add ...），"
-        "透传给 llmw.content.wiki_write",
+    from llmw.content.wiki_write import build_subparsers as _write_subs  # noqa: E402
+
+    write_sub = pw_write.add_subparsers(
+        dest="write_cmd", metavar="ACTION", required=True
     )
+    _write_subs(write_sub)
 
     return parser
 
@@ -463,7 +463,9 @@ def _cmd_status(args) -> int:
 
 
 def _resolve_content_root(args) -> Path:
-    """内容层子命令的 wiki root 解析：--path 直传（不依赖 workspace）或 --name 经 workspace 解析。"""
+    """内容层子命令的 wiki root 解析：--path 直传（不依赖 workspace）、--name 经 workspace
+    解析、$LLM_WIKI_ROOT env fallback（继承自原模块 standalone 入口的既有行为）。
+    """
     from llmw.errors import MissingRequiredFlag, WikiNotFound
     from llmw.workspace import store as ws_store
 
@@ -483,14 +485,18 @@ def _resolve_content_root(args) -> Path:
                 hint="`llmw wiki add --name=NAME` 注册，或直接用 --path=DIR 指向 wiki 根目录",
             )
         return (ws_root / entry.path).resolve()
+    env_root = os.environ.get("LLM_WIKI_ROOT")
+    if env_root:
+        return Path(env_root).expanduser().resolve()
     raise MissingRequiredFlag(
         "内容子命令需要 --path=DIR 或 --name=NAME",
-        hint="--name 经 workspace 解析；--path 直传任意 wiki 根目录（未注册 wiki / 测试场景）",
+        hint="--name 经 workspace 解析；--path 直传任意 wiki 根目录（未注册 wiki / 测试场景）；"
+        "或设 $LLM_WIKI_ROOT 环境变量",
     )
 
 
 def _cmd_wiki_content(args) -> int:
-    """wiki 内容层子命令分派（lint / check-fixtures / ingest-diff / write）。
+    """wiki 内容层子命令分派（lint / check-fixtures / ingest-diff / write / upgrade）。
 
     在 workspace 解析之前处理——--path 直传时不依赖 workspace。
     """
@@ -498,15 +504,39 @@ def _cmd_wiki_content(args) -> int:
 
     # --list-rules 自包含：不扫描文件，不需要 root
     if args.wiki_action == "check-fixtures" and _flag(args, "list_rules"):
-        argv = ["--list-rules"]
-        if _flag(args, "json"):
-            argv.append("--json")
-        return wiki_fixtures.main(argv)
+        return wiki_fixtures.list_rules(as_json=_flag(args, "json"))
 
-    if args.wiki_action == "upgrade":
+    root = _resolve_content_root(args)
+    wa = args.wiki_action
+
+    if wa == "lint":
+        return wiki_lint.run(
+            root,
+            severity=args.severity,
+            no_git=args.no_git,
+            check_version=args.check_version,
+            apply=args.apply,
+            json_mode=_flag(args, "json"),
+        )
+
+    if wa == "check-fixtures":
+        return wiki_fixtures.run(
+            root,
+            as_json=_flag(args, "json"),
+            target_format=args.target_format,
+        )
+
+    if wa == "ingest-diff":
+        return ingest_diff.run(
+            root,
+            as_json=_flag(args, "json"),
+            relative=args.relative,
+            check_stale=args.check_stale,
+        )
+
+    if wa == "upgrade":
         from llmw.content import upgrade
 
-        root = _resolve_content_root(args)
         dry_run = not _flag(args, "apply")  # --apply 显式写盘，默认 dry-run
         return upgrade.run_upgrade(
             root,
@@ -515,48 +545,8 @@ def _cmd_wiki_content(args) -> int:
             as_json=_flag(args, "json"),
         )
 
-    root = _resolve_content_root(args)
-    wa = args.wiki_action
-
-    if wa == "lint":
-        argv = [str(root)]
-        if args.severity != "all":
-            argv += ["--severity", args.severity]
-        if args.no_git:
-            argv.append("--no-git")
-        if args.check_version:
-            argv.append("--check-version")
-        if _flag(args, "json"):
-            argv.append("--json")
-        if args.apply:
-            argv.append("--apply")
-        return wiki_lint.main(argv)
-
-    if wa == "check-fixtures":
-        if args.list_rules:
-            argv = ["--list-rules"]
-            if _flag(args, "json"):
-                argv.append("--json")
-            return wiki_fixtures.main(argv)
-        argv = [str(root)]
-        if args.target_format:
-            argv += ["--target-format", args.target_format]
-        if _flag(args, "json"):
-            argv.append("--json")
-        return wiki_fixtures.main(argv)
-
-    if wa == "ingest-diff":
-        argv = [str(root)]
-        if _flag(args, "json"):
-            argv.append("--json")
-        if args.relative:
-            argv.append("--relative")
-        if args.check_stale:
-            argv.append("--check-stale")
-        return ingest_diff.main(argv)
-
     if wa == "write":
-        return wiki_write.main([str(root)] + args.write_args)
+        return wiki_write.dispatch(root, args)
 
     return 1
 
@@ -596,10 +586,7 @@ def main(argv=None) -> int:
         if args.command == "check-fixtures" and _flag(args, "list_rules"):
             from llmw.content import workspace_fixtures
 
-            argv_list = ["--list-rules"]
-            if _flag(args, "json"):
-                argv_list.append("--json")
-            return workspace_fixtures.main(argv_list)
+            return workspace_fixtures.list_rules(as_json=_flag(args, "json"))
 
         from llmw.config import resolve_workspace_root
 
@@ -608,12 +595,11 @@ def main(argv=None) -> int:
         if args.command == "check-fixtures":
             from llmw.content import workspace_fixtures
 
-            argv = [str(ws_root)]
-            if args.target_format:
-                argv += ["--target-format", args.target_format]
-            if _flag(args, "json"):
-                argv.append("--json")
-            return workspace_fixtures.main(argv)
+            return workspace_fixtures.run(
+                ws_root,
+                as_json=_flag(args, "json"),
+                target_format=args.target_format,
+            )
 
         if args.command == "upgrade":
             from llmw.content import upgrade as _upgrade

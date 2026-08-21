@@ -115,9 +115,32 @@ def _make_wiki(root, format_version=None):
     return root
 
 
+def _equals_form(args):
+    """空格形式 ('--op', 'ingest') → CLI 强制的等号形式 '--op=ingest'。
+
+    llmw 全局拒绝带值 flag 的空格分隔（SpaceFormNotAllowed）；测试保持空格
+    形式的可读调用习惯，经本函数转换后走 llmw CLI。
+    """
+    out, i = [], 0
+    while i < len(args):
+        a = args[i]
+        if (
+            a.startswith("--")
+            and i + 1 < len(args)
+            and not args[i + 1].startswith("--")
+        ):
+            out.append("{}={}".format(a, args[i + 1]))
+            i += 2
+        else:
+            out.append(a)
+            i += 1
+    return out
+
+
 def _run(wiki_root, *args):
     return subprocess.run(
-        [sys.executable, "-m", "llmw.content.wiki_write", str(wiki_root)] + list(args),
+        [sys.executable, "-m", "llmw", "wiki", "--path=" + str(wiki_root), "write"]
+        + _equals_form(list(args)),
         env=dict(os.environ, PYTHONPATH=str(REPO)),
         capture_output=True,
         text=True,

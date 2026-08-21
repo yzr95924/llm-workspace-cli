@@ -33,13 +33,13 @@
 ```text
 1. llmw wiki ingest-diff 确认这是未摄取文件
 2. Read raw/articles/distributed-systems-overview.md 全文
-3. llmw wiki write new --type source --slug distributed-systems-overview --title "Distributed Systems Overview" --sources raw/articles/...md --tags distributed-systems,consensus
+3. llmw wiki write new --type=source --slug=distributed-systems-overview --title="Distributed Systems Overview" --sources=raw/articles/...md --tags=distributed-systems,consensus
    → Edit 写正文：摘要 + 关键概念 + 主要权衡 + 与同类工作的关系
 4. 检查 concepts/distributed-systems.md, concepts/consensus.md 是否已存在
    - 不存在：创建并把本次贡献写进
    - 存在：追加"参考来源"段
 5. llmw wiki write index add wiki/sources/distributed-systems-overview.md
-6. llmw wiki write log --op ingest --title "Distributed Systems Overview"
+6. llmw wiki write log --op=ingest --title="Distributed Systems Overview"
 7. 若启用 git，建议 commit；裸目录树 wiki 跳过此步
 ```
 
@@ -57,10 +57,10 @@
    <Concept B> 强调 <特点 2>（来源 sources/<source-b>.md）..."
 4. 询问用户："这段对比适合归档为 wiki/comparisons/<concept-a>-vs-<concept-b>.md 吗？"
 5. 用户同意后：
-   - `llmw wiki write new --type comparison --slug <concept-a>-vs-<concept-b> --title ...`
+   - `llmw wiki write new --type=comparison --slug=<concept-a>-vs-<concept-b> --title=...`
      脚手架 + 按 references/page-templates.md §二 comparison 模板写正文
    - `llmw wiki write index add wiki/comparisons/<concept-a>-vs-<concept-b>.md`
-   - `llmw wiki write log --op query --title "<Concept A> vs <Concept B>"`
+   - `llmw wiki write log --op=query --title="<Concept A> vs <Concept B>"`
 ```
 
 ## 样例四：lint 发现腐烂迹象
@@ -70,7 +70,7 @@
 **执行**：
 
 ```text
-1. llmw wiki --path ~/wiki/llm-systems lint
+1. llmw wiki --path=~/wiki/llm-systems lint
 2. 脚本报告：
    - raw/ 干净（启用 git 时 git status clean；未启用时此项自动跳过 + 输出顶部
      `[NOTES] raw-immutable-skipped: 未启用 git（无 .git/）` 提示）
@@ -99,17 +99,17 @@
    （CLI init 时从 skill metadata 镜像，老 wiki 落后当前 0.39.0）+
    wiki/index.md + wiki/log.md 最近 30 行
 2. 跑升级 dry-run 看骨架计划：
-    llmw wiki --path ~/wiki/llm-systems upgrade
+    llmw wiki --path=~/wiki/llm-systems upgrade
     脚本输出 plan（每个文件 action：render / growth-graft / gitignore-block）
 3. 若 plan 含 diff 触发 blocked_drift → 与用户裁定本地定制：
    - AGENTS.md / CLAUDE.md 中多出模板渲染稿的行/段 = 用户本地定制
    - 逐条决定搬到 MEMORY/ 还是丢弃
-   - 裁定完 → 重跑 `llmw wiki --path ... upgrade --apply --yes` 落地
+   - 裁定完 → 重跑 `llmw wiki --path=... upgrade --apply --yes` 落地
 4. 查内容页 legacy + 跑修复（lint 侧）：
-    llmw wiki --path ~/wiki/llm-systems lint --check-version --json
+    llmw wiki --path=~/wiki/llm-systems lint --check-version --json
     → needs_upgrade: true；legacy 组（当前仅 type-memory-value）：
          - 3 处老格式 → agent 按 upgrade-workflow.md §6.1 用 Edit 落
-5. 验证：重跑 `llmw wiki --path ... upgrade` + `lint --check-version`
+5. 验证：重跑 `llmw wiki --path=... upgrade` + `lint --check-version`
     → needs_upgrade: false ✓ 完成；upgrade 退出 done；无残留冲突
 6. 清理 .bak（anchor TOML 重写产生点）：
     find "$LLM_WIKI_ROOT" -maxdepth 3 -name '*.bak' -delete

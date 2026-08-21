@@ -29,9 +29,7 @@ ingest_diff.py — 找出 raw/ 里需要 LLM 关注的文件
 - 2 = 运行错误
 """
 
-import argparse
 import json
-import os
 import re
 import sys
 from datetime import date
@@ -200,29 +198,8 @@ def raw_newer_than_source(raw_path: Path, source_page: Path) -> bool:
     return raw_date > upd_date
 
 
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Find files in raw/ that need LLM attention (untracked or, with --check-stale, updated)."
-    )
-    parser.add_argument("wiki_root", nargs="?", help="wiki 根目录；默认从 $LLM_WIKI_ROOT 读")
-    parser.add_argument("--json", action="store_true", help="以 JSON 数组形式输出")
-    parser.add_argument("--relative", action="store_true", help="输出相对 wiki_root 而非 raw/")
-    parser.add_argument(
-        "--check-stale",
-        action="store_true",
-        help="额外检查已摄取文件：raw mtime 晚于 source 页 updated → 标记 stale-raw（待重新摄取）",
-    )
-    args = parser.parse_args(argv)
-
-    # 决定 wiki_root
-    if args.wiki_root:
-        wiki_root = Path(args.wiki_root).expanduser().resolve()
-    elif os.environ.get("LLM_WIKI_ROOT"):
-        wiki_root = Path(os.environ["LLM_WIKI_ROOT"]).expanduser().resolve()
-    else:
-        print("ERROR: 需提供 wiki_root 参数或设置 $LLM_WIKI_ROOT", file=sys.stderr)
-        return 2
-
+def run(wiki_root: Path, *, as_json: bool = False, relative: bool = False, check_stale: bool = False) -> int:
+    """ingest-diff 业务入口（cli.py dispatch 直调；flag SSOT 在 llmw.cli argparse 树）。"""
     raw_root = wiki_root / "raw"
     if not raw_root.is_dir():
         print(f"ERROR: {raw_root} 不存在（wiki 还没 setup？）", file=sys.stderr)
@@ -238,7 +215,7 @@ def main(argv=None) -> int:
         rel_to_root = normalize_rel(p, wiki_root)
         if rel_to_root in ingested_paths:
             # 已摄取——仅 --check-stale 时看 raw 是否被更新过
-            if args.check_stale:
+            if check_stale:
                 for sp in src_map[rel_to_root]:
                     if raw_newer_than_source(p, sp):
                         pending.append((p, "stale-raw"))
@@ -253,10 +230,10 @@ def main(argv=None) -> int:
         pending.append((p, "untracked"))
 
     # 输出
-    if args.json:
+    if as_json:
         out = []
         for p, reason in pending:
-            rel = normalize_rel(p, wiki_root) if args.relative else normalize_rel(p, raw_root)
+            rel = normalize_rel(p, wiki_root) if relative else normalize_rel(p, raw_root)
             stat = p.stat()
             out.append(
                 {
@@ -273,7 +250,7 @@ def main(argv=None) -> int:
             print("All raw files are ingested. ✓")
         else:
             for p, _ in pending:
-                if args.relative:
+                if relative:
                     print(normalize_rel(p, wiki_root))
                 else:
                     print(normalize_rel(p, raw_root))
@@ -293,7 +270,7 @@ def main(argv=None) -> int:
 
     # log-only 异常提示
     log_only = [pr for pr in pending if pr[1] == "log-only-no-source-page"]
-    if log_only and not args.json:
+    if log_only and not as_json:
         print(file=sys.stderr)
         print(
             f"WARN: {len(log_only)} 个文件在 log.md 中有 ingest 记录但对应的 source 页缺失，建议重建：", file=sys.stderr
@@ -302,7 +279,3 @@ def main(argv=None) -> int:
             print(f"  {p}", file=sys.stderr)
 
     return 1 if pending else 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

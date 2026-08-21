@@ -140,10 +140,15 @@ def build_wiki(
 
 
 def run_check(root, extra_args=None, env=None):
-    """跑 `python -m llmw.content.wiki_fixtures --json`，返回 (exit_code, report_dict)。"""
-    cmd = [sys.executable, "-m", "llmw.content.wiki_fixtures"]
+    """跑 `llmw wiki --path=<root> check-fixtures --json`，返回 (exit_code, report_dict)。"""
+    cmd = [sys.executable, "-m", "llmw"]
     if root is not None:
-        cmd.append(str(root))
+        cmd.append("wiki")
+        cmd.append("--path=" + str(root))
+        cmd.append("check-fixtures")
+    else:
+        # 无显式 root：走 env fallback 路径（LLMW_WIKI_ROOT）
+        cmd.extend(["wiki", "check-fixtures"])
     cmd.append("--json")
     cmd.extend(extra_args or [])
     run_env = dict(os.environ, PYTHONPATH=str(REPO))
@@ -161,7 +166,7 @@ def run_check(root, extra_args=None, env=None):
         report = json.loads(proc.stdout)
     except ValueError:
         raise AssertionError(
-            f"模块未输出合法 JSON：exit={proc.returncode}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+            f"CLI 未输出合法 JSON：exit={proc.returncode}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
         ) from None
     return proc.returncode, report
 

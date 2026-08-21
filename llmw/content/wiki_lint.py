@@ -25,9 +25,7 @@ wiki_lint — deterministic 健康检查（llmw wiki lint）
 - 2 = 运行错误
 """
 
-import argparse
 import json
-import os
 import re
 import subprocess
 import sys
@@ -1927,50 +1925,29 @@ def _print_fixtures_check(fixtures_check: Dict[str, object], indent: str = "") -
             print(f"{indent}          rule: {rr}")
 
 
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Deterministic health check for a local LLM wiki.")
-    parser.add_argument("wiki_root", nargs="?", help="wiki 根目录；默认从 $LLM_WIKI_ROOT 读")
-    parser.add_argument(
-        "--severity", choices=["error", "warn", "info", "all"], default="all", help="过滤输出严重性（默认 all）"
-    )
-    parser.add_argument("--no-git", action="store_true", help="跳过 raw/ 的 git status 检查")
-    parser.add_argument(
-        "--check-version",
-        action="store_true",
-        help="扫描 wiki 的 format 版本（AGENTS.md §七）与已知 legacy 老格式现场；默认 dry-run。加 --apply 输出 upgrade plan（stdout JSON，不落盘），加 --json 输出机器可读 JSON。互斥模式。",
-    )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="与 --check-version 联用：输出机器可读 JSON 而不是人读报告",
-    )
-    parser.add_argument(
-        "--apply",
-        action="store_true",
-        help="与 --check-version 联用：把 upgrade plan 以 JSON 输出到 stdout 供 agent 修复（不落盘）",
-    )
-    args = parser.parse_args(argv)
+def run(
+    wiki_root: Path,
+    *,
+    severity: str = "all",
+    no_git: bool = False,
+    check_version: bool = False,
+    apply: bool = False,
+    json_mode: bool = False,
+) -> int:
+    """lint 业务入口（cli.py dispatch 直调；flag SSOT 在 llmw.cli argparse 树）。
 
-    # `--no-git` 与"自动检测"叠加：传了 `--no-git` 就完全不检测；不传时
-    # 脚本自动按 `.git/` 存在与否决定跑 / 跳。两种路径都允许，不强制用户
-    # 必须装 git 或必须 init 仓——保留"裸目录树 wiki 默认支持"立场。
-    effective_use_git = not args.no_git
-
-    if args.wiki_root:
-        wiki_root = Path(args.wiki_root).expanduser().resolve()
-    elif os.environ.get("LLM_WIKI_ROOT"):
-        wiki_root = Path(os.environ["LLM_WIKI_ROOT"]).expanduser().resolve()
-    else:
-        print("ERROR: 需提供 wiki_root 参数或设置 $LLM_WIKI_ROOT", file=sys.stderr)
-        return 2
-
+    no_git: 传 True 完全不检测 git；不传时按 `.git/` 存在与否自动决定
+    （裸目录树 wiki 默认支持——不强制用户装 git 或 init 仓）。
+    """
     if not (wiki_root / "wiki").is_dir():
         print(f"ERROR: {wiki_root}/wiki 不存在（wiki 还没 setup？）", file=sys.stderr)
         return 2
 
+    effective_use_git = not no_git
+
     # --check-version 是互斥模式：跑版本扫描，不跑常规 lint
-    if args.check_version:
-        return cmd_check_version(wiki_root, apply=args.apply, json_mode=args.json)
+    if check_version:
+        return cmd_check_version(wiki_root, apply=apply, json_mode=json_mode)
 
     # 跑所有检查
     all_findings = []  # type: List[str]
@@ -1997,8 +1974,8 @@ def main(argv=None) -> int:
     all_findings.extend(check_related_links(wiki_root))
 
     # 过滤
-    if args.severity != "all":
-        threshold = SEV_RANK[args.severity]
+    if severity != "all":
+        threshold = SEV_RANK[severity]
         all_findings = [f for f in all_findings if SEV_RANK[severity_of(f)] <= threshold]
 
     # 输出：跳过提示（INFO 级别但不受 --severity 过滤；让用户始终能看到）
@@ -2026,7 +2003,3 @@ def main(argv=None) -> int:
     print()
     print(f"Total: {len(all_findings)} finding(s)")
     return 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())

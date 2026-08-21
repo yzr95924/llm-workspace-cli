@@ -146,10 +146,11 @@ def build_workspace(
 
 
 def run_check(root, extra_args=None, env=None):
-    """跑 `python -m llmw.content.workspace_fixtures --json`，返回 (exit_code, report_dict)。"""
-    cmd = [sys.executable, "-m", "llmw.content.workspace_fixtures"]
+    """跑 `llmw --workspace=<root> check-fixtures --json`，返回 (exit_code, report_dict)。"""
+    cmd = [sys.executable, "-m", "llmw"]
     if root is not None:
-        cmd.append(str(root))
+        cmd.append("--workspace=" + str(root))
+    cmd.append("check-fixtures")
     cmd.append("--json")
     cmd.extend(extra_args or [])
     run_env = dict(os.environ, PYTHONPATH=str(REPO))
@@ -167,7 +168,7 @@ def run_check(root, extra_args=None, env=None):
         report = json.loads(proc.stdout)
     except ValueError:
         raise AssertionError(
-            f"模块未输出合法 JSON：exit={proc.returncode}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+            f"CLI 未输出合法 JSON：exit={proc.returncode}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
         ) from None
     return proc.returncode, report
 
@@ -451,9 +452,28 @@ class WorkspaceTomlReadsSatisfiedTest(unittest.TestCase):
         self.assertIn("templates_version", c["actual"])
 
     def test_missing_workspace_toml_skips(self):
+        """缺 workspace.toml → 该 check skip（passed=None）。
+
+        注：llmw CLI 入口对非 workspace 目录更严格（resolve_workspace_root 先拒），
+        到不了本 check；此处直调业务入口 run() 验证 check 自身语义。
+        """
         with tempfile.TemporaryDirectory() as tmp:
             build_workspace(tmp, workspace_toml=False)
-            _, report = run_check(tmp)
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "import sys; from pathlib import Path; "
+                    "from llmw.content.workspace_fixtures import run; "
+                    "sys.exit(run(Path(sys.argv[1]), as_json=True))",
+                    tmp,
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                env=dict(os.environ, PYTHONPATH=str(REPO)),
+            )
+            report = json.loads(proc.stdout)
         c = check_by_id(report, "workspace-toml-reads-satisfied")
         self.assertIs(c["passed"], None)
 
@@ -508,19 +528,27 @@ class CliBehaviorTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(report["workspace_root"], str(Path(tmp).resolve()))
 
-    def test_missing_root_and_env_exit_2(self):
-        proc = subprocess.run(
-            [sys.executable, "-m", "llmw.content.workspace_fixtures", "--json"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
-            env={
-                k: v
-                for k, v in dict(os.environ, PYTHONPATH=str(REPO)).items()
-                if k != "LLMW_WORKSPACE"
-            },
-        )
-        self.assertEqual(proc.returncode, 2)
+    def test_missing_root_and_env_exit_1(self):
+        """无 --workspace / $LLMW_WORKSPACE / 默认目录（HOME 重定向到空 tmp）→ 用户错误 exit 1。
+
+        （原模块 standalone 入口对缺 root 报 2；入口统一到 llmw 后走
+        WorkspaceNotFound → exit_code=1，属既定错误分层：用户错误 1 / 环境错误 2。）
+        """
+        with tempfile.TemporaryDirectory() as home_tmp:
+            proc = subprocess.run(
+                [sys.executable, "-m", "llmw", "check-fixtures", "--json"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                env={
+                    k: v
+                    for k, v in dict(
+                        os.environ, PYTHONPATH=str(REPO), HOME=home_tmp
+                    ).items()
+                    if k != "LLMW_WORKSPACE"
+                },
+            )
+        self.assertEqual(proc.returncode, 1)
 
     def test_json_report_schema(self):
         with tempfile.TemporaryDirectory() as tmp:
