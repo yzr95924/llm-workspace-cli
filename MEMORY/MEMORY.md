@@ -37,6 +37,7 @@
 
 - [format 版本号 bump：包内常量 + CI gate](format-version-bump-single-repo.md) — SSOT = `llmw/__init__.py` 常量；bump 判别式：现有实例需要 reconcile 才 bump；文档/重构不 bump
 - [三方边界关系图](boundary-map.md) — 用户 + CLI + workspace skill + wiki skill 四方依赖方向 + 生命周期 + 产物归属指针 + 新能力判归 6 步有序测试；新增归属决策时先查
+- [raw/external/ anchor 写路径归 CLI](external-anchor-cli-owned.md) — 红线唯一例外：`llmw wiki external` 子命令持有 anchor + symlink；target 仓本体永不触碰；notes 走机械 scribe
 
 ### 短条目（reminder，无需 why+how 展开）
 

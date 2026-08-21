@@ -58,12 +58,18 @@ VALID_TYPES = {
 # reviewed 字段仅在值为严格 `true` 时合法；缺省 / 其它值（含 "true" 字符串、yes、1、false）判非法
 WIKI_SUBDIRS = ("entities", "concepts", "sources", "comparisons", "syntheses")
 MEMORY_SUBDIR = "MEMORY"
-EXTERNAL_SUBDIR = "external"
-ANCHOR_FILENAME = ".symlink-anchor.toml"  # TOML 替代旧 .symlink-anchor.json
+# raw/external 与 source 命名共用同一 kebab-case 正则——SSOT 在 llmw.content.external_anchor（CLI
+# anchor 写路径持有该正则与子目录/文件名常量；lint 仅消费）。
+from llmw.content.external_anchor import (  # noqa: E402
+    ANCHOR_FILENAME,
+    EXTERNAL_SUBDIR,
+    SOURCE_NAME_RE,
+)
+from llmw.content.external_anchor import load as load_anchor  # noqa: E402
+
 DISCUSSIONS_SUBDIR = "discussions"  # raw/ 下用户 + LLM 协作草稿层；与 external/ 并列的 raw/ 写权限例外
 MD_LINK_RE = re.compile(r"!?\[([^\]]*)\]\(([^)]+)\)")
 EXTERNAL_URL_RE = re.compile(r"^(https?:|mailto:|//)")
-SOURCE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 # 绝对路径检测（Unix + Windows）——见 check_frontmatter 的 `sources-absolute-path` 用途。
 # - Unix 绝对路径：以 `/` 起始
@@ -244,104 +250,6 @@ def check_raw_immutable(wiki_root: Path, use_git: bool) -> List[str]:
     return (findings, "")
 
 
-def _parse_anchor(anchor_path: Path):
-    """解析 .symlink-anchor.toml；返回 List[Dict]（每个 entry 一条）或 None（损坏/无有效 entry）
-
-    顶层 [[entry]] 数组，每 entry 含 symlink / target / captured_at / kind 必填。
-    顶层 schema_version = <int>（可选）。返回前已过滤掉缺必填字段 / kind 非 'external-repo' 的 entry。
-
-    解析策略：手写最小 TOML 解析（避免 tomli/tomllib 依赖）——只支持 skill 实际写出的形态：
-      - `schema_version = 1`（顶层标量）
-      - `[[entry]]` 数组 of tables 头
-      - key = "value"（双引号字符串）
-      - # 注释（行首 / 行尾 `#` 之后）
-    """
-    try:
-        text = anchor_path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return None
-
-    entries = []  # type: List[Dict[str, str]]
-    current = None  # type: Optional[Dict[str, str]]
-    for raw_line in text.splitlines():
-        # 行内注释：仅在引号外剥离（skill anchor 实际写出的字符串不含 #，简化处理）
-        if "#" in raw_line:
-            # 找不在双引号内的 #；找到就切掉
-            in_str = False
-            cut = -1
-            for i, ch in enumerate(raw_line):
-                if ch == '"':
-                    in_str = not in_str
-                elif ch == "#" and not in_str:
-                    cut = i
-                    break
-            if cut >= 0:
-                raw_line = raw_line[:cut]
-        line = raw_line.rstrip()
-        stripped = line.strip()
-        if not stripped:
-            continue
-        # [[entry]] 数组 of tables 头
-        m = re.match(r"^\[\[(\w+)\]\]\s*$", stripped)
-        if m:
-            if current is not None:
-                entries.append(current)
-            current = {}
-            continue
-        # key = "value"
-        m = re.match(r'^([a-z_]+)\s*=\s*"((?:[^"\\]|\\.)*)"\s*$', stripped)
-        if m:
-            key, raw_val = m.group(1), m.group(2)
-            # 处理 TOML 字符串转义：\\ \" \n \t \r（其他保持原样）
-            val = re.sub(
-                r"\\(.)",
-                lambda mo: {
-                    "n": "\n",
-                    "t": "\t",
-                    "r": "\r",
-                    '"': '"',
-                    "\\": "\\",
-                }.get(mo.group(1), mo.group(1)),
-                raw_val,
-            )
-            if current is not None:
-                current[key] = val
-            # 顶层标量（如 schema_version）落到一个伪 dict 不予返回——仅 entry 数组有意义
-            continue
-        # key = bare value（int / bool）——顶层 schema_version 等
-        m = re.match(r"^([a-z_]+)\s*=\s*([0-9]+|true|false)\s*$", stripped)
-        if m:
-            # 顶层标量忽略；entry 内 bool/int 我们 schema 不需要
-            continue
-        # 未知行：lenient 跳过（不阻断；agent 写错时 lint 报 external-anchor-corrupt）
-
-    if current is not None:
-        entries.append(current)
-
-    if not entries:
-        return None
-
-    # 过滤有效 entry：最小必填 4 字段 + kind = 'external-repo'
-    valid = []  # type: List[Dict[str, str]]
-    for entry in entries:
-        if not isinstance(entry, dict):
-            continue
-        symlink = entry.get("symlink")
-        target = entry.get("target")
-        captured_at = entry.get("captured_at")
-        kind = entry.get("kind")
-        if not isinstance(symlink, str) or not symlink:
-            continue
-        if not isinstance(target, str) or not target:
-            continue
-        if not isinstance(captured_at, str):
-            continue
-        if kind != "external-repo":
-            continue
-        valid.append(entry)
-    return valid if valid else None
-
-
 def check_external_symlinks(wiki_root: Path) -> List[str]:
     """10. raw/external/ 下 symlink 的健康检查（扁平 + TOML anchor）
 
@@ -412,7 +320,7 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
                 f"{sorted(symlink_names)} 但缺 '{ANCHOR_FILENAME}'（必填）"
             )
         return findings
-    entries = _parse_anchor(anchor_path)
+    entries = load_anchor(anchor_path)
     if entries is None:
         findings.append(f"external-anchor-corrupt: raw/external/{ANCHOR_FILENAME} 解析失败或 0 个有效 entry")
         return findings

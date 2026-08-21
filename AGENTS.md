@@ -13,7 +13,9 @@ This file provides guidance to AI coding agents when working with code in this r
 - CLI **只**管元数据 + 启动 session；wiki 内部内容（ingest / lint / query）由
   [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm_workspace_cli/tree/master/yzr-llm-wiki-management)
   skill 在 session 内负责（skill 与 CLI 同仓）
-- CLI 包 `llmw/` **绝不写** `raw/` 与 `wiki/` 下任何文件——这条不变量贯穿全仓
+- CLI 包 `llmw/` 不写 `raw/` 与 `wiki/` 下任何文件，**唯一例外**：`raw/external/`
+  下的 `.symlink-anchor.toml` 与对应 symlink，且仅经 `llmw wiki external` 子命令的
+  注册表变换落盘；`notes` 字节由 agent 输入，机械 scribe
 
 ## 常用命令
 
@@ -85,6 +87,9 @@ llmw.cli (argparse + 分派)
   ├──▶ llmw.wiki.status        ──▶ llmw.wiki.byobu.list_windows（实时枚举带标窗口；workspace 缺失默认路径 → R8 孤儿清理模式）
   ├──▶ llmw.wiki.stop          ──▶ llmw.wiki.byobu.list_windows + kill_window
   │
+  ├──▶ llmw.content.external_anchor（`llmw wiki external add/remove/list/rebuild`）
+  │           └─▶ <wiki>/raw/external/{symlink, .symlink-anchor.toml}（注册表变换；target 仓永不触碰）
+  │
   └──▶ llmw.wiki.show / llmw.workspace.list  ──▶ resolve_for_wiki  (展示 model 来源)
 ```
 
@@ -97,11 +102,12 @@ llmw.cli (argparse + 分派)
 
 1. **代码永不创作内容语义**——CLI 写路径仅限三类字节：① 骨架渲染（字节来自包内
    `llmw/content/templates/` 模板 + metadata 变量，单一入口 `llmw.content.render`）；② 注册表
-   声明的纯函数变换（`workspace_models.toml` CRUD、overlay 启动配置、legacy 路径表
-   移动）；③ 机械 scribe（字节来自 agent `ingest-diff` / `write` 输入，agent 决定内容，
-   CLI 只负责 `log` 行追加 / `index` 条目挂载等无语义变换操作）。`raw/` / `wiki/` 内
-   **任何**需要 LLM 判断的写入都由 skill 在 session 内执行，CLI 绝不创作——这条红线
-   由 `llmw.content` 包封装所有确定性操作（见模块边界表 `llmw.content` 一行）。
+   声明的纯函数变换（`workspace_models.toml` CRUD、`raw/external/.symlink-anchor.toml`
+   + 对应 symlink CRUD（`llmw.content.external_anchor` 单入口）、overlay 启动配置、legacy 路径表
+   移动）；③ 机械 scribe（字节来自 agent `ingest-diff` / `write` / `external add --notes` 输入，
+   agent 决定内容，CLI 只负责 `log` 行追加 / `index` 条目挂载 / anchor entry 追加等无语义变换操作）。
+   `raw/` / `wiki/` 内**任何**需要 LLM 判断的写入都由 skill 在 session 内执行，CLI 绝不创作
+   ——这条红线由 `llmw.content` 包封装所有确定性操作（见模块边界表 `llmw.content` 一行）。
  2. **CLI 内联实现 wiki 创建**：原 `setup_wiki.py` 已删除（skill 迁移时随之移除）；
     CLI 通过 `llmw.wiki.init_wiki` 读包内 `llmw/content/templates/wiki/` 的
     `agents-md-template.md` / `claude-md-template.md` / `fixtures/*.txt`
@@ -128,7 +134,7 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 | `llmw.cli` | argparse + 全局 flag + 分派 | 不含业务逻辑 |
 | `llmw.backends` | backend 单一真源：`KNOWN_BACKENDS`（enter_cli 白名单 / 打标 / 校验共用）+ `STATE_PATTERNS`（status 的 STATE 模式注册表）+ `match_working`/`match_waiting`；加新 agent 只改此文件 | 不写盘、不做 tmux IO |
 | `llmw.config` | workspace 路径解析、SKILL 脚本路径、模板目录定位 | 不解析 workspace.toml |
-| `llmw.content` | **所有**确定性操作单仓收口：`render.py`（骨架渲染单一入口）/ `init_wiki.py`（渲染 + 编排）/ `upgrade.py`（升级引擎 + 3 终态）/ `wiki_fixtures.py` + `workspace_fixtures.py`（规则注册表 + 探测器）/ `wiki_lint.py` + `ingest_diff.py` + `wiki_write.py`（内容层命令）/ `legacy_paths.toml`（数据）。变量 SSOT = metadata toml + `__version__` 常量；不从旧文件反提取变量 | 不写 `raw/` / `wiki/` 语义内容；不调用 LLM；不读用户 git 状态；不写元数据 toml（`store` 负责） |
+| `llmw.content` | **所有**确定性操作单仓收口：`render.py`（骨架渲染单一入口）/ `init_wiki.py`（渲染 + 编排）/ `upgrade.py`（升级引擎 + 3 终态）/ `wiki_fixtures.py` + `workspace_fixtures.py`（规则注册表 + 探测器）/ `wiki_lint.py` + `ingest_diff.py` + `wiki_write.py` + `external_anchor.py`（内容层命令；anchor + symlink 写路径唯一入口）/ `legacy_paths.toml`（数据）。变量 SSOT = metadata toml + `__version__` 常量；不从旧文件反提取变量 | 不写 `raw/` / `wiki/` 语义内容（除上文红线例外的 `raw/external/` anchor + symlink）；不调用 LLM；不读用户 git 状态；不写元数据 toml（`store` 负责） |
 | `llmw.errors` | 自定义异常（按 exit_code 1/2/3 分层） | — |
 | `llmw.fsutil` | 原子写（tmp + fsync + rename）、ISO8601 时间 | — |
 | `llmw._compat` | tomllib (3.11+) / tomli (<3.11) 兼容层 + 手写 toml dump | — |
@@ -240,7 +246,8 @@ agent CLI 子进程透传 `os.environ`、依赖 Local 层 `env` 块优先级稳�
 
 ## 开发注意事项
 
-- **不要写 wiki 内容**：任何对 `raw/` 或 `wiki/` 的写入都是违反不变量 I-1 的。
+- **不要写 wiki 内容**：除 `raw/external/` 的 anchor + symlink（红线唯一例外，仅经
+  `llmw wiki external` 命令）外，任何对 `raw/` 或 `wiki/` 的写入都是违反不变量 I-1 的。
 - **不要复活 setup_wiki.py**：已删除（skill 侧明确），wiki 骨架由 CLI 内联生成
   （读包内 `llmw/content/templates/`）；不要"为了模块化"把渲染拆回脚本。
 - **不要在 `llmw.content` 之外做骨架渲染**：所有确定性操作（render / checker

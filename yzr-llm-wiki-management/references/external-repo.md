@@ -1,40 +1,38 @@
 # raw/external/——外部代码仓接入与跨主机重建
 
-> **维护方**：**用户**。CLI 不管理其内容；目录何时创建是 CLI 的自由。本文件只定义
-> 它存在时的语义与操作契约。用户通过 LLM agent 协助或自行用 `ln -s` + 手写/追加
-> `.symlink-anchor.toml` 接入。
+> **维护方**：**用户**掌握接入决策（接哪台仓、叫什么名、何时 re-ingest）；
+> **symlink + anchor 的创建/删除/重建**一律走 `llmw wiki external` 子命令（CLI 持有
+> 写路径；schema SSOT 在 `llmw.content.external_anchor`）。CLI target 仓本体永不触碰。
 
 外部代码仓（如 Linux kernel、Ray 源码）作为原始语料纳入 wiki 时，**不**做仓库内嵌
 拷贝（避免占用空间），而是走 **symlink + 锚定元数据**：
 
-## 一、首次接入（LLM 主导）
+## 一、首次接入
 
-> **本文件的角色**：承载操作流程与 schema 示例；wiki 根的纪律约束由 `AGENTS.md` 承载（会话常驻）。
+> **本文件的角色**：承载操作流程 + schema 示例；wiki 根的纪律约束由 `AGENTS.md` 承载（会话常驻）。
 
-### §1.1 schema 完整示例
+接入流程（LLM 主导命名协商 + notes 文本；机械操作交 CLI）：
+
+1. 与用户确认 symlink `--name`（kebab-case）+ target 路径
+2. `llmw wiki external add <target> --name=<n> [--notes=<...>]`
+
+CLI 自动完成：验证 target 存在 → git 仓则读 `remote_url`/`branch`（非 git 也允许，
+身份字段省略 + warn）→ 建 symlink → 原子追加 anchor entry（`captured_at` 自动
+填当天、target 在 `$HOME` 下存 `~/...` 形式）。
+
+### §1.1 schema 示例（CLI 生成字节，本文档仅作快速参考）
 
 ```toml
 schema_version = 1
 
-# linux-kernel 仓
 [[entry]]
-symlink = "linux-kernel"           # 对应 raw/external/linux-kernel symlink
+symlink = "linux-kernel"           # 对应 raw/external/linux-kernel 同名 symlink
 target = "~/src/linux-kernel"      # 推荐 ~/... home-relative
-captured_at = "2026-07-07"         # 接入当天
+captured_at = "2026-08-22"         # 接入当天 YYYY-MM-DD
 kind = "external-repo"             # 当前唯一支持的 kind
-remote_url = "https://github.com/torvalds/linux.git"  # git 身份字段（可选）
-branch = "master"                  # git 身份字段（可选）
+remote_url = "https://github.com/torvalds/linux.git"  # 可选，git 仓自动读
+branch = "master"                  # 可选，git 仓自动读
 
-# ray 仓
-[[entry]]
-symlink = "ray"
-target = "~/src/ray"
-captured_at = "2026-07-05"
-kind = "external-repo"
-remote_url = "https://github.com/ray-project/ray.git"
-branch = "master"
-
-# notes 字段可选
 [[entry]]
 symlink = "my-til"
 target = "~/src/my-til"
@@ -43,17 +41,16 @@ kind = "external-repo"
 notes = "个人 TIL 仓库，按需重 ingest"
 ```
 
-> **字段规则 SSOT** = wiki 根 `AGENTS.md` 的 `raw/external/` 节（会话常驻）+ 本文件 §1.2 schema 示例——最小必填 4 字段（`symlink` / `target` / `captured_at` / `kind: "external-repo"`）+ 可选 git 身份字段（`remote_url` / `branch`）；`target` 推荐 `~/...` 形式以跨主机可移植；**不**记 `commit`；`notes` 任何场景都不强制。
+> **字段语义 SSOT** = `llmw.content.external_anchor.save()`；`AGENTS.md`
+> `raw/external/` 节（会话常驻）作参考。最小必填 4 字段（`symlink` / `target` /
+> `captured_at` / `kind="external-repo"`）+ 可选 git 身份字段（`remote_url` /
+> `branch`）+ 可选 `notes`；`target` 推荐 `~/...` 形式以跨主机可移植；**不**记
+> `commit`（anchor 记录"接入意图"，commit 是机器快照会腐坏）。
 
-### §1.2 操作 5 步（LLM 主导首次接入）
+### §1.2 检视 / 移除
 
-1. 与用户确认 symlink 名（如 `linux-kernel`）+ target 路径
-2. 验证 target 是 git 仓（`git -C <target> rev-parse --is-inside-work-tree`）
-3. 读 `remote_url` / `branch` 两个值（git 命令）
-4. `mkdir -p raw/external && ln -s <target> raw/external/<symlink>`（**扁平**，
-   不要在 `external/<source-name>/` 下再开子目录）
-5. **读**现有 `.symlink-anchor.toml`（如有）；**追加**新 `[[entry]]` 块；
-   **写回**整个文件；首次创建则写完整文件含 `schema_version = 1` 顶层字段
+- `llmw wiki external list [--json]`：NAME/TARGET/REMOTE/BRANCH/STATUS（ok/missing/dead/drift）
+- `llmw wiki external remove <name>`：删 entry + 删 symlink（路径是普通文件/目录会被拒——用户资产保护；target 仓本体永不触碰）
 
 ### §1.3 `sources:` 元素类型（external 特化）
 
@@ -83,11 +80,9 @@ anchor 文件**进 git** 是这一机制的根：
 - symlink 本身是机器相关的——即使是 `~/src/linux-kernel` 在新机器也要重建
   （home-relative 仅指同 home 布局的逻辑路径，跟机器绑定的文件系统不是一回事）
 - anchor 的 `remote_url` / `branch` 身份字段是**跨主机稳定**的——
-  任何机器上的 LLM 读 anchor 都可还原"接入意图"（远端 + 分支）
+  任何机器上读 anchor 都可还原"接入意图"（远端 + 分支）
 - anchor 的 `target` 字段（推荐 `~/...` 形式，兼容绝对路径）——同 home
-  布局的新机器直接可用；跨 home 布局的机器 LLM 重写。这正是
-  `.symlink-anchor.toml` 与 symlink 解耦的价值：**anchor 描述意图、
-  symlink 描述当前主机的具体绑定**
+  布局的新机器直接可用；跨 home 布局的机器用 `--target=NAME=PATH` 覆盖
 - anchor 是单文件 `[[entry]]` 数组——多仓共用一份 anchor，跨主机重建
   也是扫这一个文件
 - **不**记 `commit`——wiki 跟随活跃仓的 live 状态而非历史快照
@@ -100,81 +95,39 @@ anchor 文件**进 git** 是这一机制的根：
 | 跑 `llmw wiki lint` 时大量 `external-target-dead` | target 路径在新机器不存在 |
 | 用户主动在新机器重建（"我换了电脑 / 加了一台机器"） | 同上 |
 
-### §2.3 重建步骤（agent 驱动）
-
-新机器的 LLM agent 跑下列流程：
-
-#### Step 1 — 读 anchor
+### §2.3 重建：一条命令 + 一次确认
 
 ```bash
-# 找到 anchor
-test -f raw/external/.symlink-anchor.toml && echo "anchor 存在"
+# 同 home 布局：直接重建
+llmw wiki external rebuild --yes
+
+# 跨 home 布局（新主机路径与 anchor target 不一致）：
+# 用 --target=NAME=PATH 覆盖（可重复），anchor 自动回写 ~/... 形式
+llmw wiki external rebuild --target=linux=/home/new-user/src/linux --yes
+
+# 不带 --yes：TTY 单次确认；非 TTY 无 --yes 只打计划 + exit 2 不动手
+llmw wiki external rebuild
 ```
 
-每个 entry 的 `remote_url` / `branch` 身份字段（§1.2）是重建的凭据；
-若缺了它们，跨 home 布局时只能与用户确认远端与分支（字段可选）。
+rebuild 自动处理：symlink ok → skip；symlink 缺/dead/drift 但 target 存在 → relink；
+target 不存在且有 `remote_url` → `git clone <remote_url> <path>` + `checkout <branch>`
++ 创建 symlink；target 不存在且无 `remote_url` → 报 `unrebuildable`（用 `--target`
+覆盖或手工处理）。
 
-#### Step 2 — 决定目标路径
-
-约定每个 entry 的 symlink 名 `<symlink>`（kebab-case，与 anchor entry 的
-`symlink` 字段对应）的 target 落在新机器的 `~/src/<symlink>/`（可与用户协商改其他路径）。
-本字段会写入 anchor entry 的 `target`（推荐 `~/...` 形式，让同 home 布局的同 wiki
-仓的其它机器共享）：
+### §2.4 验证
 
 ```bash
-SYMLINK_NAME="linux-kernel"            # 对应 anchor entry 的 symlink 字段
-TARGET_ABS="$HOME/src/${SYMLINK_NAME}"  # git clone 的真实落地路径
-TARGET_ANCHOR="~/src/${SYMLINK_NAME}"   # 写回 anchor 的 target 字段
-```
-
-#### Step 3 — clone + checkout
-
-```bash
-git clone "$remote_url" "$TARGET_ABS"
-cd "$TARGET_ABS"
-git checkout "$branch"  # 切到 anchor 记录的分支（缺 branch 时默认远端默认分支）
-```
-
-#### Step 4 — 创建 symlink + 更新 anchor（**扁平布局**）
-
-```bash
-# symlink 直接放在 raw/external/ 顶层，不要开 <source-name>/ 子目录
-mkdir -p raw/external
-ln -s "$TARGET_ABS" "raw/external/${SYMLINK_NAME}"
-```
-
-最后**用 `~/...` 形式覆盖 anchor entry 的 `target` 字段**（推荐形式；老
-anchor 写绝对路径也兼容）。anchor 是 TOML 单文件，**只改本 entry 的 target**，
-不要触碰其他 entry + 不改 `remote_url` / `branch` 身份字段：
-
-用 `Edit` 工具定位本 entry 的 `target = "..."` 行做单行替换（用 surrounding 上下文——
-本 entry 的 `symlink = "<name>"` 行——确保唯一匹配；保留 entry 顺序 / 注释 /
-字段顺序，跨机器 diff 干净）。
-
-> 为什么不用 `tomllib.dump` 整文件重写：会丢注释、丢字段顺序、跨机器 diff 噪音。
-> anchor 是跨主机重建凭据，必须 byte-stable 的局部改写。
-
-`remote_url` / `branch` 身份字段**保持原值不动**——它们是接入意图，不是机器状态。
-
-#### Step 5 — 验证
-
-```bash
-# symlink 是否能解析到 target
-readlink -f "raw/external/${SYMLINK_NAME}"
-
-# lint 跑通（不应再报 external-target-dead / external-symlink-missing）
-# 注意 lint 端会做 Path(target).expanduser()，所以 '~/src/...' 形式 + 同 home 布局下不报 dead
-llmw wiki --path=. lint
+llmw wiki external list            # STATUS 应全 ok
+llmw wiki lint                     # external-* findings 应为 0
 ```
 
 ---
 
 ## 三、与日常接入的关系 / 漂移
 
-- **首次接入**（用户说"把 X 仓纳入 wiki"）：§一；LLM 在**原机器**跑 5 步接入（读
-  现有 anchor → 追加 `[[entry]]` 块）
-- **跨主机重建**（在新机器复现）：§二；LLM 在**新机器**跑 5 步重建
-  （每个 anchor entry 各自 Step 3-4 一遍）
+- **首次接入**（用户说"把 X 仓纳入 wiki"）：§一；LLM 在**原机器**跑
+  `llmw wiki external add`（命名协商 + 可能 notes 文本由 LLM 决策）
+- **跨主机重建**（在新机器复现）：§2.3；新主机 `llmw wiki external rebuild`
 - **漂移刷新**（用户日常 `git pull` 触发）：**不做**自动漂移检测——
   `remote_url` / `branch` 身份字段极少变化，无需刷新；"摘要是否过期"由用户判断，
   需要时重 ingest 对应 source 页（`target` 字段不动）
@@ -185,12 +138,20 @@ llmw wiki --path=. lint
 
 - **不要把 symlink 文件本身 commit 进 git**——已由 `.gitignore` 排除，强行 `--force`
   add 会污染仓
+- **不要手改 `.symlink-anchor.toml`**——CLI 持有 schema SSOT；手写违反
+  `_validate_entry` 校验；lint 会报 `external-anchor-corrupt`。要改走 `external add/remove`
+- **不要用 `llmw wiki external remove` 删"孤儿 symlink"**——CLI 只删注册表声明
+  的东西；孤儿（anchor 无对应 entry）请手工 `rm` + 排查原因
 
 ## 五、失败兜底
 
 | 现象 | 原因 | 处理 |
 | --- | --- | --- |
-| `git clone` 失败：remote not found | `remote_url` 拼错 / 已删除 / 私有 repo 缺凭据 | 检查 remote_url；私有 repo 配 SSH key 或 token |
-| `readlink -f` 显示 anchor 路径不存在 | symlink 写错 / target 未建好 | 检查 step 3 4 路径字面量 |
-| `llmw wiki lint` 报 `external-symlink-missing` | anchor entry 有但 symlink 未建（Step 4 漏跑 / 失败） | 回到 Step 4 补建 symlink |
-| 找不到 `git` CLI | 新机器没装 git | 装 git 后重跑；`git clone` 依赖 git CLI |
+| `llmw wiki external add` 报"target 不存在" | target 路径拼错 / 未创建 | 核对路径；非本机路径先 clone / mkdir |
+| `llmw wiki external add` warn "target 不是 git 仓" | target 不在 git 内 | 可继续 add（`remote_url`/`branch` 省略）；若 target 应是 git 仓则检查 target |
+| `llmw wiki external remove` 报"路径是普通文件/目录，拒绝删除" | 路径被覆盖成真实文件，可能是用户资产 | 手工核对后决定：若是资产用 `mv` 保留；若真是要删的 symlink 先排查 |
+| `llmw wiki external rebuild` 报 "clone ... failed" | remote_url 失效 / 私有 repo 缺凭据 / 网络问题 | git 配 SSH key 或 token；网络修复后重跑 |
+| `llmw wiki external rebuild` 报"unrebuildable" | target 不存在且 anchor 无 remote_url | 用 `--target=NAME=PATH` 指定本地路径；或手工 `llmw wiki external remove <name>` 后再 `add` |
+| `llmw wiki lint` 报 `external-symlink-missing` | anchor 有 entry 但 symlink 未建（重建漏跑 / 失败） | `llmw wiki external rebuild --yes` |
+| `llmw wiki lint` 报 `external-target-drift` | target 被迁移（`mv` 过）但 anchor target 字段没更新 | 手工编辑 anchor（罕见场景；CLI 不提供 edit 子命令）或 remove + add 到正确路径 |
+| `llmw wiki external ...` 报 "git 不在 PATH" | 新机器没装 git | 装 git 后重跑；add 时身份字段会省略，rebuild 无法 clone |

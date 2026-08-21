@@ -14,7 +14,7 @@ description: |
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  wiki_format_version: 0.40.0
+  wiki_format_version: 0.41.0
 ---
 
 # LLM Wiki Management
@@ -201,11 +201,11 @@ index 更新 / N 条 log。5 步流程 + 为什么批处理 + log 标题前缀 `
 
 **外部代码仓作为语料**——若用户说"把 X 仓库纳入 wiki"：**不**内嵌拷仓，走
 [`external-repo.md`](references/external-repo.md) 的 symlink 路径
-（`raw/` 总纪律的**写权限例外之一**——LLM 主导接入；另一处例外是 `raw/discussions/`
-协作草稿，见 ingest-workflow.md §10）。
-5 步接入（确认 symlink/target → LLM 验证 → 读
-git 身份字段 → 创建 symlink + 写 anchor → 后续 `llmw wiki ingest-diff` 扫描）+ 漂移刷新 + 跨主机
-重建见 [`references/external-repo.md`](references/external-repo.md)。
+（`raw/` 总纪律的**写权限例外之一**——symlink + anchor 一律经 `llmw wiki external`
+CLI 子命令落盘；另一处例外是 `raw/discussions/` 协作草稿，见 ingest-workflow.md §10）。
+接入命令：`llmw wiki external add <target> --name=<n> [--notes=...]`（CLI 自动建 symlink +
+读 git 身份字段 + 原子写 anchor）；随后 `llmw wiki ingest-diff` 扫描；漂移刷新 /
+跨主机重建（`llmw wiki external rebuild`）见 [`references/external-repo.md`](references/external-repo.md)。
 
 ### 2. Query（跨页综合）
 

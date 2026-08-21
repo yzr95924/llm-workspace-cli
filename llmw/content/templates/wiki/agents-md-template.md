@@ -56,30 +56,42 @@
   └── ray                          # symlink → ~/src/ray
   ```
 
-- **纪律（用户 + LLM 共有）**：
-  - **每 entry 最小必填 4 字段**：`symlink`（kebab-case，对应 `raw/external/`
-    同名 symlink）+ `target`（**推荐 `~/src/<name>` home-relative 形式**；
-    也接受绝对路径，lint 端 `Path(target).expanduser()` 统一展开判定）+
-    `captured_at`（接入当天）+ `kind: "external-repo"`
-  - **git 身份字段（可选）**：target 在 git 仓内时推荐记 `remote_url` + `branch`
-    ——跨机器重建软链接时用；不记 commit
-  - anchor / symlink 的漂移（缺 anchor、解析失败、孤儿 symlink、target 失效、
-    子目录布局等）由 `llmw wiki lint` 机械探测，check 名以 lint 输出为准
-  - LLM agent **可写** symlink + anchor（首次接入 + 漂移刷新）——这是 `raw/`
-    总纪律的**写权限例外之一**；首次接入走标准 ingest 流程（建 symlink + anchor →
-    建 source 页 → 追加 log 条目 → 同步 index）
-  - **target 仓内文件按角色分**：**wiki 维护操作**（ingest / query / lint /
-    upgrade）中 target 只读（librarian 角色，不在仓内跑 `git pull` 之类）；**用户明确要求
-    的开发协作**（修 bug / 重构 / 仓内 git 操作）**不**属 wiki 操作、**不**受 raw/ 只读约束
-    ——target 在 wiki 仓外、有其自身 git、由用户全权处置。代码改动后的 wiki 同步走**既有通道**
-    （用户确认 → 受影响 source 页重 ingest）。
-    **禁止**以"开发协作"为借口在 wiki 维护操作中顺手改 target
-  - LLM **不**编辑 `raw/external/` 之外的 `raw/` 子树（articles / papers / assets /
-    clippings 等仍"LLM 只读"；`discussions/` 是另一处写权限例外——见下节）
+- **写路径收编（本仓唯一 `raw/` 写权限例外）**：symlink 与 anchor 的
+  创建 / 删除 / 重建**一律**走 `llmw wiki external` 子命令；LLM **不**手改
+  `.symlink-anchor.toml`：
+  - 首次接入：`llmw wiki external add <target> --name=<n> [--notes=...]`
+    ——注册 entry + 建 symlink；git 仓库自动读 `remote_url`/`branch`（非 git 也允许，
+    身份字段省略）；`target` 必须已存在、永不触碰 target 仓本体
+  - 移除：`llmw wiki external remove <name>`——删 entry + 删 symlink；
+    路径若是普通文件/目录会被拒（用户资产保护）；target 仓本体永不触碰
+  - 检视：`llmw wiki external list [--json]`——NAME/TARGET/REMOTE/BRANCH/STATUS
+  - 跨主机重建：新机器 `git clone` wiki 仓后 symlink 全丢，跑
+    `llmw wiki external rebuild [--target=NAME=PATH ...] [--yes]` 按 anchor 重建
+    （target 不存在时按 `remote_url` clone + checkout `branch`；跨 home 布局用
+    `--target=NAME=PATH` 覆盖，anchor 回写 `~/...` 形式）
+- **字段语义（agent 需读懂；schema SSOT 在 CLI，本文档仅作快速参考）**：
+  - 最小必填 4 字段：`symlink`（kebab-case `^[a-z0-9][a-z0-9-]*$`，
+    对应 `raw/external/` 同名 symlink）+ `target`（**推荐 `~/src/<name>`
+    home-relative**；也接受绝对路径）+ `captured_at`（接入当天 YYYY-MM-DD）+
+    `kind: "external-repo"`
+  - git 身份字段（可选）：`remote_url` + `branch`——跨机器 clone 重建时用；**不**
+    记 commit（anchor 记录"接入意图"，commit 是机器快照会腐坏）
+  - `notes`（可选）：agent 自由文本，机械 scribe 入 anchor
+- anchor / symlink 漂移（缺 anchor、解析失败、孤儿 symlink、target 失效、子目录
+  布局、target 与 symlink 解析不一致）由 `llmw wiki lint` 机械探测，check 名以 lint
+  输出为准
+- **target 仓内文件按角色分**：**wiki 维护操作**（ingest / query / lint / upgrade）
+  中 target 只读（librarian 角色，不在仓内跑 `git pull` 之类）；**用户明确要求
+  的开发协作**（修 bug / 重构 / 仓内 git 操作）**不**属 wiki 操作、**不**受 raw/ 只读约束
+  ——target 在 wiki 仓外、有其自身 git、由用户全权处置。代码改动后的 wiki 同步走**既有通道**
+  （用户确认 → 受影响 source 页重 ingest）。
+  **禁止**以"开发协作"为借口在 wiki 维护操作中顺手改 target
+- LLM **不**编辑 `raw/external/` 之外的 `raw/` 子树（articles / papers / assets /
+  clippings 等仍"LLM 只读"；`discussions/` 是另一处写权限例外——见下节）
 - `.gitignore` 配置：已排好 `raw/external/*` 排除但保留 `.symlink-anchor.toml`——
-  跨机器 clone 时通过 anchor 立即知道"这本来指着哪"；anchor 的
-  `remote_url` + `branch` 让新主机 LLM 可重建（重建 = 按 anchor 重建
-  symlink → 重 ingest 受影响 source 页）
+  跨机器 clone 时通过 anchor 立即知道"这本来指着哪"；新主机跑
+  `llmw wiki external rebuild` 即按 anchor `remote_url` + `branch` 自动重建
+  （clone target 不在时）+ 重 ingest 受影响 source 页
 
 #### `raw/discussions/` —— 协作草稿层（用户 + LLM 双方可写）
 

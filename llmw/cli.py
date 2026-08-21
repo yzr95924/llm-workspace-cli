@@ -426,6 +426,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _write_subs(write_sub)
 
+    # external：raw/external/ anchor + symlink 注册表变换（CLI 写路径）
+    pw_ext = wiki_sub.add_parser(
+        "external",
+        help="raw/external/ anchor + symlink（add / remove / list / rebuild）",
+        parents=[common],
+    )
+    from llmw.content.external_anchor import build_subparsers as _ext_subs  # noqa: E402
+
+    ext_sub = pw_ext.add_subparsers(
+        dest="external_cmd", metavar="ACTION", required=True
+    )
+    _ext_subs(ext_sub)
+
     return parser
 
 
@@ -548,6 +561,11 @@ def _cmd_wiki_content(args) -> int:
     if wa == "write":
         return wiki_write.dispatch(root, args)
 
+    if wa == "external":
+        from llmw.content import external_anchor
+
+        return external_anchor.dispatch(root, args)
+
     return 1
 
 
@@ -579,6 +597,7 @@ def main(argv=None) -> int:
             "ingest-diff",
             "upgrade",
             "write",
+            "external",
         ):
             return _cmd_wiki_content(args)
 

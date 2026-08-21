@@ -264,7 +264,9 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 3. 修完后**重新跑 lint 验证**——不要带着 fix 没验过的状态前进
 4. 若启用 git，重大修复 commit 时建议加 `lint: <summary>` 前缀；裸目录树 wiki 跳过 commit 步骤
 5. **若跑 fixtures-check**——按 [`upgrade-workflow.md` §6.4](upgrade-workflow.md) 区分 CLI 骨架 vs agent 语义合并；
-   `fixtures-fix-*` 系列（anchor-schema / symlink-matches / log-format 等当前格式维护）可通过 Edit 落，按各自 `to_action` 字段 + [`external-repo.md`](external-repo.md) §一 等 schema 指针操作
+   `fixtures-fix-*` 系列（anchor-schema / symlink-matches / log-format 等当前格式维护）：anchor 类
+   走 `llmw wiki external add/remove/rebuild` 命令（CLI 持有 schema SSOT，参考 [`external-repo.md`](external-repo.md) §二）；
+   log-format 等纯骨架字段按 `to_action` 字段 + schema 指针用 Edit 落
 
 ## 七、lint 频率
 
