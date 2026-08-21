@@ -5,7 +5,7 @@
 finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 gate 红。
 语义面（行为描述如"只扫不修"）gate 管不到，靠纪律人工保证。
 
-检查面（4 类）：
+检查面（5 类）：
   1. 命令调用（skill + 模板 + 仓根文档 → CLI）：skill markdown / byte-owned
      模板（llmw/content/templates 全 md + fixtures *.txt）/ 仓根 AGENTS.md +
      CLAUDE.md + README.md 里的 `llmw ...` 调用，子命令路径 + flag 必须存在于
@@ -22,6 +22,10 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
      指针 → 对应 skill 文件与小节标题必须存在
   4. 终态词 / JSON 字段（skill → CLI）：upgrade-workflow 提到的终态词与 plan
      字段必须在 upgrade.py / wiki_lint.py 字面量存在
+  5. 裸 semver（skill + 模板 + 仓根文档）：prose 内不得出现裸版本号
+     ``v?\\d+\\.\\d+\\.\\d+``（bump 版本时漏改 prose 即静默腐烂）；豁免
+     ``wiki_format_version:`` 键行（SSOT 本身）与 ``upgrade-workflow.md`` 整
+     文件（按设计它是唯一允许锚定历史版本的文件，头部规矩保证新迁移锚点只落此处）
 
 命令表面 SSOT = llmw.cli.build_parser() 单一 argparse 树（write 子树经
 llmw.content.wiki_write.build_subparsers 组合；无模块 standalone 入口）。
@@ -66,6 +70,12 @@ INLINE_CMD_RE = re.compile(r"`(llmw[^`\n]*)`")
 # 跨行允许的正则——仅用于"发现本该行内命令被换行切开"的检查；非贪婪 + 排除
 # 单引号内 backtick，DOTALL 让 . 匹配换行。
 WRAPPED_INLINE_RE = re.compile(r"`(llmw[^`]*?)`", re.DOTALL)
+# 裸 semver —— bump wiki_format_version 时漏改 prose 会静默腐烂（无 lint 兜底）；
+# 豁免：SKILL frontmatter 的 wiki_format_version: / workspace_format_version: 键行
+# （SSOT 本身）+ upgrade-workflow.md 整文件（按设计它是唯一允许锚定历史版本的文件）。
+SEMVER_RE = re.compile(r"\bv?\d+\.\d+\.\d+\b")
+SEMVER_KEY_SKIP_RE = re.compile(r"^\s*(?:wiki|workspace)_format_version\s*:")
+SEMVER_FILE_SKIP = {"upgrade-workflow.md"}
 RULE_REF_RE = re.compile(
     r"(SKILL\.md|(?:upgrade-workflow|page-templates|lint-checklist|ingest-workflow"
     r"|query-workflow|external-repo|examples)\.md)(?:\s*§([一二三四五六七八九十0-9][0-9.]*)?)?"
@@ -297,6 +307,7 @@ def main():  # pylint: disable=too-many-branches
         "bwd_findings": 0,
         "rule_refs": 0,
         "tokens": 0,
+        "semver": 0,
     }
 
     # --- 1. 命令调用（含风格检查：带值 flag 必须等号形式；含跨行断命令检查）---
@@ -334,6 +345,22 @@ def main():  # pylint: disable=too-many-branches
                     rel, " ".join(span.split())
                 )
             )
+
+    # --- 2.5. 裸 semver（时间性信息不得内联 prose） ---
+    for md in CONTRACT_MDS:
+        if md.name in SEMVER_FILE_SKIP:
+            continue
+        rel = _rel(md)
+        for lineno, line in enumerate(_read(md).splitlines(), start=1):
+            if SEMVER_KEY_SKIP_RE.match(line):
+                continue
+            if SEMVER_RE.search(line):
+                stats["semver"] += 1
+                errors.append(
+                    "[semver] {}:{} :: 裸版本号不得内联 prose（bump 版本时漏改 = 静默腐烂）：{}".format(
+                        rel, lineno, line.strip()[:80]
+                    )
+                )
 
     # --- 2. finding 名 ---
     src_findings = _findings_in_src()
@@ -395,12 +422,13 @@ def main():  # pylint: disable=too-many-branches
     # --- 报告 ---
     print(
         "contract (skill+templates+repo-docs → CLI): {} cmd, {} fwd findings, "
-        "{} bwd findings, {} rule_refs, {} tokens".format(
+        "{} bwd findings, {} rule_refs, {} tokens, {} semver".format(
             stats["cmds"],
             stats["fwd_findings"],
             stats["bwd_findings"],
             stats["rule_refs"],
             stats["tokens"],
+            stats["semver"],
         )
     )
     if errors:

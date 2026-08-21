@@ -3,7 +3,7 @@
 CLI 实现 wiki 仓时落盘的 `wiki/index.md` / `wiki/log.md` / `wiki/tags.md`
 / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` / `.gitignore` 六个文件的**字节金标准**。
 同仓后 fixtures 是唯一字节金标准（跨仓时代的 `references/canonical/` 双份已删）。
-0.37.0 起各 fixture 头部说明块承载该文件的**操作纪律 canonical**（原在 AGENTS.md 模板
+从引入各 fixture 头部说明块开始，它们承载该文件的**操作纪律 canonical**（原在 AGENTS.md 模板
 §一各段与 skill 格式契约——规则跟着维护者走，落盘进实例 agent 直接读）。
 
 ## 用法
