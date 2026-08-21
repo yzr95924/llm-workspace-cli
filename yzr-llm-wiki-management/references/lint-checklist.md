@@ -86,7 +86,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
   Windows 盘符 / UNC 三种）——破坏跨机器可移植性。修法：改 wiki 根相对 raw/ 路径
 - `sources-out-of-root`（error）：sources 路径解析后不在 wiki 根下（路径穿越）——修法：改
   wiki 根相对路径
-- **`raw/external/<symlink>/...` 例外**（详见 external-repo.md §1）：以 `raw/external/` 起始时走
+- **`raw/external/<symlink>/...` 例外**（详见 external-repo.md §二）：以 `raw/external/` 起始时走
   关联校验链——`sources-malformed`（段数 < 3）/ `sources-external-anchor-missing`
   （缺 anchor）/ `sources-external-symlink-missing`（symlink 不存在）/
   `sources-missing`（跟随 symlink 后不可访问；external repo 是 git 仓即目录，可指向整仓）

@@ -108,7 +108,7 @@ metadata:
 
 - 跨 wiki 互引但不更新对端 index（同步是用户责任）
 
-> 其余反模式以 wiki 根 `AGENTS.md` + [`references/external-repo.md`](references/external-repo.md) §二 为准。
+> 其余反模式以 wiki 根 `AGENTS.md` + [`references/external-repo.md`](references/external-repo.md) §五 为准。
 
 ### 反合理化三件套（纪律型 skill 必带）
 

@@ -13,7 +13,7 @@ metadata:
 变换落盘。`notes` 字节由 agent 输入，机械 scribe。
 
 **Why:** anchor 写路径是仓内**唯一**一处"注册表但非 CLI 持有"的残留——schema SSOT
-原来在两处散文（`AGENTS.md` raw/external 节 + `external-repo.md` §1.1），LLM 手写
+原来在两处散文（`AGENTS.md` raw/external 节 + skill `external-repo.md` 接入段），LLM 手写
 TOML，事后靠 `external-anchor-corrupt` finding 兜底。这违反本仓其他所有注册表遵循的
 "写入时代码强制 + schema SSOT 在码"模式（`workspace_models.toml` /
 `wiki_metadata.toml` / `workspace.toml` 都走 store 层严格校验）。写路径入 CLI 后

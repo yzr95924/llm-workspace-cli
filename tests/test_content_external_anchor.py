@@ -256,6 +256,18 @@ class CommandTests(unittest.TestCase):
         assert p.returncode == 0
         assert "无 anchor 文件" in p.stderr
 
+    def test_add_refuses_to_overwrite_corrupt_anchor(self):
+        """anchor 文件存在但损坏 → add 拒绝静默覆盖（保护手工修复现场）。"""
+        ext_dir = self.wiki / "raw" / "external"
+        ext_dir.mkdir(parents=True, exist_ok=True)
+        corrupt = ext_dir / ".symlink-anchor.toml"
+        corrupt.write_text("!not toml at all\n{{{\n", encoding="utf-8")
+        p = _run(self._wiki_args() + ["add", str(self.nongit), "--name=x"])
+        assert p.returncode == 1
+        assert "解析失败" in p.stderr
+        # 损坏的文件保持原样，没被覆盖
+        assert corrupt.read_text(encoding="utf-8").startswith("!not toml")
+
     def test_add_with_git_identity_best_effort(self):
         """git 仓 target：应读出 remote_url + branch（用 file:// 或本地初始化）。"""
         g = self.root / "gitty"
@@ -279,13 +291,15 @@ class CommandTests(unittest.TestCase):
                 "git",
                 "-C",
                 str(g),
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@t",
                 "commit",
                 "-q",
                 "--allow-empty",
                 "-m",
                 "x",
-                "--author",
-                "t <t@t>",
             ],
             check=True,
         )

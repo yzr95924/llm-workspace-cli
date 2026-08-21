@@ -214,6 +214,18 @@ def _git_read(target: Path) -> Tuple[Optional[str], Optional[str], Optional[str]
         s = b.stdout.decode("utf-8", errors="replace").strip()
         if s:
             branch = s
+    if branch is None:
+        # git 2.22 之前无 --show-current；回退到 symbolic-ref --short HEAD
+        # （git 1.8.1+；detached HEAD 返回非零 → None，正好是我们想要的语义）
+        sb = subprocess.run(
+            ["git", "-C", str(target), "symbolic-ref", "--short", "HEAD"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if sb.returncode == 0:
+            s = sb.stdout.decode("utf-8", errors="replace").strip()
+            if s:
+                branch = s
     return (True, remote, branch)
 
 
@@ -265,8 +277,17 @@ def cmd_add(wiki_root: Path, args) -> Tuple[Optional[str], int]:
         return (f"路径已占用: {sl_path}", 1)
 
     anchor_path = _anchor_path(wiki_root)
-    existing = load(anchor_path) if anchor_path.is_file() else None
-    if existing is None:
+    if anchor_path.is_file():
+        existing = load(anchor_path)
+        if existing is None:
+            # 文件存在但解析失败 / 0 有效 entry → 不静默覆盖
+            # （保护手工修复现场；用户要先备份再删，或手工修 TOML 后重跑）
+            return (
+                f"anchor 文件存在但解析失败（可能损坏）: {anchor_path}；"
+                "请先备份后删除或手工修复 TOML，再用 add 重建 entries",
+                1,
+            )
+    else:
         existing = []
     for e in existing:
         if e.get("symlink") == name:
