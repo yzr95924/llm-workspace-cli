@@ -5,7 +5,7 @@
 finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 gate 红。
 语义面（行为描述如"只扫不修"）gate 管不到，靠纪律人工保证。
 
-检查面（7 类）：
+检查面（8 类）：
   1. 命令调用（skill + 模板 + 仓根文档 → CLI）：skill markdown / byte-owned
      模板（llmw/content/templates 全 md + fixtures *.txt）/ 仓根 AGENTS.md +
      CLAUDE.md + README.md 里的 `llmw ...` 调用，子命令路径 + flag 必须存在于
@@ -27,15 +27,23 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
       ``wiki_format_version:`` 键行（SSOT 本身）与 ``upgrade-workflow.md`` 整
       文件（按设计它是唯一允许锚定历史版本的文件，头部规矩保证新迁移锚点只落此处）
    6. AGENTS.md 模板依赖守卫（skill↔模板解耦）：
-      - 7a 节号禁令：CONTRACT_MDS 中 `AGENTS.md` 字面量后紧跟 `§<数字|中文数字>` 即红
-        （节号是模板内部编号，重排即断；节名是语义锚点，引用只用节名 / 字段名 /
-        landmark）。模板自身「本文件 §N」自引用用 "本文件" 不触发，模板作者自 grep
+      - 7a 节号禁令：CONTRACT_MDS + llmw/**/*.py 中 `AGENTS.md` 字面量后紧跟
+        `§<数字|中文数字>` 即红，`(wiki|workspace) 后接 §N` bare shorthand 同样红
+        （节号是模板内部编号，重排即断；引用必须用节名 / 字段名 / landmark）。
+        零误报：regex 要求 §N 与 "AGENTS.md" 字面量之间最多 6 个非 word 字符，
+        排除 `AGENTS.md + [ref.md] §二` 形式（§ 实指 ref.md）；模板自身"本文件 §N"
+        自引用用"本文件"字面量不触发——模板作者自 grep
       - 7b landmark 存在性：skill 依赖的 AGENTS.md 模板锚点字符串（节名 / 字段名 /
-        @import 链）必须在对应模板中出现；模板改了某 landmark → 改 skill 引用的 commit
-        同 commit 更新 LANDMARKS 列表
+        @import 链）必须在对应模板中出现；模板改了某 landmark → CI 红，同 commit
+        更新 skill 引用 + LANDMARKS 列表
    7. 布局 token（skill↔目录结构解耦）：skill markdown 里所有 `wiki/<dir>/` 形式的
       目录路径 token，`<dir>` 必须在 llmw.content.wiki_lint.WIKI_SUBDIRS
-      （CLI SSOT）集合内。改目录名时所有残留旧路径被当场点名，零人工维护
+      （CLI SSOT）集合内。改目录名时残留旧路径被当场点名，零人工维护
+   8. rule_ref 格式闸：llmw/**/*.py 中 rule_ref 值指向 skill 文档（lint-checklist /
+      page-templates / upgrade-workflow / ingest-workflow / query-workflow /
+      external-repo / examples / SKILL.md）必须带 `.md` 扩展名——否则 gate 3 扫
+      不到等于死指针（上 commit wiki_fixtures.py:70/77/154 的 3 条 rule_ref 都缺
+      .md + 节号都错；本 commit 一并修后此闸门兜底）
 
 命令表面 SSOT = llmw.cli.build_parser() 单一 argparse 树（write 子树经
 llmw.content.wiki_write.build_subparsers 组合；无模块 standalone 入口）。
@@ -98,6 +106,24 @@ SEVERITY_MENTION_RE = re.compile(
 # `§<数字|中文数字>`。`AGENTS.md + [`references/external-repo.md`](...) §二` 形式
 # 中「+ [」含 word char 路径段 → regex 不匹配（§二实指 external-repo.md，非 AGENTS.md）。
 AGENTS_SECTION_REF_RE = re.compile(r"AGENTS\.md[^\w\n]{0,6}§[0-9一二三四五六七八九十]+")
+# 面 7a 扩展：裸 "wiki §N" / "workspace §N" shorthand（缺 AGENTS.md 字面量但仍指模板节号）。
+# 前置 (?:^|[\s<>/`]) 排除 wiki 名后缀（如 `huawei_storage_wiki/wiki/` 中第一个 wiki
+# 前接 word char 不匹配）。
+TEMPLATE_BARE_SHORTHAND_RE = re.compile(
+    r"(?:^|[\s<>/`])(?:wiki|workspace)\s+§[0-9一二三四五六七八九十]+"
+)
+# 面 8 rule_ref 格式闸：.py rule_ref 字段 / to_action / finding 消息指向 skill 文档必须
+# 带 .md 扩展名——否则 gate 3 RULE_REF_RE 匹配不到等于死指针。regex 抓
+# "<basename> §<节>" 形式且 token 后没有 `.md`→即裸 basename；负向先行 `(?!\.md)` 排除
+# 已带 .md 的正确形式。不抓散文 "SKILL 目录" / "SKILL scan"（后面不跟 §）。
+RULE_REF_BARE_RE = re.compile(
+    r"\b(SKILL|lint-checklist|page-templates|upgrade-workflow|ingest-workflow"
+    r"|query-workflow|external-repo|examples)(?!\.md) §[一二三四五六七八九十0-9]"
+)
+
+# 面 7a 的 .py 扫描域——只扫 llmw/**/*.py（排除 tests/）。tests/ 有 §N 形式的 test 输入
+# （详见 test_content_wiki_fixtures.py 的 template-no-outbound-refs 单测），必误报。
+PY_CONTRACT = sorted(p for p in (REPO / "llmw").rglob("*.py") if "tests" not in p.parts)
 # 面 7b 模板 landmark（依赖清单）：skill 运行期依赖的模板锚点字符串；模板改了任一
 # landmark，gate 红，同 commit 必须同步 skill 引用。
 WIKI_TEMPLATE_LANDMARKS = [
@@ -347,6 +373,7 @@ def main():  # pylint: disable=too-many-branches
         "semver": 0,
         "landmarks": 0,
         "layout_tokens": 0,
+        "rule_ref_checks": 0,
     }
 
     # --- 1. 命令调用（含风格检查：带值 flag 必须等号形式；含跨行断命令检查）---
@@ -464,17 +491,32 @@ def main():  # pylint: disable=too-many-branches
     wiki_tpl_text = _read(WIKI_TEMPLATE) if WIKI_TEMPLATE.is_file() else ""
     ws_tpl_text = _read(WORKSPACE_TEMPLATE) if WORKSPACE_TEMPLATE.is_file() else ""
 
-    # 6a 节号禁令：CONTRACT_MDS 中 AGENTS.md 字面量紧邻 §N → 红
+    # 6a 节号禁令：CONTRACT_MDS + llmw/**/*.py 中 AGENTS.md 字面量紧邻 §N /
+    # "wiki §N" / "workspace §N" bare shorthand → 红
+    def _check_7a(rel, line, lineno):
+        if AGENTS_SECTION_REF_RE.search(line):
+            errors.append(
+                "[agents-section] {}:{} :: 引用 AGENTS.md 禁用节号（模板内重组即断）"
+                "→ 改用节名 / 字段名 / landmark 字符串：{}".format(
+                    rel, lineno, line.strip()[:80]
+                )
+            )
+        if TEMPLATE_BARE_SHORTHAND_RE.search(line):
+            errors.append(
+                "[template-shorthand] {}:{} :: 裸 `wiki §N` / `workspace §N` shorthand"
+                "（模板内重组即断）→ 改用「节名」形式：{}".format(
+                    rel, lineno, line.strip()[:80]
+                )
+            )
+
     for md in CONTRACT_MDS:
         rel = _rel(md)
         for lineno, line in enumerate(_read(md).splitlines(), start=1):
-            if AGENTS_SECTION_REF_RE.search(line):
-                errors.append(
-                    "[agents-section] {}:{} :: skill 引用 AGENTS.md 禁用节号（模板"
-                    "内重组即断）→ 改用节名 / 字段名 / landmark 字符串：{}".format(
-                        rel, lineno, line.strip()[:80]
-                    )
-                )
+            _check_7a(rel, line, lineno)
+    for py in PY_CONTRACT:
+        rel = _rel(py)
+        for lineno, line in enumerate(_read(py).splitlines(), start=1):
+            _check_7a(rel, line, lineno)
 
     # 6b 模板 landmark 存在性（按 skill 实际引用的 AGENTS.md 分桶）
     for landmark in WIKI_TEMPLATE_LANDMARKS:
@@ -510,10 +552,27 @@ def main():  # pylint: disable=too-many-branches
                         )
                     )
 
+    # --- 8. rule_ref 格式闸（裸 basename § 无 .md → gate 3 扫不到 = 死指针） ---
+    # 在 .py 中匹配 "SKILL §N" / "lint-checklist §N" 等形式；负向先行排除带 .md 的。
+    # prose "SKILL 目录" / "SKILL scan" 后不跟 §，自然不匹配。
+    for py in PY_CONTRACT:
+        rel = _rel(py)
+        for lineno, line in enumerate(_read(py).splitlines(), start=1):
+            for m in RULE_REF_BARE_RE.finditer(line):
+                stats["rule_ref_checks"] += 1
+                basename = m.group(1)
+                errors.append(
+                    "[rule_ref-format] {}:{} :: rule_ref 指向 skill 文档 "
+                    "`{}` 后跟 § 但缺 .md 扩展名（gate 3 扫不到 = 死指针）".format(
+                        rel, lineno, basename
+                    )
+                )
+
     # --- 报告 ---
     print(
         "contract (skill+templates+repo-docs → CLI): {} cmd, {} fwd findings, "
-        "{} bwd findings, {} rule_refs, {} tokens, {} semver, {} landmarks, {} layout_tokens".format(
+        "{} bwd findings, {} rule_refs, {} tokens, {} semver, {} landmarks, "
+        "{} layout_tokens, {} rule_ref_fmt_checks".format(
             stats["cmds"],
             stats["fwd_findings"],
             stats["bwd_findings"],
@@ -522,6 +581,7 @@ def main():  # pylint: disable=too-many-branches
             stats["semver"],
             stats["landmarks"],
             stats["layout_tokens"],
+            stats["rule_ref_checks"],
         )
     )
     if errors:

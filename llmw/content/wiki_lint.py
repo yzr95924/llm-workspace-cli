@@ -13,7 +13,7 @@ wiki_lint — deterministic 健康检查（llmw wiki lint）
 --no-git 跳过 raw/ 的 git status 检查（CI 或裸仓场景）。默认**自动检测**：
   仅当 wiki 根目录在 git 仓内且 raw/ 被 git 跟踪时才跑 raw 不可变性检查；
   裸目录树 / 无 git / raw 未纳入 git → 自动跳过并打印提示（不报错，不阻断）。
---check-version 扫描当前 wiki 的 format 版本（解析 AGENTS.md §七 "Wiki Format 版本"），
+--check-version 扫描当前 wiki 的 format 版本（解析 AGENTS.md 末尾「当前配置」表 `Wiki Format 版本` 字段），
   与本 skill metadata.wiki_format_version 比对，列出老格式 legacy 现场。默认仅打印报告
    （不动任何文件）；加 `--apply` 把 upgrade plan 以 JSON 输出到 **stdout**（agent 直接
    消费，**不落盘**——升级全程 wiki 根无任何中间文件残留）供按 references/upgrade-workflow.md
@@ -521,7 +521,7 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
                                 findings.append(
                                     f"sources-absolute-path: {rel} sources 含绝对路径 '{s}'；"
                                     f"必须用相对 wiki 根的路径（如 raw/articles/... 或 "
-                                    f"raw/external/<source-name>/...），与 lint-checklist §二.3 一致"
+                                    f"raw/external/<source-name>/...），与 [lint-checklist.md §二.3](references/lint-checklist.md#3-frontmatter-来sourcesource--synthesis-页) 一致"
                                 )
                                 continue
                             # raw/discussions/ 禁止作 source——
@@ -713,7 +713,7 @@ def check_log_format(wiki_root: Path) -> List[str]:
 # log.md 滚动窗口上限——超过则建议截断保最近 N 条
 LOG_RETENTION_LIMIT = 50
 
-# source 页 stale 摘要阈值（days）——`updated` 距今超过此值报 stale-summary（详见 lint-checklist §二.7）
+# source 页 stale 摘要阈值（days）——`updated` 距今超过此值报 stale-summary（详见 [lint-checklist.md §二.7](references/lint-checklist.md#7-过期摘要)）
 STALE_SUMMARY_DAYS = 90
 
 
@@ -1175,7 +1175,7 @@ def check_memory_index(wiki_root: Path) -> List[str]:
     MEMORY.md 是单一真源（无 frontmatter）；由 `<wiki-root>/AGENTS.md` 顶部
     `@MEMORY/MEMORY.md` `@import` 自动加载全文。
     本检查只扫 `MEMORY.md ## 索引` 段对 `MEMORY/*.md` 的覆盖——0.23.0 短暂的双轨
-    （MEMORY.md + AGENTS.md §一内联段并集）已废，单一真源下不再需要双处同步。
+    （MEMORY.md + AGENTS.md「本 wiki 的边界」节内联段并集）已废，单一真源下不再需要双处同步。
 
     不走 wiki/index.md 强制入口；但每条经验条目需在 `MEMORY.md` 列一行，否则
     下次 `@import` 加载后该 agent 视角下 MEMORY 沦为死库。
@@ -1360,7 +1360,7 @@ def severity_of(finding: str) -> str:
 # 职责：纯探测（不动 wiki 内容）；agent 拿到 plan 后按 references/upgrade-workflow.md 走 Edit/Write 修复。
 # ---------------------------------------------------------------------------
 
-# AGENTS.md §七 表格行匹配：
+# AGENTS.md 末尾「当前配置」表格式版本行匹配：
 # | Wiki Format 版本 | 0.7.0 |
 # 兼容用户编辑后的格式变体（多余空格、备注尾部等）；semver 走单独正则抓取。
 CLAUDE_FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\s*\|")
@@ -1411,7 +1411,7 @@ def check_format_version(wiki_root: Path) -> List[str]:
     current = parse_format_version(wiki_root)
     if current is None:
         findings.append(
-            "wiki-format-version-unparsed: AGENTS.md §七「Wiki Format 版本」行无法解析"
+            "wiki-format-version-unparsed: AGENTS.md 末尾「当前配置」表 `Wiki Format 版本` 行无法解析"
             "（缺 AGENTS.md 或表格格式破坏）——"
             "跑 `lint_wiki.py --check-version` 诊断"
         )
@@ -1419,12 +1419,12 @@ def check_format_version(wiki_root: Path) -> List[str]:
     cmp = _compare_semver(current, CURRENT_WIKI_FORMAT)
     if cmp == "older":
         findings.append(
-            f"wiki-format-version-stale: AGENTS.md §七 版本 {current} 落后 SKILL {CURRENT_WIKI_FORMAT}——"
+            f"wiki-format-version-stale: AGENTS.md 末尾「当前配置」表 format {current} 落后 SKILL {CURRENT_WIKI_FORMAT}——"
             "跑 `lint_wiki.py --check-version --apply` 走升级流程"
         )
     elif cmp == "newer":
         findings.append(
-            f"wiki-format-version-ahead: AGENTS.md §七 版本 {current} 领先 SKILL {CURRENT_WIKI_FORMAT}——"
+            f"wiki-format-version-ahead: AGENTS.md 末尾「当前配置」表 format {current} 领先 SKILL {CURRENT_WIKI_FORMAT}——"
             "更新本 skill 安装（lint_wiki.py）对齐"
         )
     # equal / unknown → 无 finding
@@ -1622,7 +1622,7 @@ def build_upgrade_plan(
                         "type": "fixtures-fix-agents-md-resync",
                         "to_action": (
                             "AGENTS.md 全量重渲染（模板同步机制，4 步）："
-                            "(1) 从旧 AGENTS.md §七 提取 主题 / 创建日期 / CLI 版本（主题 fallback："
+                            "(1) 从旧 AGENTS.md「当前配置」表提取 主题 / 创建日期 / CLI 版本（主题 fallback："
                             "H1 `# <主题> Wiki — LLM 维护守则`）；"
                             "(2) 渲染包内 agents-md-template.md——{{TOPIC_NAME}} / {{SETUP_DATE}} / "
                             "{{CLI_VERSION}} 用旧值，{{WIKI_FORMAT_VERSION}} 用 to_version；"
@@ -1738,7 +1738,7 @@ def build_upgrade_plan(
             "file-move：先读源 → 写目标 → 删源",
             "frontmatter-retype：按 action.note 与 page-templates.md §一决定具体改法",
             "skipped_conflicts[] 永远不自动覆盖——转人工",
-            "改完后用 Edit 把 AGENTS.md §七 Wiki Format 版本行改为 to_version",
+            "改完后用 Edit 把 AGENTS.md 末尾「当前配置」表 `Wiki Format 版本` 行改为 to_version",
             "不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）",
             "不调 ingest / query / lint——保持职责单一",
             # fixtures：
@@ -1747,8 +1747,8 @@ def build_upgrade_plan(
             "fixtures-fix-anchor-schema / -anchor-symlink-matches 各 to_action 自含修 schema / ln / 补 entry 的具体指令",
             "fixtures-fix-strip-frontmatter 仅删首部 frontmatter 块，保留全文正文一字不动",
             "fixtures-fix-skeleton：按 expected 补缺失骨架字段（frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段），单 Edit 可落；成长型内容（index 类别 / log 历史 / MEMORY 经验 / tag bullet）不动",
-            "fixtures-fix-agents-md-resync：AGENTS.md 全量重渲染——§七 变量保留旧值（Wiki Format 版本行用 to_version），旧文件多出的定制行/段逐条与用户裁定搬 MEMORY/ 或丢弃；其余以模板渲染稿为准，不做局部 Edit",
-            "fixtures 改造与 lint-checklist §五『语义合并规则』配合读——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按 §五判断",
+            "fixtures-fix-agents-md-resync：AGENTS.md 全量重渲染——「当前配置」表变量保留旧值（Wiki Format 版本行用 to_version），旧文件多出的定制行/段逐条与用户裁定搬 MEMORY/ 或丢弃；其余以模板渲染稿为准，不做局部 Edit",
+            "fixtures 改造与 [lint-checklist.md §五『语义合并规则』](references/lint-checklist.md#五semantic-merge-规则) 配合读——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按该节判断",
         ],
     }  # type: Dict[str, object]
     return plan
@@ -1757,7 +1757,7 @@ def build_upgrade_plan(
 def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     """--check-version 子命令主入口。
 
-    - 解析 AGENTS.md §七 wiki_format_version
+    - 解析 AGENTS.md 末尾「当前配置」表 wiki_format_version
     - 探测已知 legacy 现场
     - 默认打印人读报告（不写文件）
     - --json 输出机器可读 JSON
@@ -1816,9 +1816,9 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
         _print_fixtures_check(fixtures_check, indent="")
         return 0
 
-    # 解析失败 → 提示用户填 AGENTS.md §七
+    # 解析失败 → 提示用户填 AGENTS.md 末尾「当前配置」表
     if current_format is None:
-        print("[WARN] 无法解析 <wiki-root>/AGENTS.md §七 'Wiki Format 版本'")
+        print("[WARN] 无法解析 <wiki-root>/AGENTS.md 末尾「当前配置」表 `Wiki Format 版本`")
         print("       请确认该行存在且格式为: | Wiki Format 版本 | 0.x.y |")
         print("       解析失败不影响 legacy pattern 探测（下方继续输出）")
         print()
