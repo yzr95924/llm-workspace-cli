@@ -95,32 +95,22 @@
 **执行**：
 
 ```text
-1. 跑操作前置：Read ~/wiki/llm-systems/AGENTS.md (看到 §七 Wiki Format 版本 = 0.38.0；老 wiki 版本在 CLAUDE.md §七) +
+1. 跑操作前置：读 ~/wiki/llm-systems/AGENTS.md §七 Wiki Format 版本 = 0.38.0
+   （CLI init 时从 skill metadata 镜像，老 wiki 落后当前 0.39.0）+
    wiki/index.md + wiki/log.md 最近 30 行
-2. 跑探测：
-   llmw wiki --path ~/wiki/llm-systems lint --check-version
-   脚本报告：
-     current_format : 0.38.0
-     skill_format   : 0.39.0
-     comparison   : older
-     needs_upgrade: true
-     [LEGACY] 共 3 处老格式现场（示意输出）
-       - type-memory-value (3) → upgrade-workflow.md §6.1（依据 plan.actions[]）
-           wiki/entities/<legacy-page>.md
-           wiki/sources/<another-legacy>.md
-           ...
-     [HINT] 加 --apply 输出 upgrade plan（stdout JSON）供 agent 走 Edit/Write 修复
-3. agent 把报告转成对话式清单 + 询问用户:
-   "应用全部 / 部分应用 / 仅看清单?"
-   用户: "应用全部"
-4. 生成 plan（stdout 输出，不落盘）：
-   llmw wiki --path ~/wiki/llm-systems lint --check-version --apply --json
-   → report.upgrade_plan 随 stdout JSON 返回（agent 内存持有，wiki 根无文件）
-5. agent 从 stdout JSON 读 plan.actions[] 逐项 Edit/Write 修复:
-   - 3 处 frontmatter-retype（wiki 内容页误用 reserved `type: memory` → agent 按页面真实语义
-     裁定改为 5 类内容页之一；注：占位默认 `memory-entry` 仅适用于 MEMORY 桶，wiki 内容页必须替换）
-6. Edit 改 ~/wiki/llm-systems/AGENTS.md §七 "Wiki Format 版本" 0.38.0 → 0.39.0
-7. 重跑 llmw wiki lint --check-version 验证:
-     needs_upgrade: false ✓ 完成
-8. 告诉用户完成，无残留冲突
+2. 跑升级 dry-run 看骨架计划：
+    llmw wiki --path ~/wiki/llm-systems upgrade
+    脚本输出 plan（每个文件 action：render / growth-graft / gitignore-block）
+3. 若 plan 含 diff 触发 blocked_drift → 与用户裁定本地定制：
+   - AGENTS.md / CLAUDE.md 中多出模板渲染稿的行/段 = 用户本地定制
+   - 逐条决定搬到 MEMORY/ 还是丢弃
+   - 裁定完 → 重跑 `llmw wiki --path ... upgrade --apply --yes` 落地
+4. 查内容页 legacy + 跑修复（lint 侧）：
+    llmw wiki --path ~/wiki/llm-systems lint --check-version --json
+    → needs_upgrade: true；legacy 组（当前仅 type-memory-value）：
+         - 3 处老格式 → agent 按 upgrade-workflow.md §6.1 用 Edit 落
+5. 验证：重跑 `llmw wiki --path ... upgrade` + `lint --check-version`
+    → needs_upgrade: false ✓ 完成；upgrade 退出 done；无残留冲突
+6. 清理 .bak（anchor TOML 重写产生点）：
+    find "$LLM_WIKI_ROOT" -maxdepth 3 -name '*.bak' -delete
 ```

@@ -396,7 +396,7 @@ sources:  # 必填——wiki 内其它页路径（不是 raw/）；详见各类�
 
 ### 6. `index`（index.md）
 
-路径：`wiki/index.md`（**唯一一份**，不允许新建）
+路径：`wiki/index.md`（**唯一一份**，`type: index` 是 reserved）
 
 ```yaml
 ---
@@ -409,45 +409,17 @@ updated: YYYY-MM-DD HH:MM
 ---
 ```
 
-正文骨架：
+正文骨架（字节金标准在 fixture `index.md.txt`；条目纪律在 fixture 头部说明块 canonical）：
+H1 `<Topic> Wiki` + 说明块 + 5 类别 H2（Entities / Concepts / Sources / Comparisons
+/ Syntheses，字母序）；每条 `- [<title>](<path>) — <description>`；**摘要应取自被链页
+frontmatter `description`**，不在 index 手抄第二份（避免漂移；lint 抓不到这种不一致）。
 
-```markdown
-# <Topic> Wiki
-
-> 本 wiki 由 LLM 维护，用户只读 + 提供 raw 资料 + 提问题。边界纪律见
-> [`../AGENTS.md`](../AGENTS.md)；条目纪律与扩容护栏见本文件头部说明块（canonical）。
-
-## Entities
-
-- [<title>](entities/<slug>.md) — <一句话摘要，取自 description 字段>
-
-## Concepts
-
-- [<title>](concepts/<slug>.md) — <摘要>
-
-## Sources
-
-- [<title>](sources/<slug>.md) — <摘要>
-
-## Comparisons
-
-- [<title>](comparisons/<slug>.md) — <摘要>
-
-## Syntheses
-
-- [<title>](syntheses/<slug>.md) — <摘要>
-```
-
-**lint 检查**：
-
-- 每个非 log / index 的 wiki 页**必须**在对应类别里出现
-- 类别标题固定（Entities / Concepts / Sources / Comparisons / Syntheses）
-- 条目格式：`* [<title>](<relative-path>) — <一句话摘要>`；**摘要应取自被链接页 frontmatter 的
-  `description`**，不要在 index 里手写第二份（避免漂移）
+**lint 口径**见 [`lint-checklist.md` §二.5](lint-checklist.md#5-indexmd-覆盖)（`index-missing` /
+`orphan-page`）。
 
 ### 7. `log.md`（log）
 
-路径：`wiki/log.md`（**唯一一份**）
+路径：`wiki/log.md`（**唯一一份**，`type: log` 是 reserved）
 
 ```yaml
 ---
@@ -459,21 +431,18 @@ updated: YYYY-MM-DD HH:MM
 ---
 ```
 
-正文（**每行匹配** `^## \[\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?\] (ingest|query|lint|setup) \| .+$`，lint 校验；
-ingest/query/lint/setup 行推荐带 HH:MM；date-only 也合法）：
+每行匹配：
 
-```markdown
-## [2026-06-24 14:30] setup | Initial scaffold by llmw CLI
-## [2026-06-24 14:35] ingest | <source page title>
-## [2026-06-24 15:10] query | <answer summary>
-## [2026-06-24 16:00] lint | First health check
+```text
+^## \[\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?\] (ingest|query|lint|setup) \| .+$
 ```
 
-**lint 检查**：
+op ∈ `ingest`/`query`/`lint`/`setup`；日期也接受 `YYYY-MM-DD`（lint 按精度宽容解析）。
+正路走 `llmw wiki write log`（格式 + `LOG_RETENTION_LIMIT` 滚动窗口截断自动保证）；带外
+手改按上式 + 手工截断。完整纪律 + 条目示例见 fixture `log.md.txt` 头部说明块。
 
-- 每行匹配正则
-- 滚动窗口：条目数 > `LOG_RETENTION_LIMIT`（`llmw.content.wiki_lint` 常量）时报 `log-truncation-recommended`；
-  正路 `llmw wiki write log` 写入时自动截断（frontmatter 不动）
+**lint 口径**见 [`lint-checklist.md` §二.6 / §二.10](lint-checklist.md#6-logmd-格式)
+（`log-format` / `log-truncation-recommended`）。
 
 ## 三、模板使用规则
 

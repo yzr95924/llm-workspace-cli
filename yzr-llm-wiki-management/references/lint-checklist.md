@@ -273,7 +273,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 2. **询问用户先修哪些**——不要一次全修（容易回退或引入新问题）
 3. 修完后**重新跑 lint 验证**——不要带着 fix 没验过的状态前进
 4. 若启用 git，重大修复 commit 时建议加 `lint: <summary>` 前缀；裸目录树 wiki 跳过 commit 步骤
-5. **若跑 fixtures-check**——按 [`upgrade-workflow.md` §6.6](upgrade-workflow.md#66-决策树脚本-vs-llm-合并) 区分脚本 vs LLM 修；
+5. **若跑 fixtures-check**——按 [`upgrade-workflow.md` §6.6](upgrade-workflow.md#66-决策树cli-骨架--agent-语义的判断边界) 区分 CLI 骨架 vs agent 语义合并；
    `fixtures-fix-*` 系列可通过 Edit 落，`fixtures-fix-anchor-merge/-schema/-symlink-matches`
    三条要走 [`upgrade-workflow.md`](upgrade-workflow.md) §6.3 五步迁移（不是单 Edit）
 

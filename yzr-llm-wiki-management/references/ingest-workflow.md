@@ -125,33 +125,15 @@ llmw wiki --path "$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## 四、frontmatter 字段参考（source 页）
 
-> **权威定义在 [`page-templates.md §一`](page-templates.md#一共有-frontmatter-段) +
-> [`§二.3`](page-templates.md#3-source资料页)**——本节只列 source 页的特化字段注意事项，
-> 不重抄字段全集。frontmatter 骨架由 `llmw wiki write new` 生成，本节讲字段**语义**。
+> 字段全集 + 语义定义见 [`page-templates.md §一`](page-templates.md#一共有-frontmatter-段) +
+> [`§二.3`](page-templates.md#3-source资料页)；骨架由 `llmw wiki write new` 生成。
 
-**source 页特有字段**：
+本节只列 source 页**特化**注意事项（page-templates.md §二.3 已有的字段定义不重抄）：
 
-- `sources` 必填——`raw/` 下相对路径数组，至少 1 条
+- `sources` 必填——`raw/` 下相对路径数组，至少 1 条（`raw/discussions/` 路径 lint 报
+  `source-in-discussions`，需先归档到 `raw/articles/` 或重摄取）
+- 推荐 `description`（一句话摘要，index 摘要从它来避免漂移）
 - 推荐 `authors` / `published` / `url` / `venue`——便于 index 摘要 + 反向溯源
-
-**示例**（完整字段定义见 page-templates.md §二.3）：
-
-```yaml
----
-title: "<Source Page Title>"
-description: "<一句话摘要：本文讨论什么、给出什么关键结论>"
-type: source
-tags: [<topic-1>, <topic-2>]
-created: 2026-06-24 14:30
-updated: 2026-06-24 14:30
-sources:
-  - raw/articles/<slug>.md
-authors: [<name1>, <name2>]
-published: <YYYY-MM-DD>
-venue: <会议/期刊名>
-url: <原始链接>
----
-```
 
 ## 五、批处理摄取（≥ 3 份 raw 同时摄入）
 
@@ -212,11 +194,11 @@ url: <原始链接>
 
 ## 八、Ingest 失败的常见原因
 
-- **raw 文件不可读**（PDF 加密、图片 OCR 失败）——提示用户处理源文件
 - **已存在同名 source 页**——用 Edit 更新而不是 Write 覆盖（`llmw wiki write new` 也会拒覆盖）
 - **wiki/index.md 缺类别段**——`llmw wiki write index add` 报错并指路 page-templates §6 骨架
   手动补类别段（或走 upgrade fixtures 修复，CLI 拒绝覆盖已有 wiki）
-- **log 追加失败**——`llmw wiki write log` 报错信息自明（缺 log.md / 缺 --title 等）
+
+> raw 不可读 / log/index 参数缺失等场景，CLI 报错信息自明——按提示修即可。
 
 ## 九、反模式
 

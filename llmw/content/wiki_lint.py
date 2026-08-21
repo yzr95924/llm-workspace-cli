@@ -1618,8 +1618,8 @@ def build_upgrade_plan(
                     }
                 )
             elif cid == "agents-md-template-sync":
-                # 模板渲染比对失败 → 全量重渲染（不是单行 Edit）；
-                # 详见 upgrade-workflow.md §5 step 6 + 仓库 AGENTS.md 骨架所有权四分表
+                # 模板渲染比对失败 → 全量重渲染（不是单行 Edit）；本地定制按裁定搬 MEMORY/
+                # 详见 llmw.content.upgrade.plan_resync + 仓库 AGENTS.md 骨架所有权四分表
                 fixtures_actions.append(
                     {
                         **base,

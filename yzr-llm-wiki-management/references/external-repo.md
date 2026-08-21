@@ -151,26 +151,15 @@ anchor 写绝对路径也兼容）。anchor 是 TOML 单文件，**只改本 ent
 不要触碰其他 entry + 不改 `remote_url` / `branch` 身份字段：
 
 ```bash
-# 用 tomli_w（py3.7+）或 tomli_w 不可用时的 stdlib 替代——最小 helper：
-python3 - <<'PY'
-import re, pathlib
-p = pathlib.Path('raw/external/.symlink-anchor.toml')
-text = p.read_text(encoding='utf-8')
-
-# 在 [[entry]] 块中找 symlink = '<SYMLINK_NAME>'，改其 target 字段
-# ——只动匹配 entry 的 target 行，其它 entry / 顶层 / 注释保持不动
-target_re = re.compile(
-    r'(\[\[entry\]\][\s\S]*?symlink\s*=\s*"linux-kernel"[\s\S]*?target\s*=\s*)"[^"]*"',
-    re.MULTILINE,
-)
-new_text, n = target_re.subn(r'\1"~/src/linux-kernel"', text, count=1)
-assert n == 1, f"未找到 symlink='linux-kernel' 的 [[entry]] 块"
-p.write_text(new_text, encoding='utf-8')
-PY
+# 用 regex 单行替换 target 字段（保留 entry 顺序 / 注释 / 字段顺序，跨机器 diff 干净）
+python3 -c "import re, pathlib; p=pathlib.Path('raw/external/.symlink-anchor.toml'); \
+t=p.read_text(); \
+q=re.compile(r'(\\[\\[entry\\]\\][\\s\\S]*?symlink\\s*=\\s*\"linux-kernel\"[\\s\\S]*?target\\s*=\\s*)\"[^\"]*\"'); \
+p.write_text(q.sub(r'\\1\"~/src/linux-kernel\"', t, count=1))"
 ```
 
-> **为什么不直接 `tomllib.dump` 全量重写**：保留 entry 顺序、注释、字段顺序，
-> 跨机器 diff 干净——只动需要改的那一行，其他行 byte-identical。
+> **为什么不全量重写（`tomllib.dump`）**：会丢注释、丢字段顺序、跨机器 diff 噪音。
+> anchor 是跨主机重建凭据，必须 byte-stable 的局部改写。
 
 `remote_url` / `branch` 身份字段**保持原值不动**——它们是接入意图，不是机器状态。
 

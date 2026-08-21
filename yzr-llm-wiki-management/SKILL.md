@@ -69,9 +69,9 @@ metadata:
   或 `wiki/syntheses/<slug>.md`
 - **lint** → `log` 中报告：raw/ 是否被改、孤儿页、断裂交叉引用、过期摘要、缺
   frontmatter、log.md 格式
-- **upgrade** → 跑 `llmw wiki lint --check-version` 输出 format 版本 + legacy 现场
-  报告；`--apply` 把 upgrade plan 以 JSON 输出到 stdout（不落盘）供 agent 按
-  `references/upgrade-workflow.md` 走 Edit/Write 修复；详见 §5 Upgrade
+- **upgrade** → `llmw wiki upgrade`（dry-run → `--apply --yes`）修骨架（byte/block/
+  header-owned + legacy paths）；内容页 frontmatter legacy 走 `lint --check-version --apply`
+  拿 `actions[]`，agent 按 `references/upgrade-workflow.md` §六 修；详见 §5 Upgrade
 
 ## 执行原则 / 边界
 
@@ -310,13 +310,16 @@ wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明
 ### 5. Upgrade（升级 wiki format）
 
 **触发**：用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / format 升级 / 是否需要
-reformat"；或 `llmw wiki lint` 报告 legacy warn。
+reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy warn。
 
-**职责：** CLI（`llmw wiki lint --check-version`）是探测器，只扫不修；agent 按 stdout JSON 返回的 upgrade plan + `fixtures_actions[]` 用 Edit/Write 修复。迁移期不走 `llmw wiki write`（脚本只认识当前形态——迁移 = 格式流动期，硬编码会破坏）；迁移依据 SSOT = plan actions[] + upgrade-workflow.md §六；**不**追加 log 条目。
+**职责**：三方分工——CLI `llmw [wiki] upgrade` 修骨架（byte/block/header-owned + legacy
+paths + self-verify + blocked_drift 3 终态）；lint plan `actions[]` 修内容页 frontmatter
+legacy（当前仅 `type-memory-value`）；agent 负责 drift 裁定（本地定制搬 MEMORY 或丢弃）+
+§六语义合并（index 重复 / MEMORY 归并 / 0.16→0.17 anchor）。迁移期不走 `llmw wiki write`；
+**不**追加 log 条目。
 
-**完整步骤**（含 fixtures 一致性检查 10 类约定文件 / `agents-md-template-sync` 处理 /
-语义合并规则 / 脚本 vs LLM 合并决策树 / 清理临时文件）见
-[`references/upgrade-workflow.md`](references/upgrade-workflow.md)。
+**完整步骤**（5 步流程 / drift 裁定 / 决策树 / 语义合并规则 §6.1-§6.6 / anchor 0.16→0.17
+5 步迁移）见 [`references/upgrade-workflow.md`](references/upgrade-workflow.md)。
 
 ## 参考样例
 
