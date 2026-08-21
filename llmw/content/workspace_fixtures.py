@@ -354,7 +354,9 @@ def check_claude_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
         return out
     if rendered != ws_text:
         out["passed"] = False  # type: ignore
-        out["expected"] = "CLAUDE.md 与 llmw.content.render 渲染稿字节一致（不含纪律正文；版本在 AGENTS.md 末尾「当前配置」表）"
+        out["expected"] = (
+            "CLAUDE.md 与 llmw.content.render 渲染稿字节一致（不含纪律正文；版本在 AGENTS.md 末尾「当前配置」表）"
+        )
         out["actual"] = "与薄壳模板渲染稿不一致"
         out["fix"] = {
             "type": "workspace-fix-claude-md-resync",
