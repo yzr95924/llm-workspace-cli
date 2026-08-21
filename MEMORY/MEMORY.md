@@ -72,6 +72,7 @@
 - **规范体只陈述现状规则** — AGENTS.md 模板 / SKILL.md 正文 / 本仓 AGENTS.md 写"记什么 / 不记什么"的规则本身；历史与辩护（"旧版必填…已废止""0.x.0 起取消""schema v2 起字段迁出 X"）归 commit message + upgrade-workflow §六，不进规范体。逐条辩护句会让每处维护都承担同步改写的成本（2026-08-17 清理 external anchor commit 字段时踩过）
 - **改 skill 不手改 wiki/workspace 实例** — 模板变更经升级重渲染全量传播，实例 AGENTS.md 不手改（改了会与模板漂移 + 被下次重渲染覆盖）；`agents-md-template-sync` 报漂移属预期，等统一升级
 - **wiki skill 文本不节号引用 AGENTS.md 纪律** — 只在 wiki 目录触发，`CLAUDE.md` @import 自动加载，重抄 = 双源漂移面；skill 只按小节标题词（"`raw/external/` 节"）引用或完全不引。例外：§七（Wiki Format 版本）是 CLI 解析契约（`wiki_lint.py check_format_version` 按此行解析），属于代码级接口而非文档导航
+- **改 CLI 外部契约必同步 skill 引用** — 子命令 / flag / finding 名 / JSON 字段 / 终态词变更的 commit，必须同 commit grep `yzr-llm-wiki-management/` 并同步（当前绑定面：命令 ~93 处 + finding 54 个 + JSON 字段 16 处）。skill 与 CLI 同仓共演进，不建抽象间接层（skill 的存在理由是给 agent 精确可执行命令，间接层降执行质量）；skill 只绑 CLI 外部契约，不绑模块内部路径（`llmw.content.*`），模块路径属实现布局、拆模块即静默失效。语法面由 `scripts/test/check_skill_cli_contract.py` CI gate 兜底；语义面（行为描述如"只扫不修"）gate 管不到，靠本纪律人工保证
 
 ## 维护规则
 

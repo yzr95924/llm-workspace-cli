@@ -17,7 +17,7 @@ base is not the reading or the thinking — it's the bookkeeping." Lint 把 book
 
 Lint 分**两层**：
 
-1. **Deterministic**（脚本检查，可程序化）——`llmw.content.wiki_lint`
+1. **Deterministic**（脚本检查，可程序化）——`llmw wiki lint` 内部实现
 2. **Semi-qualitative**（agent 检查，需理解语义）——本文件"半定性检查"段
 
 **与 `llmw wiki write` 的分工**：log / index / touch / new / memory 的**正路**是
@@ -55,7 +55,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ## 二、Deterministic 检查清单（脚本执行）
 
-> 机制细节（实现用的正则 / 函数 / 分支条件）在 `llmw.content.wiki_lint` docstring——本节只给
+> 机制细节（实现用的正则 / 函数 / 分支条件）在 CLI lint 实现的 docstring——本节只给
 > 口径：**finding 名 / 严重性 / 触发 / 修法**。
 
 ### 前置：wiki 版本一致性
@@ -86,7 +86,9 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 - `type` 取值：5 类内容页；MEMORY 桶额外 `memory` / `memory-entry`
 - `type-memory-value`（error，legacy）：仅对 wiki 内容页误用 reserved `type: memory`
   报错；MEMORY/*.md 上合法，不触发
-- findings：`missing-frontmatter`（error）/ `invalid-type`（error）
+- findings：`missing-frontmatter`（error）/ `invalid-type`（error）/ `invalid-tags`（error，
+  `tags` 非 list 类型）/ `missing-sources`（error，source/synthesis 页缺 `sources` 字段或为空——
+  与 §二.3 的 `sources-missing`（值不可访问）不同名不同因，均保留）
 
 ### 3. frontmatter 来源（source / synthesis 页）
 
@@ -94,6 +96,8 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
   现存路径；`type: synthesis` 的 `sources:` 非空（可指 wiki 内页）
 - `sources-absolute-path`（error，仅 source 页）：任一元素以绝对路径形式出现（Unix /
   Windows 盘符 / UNC 三种）——破坏跨机器可移植性。修法：改 wiki 根相对 raw/ 路径
+- `sources-out-of-root`（error）：sources 路径解析后不在 wiki 根下（路径穿越）——修法：改
+  wiki 根相对路径
 - **`raw/external/<symlink>/...` 例外**（详见 external-repo.md §1）：以 `raw/external/` 起始时走
   关联校验链——`sources-malformed`（段数 < 3）/ `sources-external-anchor-missing`
   （缺 anchor）/ `sources-external-symlink-missing`（symlink 不存在）/
@@ -121,11 +125,11 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 7. 过期摘要
 
 - `stale-summary`（warn）：`type: source` 且 `updated` 距今 > `STALE_SUMMARY_DAYS`
-  （`llmw.content.wiki_lint` 常量）。修法：复查源文件是否有更新，重摄取
+  （lint 内部常量）。修法：复查源文件是否有更新，重摄取
 
 ### 8. 文件名规范
 
-- 文件名非 kebab-case（小写 + `-`）→ warn。修法：改名 + 更新引用
+- `filename-not-kebab`（warn）：文件名非 kebab-case（小写 + `-`）。修法：改名 + 更新引用
 
 ### 9. 重复标题
 
@@ -134,7 +138,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 10. log.md 条目数（log-truncation）
 
 - `log-truncation-recommended`（warn）：条目数 > `LOG_RETENTION_LIMIT`
-  （`llmw.content.wiki_lint` 常量）——完整历史靠 git（`git log -p -- wiki/log.md`）。正路：
+  （lint 内部常量）——完整历史靠 git（`git log -p -- wiki/log.md`）。正路：
   `llmw wiki write log` 写入时自动截断；带外手改超限才由 agent Edit 删最旧保最近 N
 
 ### 11. Tag Taxonomy 校验
@@ -152,7 +156,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 12. 页面体量
 
 - `oversized-page`（warn）：5 类内容页正文**非空行数** > `PAGE_SIZE_THRESHOLD`
-  （`llmw.content.wiki_lint` 常量，与 AGENTS.md「Page Thresholds」对齐；MEMORY 无上限）
+  （lint 内部常量，与 AGENTS.md「Page Thresholds」对齐；MEMORY 无上限）
 - 修法：拆成子主题页 + cross-link
 
 ### 13. 可信度与认知质量信号（reviewed / contested / contradictions）
@@ -256,7 +260,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 （external symlink ↔ anchor 关联的 finding 全家：`external-anchor-missing` /
 `external-anchor-corrupt` / `external-source-name-invalid` / `external-symlink-missing` /
 `external-anchor-orphan` / `external-target-drift`——
-详见 `llmw.content.wiki_lint` 的 `check_external_symlinks` docstring。）
+详见 CLI lint 实现里 external 检查的 docstring。）
 
 ## 五、Semantic-merge 规则
 

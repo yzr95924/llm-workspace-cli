@@ -345,7 +345,7 @@ def cmd_memory(wiki_root, args):
 # ---------- main ----------
 
 
-def main(argv=None):
+def build_parser():
     parser = argparse.ArgumentParser(description="wiki 机械字节写操作（见 docstring 准入规则）")
     parser.add_argument("wiki_root", help="wiki 根目录（含 AGENTS.md / wiki/ / MEMORY/）")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -383,7 +383,11 @@ def main(argv=None):
     p_mem.add_argument("--index-line", default="", help="索引行一句话摘要")
     p_mem.set_defaults(func=cmd_memory)
 
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
     _warn_version(args.wiki_root)
     err, code = args.func(args.wiki_root, args)
     if err:

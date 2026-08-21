@@ -13,6 +13,10 @@ jobs:
       - run: pip install ruff==0.15.20
       - run: ruff format --check .
       - run: ruff check .
+      # skill↔CLI 外部契约 gate：skill 文本里的 llmw 命令/flag/finding 名/终态词 与
+      # CLI argparse 树 + finding 字面量比对，CLI 代码里的 rule_ref 指针与 skill 小节
+      # 比对——语法面漂移即红（语义面行为描述靠 MEMORY 纪律人工保证）。
+      - run: python scripts/test/check_skill_cli_contract.py
       # skill 零代码不变量：yzr-llm-*/ 下不得出现 .py（确定性代码全部归 llmw/content/）。
       # 两 SKILL 目录是纯文本（SKILL.md / 模板 / fixtures / workflow 散文）——代码回渗即红。
       - run: |

@@ -4,7 +4,7 @@
 从 fixture 视角校验一个已存在 workspace 的
 "约定文件"（AGENTS.md / CLAUDE.md / .gitignore / MEMORY/MEMORY.md / workspace.toml
 templates_version）是否满足当前 workspace format 的结构要求。本模块只校验**结构性字节合规**；
-修复由 agent 按报告里的 fix 动作走 SKILL.md §6 Upgrade 工作流——本模块不写任何文件。
+修复由 agent 按报告里的 fix 动作走 SKILL.md §5 Upgrade 工作流——本模块不写任何文件。
 
 用法:
   llmw check-fixtures --workspace=<WORKSPACE_ROOT> [--json] [--target-format <semver>]
@@ -224,7 +224,7 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
         out["expected"] = target or "(未指定 target)"
         out["fix"] = {
             "type": "workspace-fix-agents-md-resync",
-            "to_action": "按 SKILL.md §6 全量重渲染 AGENTS.md（agent 人工提取 4 变量；版本行解析失败时单字段 Edit 不可信）",
+            "to_action": "按 SKILL.md §5 全量重渲染 AGENTS.md（agent 人工提取 4 变量；版本行解析失败时单字段 Edit 不可信）",
         }
         return out
     cmp = _compare_semver(found, target)

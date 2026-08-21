@@ -101,7 +101,7 @@ def parse_frontmatter_simple(text: str) -> Dict:
 # 文本素材（md / txt / markdown）走 raw/{articles,clippings,papers,...}/
 # 等任意子目录，rglob 递归扫；raw/assets/ 整棵子树跳过（用户放图片 / 二进制附件的地方，
 # LLM 不该管它们是否"已摄取"——它们本身就是 raw 终态，不应被 source 页引用）；
-# raw/discussions/ 整棵子树跳过（用户 + LLM 协作草稿层，参照 ingest-workflow.md §10——不是待摄取的
+# raw/discussions/ 整棵子树跳过（用户 + LLM 协作草稿层，参照 ingest-workflow.md §十——不是待摄取的
 # 用户真相源，LLM 可写，不应被 ingest_diff 当 untracked 素材列出）。
 INGEST_GLOBS = ("*.md", "*.markdown", "*.txt")
 
@@ -115,7 +115,8 @@ def collect_raw_files(raw_root: Path) -> List[Path]:
     为什么不收 raw/discussions/：discussions/ 是用户 + LLM 双方可写的
     协作草稿层，不是"用户掌控的真相源"——把它当 untracked 素材列出会
     诱导 LLM 把自己写的草稿当 raw 真相 ingest 回 wiki（provenance 后门）。草稿要转
-    正式先由用户确认 mv 到 raw/articles 等子树（归档两路径，详见 ingest-workflow.md §10.3），mv 后才会被本函数扫到。
+    正式先由用户确认 mv 到 raw/articles 等子树（归档两路径详见 wiki 根 AGENTS.md 的
+    raw/discussions/ 节），mv 后才会被本函数扫到。
     """
     if not raw_root.is_dir():
         return []
