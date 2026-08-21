@@ -91,7 +91,7 @@ def _write_workspace_agents_md(
     """按 workspace-agents-md-template.md 拷贝生成 <workspace>/AGENTS.md (SSOT)。
 
     setup_date 由调用方派生自 workspace.toml.created_at（[:10] 取 YYYY-MM-DD），
-    与 checker（从同字段派生）保持一致——设计文档 §7.2 变量 SSOT 原则。
+    与 checker（从同字段派生）保持一致——变量 SSOT 原则。
 
     模板渲染统一走 llmw.content.render。
 
@@ -125,10 +125,10 @@ def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
     """按 workspace-claude-md-template.md 拷贝生成 <workspace>/CLAUDE.md (薄壳)。
 
     薄壳 = @AGENTS.md 一行 + 声明 (~10 行);CLI 仅在 init 时拷模板 + 替换 1 占位符
-      {{WORKSPACE_DISPLAY_NAME}} (薄壳不持 format 版本——版本在 AGENTS.md §六)。
+      {{WORKSPACE_DISPLAY_NAME}} (薄壳不持 format 版本——版本在 AGENTS.md 末尾「当前配置」表)。
     字面: 薄壳仅替换 WORKSPACE_DISPLAY_NAME,不共享 AGENTS.md 的 4 键 mapping。
 
-    模板渲染统一走 llmw.content.render(设计文档 §7.2 单一入口)。
+    模板渲染统一走 llmw.content.render(单一入口，变量 SSOT)。
 
     CLAUDE.md 已存在 → 拒绝覆盖 (薄壳也是 schema, 用户所有)。
     """
@@ -222,7 +222,7 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
 
     # 先写 AGENTS.md (SSOT), 再写 CLAUDE.md (薄壳)
     # setup_date 派生自 workspace.toml.created_at（UTC ISO 8601）— 取 YYYY-MM-DD 与
-    # checker 派生逻辑一致（设计文档 §7.2 变量 SSOT 原则）
+    # checker 派生逻辑一致（变量 SSOT 原则）
     setup_date = (ws.created_at or "")[:10]
     _write_workspace_agents_md(path, display_name, setup_date=setup_date)
     _write_workspace_claude_md(path, display_name)

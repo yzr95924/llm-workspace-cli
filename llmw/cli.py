@@ -85,7 +85,7 @@ def _common_flags() -> argparse.ArgumentParser:
 
     经 ``parents=[_common_flags()]`` 同时挂到主 parser 与每个子 parser，使全局 flag
     既可写在子命令前（``llmw --json list``）也可写在子命令后（``llmw list --json``，
-    设计 01 §1.3 (薄壳)）。``default=SUPPRESS`` 是关键：子 parser 解析时若用户
+    设计薄壳——子 parser 共享 flags 模式）。``default=SUPPRESS`` 是关键：子 parser 解析时若用户
     没在该位置传该 flag，就不写入 namespace，从而不会用默认值覆盖主 parser 已解析
     到的同名值（argparse 子 parser 默认会 clobber）。故读取处须用 ``getattr``。
     """

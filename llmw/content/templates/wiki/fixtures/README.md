@@ -4,7 +4,7 @@ CLI 实现 wiki 仓时落盘的 `wiki/index.md` / `wiki/log.md` / `wiki/tags.md`
 / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` / `.gitignore` 六个文件的**字节金标准**。
 同仓后 fixtures 是唯一字节金标准（跨仓时代的 `references/canonical/` 双份已删）。
 从引入各 fixture 头部说明块开始，它们承载该文件的**操作纪律 canonical**（原在 AGENTS.md 模板
-§一各段与 skill 格式契约——规则跟着维护者走，落盘进实例 agent 直接读）。
+§一（本 wiki 的边界）各段与 skill 格式契约——规则跟着维护者走，落盘进实例 agent 直接读）。
 
 ## 用法
 
@@ -59,7 +59,7 @@ wiki 根有两份模板产物：**`AGENTS.md`（SSOT）** 由 CLI 拷本目录�
 （fixture 只覆盖 CLI init 时刻的"成品"，AGENTS.md / CLAUDE.md 是模板替换产物）。
 
 > **注**：AGENTS.md 虽不进 fixtures 字节比对，但**有独立的运行时同步检查**——
-> `llmw wiki check-fixtures` 的 `agents-md-template-sync` 从 wiki §七 提取 4 个变量值反向渲染
+> `llmw wiki check-fixtures` 的 `agents-md-template-sync` 从 wiki AGENTS.md 末尾「当前配置」表提取 4 个变量值反向渲染
 > 包内 `agents-md-template.md`，与 wiki 实际 AGENTS.md 字节比对。机制同源：
 > 都建立在"AGENTS.md = 模板 + 4 个占位符替换"这一事实上；区别只在本目录管 **init 时刻**、
 > template-sync 管 **init 之后的整个生命周期**（含 format 升级重渲染）。

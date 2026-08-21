@@ -6,7 +6,7 @@ fixtures 是 CLI 字节金标准;完整 gate 走 scripts/test/smoke_fixtures.py
 (CI 跑 real llmw init + wiki add 后用 llmw.content checkers 探测器断言)。
 
 本模块只做**编排**(mkdir 目录树 + .gitkeep 占位 + atomic_write 8 份字面量产物);
-**模板渲染**统一走 llmw.content.render(单一入口,变量 SSOT,详见设计文档 §7.2)。
+**模板渲染**统一走 llmw.content.render(单一入口,变量 SSOT = metadata + 版本常量)。
 
 落盘 8 件产物(AGENTS.md SSOT 拆出):
   AGENTS.md, CLAUDE.md(薄壳), .gitignore, wiki/index.md, wiki/log.md,
@@ -60,8 +60,8 @@ _GITKEEP_DIRS = [Path("wiki") / d for d in _CONTENT_SUBDIRS] + [
 def check_not_initialized(wiki_dir: Path) -> None:
     """6 份 CLI 落盘产物任一已存在 → 拒绝覆盖
 
-    表格字面列 3 份(AGENTS.md / CLAUDE.md / wiki/index.md);§8 总段"绝不允许
-    覆盖已有 wiki"的精神把范围扩到 MEMORY.md / tags.md / SCRIPTS.md。
+    表格字面列 3 份(AGENTS.md / CLAUDE.md / wiki/index.md);
+    "绝不允许覆盖已有 wiki"的原则把范围扩到 MEMORY.md / tags.md / SCRIPTS.md。
     必须在 mkdir 前调用,避免留下半成品目录.
     """
     files = [
@@ -128,7 +128,7 @@ def render_and_write(
     index_md = render_wiki_index_md(topic=topic, setup_date=today)
     log_md = render_wiki_log_md(topic=topic, setup_date=today)
 
-    # 读 4 份无占位符的字面量源(/ §9.1 / §14 / §6 gitignore)
+    # 读 4 份无占位符的字面量源(memory-index.txt / tags.md.txt / scripts.md.txt / gitignore.txt)
     try:
         memory_md = (fixtures / "memory-index.txt").read_text(encoding="utf-8")
         tags_md = (fixtures / "tags.md.txt").read_text(encoding="utf-8")

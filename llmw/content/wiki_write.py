@@ -22,7 +22,7 @@ build_subparsers，由 llmw.cli 组合）：
   memory  新建 MEMORY 条目（仅 title 必填 frontmatter）+ 原子追加 MEMORY.md 索引行
           `llmw wiki --path <WIKI_ROOT> write memory add --slug foo --title "Foo" [--index-line "一句话"]`
 
-版本错位警告：wiki §七 钉定版本与 SKILL 的 CURRENT_WIKI_FORMAT 不一致时警告"先 upgrade 再写"
+版本错位警告：wiki AGENTS.md 末尾「当前配置」表钉定版本与 SKILL 的 CURRENT_WIKI_FORMAT 不一致时警告"先 upgrade 再写"
 ——防新格式写进老 wiki。只警告不阻断（逃生舱：用户对老 wiki 有意写入时仍可用）。
 
 退出码：0 = 成功（含 no-op）；2 = 运行错误 / 参数错误。
@@ -70,7 +70,7 @@ def _now():
 
 
 def _warn_version(wiki_root):
-    """wiki §七 钉定版本与 SKILL 不一致时打警告（stderr，不阻断）"""
+    """AGENTS.md 末尾「当前配置」表钉定版本与 SKILL 不一致时打警告（stderr，不阻断）"""
     pinned = parse_format_version(Path(wiki_root))
     if pinned and pinned != CURRENT_WIKI_FORMAT:
         print(
@@ -221,7 +221,7 @@ def cmd_index(wiki_root, args):
         else:
             out.append(line)
     if not seen_target:
-        return f"wiki/index.md 缺 `## {section}` 类别段（按 page-templates §6 骨架补）", 2
+        return f"wiki/index.md 缺 `## {section}` 类别段（按 [page-templates.md §6](page-templates.md#6-indexindexmd) 骨架补）", 2
 
     entries = [_INDEX_ENTRY_RE.match(ln) for ln in section_lines if _INDEX_ENTRY_RE.match(ln)]
     if entries:
@@ -289,7 +289,7 @@ def cmd_new(wiki_root, args):
     if page_path.is_file():
         return f"new 目标页已存在（如需更新用 Edit）：{page_path}", 2
     if args.type == "source" and not args.sources:
-        return "new --type source 必须提供 --sources（lint §二.3 sources 非空是 error）", 2
+        return "new --type source 必须提供 --sources（lint [lint-checklist.md §二.3](references/lint-checklist.md#3-frontmatter-来sourcesource--synthesis-页) sources 非空是 error）", 2
 
     now = _now()
     fm_lines = ["---", f'title: "{args.title}"']

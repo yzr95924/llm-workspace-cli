@@ -1,6 +1,6 @@
 """wiki enter — 启动 AI agent session (默认 claude；workspace_local.toml#enter_cli 切换 qodercli/opencode)
 
-claude 路径（默认，§9.5）：resolved model 通过写 <wiki>/.claude/settings.local.json
+claude 路径（默认，overlay.apply 写 <wiki>/.claude/settings.local.json）：resolved model 通过写 <wiki>/.claude/settings.local.json
 的 env 块（Local 层，优先级 > User）交付，lazy on enter。不再注入 subprocess env、不再传
 --setting-sources——user 配置（~/.claude/settings.json）正常加载，overlay 在 Local 层稳赢。
 只传 `--add-dir` 让 claude 自读 `<wiki>/CLAUDE.md`，不显式注入 --system-prompt（避免双计入）。

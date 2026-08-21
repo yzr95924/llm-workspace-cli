@@ -15,7 +15,7 @@ description: |
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  workspace_format_version: 0.9.1
+  workspace_format_version: 0.10.0
 ---
 
 # LLM Workspace Management

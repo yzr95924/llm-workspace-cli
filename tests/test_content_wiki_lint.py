@@ -202,7 +202,7 @@ class GitPorcelainPathsTest(unittest.TestCase):
 
     def test_rename_returns_both_sides(self):
         """rename `R <old> -> <new>`（git 实测 old 在前、new 在后）返回 [old, new]——
-        两侧都判，覆盖 §15.3 archive mv 跨边界（discussions/ → articles/）。"""
+        两侧都判，覆盖 archive mv（discussions/ → articles/）跨边界场景。"""
         paths = self.lint_wiki._git_porcelain_paths
         self.assertEqual(
             paths("R  raw/old.md -> raw/new.md"), ["raw/old.md", "raw/new.md"]

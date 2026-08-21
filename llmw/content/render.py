@@ -13,7 +13,7 @@
 - metadata toml: wiki_metadata.toml (name/topic/created_at) / workspace.toml (display_name)
 - 版本常量: llmw/__init__.py (WIKI_FORMAT_VERSION / WORKSPACE_FORMAT_VERSION / __version__)
 
-不从旧文件反提取变量（这是派生化 checker 的基础，详见设计文档 §7.2）。
+不从旧文件反提取变量（派生化 checker 的基础——模板渲染输入只来自 metadata + 版本常量）。
 """
 
 import re

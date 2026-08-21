@@ -15,8 +15,7 @@ wiki management 侧的 fixtures 机制同构（同仓兄弟包，同一套字节
   `llmw check-fixtures` 的模板渲染字节比对（`agents-md-template-sync` /
   `claude-md-template-sync`；模板在 `../workspace-agents-md-template.md` +
   `../workspace-claude-md-template.md`），与 wiki 的 `agents-md-template.md` / `claude-md-template.md` 同（占位符模板不进 fixtures）
-- `workspace.toml` / CLI 内部配置 toml / `.gitignore`——TOML / gitignore，schema 在 CLI 代码
-  §2 / §3 / §10，不走 markdown fixture
+- `workspace.toml` / CLI 内部配置 toml / `.gitignore`——TOML / gitignore，schema 由 CLI store 模块承载
 
 ## 用法
 

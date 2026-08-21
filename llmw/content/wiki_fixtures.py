@@ -2,7 +2,7 @@
 """wiki_fixtures — fixtures 一致性检查（升级时专用；CLI 入口 `llmw wiki check-fixtures`）
 
 从 fixture 视角校验一个已存在 wiki 的
-"约定文件"（AGENTS.md §七 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
+"约定文件"（AGENTS.md 末尾「当前配置」表 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
 MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
 wiki_metadata.toml）是否满足当前 wiki format 的结构要求。本模块只校验**结构性字节合规**；
 语义合并（frontmatter 字段升级 / index 重复条目 / 多 MEMORY 条目归并等）由
@@ -28,7 +28,7 @@ standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 to
   唯独 .gitignore 走包内 fixtures/gitignore.txt 自动跟随。
 - `template-no-outbound-refs`：模板零出边引用是架构不变量（纪律正文唯一维护点 =
   模板；SKILL.md / page-templates.md 单向指入模板），由该 check 机械强制。
-- AGENTS.md 走**模板渲染比对**（`agents-md-template-sync`）：从 wiki §七 提取
+- AGENTS.md 走**模板渲染比对**（`agents-md-template-sync`）：从 wiki 末尾「当前配置」表提取
   主题/创建日期/CLI 版本三变量 + wiki 自钉 format 版本，渲染包内 agents-md-template.md
   后字节比对——一次性覆盖"旧版本残留 + 本地改动"全部漂移，取代 0.25.0- 的两条存在性检查
   （has-at-imports / top-read-directive）。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
@@ -67,21 +67,21 @@ CHECK_REGISTRY = [
         "id": "agents-version-is-current",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "lint-checklist §一.11 wiki-format-version",
-        "desc": "AGENTS.md §七 Wiki Format 版本行需与 --target-format 一致",
+        "rule_ref": "lint-checklist.md §一（--check-version wiki-format-version）",
+        "desc": "AGENTS.md 末尾「当前配置」表 Wiki Format 版本行需与 --target-format 一致",
     },
     {
         "id": "agents-md-template-sync",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "lint-checklist §一.14 agents-md-template-sync",
-        "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（§七 四变量替换后）；定制纪律应沉淀到 MEMORY/",
+        "rule_ref": "lint-checklist.md §二（agents-md-template-sync）",
+        "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（「当前配置」四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
         "id": "template-no-outbound-refs",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "<wiki-root>/AGENTS.md §六 本文件本身的纪律",
+        "rule_ref": "<wiki-root>/AGENTS.md「本文件本身的纪律」节（含骨架所有权四分表）",
         "desc": "模板零出边引用——不得含 page-templates/lint-checklist/SKILL.md/references/yzr-llm-wiki-management/external-repo/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
     },
     {
@@ -151,7 +151,7 @@ CHECK_REGISTRY = [
         "id": "wiki-metadata-reads-satisfied",
         "severity": "error",
         "file": "wiki_metadata.toml",
-        "rule_ref": "lint-checklist §二.17 wiki-metadata-reads-satisfied",
+        "rule_ref": "lint-checklist.md §八（fixtures 边界，check 清单由 CLI 注册表承载）",
         "desc": "wiki_metadata.toml 含 SKILL scan 读取的 6 字段：name / topic / display_name / description / tags / created_at",
     },
 ]
@@ -182,7 +182,7 @@ def _compare_semver(a: Optional[str], b: Optional[str]) -> str:
     """返 'equal' / 'older' / 'newer' / 'unknown'。
 
     本地保留（非 lint_wiki import）：lint_wiki._compare_semver 假定 skill 参数非 None，
-    check 的 current_format 可能为 None（wiki §七 版本钉定时），需更宽容的缺值处理。
+    check 的 current_format 可能为 None（wiki「当前配置」表版本钉定时），需更宽容的缺值处理。
     """
     if not a or not b:
         return "unknown"
@@ -280,7 +280,7 @@ def _parse_anchor_minimal(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
 
 
 def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """AGENTS.md §七 format 行与 --target-format 一致"""
+    """AGENTS.md 末尾「当前配置」表 `Wiki Format 版本` 字段与 --target-format 一致"""
     target_format = info.get("target_format") or None
     out = {  # type: Dict[str, object]
         "passed": True,
@@ -314,7 +314,7 @@ def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obj
             break
     if found_version is None:
         out["passed"] = False  # type: ignore
-        out["actual"] = "(无法解析 §七 Wiki Format 版本行)"
+        out["actual"] = "(无法解析末尾「当前配置」表 `Wiki Format 版本` 字段)"
         out["expected"] = target_format
         return out
     out["file"] = source_file  # type: ignore
@@ -330,7 +330,7 @@ def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obj
 def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
     """AGENTS.md 与 render.py 渲染稿字节一致（变量 SSOT = metadata + 版本常量）。
 
-    设计文档 §7.2: 渲染输入变量全部来自 `wiki_metadata.toml` + `llmw/__init__.py` 版本常量,
+    渲染输入变量全部来自 `wiki_metadata.toml` + `llmw/__init__.py` 版本常量,
     **不从旧文件反提取**。改模板措辞/结构后只动 skill 侧,本 check 自动跟随。
 
     per-wiki 变量 4 个 (主题 / 创建日期 / CLI 版本 / Wiki Format 版本):
@@ -351,7 +351,7 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
         out["skipped"] = "AGENTS.md 不存在"
         return out
 
-    # 变量 SSOT: 从 wiki_metadata.toml 读 topic/created_at（不从 AGENTS.md §七 反提取）
+    # 变量 SSOT: 从 wiki_metadata.toml 读 topic/created_at（不从 AGENTS.md「当前配置」表反提取）
     try:
         meta = wiki_store.load(wiki_root)
     except WikiMetadataCorrupt as e:
@@ -832,7 +832,7 @@ def _check_skeleton_signals(wiki_text: str, signals: Dict[str, object]) -> List[
             missing.append("缺说明块（`>` 引用行）")
 
     if "section_headings" in signals:
-        # 任意 H2-H6 heading（`## ` / `### ` / `#### ` / ...）——段标题可能在 §一 的子节里
+        # 任意 H2-H6 heading（`## ` / `### ` / `#### ` / ...）——段标题可能在节内子节里
         actual_secs = {ln.strip() for ln in lines if re.match(r"^#{2,6} ", ln)}
         for s in signals["section_headings"]:  # type: ignore
             if s not in actual_secs:

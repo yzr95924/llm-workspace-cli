@@ -136,7 +136,7 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 | `llmw.workspace.local_store` | workspace_local.toml 读写（主机相关运行时：enter_cli） | 无 secret 不 chmod；不读 workspace.toml 结构数据 |
 | `llmw.workspace.manager` | init/config/list 业务；init 写 workspace `.gitignore`；config 路由 runtime key→local_store | 不写 wiki 文件；读 wiki_metadata.toml 仅限 list 聚合展示（走 wiki.store 唯一真源） |
 | `llmw.wiki.store` | wiki_metadata.toml 读写 + schema v2 + 模板填充 | 不写 workspace.toml、不调 init_wiki |
-| `llmw.wiki.init_wiki` | 渲染骨架（读 templates + .gitkeep 占位）；读 `llmw/content/templates/wiki/` → atomic_write；.gitkeep 无条件落盘（§7 红线不碰 git） | 不写 wiki_metadata.toml、不进 wiki 业务流 |
+| `llmw.wiki.init_wiki` | 渲染骨架（读 templates + .gitkeep 占位）；读 `llmw/content/templates/wiki/` → atomic_write；.gitkeep 无条件落盘（红线：不碰 git） | 不写 wiki_metadata.toml、不进 wiki 业务流 |
 | `llmw.wiki.manager` | add/remove/show/config/stop 业务；add 调 init_wiki + 打印手动 git hint；校验 model_id；stop 枚举带标窗口 + kill-window（R6） | 不进 wiki 内部、不读 wiki/ 内容 |
 | `llmw.wiki.enter` | 启动 session：resolve model → `overlay.apply` 写启动配置 → `byobu.spawn_window` 收口（当前 session 开窗/复用 + 打标；dead 残留自动收尸后新开；不在 tmux 内 → 兜底 session + attach） | 不写元数据 |
 | `llmw.wiki.byobu` | byobu/tmux 薄封装 + 开窗编排四原语：spawn/复用/打标/枚举（`spawn_window` 四条件复用——窗口名+`@llmw_wiki`+`@llmw_backend`+非 dead，backend 不符拒绝 enter，dead 命中收尸后新开——+ R3 打标；`list_windows` 实时枚举返回 `WindowRow` NamedTuple；窗口名 R1 拼接校验）；enter/status/stop 共用 | 不写元数据、不读配置 |

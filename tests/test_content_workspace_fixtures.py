@@ -178,8 +178,8 @@ class CleanWorkspaceTest(unittest.TestCase):
 
 class AgentsVersionCheckTest(unittest.TestCase):
     def test_stale_version_row_fails_with_older(self):
-        """版本落后时两个 check 协同 fail（设计文档 §7.2 render-from-metadata 已取消正交性,
-        两者都推荐 upgrade——冗余 benign）。"""
+        """版本落后时两个 check 协同 fail（render-from-metadata 改造后 check#1 与 check#2
+        已取消正交性，两者都推荐 upgrade——冗余 benign）。"""
         with tempfile.TemporaryDirectory() as tmp:
             build_workspace(
                 tmp, agents_md=_render_agents_md(format_version=OLD_VERSION)

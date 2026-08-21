@@ -4,7 +4,7 @@
 从 fixture 视角校验一个已存在 workspace 的
 "约定文件"（AGENTS.md / CLAUDE.md / .gitignore / MEMORY/MEMORY.md / workspace.toml
 templates_version）是否满足当前 workspace format 的结构要求。本模块只校验**结构性字节合规**；
-修复由 agent 按报告里的 fix 动作走 SKILL.md §5 Upgrade 工作流——本模块不写任何文件。
+修复由 agent 按报告里的 fix 动作走 SKILL.md「Upgrade」工作流——本模块不写任何文件。
 
 用法:
   llmw check-fixtures --workspace=<WORKSPACE_ROOT> [--json] [--target-format <semver>]
@@ -20,7 +20,7 @@ standalone（不依赖其他脚本 / 第三方库；Python 3.7+）。
 设计权衡:
 - 不落 .migration-plan.json——workspace 修复面恒定 ≤ 4 个结构文件，报告即清单；
   中断后重跑本脚本即可续（检测幂等）。零中间产物。
-- AGENTS.md / CLAUDE.md 走**模板渲染比对**：从 §六「当前配置」表提取 4 变量，渲染 references/workspace-*-template.md 后字节比对——
+- AGENTS.md / CLAUDE.md 走**模板渲染比对**：从末尾「当前配置」表提取 4 变量，渲染 references/workspace-*-template.md 后字节比对——
   一次性覆盖"旧版本残留 + 本地改动"全部漂移。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
 - 版本新旧（agents-version-is-current）与正文同步（agents-md-template-sync）正交：
   后者渲染时用 workspace 自钉版本替换 {{WORKSPACE_FORMAT_VERSION}}。
@@ -43,12 +43,12 @@ from llmw.content.render import render_workspace_agents_md, render_workspace_cla
 SEMVER_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 CREATED_AT_TOML_RE = re.compile(r'^\s*created_at\s*=\s*"([^"]+)"', re.MULTILINE)
 
-# §六「当前配置」表行（机读版本钉死）
+# 「当前配置」表行（机读版本钉死）
 WS_NAME_ROW_RE = re.compile(r"^\|\s*Workspace 名\s*\|\s*(.+?)\s*\|\s*$")
 SETUP_DATE_ROW_RE = re.compile(r"^\|\s*创建日期\s*\|\s*(.+?)\s*\|\s*$")
 WORKSPACE_FORMAT_ROW_RE = re.compile(r"^\|\s*Workspace Format 版本\s*\|\s*(.+?)\s*\|\s*$")
 CLI_VERSION_ROW_RE = re.compile(r"^\|\s*CLI 版本\s*\|\s*(.+?)\s*\|\s*$")
-# §六 表 Workspace 名缺失时从 H1 `# <名> Workspace — LLM 维护守则` 提取（resilience 兜底，非 legacy fallback）
+# 「当前配置」表 Workspace 名缺失时从 H1 `# <名> Workspace — LLM 维护守则` 提取（resilience 兜底，非 legacy fallback）
 H1_NAME_RE = re.compile(r"^#\s+(.+?)\s+Workspace\s+—\s+LLM 维护守则\s*$")
 
 # -- 公开 check 注册表（顺序 = 输出顺序）--
@@ -57,15 +57,15 @@ CHECK_REGISTRY = [
         "id": "agents-version-is-current",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "repo AGENTS.md §当前配置 + upgrade 引擎",
-        "desc": "AGENTS.md §六 Workspace Format 版本行需与 --target-format 一致",
+        "rule_ref": "repo AGENTS.md「当前配置」表 + upgrade 引擎",
+        "desc": "AGENTS.md「当前配置」表 `Workspace Format 版本` 行需与 --target-format 一致",
     },
     {
         "id": "agents-md-template-sync",
         "severity": "error",
         "file": "AGENTS.md",
         "rule_ref": "llmw/content/upgrade.py 升级引擎",
-        "desc": "AGENTS.md 与包内 workspace-agents-md-template.md 渲染稿字节一致（§六 四变量替换后）；定制纪律应沉淀到 MEMORY/",
+        "desc": "AGENTS.md 与包内 workspace-agents-md-template.md 渲染稿字节一致（「当前配置」四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
         "id": "claude-md-template-sync",
@@ -159,9 +159,9 @@ def _extract_row(text: str, row_re: "re.Pattern[str]") -> Optional[str]:
 
 
 def _extract_template_vars(agents_text: str) -> Dict[str, Optional[str]]:
-    """提取模板渲染 4 变量——全部来自 §六「当前配置」表；H1 是 Workspace 名的 resilience 兜底。
+    """提取模板渲染 4 变量——全部来自末尾「当前配置」表；H1 是 Workspace 名的 resilience 兜底。
 
-    系统只理解当前格式：§六 表字段缺失 = 解析失败（unknown），由调用方报 fix。
+    系统只理解当前格式：「当前配置」表字段缺失 = 解析失败（unknown），由调用方报 fix。
     """
     name = _extract_row(agents_text, WS_NAME_ROW_RE)
     if name is None:
@@ -195,9 +195,9 @@ def _agents_reference() -> Tuple[Optional[str], Path]:
 
 
 def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#1: AGENTS.md §六 Workspace Format 版本行与 target_format 一致（新旧判定）。
+    """check#1: AGENTS.md「当前配置」表 `Workspace Format 版本` 行与 target_format 一致（新旧判定）。
 
-    与 template-sync 正交：只管版本新旧，不管正文同步。系统只理解当前格式——§六 表解析失败 = unknown，触发 workspace-fix-agents-md-resync。
+    与 template-sync 正交：只管版本新旧，不管正文同步。系统只理解当前格式——「当前配置」表解析失败 = unknown，触发 workspace-fix-agents-md-resync。
     """
     out = {"passed": True, "severity": "error", "file": "AGENTS.md"}  # type: Dict[str, object]
     text = _read_text(ws_root / "AGENTS.md")
@@ -210,11 +210,11 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
     if found is None:
         out["passed"] = False  # type: ignore
         out["comparison"] = "unknown"
-        out["actual"] = "无法解析 §六 Workspace Format 版本行"
+        out["actual"] = "无法解析末尾「当前配置」表 `Workspace Format 版本` 行"
         out["expected"] = target or "(未指定 target)"
         out["fix"] = {
             "type": "workspace-fix-agents-md-resync",
-            "to_action": "按 SKILL.md §5 全量重渲染 AGENTS.md（agent 人工提取 4 变量；版本行解析失败时单字段 Edit 不可信）",
+            "to_action": "按 SKILL.md「Upgrade」节全量重渲染 AGENTS.md（agent 人工提取 4 变量；版本行解析失败时单字段 Edit 不可信）",
         }
         return out
     cmp = _compare_semver(found, target)
@@ -230,7 +230,7 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
         )
         out["fix"] = {
             "type": "workspace-fix-agents-version",
-            "to_action": f"Edit AGENTS.md §六 表：`Workspace Format 版本` 行改为 {target}（{note}）",
+            "to_action": f"Edit AGENTS.md「当前配置」表：`Workspace Format 版本` 行改为 {target}（{note}）",
         }
     return out
 
@@ -238,9 +238,9 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
 def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
     """check#2: AGENTS.md 与 render.py 渲染稿字节一致。
 
-    设计文档 §7.2: 渲染输入尽量从 workspace.toml + 版本常量派生; **display_name 例外**——
-    workspace.toml 没有该字段（init 时只写到 AGENTS.md），仍需从 AGENTS.md §六 表
-    （或 H1 fallback）提取。其它 3 变量均 SSOT 派生，模板措辞改后本 check 自动跟随。
+    渲染输入尽量从 workspace.toml + 版本常量派生; **display_name 例外**——
+    workspace.toml 没有该字段（init 时只写到 AGENTS.md），仍需从 AGENTS.md 末尾
+    「当前配置」表（或 H1）提取。其它 3 变量均 SSOT 派生，模板措辞改后本 check 自动跟随。
 
     与 check#1 的关系: 本 check 直接用 CURRENT format 版本渲染, 旧 workspace 必然字节差
     → 也会 drift。**冗余 benign**: 两者都推荐 upgrade, 一次修复。check#1 仅做 currency
@@ -253,7 +253,7 @@ def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
         out["skipped"] = "AGENTS.md 不存在"
         return out
 
-    # Variable 1 (例外): display_name 从 AGENTS.md §六 / H1 提取（ws.toml 没存）
+    # Variable 1 (例外): display_name 从 AGENTS.md「当前配置」表 / H1 提取（ws.toml 没存）
     display_name = _extract_row(ws_text, WS_NAME_ROW_RE)
     if display_name is None:
         h1 = next((ln for ln in ws_text.splitlines() if ln.startswith("# ")), "")
@@ -263,8 +263,8 @@ def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
     if not display_name:
         out["passed"] = False  # type: ignore
         out["expected"] = (
-            "AGENTS.md §六 Workspace 名 / H1 可解析为 display_name（ws.toml 不存该字段，"
-            "本 check 必须从此提取；模板变量 SSOT 见设计文档 §7.2）"
+            "AGENTS.md「当前配置」表 Workspace 名 / H1 可解析为 display_name（ws.toml 不存该字段，"
+            "本 check 必须从此提取；模板变量 SSOT = 渲染输入从 toml + 版本常量派生）"
         )
         out["actual"] = "Workspace 名提取失败——走 workspace-fix-agents-md-resync"
         out["fix"] = {
@@ -318,7 +318,7 @@ def check_claude_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
     """check#3: CLAUDE.md 薄壳与 render.py 渲染稿字节一致。
 
     薄壳唯一变量是 {{WORKSPACE_DISPLAY_NAME}}；workspace.toml 没存 display_name,
-    仍需从 AGENTS.md §六 表 / H1 提取。
+    仍需从 AGENTS.md「当前配置」表 / H1 提取。
     """
     out = {"passed": True, "severity": "error", "file": "CLAUDE.md"}  # type: Dict[str, object]
     tpl_path = workspace_templates_dir() / "workspace-claude-md-template.md"
@@ -354,7 +354,7 @@ def check_claude_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
         return out
     if rendered != ws_text:
         out["passed"] = False  # type: ignore
-        out["expected"] = "CLAUDE.md 与 llmw.content.render 渲染稿字节一致（不含纪律正文；版本在 AGENTS.md §六）"
+        out["expected"] = "CLAUDE.md 与 llmw.content.render 渲染稿字节一致（不含纪律正文；版本在 AGENTS.md 末尾「当前配置」表）"
         out["actual"] = "与薄壳模板渲染稿不一致"
         out["fix"] = {
             "type": "workspace-fix-claude-md-resync",

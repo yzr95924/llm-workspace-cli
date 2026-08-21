@@ -13,6 +13,6 @@
 *.tmp
 *.bak
 
-# 外部代码仓 symlink（详见 §13）
+# 外部代码仓 symlink（详见 external-repo.md + AGENTS.md「raw/external/」节）
 raw/external/*
 !raw/external/.symlink-anchor.toml

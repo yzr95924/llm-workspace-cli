@@ -2,7 +2,7 @@
 
 
 def redact_api_key(key: str) -> str:
-    """统一脱敏规则。设计 §9.3：
+    """统一脱敏规则：
     len <= 8 → '***'；否则 '前3...末4'（例：sk-...XYZW）。
     """
     if not key:

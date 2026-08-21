@@ -1,6 +1,6 @@
 """resolved ModelEntry + habit template → <wiki>/.claude/settings.local.json（Local 层 overlay 交付）
 
-设计 §9.5。overlay 不读 registry、不做 resolve——只接收一个已解析好的 ModelEntry，
+overlay 不读 registry、不做 resolve——只接收一个已解析好的 ModelEntry，
 渲染成 env 块并幂等合并写盘。enter(real) 调 apply()，enter(dry-run) 调 inspect()。
 
 交付走 Claude Code 的 Local 层（<wiki>/.claude/settings.local.json），优先级 > User：

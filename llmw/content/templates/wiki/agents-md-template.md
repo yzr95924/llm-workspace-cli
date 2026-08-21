@@ -191,7 +191,7 @@
 4. **版本漂移响应**——lint / write / check-fixtures 报版本漂移
    （`wiki-format-version-stale` / `agents-md-template-sync` drift / legacy warn）时，
    **不回退 schema、不手改对齐**；告知用户并走升级流程：`llmw check-fixtures` 取
-   plan → 按 upgrade-workflow 走 Edit/Write 修复 → 改本文件 §七 版本行（其余由模板
+   plan → 按 upgrade-workflow 走 Edit/Write 修复 → 改本文件末尾「当前配置」表的 `Wiki Format 版本` 字段（其余由模板
    重渲染）
 
 ## 六、本文件本身的纪律
@@ -199,11 +199,11 @@
 - **本文件由 llmw CLI 渲染拥有（byte-owned）——禁手改**。自定义纪律沉淀去 `MEMORY/`
   （由顶部 `@MEMORY/MEMORY.md` 自动加载，会话常驻）；手改会被
   `agents-md-template-sync` check 判 drift、`llmw upgrade --apply`
-  重渲染覆盖（§七 表里 4 个 per-wiki 字段由 upgrade 自动保留现值）。
+  重渲染覆盖（「当前配置」表里 4 个 per-wiki 字段由 upgrade 自动保留现值）。
 - 本文件是 schema，**不是 wiki 内容**——不要往里塞 wiki 主题相关的笔记
 - 改本文件 = 改 skill 行为 = 大事；先和用户确认
 - **模板升级时本文件按 CLI 最新模板全量重渲染**（本 wiki 的健康检查强制这一条；本地定制先沉淀 `MEMORY/`，
-  详见顶部说明）——§七 四行变量
+  详见顶部说明）——「当前配置」四行变量
   （主题 / 创建日期 / CLI 版本 / Wiki Format 版本）是仅有的 per-wiki 内容，升级时保留
 - 若 wiki 启用 git，每次改建议 commit 并加清晰的 commit message；未启用 git 跳过此步
 

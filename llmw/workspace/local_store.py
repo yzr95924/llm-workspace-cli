@@ -67,7 +67,7 @@ def load(workspace_root: Path) -> WorkspaceLocal:
             hint="升级 CLI 或手动迁移 schema_version",
         )
 
-    # 注：老 local 文件可能残留 enter_byobu 行（设计 §2.5 删除）——TOML 对未知 key
+    # 注：老 local 文件可能残留 enter_byobu 行（随 doc/session-visibility-design.md §2.5 删除）——TOML 对未知 key
     # 宽容，这里不读即静默忽略，不 bump schema_version；下次 save 自然抹除。
     return WorkspaceLocal(
         schema_version=sv,

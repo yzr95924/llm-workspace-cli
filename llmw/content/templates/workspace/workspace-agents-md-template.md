@@ -37,8 +37,8 @@
 | `workspace.toml` | workspace CLI | wiki 注册表 + 结构数据；skill **只读**（`templates_version` 由 `llmw upgrade` 更新） |
 | `<CLI 内部配置 *.toml>` | workspace CLI | 模型注册表（含 API key）/ 主机本地运行时等；skill **不读不写**；文件名 / 拆分归 CLI 自由 |
 | `.gitignore` | workspace CLI | 排除承载密钥 / 凭据的 CLI 配置等敏感文件（清单见探测器 `gitignore-skeleton`） |
-| `AGENTS.md` | **用户**（CLI init 时拷 SSOT 模板） | workspace 纪律 SSOT（工具无关）；skill 只读（byte-owned，升级由 `llmw upgrade` 接管，见 §六 四分表） |
-| `CLAUDE.md`（薄壳） | **用户**（CLI init 时拷薄壳模板） | `@AGENTS.md`，仅供经薄壳自动加载的 agent（byte-owned，升级由 `llmw upgrade` 接管，见 §六 四分表） |
+| `AGENTS.md` | **用户**（CLI init 时拷 SSOT 模板） | workspace 纪律 SSOT（工具无关）；skill 只读（byte-owned，升级由 `llmw upgrade` 接管，见「骨架所有权四分表」） |
+| `CLAUDE.md`（薄壳） | **用户**（CLI init 时拷薄壳模板） | `@AGENTS.md`，仅供经薄壳自动加载的 agent（byte-owned，升级由 `llmw upgrade` 接管，见「骨架所有权四分表」） |
 | `INDEX.md` / `STATS.md` | 跨 wiki 维护 agent（本 skill） | workspace 入口文档 + 结构化统计 |
 | `LINT.md` | 跨 wiki 维护 agent（本 skill） | 最近一次 workspace lint 报告（快照） |
 | `cross_queries/` | 跨 wiki 维护 agent（本 skill） | 跨 wiki 综合答案归档 |
@@ -50,7 +50,7 @@
 - **workspace CLI**：管 `workspace.toml` + CLI 内部配置（模型注册表等 `*.toml`）/ `.gitignore` + 每个 wiki 子仓元数据；
   不写 INDEX/STATS/LINT/MEMORY/cross_queries
 - **跨 wiki 维护（本 skill）**：管 INDEX/STATS/LINT/MEMORY/cross_queries + 跨 wiki 编排；
-  不写 workspace.toml / CLI 内部配置 / .gitignore / AGENTS.md / CLAUDE.md（升级由 `llmw upgrade` 接管，见 §六 四分表）
+  不写 workspace.toml / CLI 内部配置 / .gitignore / AGENTS.md / CLAUDE.md（升级由 `llmw upgrade` 接管，见「骨架所有权四分表」）
 - **单 wiki 维护**：管各 wiki 的 ingest / query / lint + `<wiki>/MEMORY/`（纪律见各 `<wiki>/AGENTS.md`）
 
 ## 二、跨 wiki 约定
@@ -140,7 +140,7 @@ frontmatter **仅 `title` 必填**（`type` 若写固定 `workspace-memory`；`c
 - **本文件由 llmw CLI 渲染拥有（byte-owned）——禁手改**。自定义纪律沉淀去 `MEMORY/`
   （由顶部第 30 行 `@MEMORY/MEMORY.md` 自动加载，会话常驻）；手改会被
   `agents-md-template-sync` check 判 drift、`llmw upgrade --apply` 重渲染覆盖
-  （§七 表里 4 个 per-workspace 字段由 upgrade 自动保留现值）。
+  （「当前配置」表里 4 个 per-workspace 字段由 upgrade 自动保留现值）。
 - 本文件是 schema，**不是 workspace 内容**——不要往里塞具体 wiki 主题的笔记
 - 改本文件 = 改 skill 行为 = 大事；先和用户确认
 - **模板升级时本文件按 skill 最新模板全量重渲染**（本 workspace 的健康检查强制这一条；本地定制先沉淀 `MEMORY/`）
@@ -164,7 +164,7 @@ frontmatter **仅 `title` 必填**（`type` 若写固定 `workspace-memory`；`c
 > 不写进本文件——否则升级重渲染时丢失。
 >
 > **升级**：运行 `llmw upgrade --apply [--yes]` 即可完成本文件 + 薄壳 `CLAUDE.md` +
-> `.gitignore` managed block + `MEMORY/MEMORY.md` 头部的升级（按 §六 四分表分类处理）；
+> `.gitignore` managed block + `MEMORY/MEMORY.md` 头部的升级（按「骨架所有权四分表」分类处理）；
 > 自定义内容先搬 `MEMORY/` 再 `--yes` 确认覆盖。
 
 | 字段 | 值 |

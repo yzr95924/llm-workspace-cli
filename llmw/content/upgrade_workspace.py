@@ -22,7 +22,7 @@
     2 = 自验证失败 / 内部错误
 
 变量 SSOT: workspace.toml.created_at (setup_date) + llmw.WORKSPACE_FORMAT_VERSION（包内常量；SKILL.md 前端版本由 CI gate 与常量比对）
-+ 版本常量；display_name 例外（workspace.toml 未存），仍需从现有 AGENTS.md §七 / H1 提取。
++ 版本常量；display_name 例外（workspace.toml 未存），仍需从现有 AGENTS.md「当前配置」表 / H1 提取。
 """
 
 import json
@@ -66,7 +66,7 @@ def _read_text(p: Path) -> Optional[str]:
 def _extract_display_name_and_setup_date(ws_root: Path):
     """从现有 AGENTS.md 提取 display_name + 从 workspace.toml.created_at 派生 setup_date。
 
-    display_name 例外：workspace.toml 没存该字段（仅 AGENTS.md 持有），故从 §七 表 / H1 提取。
+    display_name 例外：workspace.toml 没存该字段（仅 AGENTS.md 持有），故从「当前配置」表 / H1 提取。
     setup_date SSOT：workspace.toml.created_at[:10]。
     """
     display_name = None

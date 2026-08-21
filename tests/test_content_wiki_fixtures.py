@@ -255,7 +255,7 @@ class AgentsVersionCheckTest(unittest.TestCase):
     def test_stale_version_fails(self):
         """版本落后时两个 check 协同：version-is-current 报 currency，template-sync
         因渲染用 CURRENT format 必然字节差 → 也 fail。**冗余 benign**——两者都推荐 upgrade。
-        旧版 orthogonality 设计已在 §7.2 render-from-metadata 改造中废弃（详见设计文档 §7.4）。"""
+        旧版 orthogonality 设计已在 render-from-metadata 改造中废弃。"""
         with tempfile.TemporaryDirectory() as tmp:
             build_wiki(tmp, agents_md=_render_agents_md(format_version=OLD_VERSION))
             code, report = run_check(tmp)
@@ -263,7 +263,7 @@ class AgentsVersionCheckTest(unittest.TestCase):
         c = check_by_id(report, "agents-version-is-current")
         self.assertIs(c["passed"], False)
         self.assertEqual(c["comparison"], "older")
-        # 与 template-sync 同时 fail：两者都指向 upgrade（设计文档 §7.2 已取消 orthogonality）
+        # 与 template-sync 同时 fail：两者都指向 upgrade（render-from-metadata 改造后 orthogonality 已取消）
         sync = check_by_id(report, "agents-md-template-sync")
         self.assertIs(sync["passed"], False)
         self.assertIn("渲染稿", str(sync.get("expected", "")))
