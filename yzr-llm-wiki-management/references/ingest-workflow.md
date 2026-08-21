@@ -4,11 +4,9 @@ Ingest 把 `raw/` 里的原始资料变成 wiki 内的**摘要页** + 同步相�
 页 + 更新 index + 追加 log。一份资料通常涉及 **1 source 页 + 0~N entity / concept
 页 + 1 index 更新 + 1 log 条目**。
 
-## 一、为什么 ingest 是 wiki 的"主循环"
+## 一、为什么 ingest 重要
 
-Karpathy 设计的核心论断：**"Most people's experience with LLMs and documents looks
-like RAG... There's no accumulation."** Ingest 是把 RAG（每次查询时重抽片段）变成
-"复利积累"的关键——同一份资料被消化一次，永久可查；后续 query 自动受益。
+Ingest 是 wiki **复利积累**的主循环——同一份资料消化一次永久可查；后续 query 自动受益（vs RAG 每次重新抽片段）。
 
 ## 二、入口与触发
 
@@ -164,16 +162,11 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 > log，既慢又容易因中间步骤失败导致不一致；批处理把主流程收敛成一次写入，副作用面最小。
 > `Bulk:` 标题前缀保留后续按需 grep 出"批量事件"的能力（无需新增 `bulk-ingest` op）。
 
-## 六、判定"是否新建 entity / concept 页"的启发
+## 六、判定"是否新建 entity / concept 页"
 
-- **新建**条件（任一满足）：
-  - raw 资料用了 ≥ 3 次该概念
-  - raw 资料明确将其作为核心论点之一
-  - 用户后续 query 时可能直接搜这个概念
-- **不新建**条件（任一满足）：
-  - raw 资料里只是路过 / 类比 / 背景提及
-  - 该概念在 wiki 中粒度过细（例：每次会议人名都建 entity 就太碎了）
-  - 已经有同名 / 近义页
+阈值 canonical 见 [`page-templates.md §三「建页 / 追加 / 归档阈值」`](page-templates.md#建页--追加--归档阈值page-thresholds)：≥ 2 个 source 页提及 **或** 本页中心主题 → 建；路过提及 / 粒度过细 / 已有同名近义页 → 不建。
+
+**单篇 ingest 视角的套用**：本 raw 的中心主题 / 反复出现的核心概念 → 建；路过 / 类比 / 背景提及 → 不建；已有同名 / 近义页 → 先 search 再定（写前必搜）。
 
 ## 七、正文引用的稳定性（漂移点规避）
 
@@ -205,8 +198,6 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 - ❌ 一份资料写 5 个 source 页（粒度过细）——按"主题"分，不是按"raw 文件 1:1"
 - ❌ source 页只复制 raw 内容——必须消化、提炼、加 cross-refs
 - ❌ entity / concept 页"重写式更新"——只 append "Sources" 段
-- ❌ 跳过 `llmw wiki write log`——失去操作语义记录
-- ❌ 跳过 `llmw wiki write index add`——wiki 失去单一入口
 - ❌ 跨主题的 entity 混在一起——本 skill 假设一个 wiki 一个主题；跨主题用不同的 wiki
 
 ## 十、raw/discussions/ 草稿消化（可选入口）

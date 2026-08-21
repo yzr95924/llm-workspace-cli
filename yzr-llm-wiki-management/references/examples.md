@@ -95,8 +95,8 @@
 **执行**：
 
 ```text
-1. 跑操作前置：读 ~/wiki/llm-systems/AGENTS.md §七 Wiki Format 版本 = 0.38.0
-   （CLI init 时从 skill metadata 镜像，老 wiki 落后当前 0.39.0）+
+1. 跑操作前置：读 ~/wiki/llm-systems/AGENTS.md §七 Wiki Format 版本（CLI init
+   时从 skill `metadata.wiki_format_version` 镜像，老 wiki 落后于 skill 当前版本）+
    wiki/index.md + wiki/log.md 最近 30 行
 2. 跑升级 dry-run 看骨架计划：
     llmw wiki --path=~/wiki/llm-systems upgrade

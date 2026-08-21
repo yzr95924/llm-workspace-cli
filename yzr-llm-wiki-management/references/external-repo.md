@@ -150,15 +150,11 @@ ln -s "$TARGET_ABS" "raw/external/${SYMLINK_NAME}"
 anchor 写绝对路径也兼容）。anchor 是 TOML 单文件，**只改本 entry 的 target**，
 不要触碰其他 entry + 不改 `remote_url` / `branch` 身份字段：
 
-```bash
-# 用 regex 单行替换 target 字段（保留 entry 顺序 / 注释 / 字段顺序，跨机器 diff 干净）
-python3 -c "import re, pathlib; p=pathlib.Path('raw/external/.symlink-anchor.toml'); \
-t=p.read_text(); \
-q=re.compile(r'(\\[\\[entry\\]\\][\\s\\S]*?symlink\\s*=\\s*\"linux-kernel\"[\\s\\S]*?target\\s*=\\s*)\"[^\"]*\"'); \
-p.write_text(q.sub(r'\\1\"~/src/linux-kernel\"', t, count=1))"
-```
+用 `Edit` 工具定位本 entry 的 `target = "..."` 行做单行替换（用 surrounding 上下文——
+本 entry 的 `symlink = "<name>"` 行——确保唯一匹配；保留 entry 顺序 / 注释 /
+字段顺序，跨机器 diff 干净）。
 
-> **为什么不全量重写（`tomllib.dump`）**：会丢注释、丢字段顺序、跨机器 diff 噪音。
+> 为什么不用 `tomllib.dump` 整文件重写：会丢注释、丢字段顺序、跨机器 diff 噪音。
 > anchor 是跨主机重建凭据，必须 byte-stable 的局部改写。
 
 `remote_url` / `branch` 身份字段**保持原值不动**——它们是接入意图，不是机器状态。
