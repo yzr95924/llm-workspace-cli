@@ -284,11 +284,10 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 **职责**：三方分工——CLI `llmw [wiki] upgrade` 修骨架（byte/block/header-owned + legacy
 paths + self-verify + blocked_drift 3 终态）；lint plan `actions[]` 修内容页 frontmatter
 legacy（当前仅 `type-memory-value`）；agent 负责 drift 裁定（本地定制搬 MEMORY 或丢弃）+
-§六语义合并（index 重复 / MEMORY 归并 / 0.16→0.17 anchor）。迁移期不走 `llmw wiki write`；
+§六语义合并（index 重复 / MEMORY 归并）。迁移期不走 `llmw wiki write`；
 **不**追加 log 条目。
 
-**完整步骤**（5 步流程 / drift 裁定 / 决策树 / 语义合并规则 §6.1-§6.6 / anchor 0.16→0.17
-5 步迁移）见 [`references/upgrade-workflow.md`](references/upgrade-workflow.md)。
+**完整步骤**（5 步流程 / drift 裁定 / 决策树 / 语义合并规则 §6.1-§6.4）见 [`references/upgrade-workflow.md`](references/upgrade-workflow.md)。
 
 ## 参考样例
 

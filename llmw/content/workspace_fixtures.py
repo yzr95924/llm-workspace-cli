@@ -20,8 +20,7 @@ standalone（不依赖其他脚本 / 第三方库；Python 3.7+）。
 设计权衡:
 - 不落 .migration-plan.json——workspace 修复面恒定 ≤ 4 个结构文件，报告即清单；
   中断后重跑本脚本即可续（检测幂等）。零中间产物。
-- AGENTS.md / CLAUDE.md 走**模板渲染比对**：从 §六「当前配置」表提取 4 变量（老格式
-  fallback H1 + §六 散文行），渲染 references/workspace-*-template.md 后字节比对——
+- AGENTS.md / CLAUDE.md 走**模板渲染比对**：从 §六「当前配置」表提取 4 变量，渲染 references/workspace-*-template.md 后字节比对——
   一次性覆盖"旧版本残留 + 本地改动"全部漂移。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
 - 版本新旧（agents-version-is-current）与正文同步（agents-md-template-sync）正交：
   后者渲染时用 workspace 自钉版本替换 {{WORKSPACE_FORMAT_VERSION}}。
@@ -49,9 +48,8 @@ WS_NAME_ROW_RE = re.compile(r"^\|\s*Workspace 名\s*\|\s*(.+?)\s*\|\s*$")
 SETUP_DATE_ROW_RE = re.compile(r"^\|\s*创建日期\s*\|\s*(.+?)\s*\|\s*$")
 WORKSPACE_FORMAT_ROW_RE = re.compile(r"^\|\s*Workspace Format 版本\s*\|\s*(.+?)\s*\|\s*$")
 CLI_VERSION_ROW_RE = re.compile(r"^\|\s*CLI 版本\s*\|\s*(.+?)\s*\|\s*$")
-# fallback：H1 `# <名> Workspace — LLM 维护守则` + 0.7.0- 老 §六 散文行
+# §六 表 Workspace 名缺失时从 H1 `# <名> Workspace — LLM 维护守则` 提取（resilience 兜底，非 legacy fallback）
 H1_NAME_RE = re.compile(r"^#\s+(.+?)\s+Workspace\s+—\s+LLM 维护守则\s*$")
-LEGACY_ROW_RE = re.compile(r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|.*llmw v([0-9.]+)\s*/\s*workspace-spec v([0-9.]+).*\|\s*$")
 
 # -- 公开 check 注册表（顺序 = 输出顺序）--
 CHECK_REGISTRY = [
@@ -161,13 +159,10 @@ def _extract_row(text: str, row_re: "re.Pattern[str]") -> Optional[str]:
 
 
 def _extract_template_vars(agents_text: str) -> Dict[str, Optional[str]]:
-    """提取模板渲染 4 变量：§六 表优先；老格式 fallback H1（名）+ §六 散文行（日期 / CLI / format）。"""
-    legacy_date = legacy_cli = legacy_format = None  # type: Optional[str]
-    for line in agents_text.splitlines():
-        m = LEGACY_ROW_RE.match(line)
-        if m:
-            legacy_date, legacy_cli, legacy_format = m.group(1), m.group(2), m.group(3)
-            break
+    """提取模板渲染 4 变量——全部来自 §六「当前配置」表；H1 是 Workspace 名的 resilience 兜底。
+
+    系统只理解当前格式：§六 表字段缺失 = 解析失败（unknown），由调用方报 fix。
+    """
     name = _extract_row(agents_text, WS_NAME_ROW_RE)
     if name is None:
         h1 = next((ln for ln in agents_text.splitlines() if ln.startswith("# ")), "")
@@ -178,9 +173,9 @@ def _extract_template_vars(agents_text: str) -> Dict[str, Optional[str]]:
     format_semver = SEMVER_RE.search(format_cell) if format_cell else None
     return {
         "name": name,
-        "date": _extract_row(agents_text, SETUP_DATE_ROW_RE) or legacy_date,
-        "cli": _extract_row(agents_text, CLI_VERSION_ROW_RE) or legacy_cli,
-        "format": format_semver.group(0) if format_semver else legacy_format,
+        "date": _extract_row(agents_text, SETUP_DATE_ROW_RE),
+        "cli": _extract_row(agents_text, CLI_VERSION_ROW_RE),
+        "format": format_semver.group(0) if format_semver else None,
     }
 
 
@@ -202,8 +197,7 @@ def _agents_reference() -> Tuple[Optional[str], Path]:
 def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
     """check#1: AGENTS.md §六 Workspace Format 版本行与 target_format 一致（新旧判定）。
 
-    与 template-sync 正交：只管版本新旧，不管正文同步。0.7.0- 老格式无表 → fallback
-    §六 散文行含旧版 `llmw vX / workspace-spec vY` 格式时提取
+    与 template-sync 正交：只管版本新旧，不管正文同步。系统只理解当前格式——§六 表解析失败 = unknown，触发 workspace-fix-agents-md-resync。
     """
     out = {"passed": True, "severity": "error", "file": "AGENTS.md"}  # type: Dict[str, object]
     text = _read_text(ws_root / "AGENTS.md")
@@ -216,7 +210,7 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
     if found is None:
         out["passed"] = False  # type: ignore
         out["comparison"] = "unknown"
-        out["actual"] = "无法解析 §六 Workspace Format 版本行（含老 §六 散文行 fallback）"
+        out["actual"] = "无法解析 §六 Workspace Format 版本行"
         out["expected"] = target or "(未指定 target)"
         out["fix"] = {
             "type": "workspace-fix-agents-md-resync",

@@ -55,24 +55,6 @@ workspace_models.toml
 *.bak
 """
 
-# 0.7.0 前格式的 AGENTS.md（无「当前配置」表，§六 变更历史散文行）——老 workspace 形态
-OLD_AGENTS_MD = """# Old Workspace — LLM 维护守则
-
-> 这是本 workspace 的**纪律配置**——给跨 wiki 工作的 LLM 看的"工作守则"。
-
-@MEMORY/MEMORY.md
-
-## 一、本 workspace 的边界
-
-（老格式正文，与新模板不同——template-sync 必然报 drift）
-
-## 六、变更历史
-
-| 日期 | 变更 |
-| --- | --- |
-| 2026-06-30 | workspace CLI 初始化生成（llmw v0.1.0 / workspace-spec v0.6.2） |
-"""
-
 
 def _target_format():
     """包内常量 llmw.WORKSPACE_FORMAT_VERSION（与 SKILL.md frontmatter 同 commit 对齐，CI gate 守护）。"""
@@ -243,21 +225,6 @@ class AgentsTemplateSyncTest(unittest.TestCase):
         self.assertIs(c["passed"], False)
         self.assertEqual(c["fix"]["type"], "workspace-fix-agents-md-resync")
         self.assertIn("行与渲染稿不一致", c["actual"])
-
-    def test_old_workspace_fallback_extraction(self):
-        """0.7.0- 老格式（无「当前配置」表）：§六 散文行 fallback 提取出版本 → comparison=older 而非 unknown。"""
-        with tempfile.TemporaryDirectory() as tmp:
-            build_workspace(tmp, agents_md=OLD_AGENTS_MD)
-            code, report = run_check(tmp)
-        self.assertEqual(code, 1)
-        ver = check_by_id(report, "agents-version-is-current")
-        self.assertIs(ver["passed"], False)
-        self.assertEqual(
-            ver["comparison"], "older", f"老 §六 散文行应 fallback 解析出 0.6.2：{ver}"
-        )
-        sync = check_by_id(report, "agents-md-template-sync")
-        self.assertIs(sync["passed"], False)
-        self.assertEqual(sync["fix"]["type"], "workspace-fix-agents-md-resync")
 
 
 class ClaudeMdTemplateSyncTest(unittest.TestCase):

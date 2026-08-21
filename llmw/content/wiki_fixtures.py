@@ -89,7 +89,7 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": ".gitignore",
         "rule_ref": "external-repo.md §一（gitignore 增强见 .gitignore fixture）",
-        "desc": ".gitignore 含 `raw/external/*` 排除 + `!raw/external/.symlink-anchor.toml` 跟踪；老 `**/.symlink-anchor.json` 残留即报错",
+        "desc": ".gitignore 含 `raw/external/*` 排除 + `!raw/external/.symlink-anchor.toml` 跟踪",
     },
     {
         "id": "symlink-anchor-toml-schema",
@@ -104,13 +104,6 @@ CHECK_REGISTRY = [
         "file": "raw/external/",
         "rule_ref": "external-repo.md §1.1",
         "desc": "anchor 每个 [[entry]].symlink 对应 external/ 顶层同名 symlink；anchor 无对应 symlink / orphan symlink 一并检查",
-    },
-    {
-        "id": "symlink-anchor-flat-not-legacy",
-        "severity": "error",
-        "file": "raw/external/",
-        "rule_ref": "upgrade-workflow.md §6.3",
-        "desc": "raw/external/ 不存在 <source-name>/ 子目录 扁平布局",
     },
     {
         "id": "index-md-categories-stable",
@@ -168,7 +161,6 @@ AGENTS_FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\
 INDEX_CATEGORY_RE = re.compile(r"^## (.+)$")
 SOURCE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 GITIGNORE_TRACK_TOML_RE = re.compile(r"^!\s*raw/external/\.symlink-anchor\.toml\s*(#.*)?$")
-GITIGNORE_TRACK_LEGACY_RE = re.compile(r"^!\s*raw/external/\*?/?\.symlink-anchor\.json\s*(#.*)?$")
 GITIGNORE_EXCLUDE_EXTERNAL_RE = re.compile(r"^\s*raw/external/?\*?\s*(#.*)?$")
 YAML_FRONT_MATTER_RE = re.compile(r"^---\s*\n.*?\n---\s*\n", re.DOTALL)
 
@@ -467,21 +459,12 @@ def check_gitignore_external_track(wiki_root: Path, info: Dict[str, str]) -> Dic
 
     has_exclude = False
     has_track_toml = False
-    has_legacy_json = False
     for line in text.splitlines():
         if GITIGNORE_EXCLUDE_EXTERNAL_RE.match(line):
             has_exclude = True
         if GITIGNORE_TRACK_TOML_RE.match(line):
             has_track_toml = True
-        if GITIGNORE_TRACK_LEGACY_RE.match(line):
-            has_legacy_json = True
 
-    if has_legacy_json:
-        out["passed"] = False  # type: ignore
-        out["actual"] = "残留旧 `!raw/external/**/.symlink-anchor.json` 跟踪规则（退役）"
-        out["expected"] = "!raw/external/.symlink-anchor.toml"
-        out["rule_ref"] = "upgrade-workflow.md §6.3"
-        return out
     if not has_exclude:
         out["passed"] = False  # type: ignore
         out["actual"] = "缺 `raw/external/*` 排除规则"
@@ -573,45 +556,6 @@ def check_symlink_anchor_toml_symlink_matches(wiki_root: Path, info: Dict[str, s
             f"symlink 缺 entry: {orphan_symlink}" if orphan_symlink else ""
         )
         out["expected"] = "anchor [[entry]].symlink 与 external/ 顶层 symlink 一一对应"
-        return out
-    return out
-
-
-def check_symlink_anchor_flat(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """external/ 不存在 <source-name>/ 子目录 扁平"""
-    out = {  # type: Dict[str, object]
-        "passed": True,
-        "severity": "error",
-        "file": f"raw/{EXTERNAL_SUBDIR}/",
-    }
-    external_dir = wiki_root / "raw" / EXTERNAL_SUBDIR
-    if not external_dir.is_dir():
-        out["passed"] = None  # type: ignore
-        out["skipped"] = "raw/external/ 目录不存在"
-        return out
-
-    legacy_subdirs = []  # type: List[str]
-    legacy_anchor_json = []  # type: List[str]
-    for p in sorted(external_dir.iterdir()):
-        # 实际子目录（非 symlink 跟随）= legacy 0.16.0- 形态
-        if p.is_dir() and not p.is_symlink():
-            legacy_subdirs.append(p.name + "/")
-            # 子目录内若还有 .symlink-anchor.json，则更明确的标志
-            if (p / ".symlink-anchor.json").exists():
-                legacy_anchor_json.append(str(p.name) + "/.symlink-anchor.json")
-        elif p.name == ".symlink-anchor.json" and not p.is_symlink():
-            # 旧 anchor 文件直接放 external/ 顶层（变体，不规范）
-            legacy_anchor_json.append(p.name)
-
-    if legacy_subdirs or legacy_anchor_json:
-        out["passed"] = False  # type: ignore
-        msg_parts = []  # type: List[str]
-        if legacy_subdirs:
-            msg_parts.append(f"legacy 子目录: {legacy_subdirs}")
-        if legacy_anchor_json:
-            msg_parts.append(f"legacy anchor 文件: {legacy_anchor_json}")
-        out["actual"] = "; ".join(msg_parts)
-        out["expected"] = "扁平布局: symlink + .symlink-anchor.toml 直接在 external/ 顶层"
         return out
     return out
 
@@ -1023,7 +967,6 @@ CHECK_FUNCTIONS = [
     ("gitignore-external-track-toml", check_gitignore_external_track),
     ("symlink-anchor-toml-schema", check_symlink_anchor_toml_schema),
     ("symlink-anchor-toml-symlink-matches", check_symlink_anchor_toml_symlink_matches),
-    ("symlink-anchor-flat-not-legacy", check_symlink_anchor_flat),
     ("index-md-categories-stable", check_index_md_categories),
     ("memory-index-no-frontmatter", check_memory_index_no_frontmatter),
     ("memory-entries-indexed", check_memory_entries_indexed),

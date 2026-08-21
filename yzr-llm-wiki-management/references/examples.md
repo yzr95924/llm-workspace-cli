@@ -108,7 +108,7 @@
 4. 查内容页 legacy + 跑修复（lint 侧）：
     llmw wiki --path=~/wiki/llm-systems lint --check-version --json
     → needs_upgrade: true；legacy 组（当前仅 type-memory-value）：
-         - 3 处老格式 → agent 按 upgrade-workflow.md §6.1 用 Edit 落
+          - 3 处老格式 → agent 按 plan `actions[]` 自含 `to_action` 用 Edit 落
 5. 验证：重跑 `llmw wiki --path=... upgrade` + `lint --check-version`
     → needs_upgrade: false ✓ 完成；upgrade 退出 done；无残留冲突
 6. 清理 .bak（anchor TOML 重写产生点）：

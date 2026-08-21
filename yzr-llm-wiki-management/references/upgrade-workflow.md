@@ -1,13 +1,11 @@
 # Upgrade（升级 wiki format）详细流程
 
-> 升级按三个真源分工：
+> 升级按两个真源分工：
 > - **CLI `llmw [wiki] upgrade`**——修复骨架（byte-owned 全量重渲染 / block-owned .gitignore
 >   managed 块 / header-owned 换头保 growth / legacy paths 移动 / self-verify / blocked_drift
 >   3 终态契约）
 > - **lint plan `actions[]`**（内容页 frontmatter legacy，agent 走 Edit/Write）——由
->   `llmw wiki lint --check-version [--apply --json]` 输出
-> - **本文件 §六**——语义合并规则（跨 entry 的 agent 判断：index 重复 / MEMORY 归并 /
->   0.16.0 → 0.17.0 anchor）
+>   `llmw wiki lint --check-version [--apply --json]` 输出；`actions[]` 自含 to_action
 >
 > 任何 breaking 变更的语义合并规则必须落 §六，不再另设历史档案；版本演进叙事看 git log。
 
@@ -19,8 +17,8 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 ## 为什么需要这一步
 
 每个 wiki 仓在 `<wiki-root>/AGENTS.md` §七 钉一份 `Wiki Format 版本`（CLI init 时从本 skill
-`metadata.wiki_format_version` 镜像，单源对齐）。format 演进时，老 wiki 会**有意识地保留**部分
-旧字段——避免一刀切破坏用户沉淀的内容。本节定义**检测 + 修复**的 workflow。
+`metadata.wiki_format_version` 镜像，单源对齐）。本 workflow 处理 format 演进后的**检测 + 修复**，
+老 wiki 有意识保留部分旧字段避免一刀切。
 
 ## 职责切分（**关键**——三方分工）
 
@@ -29,9 +27,9 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
   paths 移动 + self_verify + blocked_drift 门禁（本地定制 diff 需 `--yes` 确认）。退出 3 终态
   JSON：`dry_run` / `blocked_drift` / `done` / `done_with_residue` / `verify_failed`
 - **lint plan `actions[]`**（**内容页 frontmatter legacy**，目前仅注册 `type-memory-value`）：
-  由 `llmw wiki lint --check-version --apply --json` stdout 输出；agent 按 §6.1 用 Edit/Write 落
+  由 `llmw wiki lint --check-version --apply --json` stdout 输出；`actions[]` 自含 `to_action`，agent 直接用 Edit/Write 落
 - **agent 职责**：① drift 裁定（blocked_drift 时与用户决定本地定制搬 MEMORY/ 还是丢弃）
-  ② 内容页 legacy 修复 ③ §六 语义合并（index 重复 / MEMORY 归并 / anchor 0.16→0.17）
+  ② 内容页 legacy 修复（按 plan `actions[]` 自含 `to_action` 落） ③ §六 语义合并（index 重复 / MEMORY 归并）
 - **迁移期不走 `llmw wiki write`**——机械写命令只认识当前形态
 - **迁移依据 SSOT**：CLI `plan_resync`（骨架）+ lint plan `actions[]`（内容页）+ §六（语义）
 - **不**追加 log 条目——迁移不是 wiki 操作事件
@@ -63,9 +61,9 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
    llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version
    ```
 
-   - 报告 `needs_upgrade` / legacy pattern groups（当前仅 `type-memory-value`）
-   - 若 legacy 有现场 → `--apply --json` 拿 stdout `actions[]`，agent 按 §6.1 用 Edit 落
-   - **跳过 `skipped_conflicts[]`**——永不自动覆盖人工决策
+    - 报告 `needs_upgrade` / legacy pattern groups（当前仅 `type-memory-value`）
+    - 若 legacy 有现场 → `--apply --json` 拿 stdout `actions[]`，agent 按 `to_action` 字段用 Edit 落
+    - **跳过 `skipped_conflicts[]`**——永不自动覆盖人工决策
 
 5. **验证**：重跑 `llmw wiki upgrade` + `llmw wiki lint --check-version`：
    - `needs_upgrade == false` 且无残留 legacy + upgrade 退出 `done` → 告知用户完成
@@ -81,7 +79,6 @@ find "$LLM_WIKI_ROOT" -maxdepth 3 -name '*.bak' -delete
 
 ## 边界
 
-- **不**修改 `raw/` 下任何文件（即便用户要求）——raw 只读纪律
 - **不**删除 wiki 内容（即便 raw 已不存在 source 页）——用 `archived: true` 替代
 - **不**对 MEMORY 索引做"自动补行"以外的改动——MEMORY.md 是 LLM 私有记忆清单
 - **不**改 `wiki/log.md` / `wiki/index.md` frontmatter（index 6 键 / log 5 键 reserved，迁移不触及）
@@ -89,7 +86,7 @@ find "$LLM_WIKI_ROOT" -maxdepth 3 -name '*.bak' -delete
 - **`current_format > skill_format`**（wiki 比 SKILL 新）：**不**阻断，告警用户更新本 skill 安装；
   **不**改 wiki
 
-> 其余边界以 wiki 根 `AGENTS.md` 为准。
+> 其余边界以 wiki 根 `AGENTS.md` 为准（raw 只读等全局纪律）。
 
 ## 样例
 
@@ -99,21 +96,11 @@ find "$LLM_WIKI_ROOT" -maxdepth 3 -name '*.bak' -delete
 
 ## 六、语义合并规则
 
-> 升级的两条修复路径在 agent 视角的合并依据：
-> - **CLI `upgrade`** 管骨架一致性，本文件无需介入
-> - **lint plan `actions[]`**（内容页 legacy，stdout JSON）+ 跨 entry 的语义合并（index 重复
->   条目 / 多 MEMORY 条目归并 / 0.16.0 → 0.17.0 anchor 多 entry 合并）= agent 按本节规则走
->
+> lint plan `actions[]` 自含 `to_action`（内容页 legacy 修复直接用 Edit/Write 落）；
+> 本文件 §六 定义**跨 entry 的语义合并**（index 重复条目 / 多 MEMORY 条目归并）——agent 按本节规则走。
 > 脚本不替代语义判断。
 
-### 6.1 frontmatter 字段合并
-
-- `type: memory` / `type: memory-entry`（MEMORY 扩展类型）→ **保留原样**——
-  MEMORY 桶的 `type` 字段两类均合法（page-templates.md §一）；
-  无需迁到 `memory-entry` 也无需删除 `type`
-- `subpath:` 字段（已退役的 anchor 字段）→ 走 §6.3 anchor 合并处理，不在本节管
-
-### 6.2 wiki/index.md 条目合并
+### 6.1 wiki/index.md 条目合并
 
 - **同 `<relative-path>` link 但多条目出现** → 留信息最完整的那一条（按以下优先级）：
   1. 含 `✓ reviewed <date>` badge（最新 reviewed_at）
@@ -122,47 +109,10 @@ find "$LLM_WIKI_ROOT" -maxdepth 3 -name '*.bak' -delete
   余删
 - **同 `<title>` 词但不同 `<relative-path>`** → 标红（`✗ duplicate-title`），转人工裁定——
   是 entity 重命名（保留新路径、合并到老路径）还是概念拆页（重命名其中之一）由人决定
-- **新分类（如 0.X 引入第六类 `Comparisons`）→ 老 wiki 无该类时**，在 wiki/index.md 末尾
+- **新分类引入（如第六类 `Comparisons`）→ 老 wiki 无该类时**，在 wiki/index.md 末尾
   按 fixture 头部模板加新类别 H2 + 一行 `<!-- agent: TODO 归类旧页 -->` 占位，提醒人工归类
-- **`raw/external/<symlink>` 形式的源条目**——改用 symlink 名（kebab-case）而非
-  老 `<source-name>/` 子目录；index.md 里所有 `raw/external/<source-name>/...`
-  形式条目同步改为 `raw/external/<symlink>/...`
 
-### 6.3 raw/external anchor 合并（0.16.0 → 0.17.0 TOML 迁移）
-
-anchor 从「每仓一份 `<source-name>/.symlink-anchor.json`（JSON object）」改为「单文件
-`external/.symlink-anchor.toml`（TOML `[[entry]]` 数组）」。迁移走 5 步：
-
-1. `find raw/external -name .symlink-anchor.json` 找全部老 anchor
-2. 对每个 `<source-name>/.symlink-anchor.json`：
-   - 读 JSON 拿 `{target, captured_at, kind, ...git-扩展字段}`
-   - 扫 `<source-name>/` 下所有 symlink（每个 symlink = 一条 entry）
-3. 对每个 symlink `<name>`：
-   - 检查 `raw/external/<name>` 是否被占用（symlink 或目录）；占用 → 标 `✗ conflict` 转
-     人工决定改名 / 合并 / 跳过
-   - 不冲突 → `mv <source-name>/<name> <name>`（移 symlink 到 `external/` 顶层）
-4. 构造 `[[entry]]` 块（含 `symlink` + `target` + `captured_at` + `kind='external-repo'` +
-   git 仓时可选 `remote_url`/`branch` 身份字段），追加写到
-   `raw/external/.symlink-anchor.toml` 末尾（按 symlink 名字典序排版，便于 git diff）
-5. `rm -rf raw/external/<source-name>/` 删整个子目录
-
-**subpath 字段退役**：老 anchor 含 `subpath` 时，先创建两个 symlink——
-`<name>` → `target` + `<name>-sub` → `target/<subpath>`，再写两条 entry（subpath 信息
-落到 entry 的 `notes` 字段，可选）。
-
-**多仓合并**：若老 wiki 有 N 个 `<source-name>/` 子目录同时迁移，按 symlink 字典序排版
-新 anchor 文件——每仓一个 `{symlink, target, captured_at, kind, ...}` 块。
-
-**反模式**：
-
-- **不要**用脚本（`Python json.dumps` / `tomllib.dump`）整文件重写——会丢注释、丢
-  字段顺序、跨机器 diff 噪音
-- **不要**保留任何 `<source-name>/` 子目录——`symlink-anchor-flat-not-legacy` check
-  看到会报 error
-- **不要**在保留老 anchor JSON 的同时新建 TOML（两份并存会让 lint 报
-  `external-anchor-orphan`）——必须删 JSON 才能写到 TOML 同一份 manifest
-
-### 6.4 MEMORY 经验条目合并
+### 6.2 MEMORY 经验条目合并
 
 - **两条 MEMORY entries 描述同一 case**（`grep` / 关键词检索可判定）→ 留更新日期晚者，
   旧 entry 文末追加一行 `# superseded by <new-slug>`，**不**删除（踩坑记录沉淀价值大）
@@ -171,21 +121,19 @@ anchor 从「每仓一份 `<source-name>/.symlink-anchor.json`（JSON object）�
 - **索引同步**——无论是 supersede 还是合并，**必须**同步更新 `MEMORY/MEMORY.md` 索引
   一行（合并后删旧 slug 行，加合并后的新行；supersede 后旧 slug 行保留但加 supersede 提示）
 
-### 6.5 wiki/log.md 迁移期不改（不合并 / 不截断）
+### 6.3 wiki/log.md 迁移期不改（不合并 / 不截断）
 
 - 迁移期 log **不**合并 / **不**截断 / **不**改格式——保持现状原样搬过来（即使条目数 >
   `LOG_RETENTION_LIMIT` 也不在迁移期截断；截断是日常运行期行为，`llmw wiki write log` 自动生效）
-- 唯一例外：0.16.0- 老 wiki 在 CLI 红线贯彻时 log 含 legacy `git init` 之类无效行——
-  保留不修，lint 不报（log-truncation / log-format 都不查 legacy git 行）
 - `fixtures-fix-log-format` action 仅当 **新增** 行不合规时落，迁移期**不变更 history**
 
-### 6.6 决策树（CLI 骨架 / agent 语义的判断边界）
+### 6.4 决策树（CLI 骨架 / agent 语义的判断边界）
 
 | 场景 | 路径 |
 |---|---|
 | 骨架一致性（AGENTS.md 模板漂移 / growth 头部 / .gitignore 块 / legacy paths） | CLI `upgrade --apply --yes` 直接落 |
-| 内容页 frontmatter legacy（`type-memory-value`） | lint `--check-version --apply --json` 拿 `actions[]`，agent 按 §6.1 落 |
-| 跨多 entry 语义归并（重复 index 条目 / 多 MEMORY 归并 / 0.17.0 anchor 翻新） | lint plan `/ fixtures_checks` 报现状，agent 走 §6.2 / §6.3 / §6.4 落 |
+| 内容页 frontmatter legacy（`type-memory-value`） | lint `--check-version --apply --json` 拿 `actions[]`，按 `to_action` 用 Edit 落 |
+| 跨多 entry 语义归并（重复 index 条目 / 多 MEMORY 归并） | lint plan / fixtures_checks 报现状，agent 走 §6.1 / §6.2 落 |
 | log 类（历史 log 修订） | **不**动 — lint 永远不报 log 字段 |
 
 **判定经验**：`llmw wiki upgrade` 退出 `blocked_drift` 时先裁定本地定制；`done_with_residue`

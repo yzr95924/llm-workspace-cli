@@ -36,9 +36,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --severity=error
 
 ### 子命令 `--check-version`
 
-扫当前 wiki 的 format 版本（解析 `<wiki-root>/AGENTS.md` §七；老 wiki fallback
-`<wiki-root>/CLAUDE.md`）与本 skill `metadata.wiki_format_version`（脚本常量
-`CURRENT_WIKI_FORMAT`）比对 + 扫已知 legacy 现场（`type-memory-value`）+ 自动调 fixtures 检查：
+扫当前 wiki 的 format 版本（解析 `<wiki-root>/AGENTS.md` §七）与本 skill `metadata.wiki_format_version`（脚本常量
+`CURRENT_WIKI_FORMAT`）比对 + 扫当前格式 frontmatter 误用（`type-memory-value`）+ 自动调 fixtures 检查：
 
 ```bash
 llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version --json
@@ -84,8 +83,8 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
   `created` / `updated` / `tags`，字段定义见 [page-templates.md §一](page-templates.md#一共有-frontmatter-段)）；
   **MEMORY/*.md** 仅 `title` 必填（其余全 optional）
 - `type` 取值：5 类内容页；MEMORY 桶额外 `memory` / `memory-entry`
-- `type-memory-value`（error，legacy）：仅对 wiki 内容页误用 reserved `type: memory`
-  报错；MEMORY/*.md 上合法，不触发
+- `type-memory-value`（error）：wiki 内容页误用 reserved `type: memory`
+  （仅 MEMORY 桶合法，内容页非法）
 - findings：`missing-frontmatter`（error）/ `invalid-type`（error）/ `invalid-tags`（error，
   `tags` 非 list 类型）/ `missing-sources`（error，source/synthesis 页缺 `sources` 字段或为空——
   与 §二.3 的 `sources-missing`（值不可访问）不同名不同因，均保留）
@@ -143,8 +142,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ### 11. Tag Taxonomy 校验
 
-- 解析 `<wiki-root>/wiki/tags.md`（**主流位置**）裸 bullet 列表；不存在则 fallback
-  AGENTS.md `### Tag Taxonomy` 段（老 wiki 过渡期）。文件必须是**裸 bullet**
+- 解析 `<wiki-root>/wiki/tags.md`（**唯一来源**）裸 bullet 列表。文件必须是**裸 bullet**
   （包在 code block / HTML comment 里 = 解析 0 tag 静默跳过）；支持
   `- category：tag1 / tag2` 中英文分隔
 - 仅对 5 类内容页做包含校验；**MEMORY agent 私有**不共享 taxonomy；tags.md 自身不参与
@@ -184,7 +182,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
   `llmw wiki write memory add`（原子追加索引行）；修法：追加一行 `- [Title](<slug>.md) — 一句话`
 - `memory-index-dangling`（warn）：索引指向的 `<slug>.md` 不存在（索引与磁盘脱节；
   短条目 `- 一句话事实` 无链接、不算）
-- MEMORY.md 不存在 → 静默跳过（老 wiki 迁移期）
+- MEMORY.md 不存在 → 静默跳过（fixture check 已覆盖存在性检测）
 - `agents-md-template-sync`（error，fixtures）：AGENTS.md 与模板渲染字节不一致 →
   全量重渲染 + 本地定制逐条搬 MEMORY/ 或丢弃（plan action `fixtures-fix-agents-md-resync`）
 
@@ -266,8 +264,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 > 语义合并规则（agent 走 upgrade plan 时的合并依据）已并入
 > [`references/upgrade-workflow.md` §六](upgrade-workflow.md#六语义合并规则)——
-> 含 frontmatter 字段合并 / index 条目合并 / anchor TOML 迁移 5 步 / MEMORY 经验合并 /
-> log 严格保留 / 决策树。本节只留指针。
+> 含 index 条目合并 / MEMORY 经验合并 / log 严格保留 / 决策树。本节只留指针。
 
 ## 六、lint 之后
 
@@ -277,9 +274,8 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 2. **询问用户先修哪些**——不要一次全修（容易回退或引入新问题）
 3. 修完后**重新跑 lint 验证**——不要带着 fix 没验过的状态前进
 4. 若启用 git，重大修复 commit 时建议加 `lint: <summary>` 前缀；裸目录树 wiki 跳过 commit 步骤
-5. **若跑 fixtures-check**——按 [`upgrade-workflow.md` §6.6](upgrade-workflow.md#66-决策树cli-骨架--agent-语义的判断边界) 区分 CLI 骨架 vs agent 语义合并；
-   `fixtures-fix-*` 系列可通过 Edit 落，`fixtures-fix-anchor-merge/-schema/-symlink-matches`
-   三条要走 [`upgrade-workflow.md`](upgrade-workflow.md) §6.3 五步迁移（不是单 Edit）
+5. **若跑 fixtures-check**——按 [`upgrade-workflow.md` §6.4](upgrade-workflow.md#64-决策树cli-骨架--agent-语义的判断边界) 区分 CLI 骨架 vs agent 语义合并；
+   `fixtures-fix-*` 系列（anchor-schema / symlink-matches / log-format 等当前格式维护）可通过 Edit 落，按各自 `to_action` 字段 + [`external-repo.md`](external-repo.md) §一 等 schema 指针操作
 
 ## 七、lint 频率
 

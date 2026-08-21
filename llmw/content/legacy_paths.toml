@@ -8,8 +8,8 @@
 #
 # 当前盘点结果（基于 upgrade-workflow.md + 历史升级条款）：
 # - 已确认的历史骨架路径变更：无。
-# - symlink-anchor-flat-not-legacy（0.17.0 anchor 翻新）属内容层 legacy，
-#   由 lint check + agent 处理，不入路径表。
+# - 0.17.0 之前的 anchor 子目录布局、老 CLAUDE.md 正文等——已随 2026-08「只理解
+#   当前格式」全面退役（lint 不再提供自愈路径，由用户人工处理）；不入路径表。
 # - frontmatter 字段演进（confidence 等）属语义类，归残留，agent 处理。
 #
 # 示例（未启用，仅留作模板；启用时删 # 并确保 old/new 经确认）：

@@ -51,7 +51,7 @@ VALID_TYPES = {
     "synthesis",
     # MEMORY 扩展类型（page-templates.md §一：`或新的 memory 类型按需扩展`）：
     # - `memory`：MEMORY/*.md 自用语义，与 wiki 5 类内容页区分
-    # - `memory-entry`：lint-checklist §5.1 提示的 0.6.0 迁移目标（兼容老 MEMORY 写法）
+    # - `memory-entry`：MEMORY 经验条目标识（与 `memory` 同属 MEMORY 桶）
     "memory",
     "memory-entry",
 }
@@ -116,9 +116,9 @@ CURRENT_WIKI_FORMAT = WIKI_FORMAT_VERSION
 LEGACY_PATTERN_KEYS = {
     # 历史迁移 pattern（confidence-field / claudemd-tag-section / claudemd-not-thinshell）
     # 已于 2026-08 随"场景清零"退役删除；未来退役字段时按需注册新 key。
-    # 0.19.0 起保留的现行校验：MEMORY/*.md 上 `type: memory` / `type: memory-entry` 合法
-    # ；本规则拦 wiki 5 类内容页误用 reserved `type: memory`。
-    "type-memory-value": "upgrade-workflow.md §6.1 + page-templates.md §一",
+    # 拦 wiki 5 类内容页误用 reserved `type: memory`（MEMORY/*.md 上 type: memory /
+    # memory-entry 合法，仅内容页误用才触发本规则）。
+    "type-memory-value": "page-templates.md §一",
 }
 
 # 严重性等级
@@ -831,8 +831,7 @@ def parse_tag_taxonomy(wiki_root: Path) -> Set[str]:
 def check_tag_taxonomy(wiki_root: Path) -> List[str]:
     """11. tag 是否在 taxonomy 白名单内
 
-    来源：`wiki/tags.md`，fallback 见 `parse_tag_taxonomy`。
-    找不到任何 taxonomy 源 / 解析出 0 个 tag → 静默跳过
+    来源：`wiki/tags.md`。找不到或解析出 0 个 tag → 静默跳过
     （避免新 setup 的 wiki 必报错）。启用 taxonomy 后，对每个内容页（5 类 +
     MEMORY 非 MEMORY.md）的 frontmatter.tags 元素做包含校验；不在白名单 → info 级。
     """
@@ -863,7 +862,7 @@ def check_tag_taxonomy(wiki_root: Path) -> List[str]:
             if not t:
                 continue
             if t not in allowed:
-                findings.append(f"tag-not-in-taxonomy: {rel} tags 含 '{t}' 不在 CLAUDE.md 的 Tag Taxonomy 白名单")
+                findings.append(f"tag-not-in-taxonomy: {rel} tags 含 '{t}' 不在 wiki/tags.md 白名单")
     return findings
 
 
@@ -949,7 +948,7 @@ def check_page_size(wiki_root, threshold=PAGE_SIZE_THRESHOLD):
                 rel = p.relative_to(wiki_root).as_posix()
                 findings.append(
                     f"oversized-page: {rel} 正文 {n} 行（非空），超过 {threshold} 阈值——"
-                    f"建议拆成子主题页 + cross-link（CLAUDE.md「Page Thresholds」）"
+                    f"建议拆成子主题页 + cross-link（page-templates.md「Page Thresholds」）"
                 )
     return findings
 
@@ -1186,10 +1185,10 @@ def check_memory_index(wiki_root: Path) -> List[str]:
     或文件被误移），下次会话按索引读必落空。注意只能靠链接判定：短条目
     （`- 一句话事实`）无链接、不算 dangling。
 
-    MEMORY.md 不存在时静默跳过（老 wiki 迁移期 / format <0.6.0，不报错）。
+    MEMORY.md 不存在时静默跳过（不报错）。
     severity = info（轻量索引非强制入口，类比 tag-not-in-taxonomy）。
 
-    短条目（与项目 CLAUDE.md 同步）：MEMORY.md 索引行可无对应 .md 文件
+    短条目（与 wiki skill SKILL.md §4 Memory 同步）：MEMORY.md 索引行可无对应 .md 文件
     （`- 一句话事实` 格式），不进本检查范围——只兜底"有 .md 但未索引"。
 
     路径变更：MEMORY/ 从 wiki/ 下移到 <wiki-root>/MEMORY/（与 wiki/ 平级）。
@@ -1361,7 +1360,7 @@ def severity_of(finding: str) -> str:
 # 职责：纯探测（不动 wiki 内容）；agent 拿到 plan 后按 references/upgrade-workflow.md 走 Edit/Write 修复。
 # ---------------------------------------------------------------------------
 
-# CLAUDE.md §七 表格行匹配：
+# AGENTS.md §七 表格行匹配：
 # | Wiki Format 版本 | 0.7.0 |
 # 兼容用户编辑后的格式变体（多余空格、备注尾部等）；semver 走单独正则抓取。
 CLAUDE_FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\s*\|")
@@ -1371,8 +1370,8 @@ SEMVER_RE = re.compile(r"\d+\.\d+\.\d+")
 def parse_format_version(wiki_root: Path) -> Optional[str]:
     """从 wiki 纪律 SSOT §七 表里抽 "Wiki Format 版本"。
 
-    SSOT 是 <wiki-root>/AGENTS.md（薄壳 CLAUDE.md 不持版本）。
-    老 wiki（0.10.0-）：SSOT 是 <wiki-root>/CLAUDE.md，按候选顺序 fallback 兼容。
+    SSOT 是 <wiki-root>/AGENTS.md（薄壳 CLAUDE.md 不持版本）。系统只理解当前格式——
+    AGENTS.md 缺失或 §七 行无法解析 = 版本未知，由 wiki-format-version-unparsed 报。
 
     返回 semver 字符串（如 "0.11.0"）；找不到或解析失败返回 None。
 
@@ -1380,25 +1379,24 @@ def parse_format_version(wiki_root: Path) -> Optional[str]:
     版本号）。用户编辑表格时若格式被破坏（例如把"Wiki Format 版本"改成"Wiki 版本"），
     解析失败——提示用户人工填回，而不是猜。
     """
-    for candidate in ("AGENTS.md", "CLAUDE.md"):
-        md_file = wiki_root / candidate
-        if not md_file.is_file():
+    md_file = wiki_root / "AGENTS.md"
+    if not md_file.is_file():
+        return None
+    try:
+        text = md_file.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    for line in text.splitlines():
+        m = CLAUDE_FORMAT_ROW_RE.match(line)
+        if not m:
             continue
-        try:
-            text = md_file.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        for line in text.splitlines():
-            m = CLAUDE_FORMAT_ROW_RE.match(line)
-            if not m:
-                continue
-            cell = m.group(1).strip()
-            # 单元格可能含备注（如 "0.7.0 (current)"），抓首个 semver
-            semver = SEMVER_RE.search(cell)
-            if semver:
-                return semver.group(0)
-            # 单元格写了非 semver 文本——视为解析失败
-            return None
+        cell = m.group(1).strip()
+        # 单元格可能含备注（如 "0.7.0 (current)"），抓首个 semver
+        semver = SEMVER_RE.search(cell)
+        if semver:
+            return semver.group(0)
+        # 单元格写了非 semver 文本——视为解析失败
+        return None
     return None
 
 
@@ -1414,7 +1412,7 @@ def check_format_version(wiki_root: Path) -> List[str]:
     if current is None:
         findings.append(
             "wiki-format-version-unparsed: AGENTS.md §七「Wiki Format 版本」行无法解析"
-            "（缺 AGENTS.md / CLAUDE.md 或表格格式破坏）——"
+            "（缺 AGENTS.md 或表格格式破坏）——"
             "跑 `lint_wiki.py --check-version` 诊断"
         )
         return findings
@@ -1448,11 +1446,11 @@ def _run_fixtures_check(wiki_root: Path) -> Dict[str, object]:
 
 
 def _has_type_memory(page_rel: str, text: str) -> bool:
-    """frontmatter `type: memory` 在 wiki 5 类内容页上误用——0.19.0 起仅对 wiki 内容页生效。
+    """检查 wiki 内容页是否误用保留的 `type: memory`。
 
-    MEMORY/*.md 上 `type: memory` / `type: memory-entry` 是 0.19.0 合法值
-    （page-templates.md §一——MEMORY frontmatter 解耦 + 扩展 `memory` / `memory-entry` 两类），
-    故跳过 `page_rel` 起始于 `MEMORY/` 的页面。
+    `type: memory` / `type: memory-entry` 仅 MEMORY 桶合法（page-templates.md §一——
+    MEMORY frontmatter 解耦 + 扩展 `memory` / `memory-entry` 两类），wiki 内容页
+    （entities/concepts/sources/comparisons/syntheses）出现 `type: memory` 是误用。
 
     Args:
         page_rel: 页面相对 wiki 根的 POSIX 路径（如 `wiki/sources/x.md` / `MEMORY/foo.md`）
@@ -1461,7 +1459,7 @@ def _has_type_memory(page_rel: str, text: str) -> bool:
     Returns:
         True 当且仅当页面**不在** MEMORY/ 下且 frontmatter 含 `type: memory`
     """
-    # MEMORY/*.md 上 `type: memory` / `type: memory-entry` 在 0.19.0+ 合法，跳过
+    # MEMORY 桶合法值；本函数只扫内容页
     if page_rel.startswith("MEMORY/"):
         return False
 
@@ -1480,7 +1478,7 @@ def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
     返回结构（供 build_upgrade_plan 与 --json 输出复用）：
     {
       "patterns": {
-        # 0.19.0+：仅 wiki 5 类内容页误用 reserved `type: memory` 触发；MEMORY/*.md 不进此列表
+         # 仅 wiki 5 类内容页误用 reserved `type: memory` 触发；MEMORY/*.md 不进此列表
         "type-memory-value":    [{"file": "wiki/<entities|concepts|sources|comparisons|syntheses>/x.md", "conflict": False}],
       },
       "conflicts": [],
@@ -1555,7 +1553,7 @@ def build_upgrade_plan(
     actions = []  # type: List[Dict[str, object]]
     fixtures_actions = []  # type: List[Dict[str, object]]
 
-    # type-memory-value → 0.19.0 迁移规则（仅作用于 wiki 5 类内容页；MEMORY/*.md 在 0.19.0+ 合法不会被此规则扫到）
+    # type-memory-value：wiki 5 类内容页误用 reserved `type: memory`（MEMORY 桶合法，内容页非法）
     for entry in legacy["patterns"]["type-memory-value"]:  # type: ignore
         fpath = entry["file"]  # type: ignore
         actions.append(
@@ -1564,9 +1562,9 @@ def build_upgrade_plan(
                 "type": "frontmatter-retype",
                 "rule_ref": LEGACY_PATTERN_KEYS["type-memory-value"],
                 "remove": ["type"],
-                # 0.19.0 起 `memory-entry` 是合法扩展值；误用 reserved `type: memory` 应改为 wiki 内容页对应的 5 类之一（agent 按页面真实语义裁定）
+                # `memory-entry` 是 MEMORY 桶扩展值；内容页误用 `type: memory` 应改为对应 5 类之一（agent 按页面真实语义裁定）
                 "add_or_modify": {"type": "memory-entry"},  # 占位默认——agent 改 plan 时按页面语义替换
-                "note": "0.19.0 起仅 wiki 5 类内容页误用 reserved `type: memory` 触发；MEMORY/*.md 上 `type: memory` 已合法。Agent 应按页面真实语义决定：wiki 内容页改为对应 5 类（entity/concept/source/comparison/synthesis）之一；不要把 wiki 内容页改成 `memory-entry`（那是 MEMORY 桶的扩展值）。",
+                "note": "wiki 内容页误用 reserved `type: memory`（MEMORY 桶合法）。Agent 应按页面真实语义决定：改为对应 5 类（entity/concept/source/comparison/synthesis）之一；不要把 wiki 内容页改成 `memory-entry`（那是 MEMORY 桶的扩展值）。",
             }
         )
 
@@ -1632,21 +1630,6 @@ def build_upgrade_plan(
                             "搬 MEMORY/（一行事实写 MEMORY/MEMORY.md 索引短条目；含 why 的建 "
                             "MEMORY/<slug>.md 完整条目 + 索引行）或丢弃；"
                             "(4) Write 渲染稿覆盖 AGENTS.md——成长内容仅 §七 四行变量，其余以模板为准"
-                        ),
-                    }
-                )
-            elif cid == "symlink-anchor-flat-not-legacy":
-                fixtures_actions.append(
-                    {
-                        **base,
-                        "type": "fixtures-fix-anchor-merge",
-                        "to_action": (
-                            "按 lint-checklist §五.3 走 5 步："
-                            "(1) 扫 raw/external/<source-name>/ 子目录；"
-                            "(2) 读 .symlink-anchor.json 内容；"
-                            "(3) 把 <source-name>/<symlink> mv 到 raw/external/ 顶层（重名冲突转人工）；"
-                            "(4) 构造 [[entry]] 块（含 symlink/target/captured_at/kind + 可选 git 身份字段），追加到 raw/external/.symlink-anchor.toml；"
-                            "(5) 删 raw/external/<source-name>/ 整个目录"
                         ),
                     }
                 )
@@ -1755,14 +1738,13 @@ def build_upgrade_plan(
             "file-move：先读源 → 写目标 → 删源",
             "frontmatter-retype：按 action.note 与 page-templates.md §一决定具体改法",
             "skipped_conflicts[] 永远不自动覆盖——转人工",
-            "claudemd-to-agents-md-split：老 CLAUDE.md 正文搬到 AGENTS.md + CLAUDE.md 重写为薄壳",
             "改完后用 Edit 把 AGENTS.md §七 Wiki Format 版本行改为 to_version",
             "不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）",
             "不调 ingest / query / lint——保持职责单一",
             # fixtures：
             "fixtures_actions[] 与 actions[] 平行处理——先走 fixtures_actions 修约定文件（如 .gitignore / anchor TOML）",
             "再走 actions[] 修内容页 frontmatter / log；fixtures 修复是后续内容页编辑的前置",
-            "fixtures-fix-anchor-merge / -anchor-schema / -anchor-symlink-matches 三条都是『多文件迁移』型 action——必须按 to_action 5 步走，单 Edit 不能完成",
+            "fixtures-fix-anchor-schema / -anchor-symlink-matches 各 to_action 自含修 schema / ln / 补 entry 的具体指令",
             "fixtures-fix-strip-frontmatter 仅删首部 frontmatter 块，保留全文正文一字不动",
             "fixtures-fix-skeleton：按 expected 补缺失骨架字段（frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段），单 Edit 可落；成长型内容（index 类别 / log 历史 / MEMORY 经验 / tag bullet）不动",
             "fixtures-fix-agents-md-resync：AGENTS.md 全量重渲染——§七 变量保留旧值（Wiki Format 版本行用 to_version），旧文件多出的定制行/段逐条与用户裁定搬 MEMORY/ 或丢弃；其余以模板渲染稿为准，不做局部 Edit",
@@ -1775,7 +1757,7 @@ def build_upgrade_plan(
 def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     """--check-version 子命令主入口。
 
-    - 解析 AGENTS.md（老 wiki fallback CLAUDE.md）§七 wiki_format_version
+    - 解析 AGENTS.md §七 wiki_format_version
     - 探测已知 legacy 现场
     - 默认打印人读报告（不写文件）
     - --json 输出机器可读 JSON
@@ -1834,9 +1816,9 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
         _print_fixtures_check(fixtures_check, indent="")
         return 0
 
-    # 解析失败 → 提示用户填 CLAUDE.md §七
+    # 解析失败 → 提示用户填 AGENTS.md §七
     if current_format is None:
-        print("[WARN] 无法解析 <wiki-root>/AGENTS.md（老 wiki CLAUDE.md）§七 'Wiki Format 版本'")
+        print("[WARN] 无法解析 <wiki-root>/AGENTS.md §七 'Wiki Format 版本'")
         print("       请确认该行存在且格式为: | Wiki Format 版本 | 0.x.y |")
         print("       解析失败不影响 legacy pattern 探测（下方继续输出）")
         print()
