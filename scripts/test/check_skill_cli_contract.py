@@ -5,7 +5,7 @@
 finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 gate 红。
 语义面（行为描述如"只扫不修"）gate 管不到，靠纪律人工保证。
 
-检查面（5 类）：
+检查面（7 类）：
   1. 命令调用（skill + 模板 + 仓根文档 → CLI）：skill markdown / byte-owned
      模板（llmw/content/templates 全 md + fixtures *.txt）/ 仓根 AGENTS.md +
      CLAUDE.md + README.md 里的 `llmw ...` 调用，子命令路径 + flag 必须存在于
@@ -22,10 +22,20 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
      指针 → 对应 skill 文件与小节标题必须存在
   4. 终态词 / JSON 字段（skill → CLI）：upgrade-workflow 提到的终态词与 plan
      字段必须在 upgrade.py / wiki_lint.py 字面量存在
-  5. 裸 semver（skill + 模板 + 仓根文档）：prose 内不得出现裸版本号
-     ``v?\\d+\\.\\d+\\.\\d+``（bump 版本时漏改 prose 即静默腐烂）；豁免
-     ``wiki_format_version:`` 键行（SSOT 本身）与 ``upgrade-workflow.md`` 整
-     文件（按设计它是唯一允许锚定历史版本的文件，头部规矩保证新迁移锚点只落此处）
+    5. 裸 semver（skill + 模板 + 仓根文档）：prose 内不得出现裸版本号
+      ``v?\\d+\\.\\d+\\.\\d+``（bump 版本时漏改 prose 即静默腐烂）；豁免
+      ``wiki_format_version:`` 键行（SSOT 本身）与 ``upgrade-workflow.md`` 整
+      文件（按设计它是唯一允许锚定历史版本的文件，头部规矩保证新迁移锚点只落此处）
+   6. AGENTS.md 模板依赖守卫（skill↔模板解耦）：
+      - 7a 节号禁令：CONTRACT_MDS 中 `AGENTS.md` 字面量后紧跟 `§<数字|中文数字>` 即红
+        （节号是模板内部编号，重排即断；节名是语义锚点，引用只用节名 / 字段名 /
+        landmark）。模板自身「本文件 §N」自引用用 "本文件" 不触发，模板作者自 grep
+      - 7b landmark 存在性：skill 依赖的 AGENTS.md 模板锚点字符串（节名 / 字段名 /
+        @import 链）必须在对应模板中出现；模板改了某 landmark → 改 skill 引用的 commit
+        同 commit 更新 LANDMARKS 列表
+   7. 布局 token（skill↔目录结构解耦）：skill markdown 里所有 `wiki/<dir>/` 形式的
+      目录路径 token，`<dir>` 必须在 llmw.content.wiki_lint.WIKI_SUBDIRS
+      （CLI SSOT）集合内。改目录名时所有残留旧路径被当场点名，零人工维护
 
 命令表面 SSOT = llmw.cli.build_parser() 单一 argparse 树（write 子树经
 llmw.content.wiki_write.build_subparsers 组合；无模块 standalone 入口）。
@@ -84,6 +94,33 @@ FINDING_IN_SRC_RE = re.compile(r'[fF]"([a-z][a-z0-9]+(?:-[a-z0-9]+)+): ')
 SEVERITY_MENTION_RE = re.compile(
     r"`([a-z][a-z0-9]+(?:-[a-z0-9]+)+)`（\*{0,2}(?:error|warn|info)"
 )
+# 面 7a 节号禁令：AGENTS.md 字面量 + ≤6 个非 word 字符（空白 / backtick / 标点）+
+# `§<数字|中文数字>`。`AGENTS.md + [`references/external-repo.md`](...) §二` 形式
+# 中「+ [」含 word char 路径段 → regex 不匹配（§二实指 external-repo.md，非 AGENTS.md）。
+AGENTS_SECTION_REF_RE = re.compile(r"AGENTS\.md[^\w\n]{0,6}§[0-9一二三四五六七八九十]+")
+# 面 7b 模板 landmark（依赖清单）：skill 运行期依赖的模板锚点字符串；模板改了任一
+# landmark，gate 红，同 commit 必须同步 skill 引用。
+WIKI_TEMPLATE_LANDMARKS = [
+    "当前配置",
+    "Wiki Format 版本",
+    "@MEMORY/MEMORY.md",
+    "@scripts/SCRIPTS.md",
+    "Query 纪律",
+    "raw/discussions/",
+    "### `MEMORY/`",
+]
+WORKSPACE_TEMPLATE_LANDMARKS = [
+    "当前配置",
+    "Workspace Format 版本",
+    "@MEMORY/MEMORY.md",
+    "跨 wiki 约定",
+    "Memory 纪律",
+]
+# 面 8 布局 token：skill 里 `wiki/<dir>/` token，dir 必须在 WIKI_SUBDIRS 集合。
+# 前置 `[\s<>/]` 排除 wiki 名后缀（如 `huawei_storage_wiki/wiki/...` 中第一个 `wiki`
+# 前接 word char，不匹配）；`[a-z][a-z0-9]*` 排除 wiki 名（如 `~/wiki/llm-systems/`
+# 含 hyphen，不匹配）——WIKI_SUBDIRS 全小写无分隔符。
+LAYOUT_TOKEN_RE = re.compile(r"(?:^|[\s<>/])wiki/([a-z][a-z0-9]*)/")
 
 # CLI→skill 反向检查的有意例外（在 skill 侧只按 family 提及 / NOTES 级提示，不逐名文档化）
 BACKWARD_ALLOWLIST = set()
@@ -308,6 +345,8 @@ def main():  # pylint: disable=too-many-branches
         "rule_refs": 0,
         "tokens": 0,
         "semver": 0,
+        "landmarks": 0,
+        "layout_tokens": 0,
     }
 
     # --- 1. 命令调用（含风格检查：带值 flag 必须等号形式；含跨行断命令检查）---
@@ -419,16 +458,70 @@ def main():  # pylint: disable=too-many-branches
                         "[token] {} 提及 `{}` 但 CLI 源无此字面量".format(fname, token)
                     )
 
+    # --- 6. AGENTS.md 模板依赖守卫 ---
+    WIKI_TEMPLATE = TEMPLATES / "wiki" / "agents-md-template.md"
+    WORKSPACE_TEMPLATE = TEMPLATES / "workspace" / "workspace-agents-md-template.md"
+    wiki_tpl_text = _read(WIKI_TEMPLATE) if WIKI_TEMPLATE.is_file() else ""
+    ws_tpl_text = _read(WORKSPACE_TEMPLATE) if WORKSPACE_TEMPLATE.is_file() else ""
+
+    # 6a 节号禁令：CONTRACT_MDS 中 AGENTS.md 字面量紧邻 §N → 红
+    for md in CONTRACT_MDS:
+        rel = _rel(md)
+        for lineno, line in enumerate(_read(md).splitlines(), start=1):
+            if AGENTS_SECTION_REF_RE.search(line):
+                errors.append(
+                    "[agents-section] {}:{} :: skill 引用 AGENTS.md 禁用节号（模板"
+                    "内重组即断）→ 改用节名 / 字段名 / landmark 字符串：{}".format(
+                        rel, lineno, line.strip()[:80]
+                    )
+                )
+
+    # 6b 模板 landmark 存在性（按 skill 实际引用的 AGENTS.md 分桶）
+    for landmark in WIKI_TEMPLATE_LANDMARKS:
+        stats["landmarks"] += 1
+        if landmark not in wiki_tpl_text:
+            errors.append(
+                "[landmark] wiki AGENTS.md 模板缺 landmark `{}`（skill 依赖它，"
+                "模板改了须同 commit 同步 skill 引用）".format(landmark)
+            )
+    for landmark in WORKSPACE_TEMPLATE_LANDMARKS:
+        stats["landmarks"] += 1
+        if landmark not in ws_tpl_text:
+            errors.append(
+                "[landmark] workspace AGENTS.md 模板缺 landmark `{}`（skill 依赖它，"
+                "模板改了须同 commit 同步 skill 引用）".format(landmark)
+            )
+
+    # --- 7. 布局 token（skill ↔ 目录结构） ---
+    import llmw.content.wiki_lint as _wiki_lint_mod  # pylint: disable=import-outside-toplevel
+
+    valid_dirs = set(_wiki_lint_mod.WIKI_SUBDIRS)
+    for md in SKILL_MDS:
+        rel = _rel(md)
+        for lineno, line in enumerate(_read(md).splitlines(), start=1):
+            for m in LAYOUT_TOKEN_RE.finditer(line):
+                stats["layout_tokens"] += 1
+                dir_name = m.group(1)
+                if dir_name not in valid_dirs:
+                    errors.append(
+                        "[layout] {}:{} :: skill 使用 wiki/{}/{}/ 但 WIKI_SUBDIRS 无此目录"
+                        "（CLI SSOT 改了目录名须同 commit 同步 skill 引用）".format(
+                            rel, lineno, dir_name, dir_name
+                        )
+                    )
+
     # --- 报告 ---
     print(
         "contract (skill+templates+repo-docs → CLI): {} cmd, {} fwd findings, "
-        "{} bwd findings, {} rule_refs, {} tokens, {} semver".format(
+        "{} bwd findings, {} rule_refs, {} tokens, {} semver, {} landmarks, {} layout_tokens".format(
             stats["cmds"],
             stats["fwd_findings"],
             stats["bwd_findings"],
             stats["rule_refs"],
             stats["tokens"],
             stats["semver"],
+            stats["landmarks"],
+            stats["layout_tokens"],
         )
     )
     if errors:
