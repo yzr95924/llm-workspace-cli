@@ -229,6 +229,5 @@ url: <原始链接>
 
 ## 十、raw/discussions/ 草稿消化（可选入口）
 
-> **完整纪律**（路径 / 谁可写 / 脚本契约三道 / 归档路径两条 / 滑坡防线）已在
-> `<wiki-root>/AGENTS.md` §一 `raw/discussions/` 节承载——agent 运行期必读本项，
-> 此处不重抄。两条归档路径（消化式 / 转正式 `mv`）同样详见 AGENTS.md。
+> **完整纪律**（路径 / 谁可写 / 脚本契约三道 / 归档路径两条 / 滑坡防线）由
+> wiki 根 `AGENTS.md` 的 `raw/discussions/` 节承载——agent 自动加载必读。

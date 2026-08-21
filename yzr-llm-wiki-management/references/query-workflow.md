@@ -126,10 +126,9 @@ Query 是 wiki 的"消费侧"——把多份资料综合成答案，**好答案�
 ## 五、Query 的边界
 
 - **不**引用未存在于 wiki 的来源——只引用 wiki 内的页面
-- **不**绕过 source 页直接读 raw——raw 已在 source 页消化过（冲突时才回 raw 复核，见 `AGENTS.md` §三.1）
+- **不**绕过 source 页直接读 raw——raw 已在 source 页消化过（冲突时才回 raw 复核）
 
-> 其余边界（不全部 grep / 不偷偷归档 / 不和稀泥）与 `AGENTS.md` §四 Query 纪律重合，
-> 详见该文件。
+> 其余边界以 wiki 根 `AGENTS.md` Query 纪律节为准。
 
 ## 六、Query 失败的常见原因
 

@@ -9,7 +9,7 @@
 
 ## 一、首次接入（LLM 主导）
 
-> **扁平布局 / 路径 / anchor ↔ symlink 关联的纪律约束见 `<wiki-root>/AGENTS.md` §一 `raw/external/` 节**——本节只承载操作流程与 schema 示例。
+> **本文件的角色**：承载操作流程与 schema 示例；wiki 根的纪律约束由 `AGENTS.md` 承载（会话常驻）。
 
 ### §1.1 schema 完整示例
 
@@ -43,8 +43,8 @@ kind = "external-repo"
 notes = "个人 TIL 仓库，按需重 ingest"
 ```
 
-> 每 entry 最小必填 4 字段（`symlink` / `target` / `captured_at` / `kind`）与
-> git 身份字段定义见 `AGENTS.md` §一 external 节；`target` 推荐 `~/...` 形式以跨主机可移植，
+> 每 entry 最小必填 4 字段（`symlink` / `target` / `captured_at` / `kind`）+
+> 可选 git 身份字段（`remote_url` / `branch`）；`target` 推荐 `~/...` 形式以跨主机可移植，
 > 也接受绝对路径（lint 一律 `Path(target).expanduser()` 展开）。**不**记 `commit`。
 > `notes` 任何场景都不强制。
 
