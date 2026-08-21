@@ -10,19 +10,6 @@
 > → comparison → synthesis）。`type` 取值表与目录结构对应——字母序：`comparison` /
 > `concept` / `entity` / `source` / `synthesis`。
 
-## 目录
-
-- [一、共有 frontmatter 段](#一共有-frontmatter-段)
-- [二、各类型模板](#二各类型模板)
-  - [1. `entity`（实体页）](#1-entity实体页)
-  - [2. `concept`（概念页）](#2-concept概念页)
-  - [3. `source`（资料页）](#3-source资料页)
-  - [4. `comparison`（对比页）](#4-comparison对比页)
-  - [5. `synthesis`（综合页）](#5-synthesis综合页)
-  - [6. `index`（index.md）](#6-indexindexmd)
-  - [7. `log.md`（log）](#7-logmdlog)
-- [三、模板使用规则](#三模板使用规则)
-
 > **frontmatter 写法约束**（与 `llmw wiki ingest-diff` 内的轻量 YAML 解析器对齐）：仅支持单行
 > `key: value`、inline 数组 `[a, b, c]`、`- item` 列表项三种形式。**不要**使用多行折叠 `>` /
 > `|`、YAML 锚点 `&` / `*`、嵌套 map——脚本会静默解析失败、返回空 dict、后续 ingest 与 lint
@@ -32,7 +19,7 @@
 
 > **适用范围**：本节模板适用于 wiki 5 类内容页（entities / concepts / sources /
 > comparisons / syntheses）。**MEMORY/*.md 的 frontmatter 规则不同**——仅 `title`
-> 必填，其余 5 字段全 optional；详见 [`lint-checklist.md` §二.2](lint-checklist.md#2-frontmatter-完整性)
+> 必填，其余 5 字段全 optional；详见 [`lint-checklist.md` §二.2](lint-checklist.md)
 > 末尾（或 `<wiki-root>/MEMORY/MEMORY.md` fixture 头部说明块）。
 
 ```yaml
@@ -68,7 +55,7 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 - `type`——驱动 lint 校验 + index 分组；合法值仅上述 5 种（`llmw wiki lint` 强制）。`index.md` /
   `log.md` 是 **reserved 文件**（结构见 §6 / §7），自带 frontmatter，其中 `type: index` /
   `type: log` 仅作标记、lint 跳过它们——不算概念页 type
-- `tags`——用于跨页搜索 + 未来可能的 dataview 查询。**取值必须严格在 `wiki/tags.md` 白名单内**（取值 / 解析 / 审计循环 canonical 在 fixture 头部说明块；lint 语义见 [`lint-checklist.md` §11](lint-checklist.md#11-tag-taxonomy-校验)）
+- `tags`——用于跨页搜索 + 未来可能的 dataview 查询。**取值必须严格在 `wiki/tags.md` 白名单内**（取值 / 解析 / 审计循环 canonical 在 fixture 头部说明块；lint 语义见 [`lint-checklist.md` §11](lint-checklist.md)）
 - `created` / `updated`——**严格** `YYYY-MM-DD HH:MM` 格式（lint 解析用；
   `YYYY-MM-DD` 也接受，按精度宽容解析三种格式：date-only /
   HH:MM / HH:MM:SS）
@@ -414,7 +401,7 @@ H1 `<Topic> Wiki` + 说明块 + 5 类别 H2（Entities / Concepts / Sources / Co
 / Syntheses，字母序）；每条 `- [<title>](<path>) — <description>`；**摘要应取自被链页
 frontmatter `description`**，不在 index 手抄第二份（避免漂移；lint 抓不到这种不一致）。
 
-**lint 口径**见 [`lint-checklist.md` §二.5](lint-checklist.md#5-indexmd-覆盖)（`index-missing` /
+**lint 口径**见 [`lint-checklist.md` §二.5](lint-checklist.md)（`index-missing` /
 `orphan-page`）。
 
 ### 7. `log.md`（log）
@@ -441,7 +428,7 @@ op ∈ `ingest`/`query`/`lint`/`setup`；日期也接受 `YYYY-MM-DD`（lint 按
 正路走 `llmw wiki write log`（格式 + `LOG_RETENTION_LIMIT` 滚动窗口截断自动保证）；带外
 手改按上式 + 手工截断。完整纪律 + 条目示例见 fixture `log.md.txt` 头部说明块。
 
-**lint 口径**见 [`lint-checklist.md` §二.6 / §二.10](lint-checklist.md#6-logmd-格式)
+**lint 口径**见 [`lint-checklist.md` §二.6 / §二.10](lint-checklist.md)
 （`log-format` / `log-truncation-recommended`）。
 
 ## 三、模板使用规则

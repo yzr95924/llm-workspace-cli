@@ -103,10 +103,10 @@ Query 跨页综合，暴露单篇看不到的**联系**（A 和 B 都涉及 self
 - `comparison` 页：focus 在 "A vs B"，frontmatter `compared: [<path-a>, <path-b>]`
 - `synthesis` 页：focus 在 "跨多个 source 的综合洞察"，frontmatter `threads: [<主题>...]`
 - 正文：把对话里的答案整理成可独立阅读的页面；**synthesis 页对来源可分的断言用标准脚注
-  `[^n]` 逐段溯源**（写法见 [page-templates.md §二.5](page-templates.md#5-synthesis综合页)），
+  `[^n]` 逐段溯源**（写法见 [page-templates.md §二.5](page-templates.md)），
   让每个论点都能不重读 raw 就回溯到具体 source——这是 synthesis 区别于 source 摘要的关键
 - 正文引用上游易变事实时同样过感知测试——见
-  [ingest-workflow.md §七](ingest-workflow.md#七正文引用的稳定性漂移点规避) 漂移点规避
+  [ingest-workflow.md §七](ingest-workflow.md) 漂移点规避
 - 脚手架：`llmw wiki write new --type=comparison|synthesis --slug=... --title=...`
 - 同步 index：`llmw wiki write index add <page>`
 - 追加 log：`llmw wiki write log --op=query --title="<title>"`

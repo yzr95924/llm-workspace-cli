@@ -4,17 +4,6 @@ Lint 让 wiki **不腐烂**。Karpathy 原话："The tedious part of maintaining
 base is not the reading or the thinking — it's the bookkeeping." Lint 把 bookkeeping
 的一部分自动化。
 
-## 目录
-
-- [一、调用方式](#一调用方式)
-- [二、Deterministic 检查清单（脚本执行）](#二deterministic-检查清单脚本执行)
-- [三、半定性检查（agent 执行）](#三半定性检查agent-执行)
-- [四、报告格式](#四报告格式)
-- [五、Semantic-merge 规则](#五semantic-merge-规则)
-- [六、lint 之后](#六lint-之后)
-- [七、lint 频率](#七lint-频率)
-- [八、lint 的边界](#八lint-的边界)
-
 Lint 分**两层**：
 
 1. **Deterministic**（脚本检查，可程序化）——`llmw wiki lint` 内部实现
@@ -48,9 +37,9 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version --apply --json
 行为：默认 dry-run（只打印报告，不动文件）；`--apply` 以 stdout JSON 输出 upgrade
 plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_actions[]`）；
 标记冲突页 → agent 跳过 + 转人工；**互斥模式**，不写 log 条目。
-完整 agent 修复路径见 [SKILL.md §5 Upgrade](../SKILL.md#5-upgrade升级-wiki-format)；
+完整 agent 修复路径见 [SKILL.md §5 Upgrade](../SKILL.md)；
 迁移依据 SSOT = plan `actions[]`（remove/add_or_modify/to_action 自含）+
-[`upgrade-workflow.md` §六](upgrade-workflow.md#六语义合并规则)。
+[`upgrade-workflow.md` §六](upgrade-workflow.md)。
 
 ## 二、Deterministic 检查清单（脚本执行）
 
@@ -80,7 +69,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 - 扫 `wiki/` 5 个内容子目录 + `<wiki-root>/MEMORY/*.md`（排除 `MEMORY.md` 本身）
 - 口径两类（§9 vs §5.2）：**wiki 5 类内容页** 5 必填（`title` / `type` /
-  `created` / `updated` / `tags`，字段定义见 [page-templates.md §一](page-templates.md#一共有-frontmatter-段)）；
+  `created` / `updated` / `tags`，字段定义见 [page-templates.md §一](page-templates.md)）；
   **MEMORY/*.md** 仅 `title` 必填（其余全 optional）
 - `type` 取值：5 类内容页；MEMORY 桶额外 `memory` / `memory-entry`
 - `type-memory-value`（error）：wiki 内容页误用 reserved `type: memory`
@@ -118,7 +107,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 6. log.md 格式
 
 - `log-missing`（error）：`wiki/log.md` 不存在
-- `log-format`（warn）：行不匹配正则（见 [page-templates.md §7](page-templates.md#7-logmdlog)）——
+- `log-format`（warn）：行不匹配正则（见 [page-templates.md §7](page-templates.md)）——
   破坏 `grep "^## \[" log.md` 可用性。正路：`llmw wiki write log`；修法：改行
 
 ### 7. 过期摘要
@@ -154,14 +143,14 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 12. 页面体量
 
 - `oversized-page`（warn）：5 类内容页正文**非空行数** > `PAGE_SIZE_THRESHOLD`
-  （lint 内部常量，与 [page-templates.md §三「Page Thresholds」](page-templates.md#建页--追加--归档阈值page-thresholds) 对齐；MEMORY 无上限）
+  （lint 内部常量，与 [page-templates.md §三「Page Thresholds」](page-templates.md) 对齐；MEMORY 无上限）
 - 修法：拆成子主题页 + cross-link
 
 ### 13. 可信度与认知质量信号（reviewed / contested / contradictions）
 
 为什么是 deterministic：只读作者**已写**的 frontmatter 信号并拎出来；"是否真的经过
 认真审核 / 到底是否矛盾"是 §三 半定性工作。字段语义见
-[page-templates.md §一「可选：可信度与认知质量信号」](page-templates.md#可选可信度与认知质量信号)。
+[page-templates.md §一「可选：可信度与认知质量信号」](page-templates.md)。
 全部可选（省略 = 不评，不报）；MEMORY/*.md 不进 reviewed 校验（无人工 review 语义角色）。
 
 - `pending-review`（info）：非 log/index 页未含 `reviewed: true`——新常态，仅提示
@@ -237,7 +226,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 21. 漂移点引用
 
 - 正文引用上游可变、且无机制能感知其变化的事实——按
-  [ingest-workflow.md §七](ingest-workflow.md#七正文引用的稳定性漂移点规避)
+  [ingest-workflow.md §七](ingest-workflow.md)
   五类扫描（位置引用 / 瞬态数值 / 版本绑定 / 完整枚举 / 归属信息）
 - 典型命中：`foo.py:812` 式行号、裸"最新 / 目前"、无"截至"日期的数值快照
 - 命中 → 建议按该节改写规则修（锚点 / 快照 / 退到 `sources:` 字段），不回退 schema
@@ -263,7 +252,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ## 五、Semantic-merge 规则
 
 > 语义合并规则（agent 走 upgrade plan 时的合并依据）已并入
-> [`references/upgrade-workflow.md` §六](upgrade-workflow.md#六语义合并规则)——
+> [`references/upgrade-workflow.md` §六](upgrade-workflow.md)——
 > 含 index 条目合并 / MEMORY 经验合并 / log 严格保留 / 决策树。本节只留指针。
 
 ## 六、lint 之后
@@ -274,7 +263,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 2. **询问用户先修哪些**——不要一次全修（容易回退或引入新问题）
 3. 修完后**重新跑 lint 验证**——不要带着 fix 没验过的状态前进
 4. 若启用 git，重大修复 commit 时建议加 `lint: <summary>` 前缀；裸目录树 wiki 跳过 commit 步骤
-5. **若跑 fixtures-check**——按 [`upgrade-workflow.md` §6.4](upgrade-workflow.md#64-决策树cli-骨架--agent-语义的判断边界) 区分 CLI 骨架 vs agent 语义合并；
+5. **若跑 fixtures-check**——按 [`upgrade-workflow.md` §6.4](upgrade-workflow.md) 区分 CLI 骨架 vs agent 语义合并；
    `fixtures-fix-*` 系列（anchor-schema / symlink-matches / log-format 等当前格式维护）可通过 Edit 落，按各自 `to_action` 字段 + [`external-repo.md`](external-repo.md) §一 等 schema 指针操作
 
 ## 七、lint 频率

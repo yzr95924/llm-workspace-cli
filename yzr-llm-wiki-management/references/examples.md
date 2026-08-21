@@ -76,7 +76,7 @@
      `[NOTES] raw-immutable-skipped: 未启用 git（无 .git/）` 提示）
    - 3 个页面缺 updated 字段
    - 1 个失效引用：concepts/transformer.md 链到 sources/bigtable.md 但后者不存在
-   - 5 个 source 页 updated 超过 stale 阈值（阈值见 [lint-checklist.md §二.7](lint-checklist.md#7-过期摘要)），建议复查
+   - 5 个 source 页 updated 超过 stale 阈值（阈值见 [lint-checklist.md §二.7](lint-checklist.md)），建议复查
    - 1 个孤儿页：concepts/<orphan-concept>.md 没有任何 inbound link
    - 1 个 `contested-page`：sources/<entity-v2>.md 与 sources/<entity-v1>.md 对某核心属性
      说法冲突、已双向标注 `contested: true`——需与用户裁定后移除标记

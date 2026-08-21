@@ -521,7 +521,7 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
                                 findings.append(
                                     f"sources-absolute-path: {rel} sources 含绝对路径 '{s}'；"
                                     f"必须用相对 wiki 根的路径（如 raw/articles/... 或 "
-                                    f"raw/external/<source-name>/...），与 [lint-checklist.md §二.3](references/lint-checklist.md#3-frontmatter-来sourcesource--synthesis-页) 一致"
+                                    f"raw/external/<source-name>/...），与 lint-checklist.md §二.3 一致"
                                 )
                                 continue
                             # raw/discussions/ 禁止作 source——
@@ -713,7 +713,7 @@ def check_log_format(wiki_root: Path) -> List[str]:
 # log.md 滚动窗口上限——超过则建议截断保最近 N 条
 LOG_RETENTION_LIMIT = 50
 
-# source 页 stale 摘要阈值（days）——`updated` 距今超过此值报 stale-summary（详见 [lint-checklist.md §二.7](references/lint-checklist.md#7-过期摘要)）
+# source 页 stale 摘要阈值（days）——`updated` 距今超过此值报 stale-summary（详见 lint-checklist.md §二.7）
 STALE_SUMMARY_DAYS = 90
 
 
@@ -1748,7 +1748,7 @@ def build_upgrade_plan(
             "fixtures-fix-strip-frontmatter 仅删首部 frontmatter 块，保留全文正文一字不动",
             "fixtures-fix-skeleton：按 expected 补缺失骨架字段（frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段），单 Edit 可落；成长型内容（index 类别 / log 历史 / MEMORY 经验 / tag bullet）不动",
             "fixtures-fix-agents-md-resync：AGENTS.md 全量重渲染——「当前配置」表变量保留旧值（Wiki Format 版本行用 to_version），旧文件多出的定制行/段逐条与用户裁定搬 MEMORY/ 或丢弃；其余以模板渲染稿为准，不做局部 Edit",
-            "fixtures 改造与 [lint-checklist.md §五『语义合并规则』](references/lint-checklist.md#五semantic-merge-规则) 配合读——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按该节判断",
+            "fixtures 改造与 lint-checklist.md §五『语义合并规则』配合读——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按该节判断",
         ],
     }  # type: Dict[str, object]
     return plan

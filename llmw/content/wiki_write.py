@@ -221,7 +221,7 @@ def cmd_index(wiki_root, args):
         else:
             out.append(line)
     if not seen_target:
-        return f"wiki/index.md 缺 `## {section}` 类别段（按 [page-templates.md §6](page-templates.md#6-indexindexmd) 骨架补）", 2
+        return f"wiki/index.md 缺 `## {section}` 类别段（按 page-templates.md §6 骨架补）", 2
 
     entries = [_INDEX_ENTRY_RE.match(ln) for ln in section_lines if _INDEX_ENTRY_RE.match(ln)]
     if entries:
@@ -289,7 +289,7 @@ def cmd_new(wiki_root, args):
     if page_path.is_file():
         return f"new 目标页已存在（如需更新用 Edit）：{page_path}", 2
     if args.type == "source" and not args.sources:
-        return "new --type source 必须提供 --sources（lint [lint-checklist.md §二.3](references/lint-checklist.md#3-frontmatter-来sourcesource--synthesis-页) sources 非空是 error）", 2
+        return "new --type source 必须提供 --sources（lint lint-checklist.md §二.3 sources 非空是 error）", 2
 
     now = _now()
     fm_lines = ["---", f'title: "{args.title}"']

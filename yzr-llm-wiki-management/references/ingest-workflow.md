@@ -52,12 +52,12 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 覆盖、不要重建 entity / concept 的"参考来源"段（只追加新来源）：
 
 > **若重摄发现新内容与已有 entity / concept 页主张矛盾**——不要静默覆盖旧说法，走
-> [`page-templates.md` §一「矛盾处理 Update Policy」](page-templates.md#生命周期规则llm-必读)
+> [`page-templates.md` §一「矛盾处理 Update Policy」](page-templates.md)
 > （双方设 `contested: true` + `contradictions` 互指、正文显式记录两种说法）。这是 `contested` 信号最常见的产生时机。
 >
 > **生命周期纪律（stale-raw / 重摄取）**：被更新的 source 页如果原来 `reviewed: true`，
 > 编辑完跑 `llmw wiki write touch`（自动 `updated`=现在 + 删 `reviewed`/`reviewed_at`）。
-> 事件表与"两道闸门"细节见 [page-templates.md §一「生命周期规则」](page-templates.md#生命周期规则llm-必读)。
+> 事件表与"两道闸门"细节见 [page-templates.md §一「生命周期规则」](page-templates.md)。
 
 1. **完整读取 raw 资料**——若是 PDF / 图片，先做 OCR / 视觉识别
 2. **提取元数据**：标题、作者 / 来源、发布时间、URL（若有）、关键标签
@@ -74,7 +74,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
      - 链接出去的 cross-refs——相关 entity / concept / source 页
    - **认知质量信号（可选）**：fast-moving / 争议 / 单一弱来源的 source 页，建议在 frontmatter
      标 `contested: true`（仅当**确属矛盾未裁定**时）——`confidence` 字段已退役，
-     可信度由"是否人工审核过"承载（详见 [page-templates.md §一](page-templates.md#可选可信度与认知质量信号)）
+     可信度由"是否人工审核过"承载（详见 [page-templates.md §一](page-templates.md)）
 5. **决策点：是否需要新建 entity / concept 页**
    - 例：raw 资料里反复提到"self-attention"，但 `concepts/self-attention.md` 不存在
    - → 新建 `concepts/self-attention.md`（首次出现 + 值得沉淀的概念）
@@ -123,8 +123,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## 四、frontmatter 字段参考（source 页）
 
-> 字段全集 + 语义定义见 [`page-templates.md §一`](page-templates.md#一共有-frontmatter-段) +
-> [`§二.3`](page-templates.md#3-source资料页)；骨架由 `llmw wiki write new` 生成。
+> 字段全集 + 语义定义见 [`page-templates.md §一`](page-templates.md) +
+> [`§二.3`](page-templates.md)；骨架由 `llmw wiki write new` 生成。
 
 本节只列 source 页**特化**注意事项（page-templates.md §二.3 已有的字段定义不重抄）：
 
@@ -164,7 +164,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## 六、判定"是否新建 entity / concept 页"
 
-阈值 canonical 见 [`page-templates.md §三「建页 / 追加 / 归档阈值」`](page-templates.md#建页--追加--归档阈值page-thresholds)：≥ 2 个 source 页提及 **或** 本页中心主题 → 建；路过提及 / 粒度过细 / 已有同名近义页 → 不建。
+阈值 canonical 见 [`page-templates.md §三「建页 / 追加 / 归档阈值」`](page-templates.md)：≥ 2 个 source 页提及 **或** 本页中心主题 → 建；路过提及 / 粒度过细 / 已有同名近义页 → 不建。
 
 **单篇 ingest 视角的套用**：本 raw 的中心主题 / 反复出现的核心概念 → 建；路过 / 类比 / 背景提及 → 不建；已有同名 / 近义页 → 先 search 再定（写前必搜）。
 

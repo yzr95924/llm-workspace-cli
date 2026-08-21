@@ -91,12 +91,12 @@ metadata:
 > 四件套任一未读完不写任何 wiki 内容。100+ 页的 wiki 还应在 `wiki/` 全域
 > `Grep "<topic>"` 补一次——单看 index.md 可能漏掉 entity/concept 页之间的引用关系。
 
-1. **raw/ 由用户掌控，LLM 只读**——两处写权限例外（`raw/external/` symlink 接入 + `raw/discussions/` 协作草稿）不得外推；操作细节见 [`references/external-repo.md`](references/external-repo.md) / [`references/ingest-workflow.md §10`](references/ingest-workflow.md#十rawdiscussions-草稿消化可选入口)
+1. **raw/ 由用户掌控，LLM 只读**——两处写权限例外（`raw/external/` symlink 接入 + `raw/discussions/` 协作草稿）不得外推；操作细节见 [`references/external-repo.md`](references/external-repo.md) / [`references/ingest-workflow.md §10`](references/ingest-workflow.md)
 2. **写操作正路 = `llmw wiki write` 系列**——log 追加走 `write log`、新建页走 `write new`、编辑已审页后清 `reviewed` 戳走 `write touch`、MEMORY 新条目走 `write memory add`、index 条目走 `write index add`；格式 + `LOG_RETENTION_LIMIT` 截断由脚本保证，lint 只兜底带外手改。**逃生舱**：脚本不支持的形态手写 Edit/Write 合法、lint 兜底——脚本是默认路径不是闸门
 3. **每页必带 YAML frontmatter——新建页走 `llmw wiki write new`**（5 必填 + 推荐 `description`）。权威定义（`type` 取值 / reserved / `sources` 特化 / 可信度信号）见 [`references/page-templates.md`](references/page-templates.md) §一；例外清单（index / log / MEMORY / MEMORY*）同节
-4. **LLM 修改已审核页必须清 `reviewed` 戳**——每次编辑后跑 `llmw wiki write touch`；生命周期规则 canonical 见 [`page-templates.md`](references/page-templates.md#可选可信度与认知质量信号) 「可信度与认知质量信号」段；lint 用 `reviewed-stale` 兜底
+4. **LLM 修改已审核页必须清 `reviewed` 戳**——每次编辑后跑 `llmw wiki write touch`；生命周期规则 canonical 见 [`page-templates.md`](references/page-templates.md) 「可信度与认知质量信号」段；lint 用 `reviewed-stale` 兜底
 5. **MEMORY/ 是 LLM agent 的私有记忆**——新条目走 `llmw wiki write memory add`；只改 `MEMORY/MEMORY.md` 这一份（无副本漂移）。物理位置在 `<wiki-root>/` 而非 `wiki/` 内 = publish 时自然留作私有层不外传；写入流程见工作流 §4
-6. **tag 白名单在 `wiki/tags.md`**——取值 / 解析 / 审计循环 canonical 在 fixture 头部说明块（落盘即读）；lint 语义见 [`lint-checklist.md §11`](references/lint-checklist.md#11-tag-taxonomy-校验)
+6. **tag 白名单在 `wiki/tags.md`**——取值 / 解析 / 审计循环 canonical 在 fixture 头部说明块（落盘即读）；lint 语义见 [`lint-checklist.md §11`](references/lint-checklist.md)
 
 ### 边界
 
@@ -226,7 +226,7 @@ git 身份字段 → 创建 symlink + 写 anchor → 后续 `llmw wiki ingest-di
 
 ### 3. Lint（健康检查）
 
-**触发**："lint wiki" / 定期（频率阈值见 [lint-checklist.md §七](references/lint-checklist.md#七lint-频率)）/ 大型 wiki 主动建议。
+**触发**："lint wiki" / 定期（频率阈值见 [lint-checklist.md §七](references/lint-checklist.md)）/ 大型 wiki 主动建议。
 
 **流程**：
 
