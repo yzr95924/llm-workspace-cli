@@ -18,8 +18,14 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
      → 必须存在于 wiki_lint.py / wiki_fixtures.py 字面量；wiki_lint.py 的
      finding 前缀 → 必须在 skill 文本有文档（allowlist 收编有意不文档化的
      例外）
-  3. rule_ref（CLI → skill，skill 域）：llmw/content/*.py 里的 "<file>.md §X"
-     指针 → 对应 skill 文件与小节标题必须存在
+  3. rule_ref（CLI → skill，skill 域）：llmw/content/*.py + CONTRACT_MDS（skill
+     文档 / 模板 / 仓根文档）里的 `<file>.md §X` 指针（覆盖两种形式：纯文本
+     `baz.md §N` + 链接关闭后的 `][`baz.md`](url) §N`）→ 对应 skill 文件与小节
+     标题必须都存在。**小节存在性校验**：对 §A 接受任意层级整数编号 A 的标题；
+     对 §A.B 要求 dotted 精确标题（`### A.B` 字面风格，external-repo/upgrade-workflow
+     用）或 h2 A 作用域下 h3 B（lint-checklist/page-templates 的父-子风格）
+     ——不允许全局 fallback（旧实现让 §三.1 靠 §二 下的 ```### 1.``` 假通过，
+     是此闸要堵的洞）
   4. 终态词 / JSON 字段（skill → CLI）：upgrade-workflow 提到的终态词与 plan
      字段必须在 upgrade.py / wiki_lint.py 字面量存在
     5. 裸 semver（skill + 模板 + 仓根文档）：prose 内不得出现裸版本号
@@ -94,10 +100,6 @@ WRAPPED_INLINE_RE = re.compile(r"`(llmw[^`]*?)`", re.DOTALL)
 SEMVER_RE = re.compile(r"\bv?\d+\.\d+\.\d+\b")
 SEMVER_KEY_SKIP_RE = re.compile(r"^\s*(?:wiki|workspace)_format_version\s*:")
 SEMVER_FILE_SKIP = {"upgrade-workflow.md"}
-RULE_REF_RE = re.compile(
-    r"(SKILL\.md|(?:upgrade-workflow|page-templates|lint-checklist|ingest-workflow"
-    r"|query-workflow|external-repo|examples)\.md)(?:\s*§([一二三四五六七八九十0-9][0-9.]*)?)?"
-)
 FINDING_IN_SRC_RE = re.compile(r'[fF]"([a-z][a-z0-9]+(?:-[a-z0-9]+)+): ')
 SEVERITY_MENTION_RE = re.compile(
     r"`([a-z][a-z0-9]+(?:-[a-z0-9]+)+)`（\*{0,2}(?:error|warn|info)"
@@ -329,28 +331,126 @@ def _lint_finding_prefixes():
 # ---------- 3. rule_ref（CLI → skill） ----------
 
 
-CN_NUM = {"10": "十"}
+_BASENAMES = (
+    "SKILL|upgrade-workflow|page-templates|lint-checklist|ingest-workflow"
+    "|query-workflow|external-repo|examples"
+)
+RULE_REF_RE = re.compile(
+    r"(?P<base>(?:"
+    + _BASENAMES
+    + r")\.md)(?:\s*§(?P<section>[一二三四五六七八九十0-9][0-9.]*)?)?"
+)
+# md 文档里 §N 落在链接关闭之后：`[`baz.md`](url) §N`。RULE_REF_RE 抓不到（§N
+# 与 .md 之间隔着 `](url)`），单独扫。
+RULE_REF_LINK_SECTION_RE = re.compile(
+    r"\[`?(?P<base>"
+    + _BASENAMES
+    + r"\.md)`?\]\([^)]*\)\s*§(?P<section>[一二三四五六七八九十0-9][0-9.]*)"
+)
+CN2ARABIC = {
+    "一": 1,
+    "二": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+    "十": 10,
+}
+_HEADING_NUM_RE = re.compile(
+    r"^#{2,3}\s+§?(?P<dotted>[0-9]+\.[0-9]+)[、.\s]"
+    r"|^#{2,3}\s+§?(?P<arab>[0-9]+)[、.]"
+    r"|^#{2,3}\s+§?(?P<cn>[一二三四五六七八九十]+)[、.\s]"
+)
+
+
+def _heading_numbers(md_text):
+    """从 md 文本抽取带编号的 h2/h3。
+
+    返回 [(level, arabic_token_or_dotted)]。三种编号风格均覆盖：
+      - ``## 一、调用方式`` → (2, "1")
+      - ``## 6. Upgrade``  → (2, "6")
+      - ``### 6.4 决策树`` → (3, "6.4")
+      - ``### §1.1 schema``→ (3, "1.1")
+
+    阿拉伯单数字必须跟 `、` 或 `.` 才注册，排除 `### 5 步流程` 这类"5 步"误识别。
+    """
+    out = []
+    for line in md_text.splitlines():
+        m = _HEADING_NUM_RE.match(line)
+        if not m:
+            continue
+        level = len(line.split(None, 1)[0])
+        if m.group("dotted"):
+            out.append((level, m.group("dotted")))
+        elif m.group("arab"):
+            out.append((level, m.group("arab")))
+        elif m.group("cn"):
+            out.append((level, str(CN2ARABIC[m.group("cn")])))
+    return out
+
+
+def _normalize_num(s: str) -> str:
+    """中文数字 → 阿拉伯串；已是阿拉伯则原样返回。"""
+    return str(CN2ARABIC[s]) if s in CN2ARABIC else s
 
 
 def _section_exists(md_text, section):
-    """section 形如 '六' / '6.1' / '二.3' / '一' / '10'。"""
-    if section is None:
+    """检查 §<section> 在 md_text 标题索引中存在。
+
+    - §A：任意层级编号为 A 的标题存在即可（覆盖 §11 → h3 / §6 → h3 / §十 → h2）。
+    - §A.B：(a) 存在编号恰为 "A.B" 的标题（覆盖 `### 6.4 决策树` 字面编号风格，
+      或 external-repo `### §1.1 schema`），或 (b) h2 编号 A 且其**作用域下** h3
+      编号 B 存在（覆盖 `lint-checklist §二.3` 这类父-子引用）。(b) 不再允许"任意
+      h3 N" 全局 fallback——那会让 §三.1 靠 §二 下的 `### 1.` 通过，正是此闸要堵的洞。
+    """
+    if section is None or section == "":
         return True
-    if section in CN_NUM:
-        section = CN_NUM[section]
-    if "." in section:
-        first, second = section.split(".", 1)
-        # upgrade-workflow 风格：### 6.1（标题可能带 § 前缀）
-        pat = r"^### §?{}\b".format(re.escape(section))
-        if re.search(pat, md_text, re.MULTILINE):
+    parts = section.split(".", 1)
+    first = _normalize_num(parts[0])
+    second = parts[1] if len(parts) > 1 else None
+    heads = _heading_numbers(md_text)
+    if second is None:
+        return any(tok.split(".")[0] == first for (_lvl, tok) in heads)
+    dotted = "{}.{}".format(first, second)
+    if any(tok == dotted for (_lvl, tok) in heads):
+        return True
+    in_scope = False
+    for level, tok in heads:
+        if level == 2:
+            in_scope = tok == first
+        elif level == 3 and in_scope and tok == second:
             return True
-        # page-templates 风格：§二.3 → ### 3.
-        return bool(
-            re.search(r"^### §?{}\.".format(re.escape(second)), md_text, re.MULTILINE)
+    return False
+
+
+def _resolve_target(fname):
+    if fname == "SKILL.md":
+        for d in (
+            REPO / "yzr-llm-wiki-management",
+            REPO / "yzr-llm-workspace-management",
+        ):
+            cand = d / fname
+            if cand.is_file():
+                return cand
+        return None
+    return WIKI_SKILL / "references" / fname
+
+
+def _check_rule_ref(fname, section, src_label, stats, errors):
+    stats["rule_refs"] += 1
+    target = _resolve_target(fname)
+    if target is None or not target.is_file():
+        errors.append("[rule_ref] {} 指向不存在的 {}".format(src_label, fname))
+        return
+    if not _section_exists(_read(target), section):
+        errors.append(
+            "[rule_ref-section] {} → {} §{} 小节不存在".format(
+                src_label, fname, section
+            )
         )
-    return bool(
-        re.search(r"^##+ §?{}".format(re.escape(section)), md_text, re.MULTILINE)
-    )
 
 
 # ---------- 主流程 ----------
@@ -447,28 +547,32 @@ def main():  # pylint: disable=too-many-branches
                 "[finding bwd] CLI finding `{}` 未在 skill 文本文档化".format(name)
             )
 
-    # --- 3. rule_ref（SKILL.md 在两个 skill 目录都可能被指） ---
+    # --- 3. rule_ref（CLI → skill）+ §N 目标节存在性 ---
+    # 3a. llmw/content/*.py：CLI 输出字符串 / docstring / 注释 / rule_ref 字段（纯文本形式）
     for py in sorted(CONTENT.glob("*.py")):
         for fname, section in RULE_REF_RE.findall(_read(py)):
-            stats["rule_refs"] += 1
-            if fname == "SKILL.md":
-                cands = [
-                    d / fname
-                    for d in (
-                        REPO / "yzr-llm-wiki-management",
-                        REPO / "yzr-llm-workspace-management",
-                    )
-                ]
-                target = next((c for c in cands if c.is_file()), None)
-            else:
-                target = WIKI_SKILL / "references" / fname
-            if target is None or not target.is_file():
-                errors.append("[rule_ref] {} 指向不存在的 {}".format(py.name, fname))
+            _check_rule_ref(fname, section, _rel(py), stats, errors)
+    # 3b. CONTRACT_MDS（skill 文档 / 模板 / 仓根文档）：两种形式都扫
+    #   - 纯文本 `basename.md §N`（RULE_REF_RE）
+    #   - 链接关闭后的 §N：`[`baz.md`](url) §N`（RULE_REF_LINK_SECTION_RE）
+    for md in CONTRACT_MDS:
+        rel = _rel(md)
+        text = _read(md)
+        seen = set()
+        for fname, section in RULE_REF_RE.findall(text):
+            key = (fname, section)
+            if key in seen:
                 continue
-            if not _section_exists(_read(target), section):
-                errors.append(
-                    "[rule_ref] {} → {} §{} 小节不存在".format(py.name, fname, section)
-                )
+            seen.add(key)
+            _check_rule_ref(fname, section, rel, stats, errors)
+        for m in RULE_REF_LINK_SECTION_RE.finditer(text):
+            fname = m.group("base")
+            section = m.group("section")
+            key = (fname, section)
+            if key in seen:
+                continue
+            seen.add(key)
+            _check_rule_ref(fname, section, rel, stats, errors)
 
     # --- 4. 终态词 / JSON 字段 ---
     upgrade_py = _py_src("upgrade.py")

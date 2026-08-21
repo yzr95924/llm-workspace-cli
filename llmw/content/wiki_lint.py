@@ -1609,7 +1609,7 @@ def build_upgrade_plan(
                         "type": "fixtures-fix-agents-version",
                         "to_action": (
                             f"Edit {fpath} §七 Wiki Format 版本行单元格改为 `{expected}`（实际为 `{actual}`）——"
-                            "参考 lint-checklist.md §三.1"
+                            "参考 lint-checklist.md §一（--check-version 子命令段）"
                         ),
                     }
                 )

@@ -91,7 +91,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
   （缺 anchor）/ `sources-external-symlink-missing`（symlink 不存在）/
   `sources-missing`（跟随 symlink 后不可访问；external repo 是 git 仓即目录，可指向整仓）
 - `source-in-discussions`（error，仅 source 页）：指向 `raw/discussions/` = provenance
-  后门。修法：走 ingest-workflow.md §10.3 归档路径（消化式 / 转正式 `mv` 后再 ingest）
+  后门。修法：走 ingest-workflow.md §十「raw/discussions/ 草稿消化」的归档路径（消化式 / 转正式 `mv` 后再 ingest）
 
 ### 4. 路径引用完整性
 
