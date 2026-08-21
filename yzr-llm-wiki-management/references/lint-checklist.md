@@ -36,7 +36,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --severity=error
 
 ### 子命令 `--check-version`
 
-扫当前 wiki 的 format 版本（解析 `<wiki-root>/AGENTS.md` §七）与本 skill `metadata.wiki_format_version`（脚本常量
+扫当前 wiki 的 format 版本（解析 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 行）与本 skill `metadata.wiki_format_version`（脚本常量
 `CURRENT_WIKI_FORMAT`）比对 + 扫当前格式 frontmatter 误用（`type-memory-value`）+ 自动调 fixtures 检查：
 
 ```bash
@@ -59,13 +59,13 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ### 前置：wiki 版本一致性
 
-每次常规 lint 都查 `<wiki-root>/AGENTS.md` §七 与 `CURRENT_WIKI_FORMAT` 一致性（实现：
+每次常规 lint 都查 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 行与 `CURRENT_WIKI_FORMAT` 一致性（实现：
 `check_format_version()`，与 `--check-version` 同源）——日常 lint 就能感知版本漂移：
 
 - `wiki-format-version-stale`（warn）：版本**落后** SKILL → 跑 `--check-version --apply`
   走升级流程（SKILL.md §5 Upgrade）
 - `wiki-format-version-ahead`（warn）：版本**领先** SKILL → 更新本 skill 安装对齐
-- `wiki-format-version-unparsed`（warn）：§七 行无法解析 → 跑 `--check-version` 诊断
+- `wiki-format-version-unparsed`（warn）：「当前配置」表版本行无法解析 → 跑 `--check-version` 诊断
 - 一致（equal）→ 无 finding
 
 ### 1. `raw/` 不可变性
@@ -154,7 +154,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 12. 页面体量
 
 - `oversized-page`（warn）：5 类内容页正文**非空行数** > `PAGE_SIZE_THRESHOLD`
-  （lint 内部常量，与 AGENTS.md「Page Thresholds」对齐；MEMORY 无上限）
+  （lint 内部常量，与 [page-templates.md §三「Page Thresholds」](page-templates.md#建页--追加--归档阈值page-thresholds) 对齐；MEMORY 无上限）
 - 修法：拆成子主题页 + cross-link
 
 ### 13. 可信度与认知质量信号（reviewed / contested / contradictions）
@@ -293,7 +293,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 - **不**评估 frontmatter 的语义是否合理（只检查字段存在性 + 类型合法）
 - **不**取代 schema（`AGENTS.md`）——schema 是源头，lint 是脚本化检查
 - **fixtures 边界**——`llmw wiki check-fixtures` 扫「约定文件」
-  （AGENTS.md §七 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
+  （AGENTS.md 末尾「当前配置」表 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
   MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
   wiki_metadata.toml）的合规性：
    check 清单以 `llmw wiki check-fixtures --json` 输出为准（CLI 内部注册表唯一真源；

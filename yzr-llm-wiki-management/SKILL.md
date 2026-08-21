@@ -32,9 +32,7 @@ metadata:
   `llmw` 子命令：`llmw wiki lint / check-fixtures / ingest-diff / write`（详见
   §工作流各节）。高频确定性任务固化在 CLI，agent 只负责需要判断的部分。
 - **references/**——按需加载：各操作详细流程（ingest / query / lint / upgrade）、页面模板
-  （page-templates.md）、lint-checklist、external-repo（接入 + 跨主机重建）。骨架模板 + fixtures（CLI 字节级比对金标准）内建于
-  `llmw/content/templates/wiki/`（CLI 包资产，`llmw wiki check-fixtures` 探测）、
-  upgrade-workflow.md §六 (语义合并规则，agent 走 upgrade plan 时的合并依据)
+  （page-templates.md）、lint-checklist、external-repo（接入 + 跨主机重建）。骨架模板 + fixtures（CLI 字节级比对金标准）内建于 CLI 包资产（`llmw wiki check-fixtures` 探测），upgrade-workflow.md §六 (语义合并规则，agent 走 upgrade plan 时的合并依据)
 
 ## 何时不使用
 
@@ -82,21 +80,13 @@ metadata:
 > **操作前置（orient ritual，所有操作通用）**：每次 ingest / query / lint 启动前，**不依赖 symlink**
 > ——按以下顺序读完四件套再动手：
 >
-> 1. `Read <$LLM_WIKI_ROOT>/AGENTS.md`——拿到本 wiki 的主题名、边界配置、
->    Page Thresholds（纪律 SSOT 是 `AGENTS.md`；`CLAUDE.md` 是 `@AGENTS.md` 薄壳，不持纪律）。
->    AGENTS.md 不含 tag 白名单（在 `wiki/tags.md`——见本节 §核心原则 §6）。AGENTS.md
->    顶部一行 `@MEMORY/MEMORY.md` + 一行 `@scripts/SCRIPTS.md` `@import`——自动展开 `@import`
->    的 agent 透明拿到 MEMORY / scripts 全文，不展开的由 AGENTS.md 顶部强制 Read 指令兜底
->    （详见 `llmw/content/templates/wiki/agents-md-template.md`（CLI 包内） 顶部）。**别处由 skill
->    按需读 AGENTS.md 时** 也走相同的 `@import` 链路，
->    **不**需要单独 `Read MEMORY.md` 补齐索引（除非要看各 `<slug>.md` 正文）。
+> 1. **确认 `<wiki-root>/AGENTS.md` 已在上下文**（经薄壳 CLAUDE.md 或原生加载——会话常驻；`CLAUDE.md` 是 `@AGENTS.md` 薄壳，不持纪律）——拿到本 wiki 的主题名与「当前配置」表（`Wiki Format 版本` 行）。MEMORY 全文经顶部 `@MEMORY/MEMORY.md` `@import` 已在上下文；tag 白名单在 `wiki/tags.md`（见 §核心原则 §6）
 > 2. `Read <$LLM_WIKI_ROOT>/wiki/index.md`——知道有哪些页、分布在哪些类别，避免重复创建 / 漏交叉引用
 > 3. `Read <$LLM_WIKI_ROOT>/wiki/log.md`（最近 ~30 行即可）——看清最近活动，避免重复
 >    ingest / 漏归档旧工作
 > 4. **`Read <$LLM_WIKI_ROOT>/scripts/SCRIPTS.md`**（按需）——确认本 wiki 是否有
 >    项目级扩展脚本的**完整分节契约**（使用场景 / 调用约定 / 作用 / 前置依赖）；不强制（wiki 可无
->    scripts/），但**触发非标工作流前**必须先查（AGENTS.md 顶部的 `@scripts/SCRIPTS.md` import
->    已加载全文，详细契约随读出）
+>    scripts/），但**触发非标工作流前**必须先查（AGENTS.md 顶部的 `@scripts/SCRIPTS.md` `@import` 已加载全文）
 >
 > 四件套任一未读完不写任何 wiki 内容。100+ 页的 wiki 还应在 `wiki/` 全域
 > `Grep "<topic>"` 补一次——单看 index.md 可能漏掉 entity/concept 页之间的引用关系。

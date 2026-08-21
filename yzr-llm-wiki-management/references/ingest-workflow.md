@@ -52,8 +52,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 覆盖、不要重建 entity / concept 的"参考来源"段（只追加新来源）：
 
 > **若重摄发现新内容与已有 entity / concept 页主张矛盾**——不要静默覆盖旧说法，走
-> AGENTS.md「矛盾处理 Update Policy」（双方设 `contested: true` + `contradictions` 互指、
-> 正文显式记录两种说法）。这是 `contested` 信号最常见的产生时机。
+> [`page-templates.md` §一「矛盾处理 Update Policy」](page-templates.md#生命周期规则llm-必读)
+> （双方设 `contested: true` + `contradictions` 互指、正文显式记录两种说法）。这是 `contested` 信号最常见的产生时机。
 >
 > **生命周期纪律（stale-raw / 重摄取）**：被更新的 source 页如果原来 `reviewed: true`，
 > 编辑完跑 `llmw wiki write touch`（自动 `updated`=现在 + 删 `reviewed`/`reviewed_at`）。
@@ -197,7 +197,6 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 - ❌ 一份资料写 5 个 source 页（粒度过细）——按"主题"分，不是按"raw 文件 1:1"
 - ❌ source 页只复制 raw 内容——必须消化、提炼、加 cross-refs
-- ❌ entity / concept 页"重写式更新"——只 append "Sources" 段
 - ❌ 跨主题的 entity 混在一起——本 skill 假设一个 wiki 一个主题；跨主题用不同的 wiki
 
 ## 十、raw/discussions/ 草稿消化（可选入口）

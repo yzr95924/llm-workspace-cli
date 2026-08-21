@@ -78,7 +78,7 @@ metadata:
 | `<workspace>/LINT.md` | 本 skill | workspace 级 lint 报告 |
 | `<workspace>/MEMORY/` 中的 `*.md` + 同步 `MEMORY.md` 索引 | 本 skill | 仅跨 wiki 经验（单 wiki 经验归 `<wiki>/MEMORY/`） |
 
-**违反归属 = bug**。完整归属表 + 四分表见 `<workspace>/AGENTS.md` §一 + §六（模板 §一 §六 渲染稿，byte-owned）。
+**违反归属 = bug**。完整归属表 + 四分表见 `<workspace>/AGENTS.md` 的「本 workspace 的边界」+「本文件本身的纪律」（含骨架所有权四分表）节（byte-owned 模板渲染）。
 
 ## 工作流 / 步骤
 
@@ -101,7 +101,7 @@ metadata:
 1. 读 `<workspace>/workspace.toml` 拿 `[wikis]` 注册表
 2. 对每个 wiki：
    - 读 `<wiki>/wiki_metadata.toml`（CLI 维护）
-   - 读 `<wiki>/AGENTS.md` §一（拿边界）
+    - 读 `<wiki>/AGENTS.md` 的「本 wiki 的边界」节（拿边界）
    - 读 `<wiki>/wiki/index.md`（已有内容 + 段落骨架）
    - 扫 `<wiki>/wiki/{entities,concepts,sources,comparisons,syntheses}/` 拿 page counts
    - 扫 `<wiki>/raw/` 递归拿原始资料数（仅计数，不读内容）
@@ -142,7 +142,7 @@ metadata:
 1. **扫描**：对每个 wiki 的 `wiki/entities/` + `wiki/concepts/`，提取所有 entity name（frontmatter `title` 或文件名 slug）
 2. **去重聚合**：跨 wiki 同名 / 近义（用 description 比对）的 entity 收集为候选对
 3. **建议**：对话中列出候选对，让用户选哪些要加跨 wiki 链接
-4. **写入**：用户确认后，对每个涉及的 wiki，调用 `yzr-llm-wiki-management` 的 ingest 流程更新对应 entity / concept 页——追加"跨 wiki 引用"段（xref 格式见 `<workspace>/AGENTS.md` §二）
+4. **写入**：用户确认后，对每个涉及的 wiki，调用 `yzr-llm-wiki-management` 的 ingest 流程更新对应 entity / concept 页——追加"跨 wiki 引用"段（xref 格式见 `<workspace>/AGENTS.md` 的「跨 wiki 约定」节）
 
 ### 4. Lint（workspace 级）
 
@@ -171,7 +171,7 @@ metadata:
 
 一行判别：**跨 wiki**偏好/关联/模式/经验 → 写；**单 wiki**观察 → 转交 `yzr-llm-wiki-management`；**跨 wiki 综合答案本身** → 归档 `cross_queries/`；**一次性观察** → 直接 chat。
 
-完整"何时写/不写" + 判别尺度 canonical = `<workspace>/AGENTS.md` §五（模板 §五 渲染稿，byte-owned）。
+完整"何时写/不写" + 判别尺度 canonical = `<workspace>/AGENTS.md` 的「Memory 纪律」节（byte-owned 模板渲染），本附录不重复。
 
 **流程**：
 
@@ -186,7 +186,7 @@ metadata:
 
 **触发**："升级 workspace / 检查 workspace 版本 / format 升级"。
 
-`llmw upgrade`（CLI）= 全部确定性操作——workspace 骨架 + 逐 wiki 聚合两段式，按 `<workspace>/AGENTS.md` §六 四分表分类处理。`llmw check-fixtures` 仅探测（不写盘）。agent = 跑命令 + 解读输出。
+`llmw upgrade`（CLI）= 全部确定性操作——workspace 骨架 + 逐 wiki 聚合两段式，按 `<workspace>/AGENTS.md` 的「本文件本身的纪律」节（含骨架所有权四分表）分类处理。`llmw check-fixtures` 仅探测（不写盘）。agent = 跑命令 + 解读输出。
 
 **流程**：
 
@@ -299,7 +299,7 @@ metadata:
 
 - 维护方：CLI init 时创建空目录 + 写 `MEMORY/MEMORY.md` 索引占位；后续条目由 **skill** 写入 + 同步追加 MEMORY.md 索引一行。人类不写；CLI 不写
 - MEMORY 不在 INDEX.md 中强制列出（agent 私有入口）
-- **条目形式（完整 / 短）+ 何时写/不写 + 索引行格式** canonical = `<workspace>/AGENTS.md` §五（模板 §五 渲染稿，byte-owned），本附录不重复
+- **条目形式（完整 / 短）+ 何时写/不写 + 索引行格式** canonical = `<workspace>/AGENTS.md` 的「Memory 纪律」节（byte-owned 模板渲染），本附录不重复
 
 #### A6.1 MEMORY/MEMORY.md（索引）
 
@@ -343,7 +343,7 @@ frontmatter 仅 `title` 必填；`type` 若写固定 `workspace-memory`（与 wi
 
 ### A8. 命名约束
 
-本表只承载 **skill 写盘文件**的命名约束（这些文件 CLI 不读写、无机械 gate，约束唯一承载点 = 本节）。wiki name（`llmw wiki add` 创建时校验）与 CLI 内部标识符归 CLI；wiki 命名推荐风格见 `<workspace>/AGENTS.md` §二。
+本表只承载 **skill 写盘文件**的命名约束（这些文件 CLI 不读写、无机械 gate，约束唯一承载点 = 本节）。wiki name（`llmw wiki add` 创建时校验）与 CLI 内部标识符归 CLI；wiki 命名推荐风格见 `<workspace>/AGENTS.md` 的「跨 wiki 约定」节。
 
 | 维度 | 规则 | 适用对象 |
 | --- | --- | --- |

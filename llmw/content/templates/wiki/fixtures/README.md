@@ -70,13 +70,13 @@ CLI 必须替换的占位符：
 |---|---|---|
 | `{{TOPIC_NAME}}` | 用户传入的主题名 | AGENTS.md + CLAUDE.md（薄壳） |
 | `{{SETUP_DATE}}` | 当天日期 `YYYY-MM-DD HH:MM` | AGENTS.md |
-| `{{WIKI_FORMAT_VERSION}}` | CLI 当前兼容的 wiki format 版本 | AGENTS.md §七（薄壳不持版本） |
+| `{{WIKI_FORMAT_VERSION}}` | CLI 当前兼容的 wiki format 版本 | AGENTS.md 末尾「当前配置」表（薄壳不持版本） |
 | `{{CLI_VERSION}}` | CLI 自身版本号 | AGENTS.md |
 
 CLI 替换后做内容级验证（不能用 fixture 字节比对）：
 
 1. AGENTS.md 的 4 个 `{{...}}` 占位符 + 薄壳 CLAUDE.md 的 `{{TOPIC_NAME}}` **全部被替换**——`grep -c '{{' AGENTS.md CLAUDE.md` 应为 0
-2. 生成的 AGENTS.md §七 "Wiki Format 版本" 与 `llmw.WIKI_FORMAT_VERSION` 常量一致（SKILL.md frontmatter 由 CI gate 与常量比对）
+2. 生成的 AGENTS.md 末尾「当前配置」表 `Wiki Format 版本` 字段与 `llmw.WIKI_FORMAT_VERSION` 常量一致（SKILL.md frontmatter 由 CI gate 与常量比对）
 
 ## 字节级一致性证据
 

@@ -3,7 +3,7 @@
 > LLM agent 的跨 wiki 持久化记忆索引。本文件被 `<workspace>/AGENTS.md` 用
 > `@MEMORY/MEMORY.md` import，会话常驻；正文按需 Read。
 >
-> 何时写 / 维护纪律见 `<workspace>/AGENTS.md` §五（本文件不重复，避免口径分裂）。
+> 何时写 / 维护纪律见 `<workspace>/AGENTS.md` 的「Memory 纪律」节（本文件不重复，避免口径分裂）。
 
 ## 索引
 

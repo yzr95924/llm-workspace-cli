@@ -43,10 +43,7 @@ kind = "external-repo"
 notes = "个人 TIL 仓库，按需重 ingest"
 ```
 
-> 每 entry 最小必填 4 字段（`symlink` / `target` / `captured_at` / `kind`）+
-> 可选 git 身份字段（`remote_url` / `branch`）；`target` 推荐 `~/...` 形式以跨主机可移植，
-> 也接受绝对路径（lint 一律 `Path(target).expanduser()` 展开）。**不**记 `commit`。
-> `notes` 任何场景都不强制。
+> **字段规则 SSOT** = wiki 根 `AGENTS.md` 的 `raw/external/` 节（会话常驻）+ 本文件 §1.2 schema 示例——最小必填 4 字段（`symlink` / `target` / `captured_at` / `kind: "external-repo"`）+ 可选 git 身份字段（`remote_url` / `branch`）；`target` 推荐 `~/...` 形式以跨主机可移植；**不**记 `commit`；`notes` 任何场景都不强制。
 
 ### §1.2 操作 5 步（LLM 主导首次接入）
 

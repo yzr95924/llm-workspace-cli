@@ -16,9 +16,7 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 
 ## 为什么需要这一步
 
-每个 wiki 仓在 `<wiki-root>/AGENTS.md` §七 钉一份 `Wiki Format 版本`（CLI init 时从本 skill
-`metadata.wiki_format_version` 镜像，单源对齐）。本 workflow 处理 format 演进后的**检测 + 修复**，
-老 wiki 有意识保留部分旧字段避免一刀切。
+每个 wiki 仓在 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 字段钉一份版本（CLI init 时从本 skill `metadata.wiki_format_version` 镜像，单源对齐）。本 workflow 处理 format 演进后的**检测 + 修复**。
 
 ## 职责切分（**关键**——三方分工）
 
