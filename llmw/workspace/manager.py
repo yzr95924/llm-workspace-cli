@@ -494,20 +494,52 @@ def _short_time(value):
     return f"{value[:10]} {value[11:16]}"
 
 
+def _disp_width(text):
+    """显示宽度：CJK / 全角字符按 2 列计，其余按 1 列计（对齐用，非精确 Unicode 标准）。"""
+    w = 0
+    for ch in text:
+        code = ord(ch)
+        if (
+            0x1100 <= code <= 0x115F  # Hangul Jamo
+            or 0x2E80 <= code <= 0xA4CF  # CJK 部首 / 康熙 / 注音等
+            or 0xAC00 <= code <= 0xD7A3  # Hangul 音节
+            or 0xF900 <= code <= 0xFAFF  # CJK 兼容表意
+            or 0xFE30 <= code <= 0xFE4F  # CJK 兼容形式
+            or 0xFF00 <= code <= 0xFF60  # 全角形式
+            or 0xFFE0 <= code <= 0xFFE6
+            or 0x20000 <= code <= 0x3FFFD  # CJK 扩展 A+
+        ):
+            w += 2
+        else:
+            w += 1
+    return w
+
+
+def _disp_pad(text, width):
+    """按显示宽度右补空格到 width 列（str.ljust 对中文会少补，导致列错位）。"""
+    return text + " " * max(0, width - _disp_width(text))
+
+
 def _render_list_table(rows: List[dict]) -> None:
     """表格：列宽 = max(内容 + 表头)；meta 缺失时时间列用 "-" 占位，保持列对齐。
 
     时间列只展示短格式（年-月-日 时:分）；path 与 NAME 高度重合，表格不展示（走 --json）。
+    列宽与补空格均按显示宽度计（中文占 2 列），保证终端列对齐。
     """
     created_cells = [_short_time(r["created_at"]) for r in rows]
     last_activity_cells = [_short_time(r["last_activity"]) for r in rows]
-    name_w = max(len(r["name"]) for r in rows + [{"name": "NAME"}])
-    created_w = max(len(c) for c in created_cells + ["CREATED"])
-    last_activity_w = max(len(c) for c in last_activity_cells + ["LAST_ACTIVITY"])
-    dn_w = max(
-        len(r["display_name"] or "-") for r in rows + [{"display_name": "DISPLAY_NAME"}]
+    name_w = max(_disp_width(r["name"]) for r in rows + [{"name": "NAME"}])
+    created_w = max(_disp_width(c) for c in created_cells + ["CREATED"])
+    last_activity_w = max(
+        _disp_width(c) for c in last_activity_cells + ["LAST_ACTIVITY"]
     )
-    tags_w = max(len(",".join(r["tags"]) or "-") for r in rows + [{"tags": ["TAGS"]}])
+    dn_w = max(
+        _disp_width(r["display_name"] or "-")
+        for r in rows + [{"display_name": "DISPLAY_NAME"}]
+    )
+    tags_w = max(
+        _disp_width(",".join(r["tags"]) or "-") for r in rows + [{"tags": ["TAGS"]}]
+    )
     model_cells = []
     for r in rows:
         if r["model"]:
@@ -517,13 +549,13 @@ def _render_list_table(rows: List[dict]) -> None:
         else:
             cell = "-"
         model_cells.append(cell)
-    model_w = max(len(c) for c in model_cells + ["MODEL"])
+    model_w = max(_disp_width(c) for c in model_cells + ["MODEL"])
     print(
-        f"{'NAME'.ljust(name_w)}  "
-        f"{'CREATED'.ljust(created_w)}  "
-        f"{'LAST_ACTIVITY'.ljust(last_activity_w)}  "
-        f"{'DISPLAY_NAME'.ljust(dn_w)}  {'TAGS'.ljust(tags_w)}  "
-        f"{'MODEL'.ljust(model_w)}"
+        f"{_disp_pad('NAME', name_w)}  "
+        f"{_disp_pad('CREATED', created_w)}  "
+        f"{_disp_pad('LAST_ACTIVITY', last_activity_w)}  "
+        f"{_disp_pad('DISPLAY_NAME', dn_w)}  {_disp_pad('TAGS', tags_w)}  "
+        f"{_disp_pad('MODEL', model_w)}"
     )
     for r, created, last_act, model_cell in zip(
         rows, created_cells, last_activity_cells, model_cells
@@ -532,10 +564,11 @@ def _render_list_table(rows: List[dict]) -> None:
         dn = r["display_name"] or "-"
         tags = ",".join(r["tags"]) or "-"
         print(
-            f"{prefix}{r['name'].ljust(name_w - 2)}  "
-            f"{created.ljust(created_w)}  "
-            f"{last_act.ljust(last_activity_w)}  "
-            f"{dn.ljust(dn_w)}  {tags.ljust(tags_w)}  {model_cell.ljust(model_w)}"
+            f"{prefix}{_disp_pad(r['name'], name_w - 2)}  "
+            f"{_disp_pad(created, created_w)}  "
+            f"{_disp_pad(last_act, last_activity_w)}  "
+            f"{_disp_pad(dn, dn_w)}  {_disp_pad(tags, tags_w)}  "
+            f"{_disp_pad(model_cell, model_w)}"
         )
 
 
