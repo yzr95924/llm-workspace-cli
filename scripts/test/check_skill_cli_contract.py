@@ -105,8 +105,8 @@ SEVERITY_MENTION_RE = re.compile(
     r"`([a-z][a-z0-9]+(?:-[a-z0-9]+)+)`（\*{0,2}(?:error|warn|info)"
 )
 # 面 7a 节号禁令：AGENTS.md 字面量 + ≤6 个非 word 字符（空白 / backtick / 标点）+
-# `§<数字|中文数字>`。`AGENTS.md + [`references/external-repo.md`](...) §二` 形式
-# 中「+ [」含 word char 路径段 → regex 不匹配（§二实指 external-repo.md，非 AGENTS.md）。
+# `§<数字|中文数字>`。`AGENTS.md + `[references/external-repo.md`](...) §三` 形式
+# 中「+ [」含 word char 路径段 → regex 不匹配（§三实指 external-repo.md，非 AGENTS.md）。
 AGENTS_SECTION_REF_RE = re.compile(r"AGENTS\.md[^\w\n]{0,6}§[0-9一二三四五六七八九十]+")
 # 面 7a 扩展：裸 "wiki §N" / "workspace §N" shorthand（缺 AGENTS.md 字面量但仍指模板节号）。
 # 前置 (?:^|[\s<>/`]) 排除 wiki 名后缀（如 `huawei_storage_wiki/wiki/` 中第一个 wiki
@@ -401,10 +401,10 @@ def _section_exists(md_text, section):
     """检查 §<section> 在 md_text 标题索引中存在。
 
     - §A：任意层级编号为 A 的标题存在即可（覆盖 §11 → h3 / §6 → h3 / §十 → h2）。
-    - §A.B：(a) 存在编号恰为 "A.B" 的标题（覆盖 `### 6.4 决策树` 字面编号风格，
-      或 external-repo `### §1.1 schema`），或 (b) h2 编号 A 且其**作用域下** h3
-      编号 B 存在（覆盖 `lint-checklist §二.3` 这类父-子引用）。(b) 不再允许"任意
-      h3 N" 全局 fallback——那会让 §三.1 靠 §二 下的 `### 1.` 通过，正是此闸要堵的洞。
+    - §A.B：(a) 存在编号恰为 "A.B" 的标题（覆盖 `### 6.4 决策树` 字面编号风格），或
+      (b) h2 编号 A 且其**作用域下** h3 编号 B 存在（覆盖 `lint-checklist §二.3` 这类父-子
+      引用）。(b) 不再允许"任意 h3 N" 全局 fallback——那会让 §三.1 靠 §二 下的
+      `### 1.` 通过，正是此闸要堵的洞。
     """
     if section is None or section == "":
         return True

@@ -18,7 +18,7 @@ cd llm-workspace-cli
 ./scripts/uninstall.sh
 ```
 
-> `pip install -e .` 只服务开发 / CI；功能完整安装只用 `install.sh`（运行期依赖同仓 `yzr-llm-*/references/` 与 `templates/`，非 editable wheel 不支持）。
+> `pip install -e .` 只服务开发 / CI；功能完整安装只用 `install.sh`（注册 `~/.local/bin/llmw` wrapper + PATH + completion + 两 skill symlink）。运行期资源全部内建于 `llmw/content/templates/`，wheel 声明 `package-data` 后独立可用。
 
 ## 快速上手
 
@@ -109,8 +109,7 @@ llmw config set enter_cli opencode   # 切换；llmw config unset enter_cli 回�
 
 ## 仓库结构
 
-- `llmw/` — Python 包：`cli.py` / `config.py` + `workspace/` / `wiki/` / `models/` 子包（可执行入口 = install.sh 生成的 `~/.local/bin/llmw` wrapper，或 `python -m llmw`）
+- `llmw/` — Python 包：`cli.py` / `config.py` / `backends.py` / `errors.py` / `fsutil.py` + `content/` / `wiki/` / `workspace/` / `models/` 子包（`content/` 为最大子包：模板 + 探测器 + fixtures + lint/write/upgrade 等内容层命令实现；可执行入口 = install.sh wrapper 或 `python -m llmw`）
 - `scripts/` — install / uninstall 脚本及其集成测试
-- `templates/` — 仅 `wiki_metadata.toml.template`（`wiki add` 实例化用）
-- `yzr-llm-wiki-management/` / `yzr-llm-workspace-management/` — 两 skill（模板 + 探测器 + lint 脚本，随仓分发）
+- `yzr-llm-wiki-management/` / `yzr-llm-workspace-management/` — 两 skill（纯 markdown：SKILL.md + references/；运行期模板与探测器已内建 `llmw/content/`，随仓分发）
 - `MEMORY/` / `doc/` / `tests/` — 项目记忆 / 设计文档 / pytest（CI 跑 ruff + pytest，py3.7 / py3.11）

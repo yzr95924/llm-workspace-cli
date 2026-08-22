@@ -19,6 +19,8 @@ _llmw() {
         'config:workspace.toml 读写'
         'list:列出 wiki'
         'status:查看运行中的 wiki agent session'
+        'check-fixtures:骨架探测器（检查 AGENTS.md / fixtures / legacy 一致性）'
+        'upgrade:workspace 升级引擎'
         'model:workspace model registry'
         'wiki:wiki 子命令'
     )
@@ -82,6 +84,18 @@ _llmw() {
                         '--tmux[输出单行 ●N [✗M]（供状态条集成）]' \
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;
+                check-fixtures)
+                    _arguments \
+                        '--target-format=[目标 format 版本（缺省读 llmw.WORKSPACE_FORMAT_VERSION）]:target_format:' \
+                        '--list-rules[列出所有 detector 规则（不跑检查）]' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    ;;
+                upgrade)
+                    _arguments \
+                        '--apply[dry-run 模式变 apply 模式（写文件；TTY 默认 dry-run）]' \
+                        '(--yes -y)'{--yes,-y}'[跳过 TTY 二次确认]' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    ;;
                 config)
                     _llmw_config && ret=0
                     ;;
@@ -112,7 +126,6 @@ _llmw_config() {
         'unset:清值'
     )
     CFG_KEYS=(
-        'default_model:默认 model_id'
         'enter_cli:agent CLI (claude|qodercli|opencode)'
         'templates_version:templates 版本(只读)'
         'created_at:创建时间(只读)'
@@ -140,7 +153,7 @@ _llmw_config() {
                         "${COMMON_OPTS[@]}" && ret=0
                     case $state in
                         set_key)
-                            local -a SET_KEYS=('default_model:默认 model_id' 'enter_cli:agent CLI (claude|qodercli|opencode)')
+                            local -a SET_KEYS=('enter_cli:agent CLI (claude|qodercli|opencode)')
                             _describe -t keys 'config key' SET_KEYS
                             ;;
                     esac
@@ -235,6 +248,12 @@ _llmw_wiki() {
         'config:读写 wiki_metadata.toml'
         'enter:启动 AI agent session'
         'stop:终止 wiki 的 agent 窗口'
+        'lint:wiki lint 检查'
+        'check-fixtures:wiki 骨架探测器'
+        'upgrade:wiki 升级引擎'
+        'ingest-diff:列出未摄取 raw 文件'
+        'write:wiki 内容写入编排'
+        'external:raw/external 接入 / 重建编排'
     )
     local state ret=1
     _arguments -C \
@@ -402,6 +421,120 @@ _llmw_wiki() {
                             '--window-suffix=[只匹配 <wiki>-<suffix> 窗口]:suffix:' \
                             '(--yes -y)'{--yes,-y}'[跳过确认]' \
                             "${COMMON_OPTS[@]}" && ret=0
+                    fi
+                    ;;
+                lint)
+                    _arguments \
+                        '--severity=[严重性过滤]:severity:(error warn info all)' \
+                        '--no-git[跳过 raw/ 的 git status 检查]' \
+                        '--check-version[扫 format 版本 + legacy 现场（互斥模式）]' \
+                        '--apply[与 --check-version 联用：stdout JSON 输出 upgrade plan]' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    ;;
+                check-fixtures)
+                    _arguments \
+                        '--target-format=[目标 format 版本]:target_format:' \
+                        '--list-rules[列出 detector 规则]' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    ;;
+                upgrade)
+                    _arguments \
+                        '--dry-run[仅打印计划，不写文件]' \
+                        '--apply[落地（重渲染 byte-owned / 块替换 block-owned / 嫁接 header-owned）]' \
+                        '(--yes -y)'{--yes,-y}'[跳过 TTY 二次确认]' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    ;;
+                ingest-diff)
+                    _arguments \
+                        '--relative[输出相对 wiki 根而非 raw/]' \
+                        '--check-stale[额外检查 source 页 updated 早于 raw mtime]' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    ;;
+                write)
+                    local -a WIKI_WRITE_ACTS
+                    WIKI_WRITE_ACTS=(
+                        'log:追加 log 条目'
+                        'index:操作 index 条目'
+                        'touch:刷新 wiki 页面的 updated 字段'
+                        'new:创建新 wiki 内容页'
+                        'memory:创建/索引 MEMORY 条目'
+                    )
+                    if (( CURRENT == 3 )) || [[ -z "${words[3]:-}" ]]; then
+                        _describe -t actions 'wiki write action' WIKI_WRITE_ACTS
+                        _arguments "${COMMON_OPTS[@]}" && ret=0
+                    else
+                        local wact=${words[3]}
+                        case $wact in
+                            log)
+                                _arguments \
+                                    '--op=[操作类型]:op:(ingest query lint setup)' \
+                                    '--title=[标题]:title:' \
+                                    '--bulk[批量模式]' \
+                                    '--topic=[主题]:topic:' \
+                                    '--count=[计数]:count:' \
+                                    "${COMMON_OPTS[@]}" && ret=0
+                                ;;
+                            index)
+                                _arguments \
+                                    '1:action:(add remove)' \
+                                    "${COMMON_OPTS[@]}" && ret=0
+                                ;;
+                            touch)
+                                _arguments "${COMMON_OPTS[@]}" && ret=0
+                                ;;
+                            new)
+                                _arguments \
+                                    '--type=[type]:type:(source comparison synthesis concept entity)' \
+                                    '--slug=[页面 slug]:slug:' \
+                                    '--title=[标题]:title:' \
+                                    '--description=[描述]:description:' \
+                                    '--tags=[tags 逗号分隔]:tags:' \
+                                    '--sources=[sources (raw 路径，逗号分隔)]:sources:_files' \
+                                    "${COMMON_OPTS[@]}" && ret=0
+                                ;;
+                            memory)
+                                _arguments \
+                                    '--slug=[MEMORY 条目 slug]:slug:' \
+                                    '--title=[短名（≤30 字）]:title:' \
+                                    '--index-line=[索引行]:index_line:' \
+                                    "${COMMON_OPTS[@]}" && ret=0
+                                ;;
+                        esac
+                    fi
+                    ;;
+                external)
+                    local -a WIKI_EXTERNAL_ACTS
+                    WIKI_EXTERNAL_ACTS=(
+                        'add:接入外部仓（命名协商 + 登记 + 建 symlink）'
+                        'remove:注销外部仓（删 entry + 删 symlink）'
+                        'list:列出所有 entry + 状态'
+                        'rebuild:跨主机重建（新机器跑一次）'
+                    )
+                    if (( CURRENT == 3 )) || [[ -z "${words[3]:-}" ]]; then
+                        _describe -t actions 'wiki external action' WIKI_EXTERNAL_ACTS
+                        _arguments "${COMMON_OPTS[@]}" && ret=0
+                    else
+                        local eact=${words[3]}
+                        case $eact in
+                            add)
+                                _arguments \
+                                    '--name=[kebab-case symlink 名]:name:' \
+                                    '--notes=[接入备注]:notes:' \
+                                    "${COMMON_OPTS[@]}" && ret=0
+                                ;;
+                            remove)
+                                _arguments "${COMMON_OPTS[@]}" && ret=0
+                                ;;
+                            list)
+                                _arguments "${COMMON_OPTS[@]}" && ret=0
+                                ;;
+                            rebuild)
+                                _arguments \
+                                    '--target=[覆盖本地路径 NAME=PATH（可重复）]:target:' \
+                                    '(--yes -y)'{--yes,-y}'[跳过 TTY 二次确认]' \
+                                    "${COMMON_OPTS[@]}" && ret=0
+                                ;;
+                        esac
                     fi
                     ;;
             esac

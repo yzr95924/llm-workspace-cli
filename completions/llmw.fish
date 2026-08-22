@@ -67,15 +67,17 @@ end
 
 # 通用 / 顶级
 set -l COMMON -l workspace -l json -l debug -l quiet -s q
-set -l TOP_CMDS init config list status model wiki -l help -l version
+set -l TOP_CMDS init config list status check-fixtures upgrade model wiki -l help -l version
 
 # ===== 顶层 =====
-complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "init"     -d '初始化 workspace'
-complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "config"   -d 'workspace.toml 读写'
-complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "list"     -d '列出 wiki'
-complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "status"   -d '查看运行中的 wiki agent session'
-complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "model"    -d 'workspace model registry'
-complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "wiki"     -d 'wiki 子命令'
+complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "init"            -d '初始化 workspace'
+complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "config"          -d 'workspace.toml 读写'
+complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "list"            -d '列出 wiki'
+complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "status"          -d '查看运行中的 wiki agent session'
+complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "check-fixtures"  -d '骨架探测器（检查 AGENTS.md / fixtures / legacy 一致性）'
+complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "upgrade"         -d 'workspace 升级引擎'
+complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "model"           -d 'workspace model registry'
+complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "wiki"            -d 'wiki 子命令'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -l help         -d '显示帮助'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -l version      -d '显示版本'
 
@@ -97,17 +99,23 @@ complete -c llmw -n "__fish_seen_subcommand_from list" -a "--tag=" -f -d '仅列
 # status 子命令 flag（--tmux 是 bool）
 complete -c llmw -n "__fish_seen_subcommand_from status" -l tmux -d '输出单行 ●N [✗M]（供状态条集成）'
 
+# check-fixtures 子命令（--target-format free-form → B 类；--list-rules bool）
+complete -c llmw -n "__fish_seen_subcommand_from check-fixtures" -a "--target-format=" -f -d '目标 format 版本（缺省读 llmw.WORKSPACE_FORMAT_VERSION）'
+complete -c llmw -n "__fish_seen_subcommand_from check-fixtures" -l list-rules         -d '列出所有 detector 规则（不跑检查）'
+
+# upgrade 子命令（--apply / --yes bool）
+complete -c llmw -n "__fish_seen_subcommand_from upgrade" -l apply -d 'dry-run 模式变 apply 模式（写文件；TTY 默认 dry-run）'
+complete -c llmw -n "__fish_seen_subcommand_from upgrade" -l yes -s y -d '跳过 TTY 二次确认'
+
 # ===== config 子命令 =====
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from get set unset" -f -a "get"    -d '取值'
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from get set unset" -f -a "set"    -d '设值'
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from get set unset" -f -a "unset"  -d '清值'
 
-complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "default_model"        -d '默认 model_id'
 complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "enter_cli"           -d 'agent CLI (claude|qodercli|opencode)'
 complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "templates_version"    -d 'templates 版本(只读)'
 complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "created_at"           -d '创建时间(只读)'
 complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "schema_version"       -d 'schema 版本(只读)'
-complete -c llmw -n "__fish_seen_subcommand_from config set"       -f -a "default_model"        -d '默认 model_id'
 complete -c llmw -n "__fish_seen_subcommand_from config set"       -f -a "enter_cli"           -d 'agent CLI (claude|qodercli|opencode)'
 
 # ===== model 子命令 =====
@@ -136,14 +144,20 @@ complete -c llmw -n "__llmw_subact model show set-default remove" -l model-id -f
 complete -c llmw -n "__llmw_subact model remove" -l yes -s y -d '跳过确认'
 
 # ===== wiki 子命令 =====
-set -l WIKI_ACTS add remove rename show config enter stop
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "add"      -d '新建 wiki'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "remove"   -d '移除 wiki'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "rename"   -d '重命名 wiki (目录 + 索引 + metadata)'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "show"     -d '查看 wiki 详情'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "config"   -d '读写 wiki_metadata.toml'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "enter"    -d '启动 AI agent session'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "stop"     -d '终止 wiki 的 agent 窗口'
+set -l WIKI_ACTS add remove rename show config enter stop lint check-fixtures upgrade ingest-diff write external
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "add"             -d '新建 wiki'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "remove"          -d '移除 wiki'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "rename"          -d '重命名 wiki (目录 + 索引 + metadata)'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "show"            -d '查看 wiki 详情'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "config"          -d '读写 wiki_metadata.toml'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "enter"           -d '启动 AI agent session'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "stop"            -d '终止 wiki 的 agent 窗口'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "lint"            -d 'wiki lint 检查'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "check-fixtures"  -d 'wiki 骨架探测器'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "upgrade"         -d 'wiki 升级引擎'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "ingest-diff"     -d '列出未摄取 raw 文件'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "write"           -d 'wiki 内容写入编排'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "external"        -d 'raw/external 接入 / 重建编排'
 
 # wiki --name（wiki 但未选 action 时；有动态值 → A 类，无 -r）
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'
@@ -191,3 +205,78 @@ complete -c llmw -n "__llmw_subact wiki enter" -a "--window-suffix=" -f -d '并�
 complete -c llmw -n "__llmw_subact wiki stop" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'
 complete -c llmw -n "__llmw_subact wiki stop" -a "--window-suffix=" -f -d '只匹配 <wiki>-<suffix> 窗口'
 complete -c llmw -n "__llmw_subact wiki stop" -l yes -s y -d '跳过确认'
+
+# wiki lint（--severity 有离散值 → A 类候选；其余 bool）
+complete -c llmw -n "__llmw_subact wiki lint" -a --severity=error" -f -d '仅 error'
+complete -c llmw -n "__llmw_subact wiki lint" -a --severity=warn"  -f -d '仅 warn'
+complete -c llmw -n "__llmw_subact wiki lint" -a --severity=info"  -f -d '仅 info'
+complete -c llmw -n "__llmw_subact wiki lint" -a --severity=all"   -f -d '全部（默认）'
+complete -c llmw -n "__llmw_subact wiki lint" -l no-git              -d '跳过 raw/ 的 git status 检查'
+complete -c llmw -n "__llmw_subact wiki lint" -l check-version       -d '扫 format 版本 + legacy 现场（互斥模式）'
+complete -c llmw -n "__llmw_subact wiki lint" -l apply               -d '与 --check-version 联用：stdout JSON 输出 upgrade plan'
+
+# wiki check-fixtures（同顶层版本；free-form target-format + list-rules bool）
+complete -c llmw -n "__llmw_subact wiki check-fixtures" -a "--target-format=" -f -d '目标 format 版本'
+complete -c llmw -n "__llmw_subact wiki check-fixtures" -l list-rules         -d '列出 detector 规则（不跑检查）'
+
+# wiki upgrade（--dry-run / --apply / --yes bool）
+complete -c llmw -n "__llmw_subact wiki upgrade" -l dry-run -d '仅打印计划，不写文件'
+complete -c llmw -n "__llmw_subact wiki upgrade" -l apply   -d '落地（重渲染 byte-owned / 块替换 block-owned / 嫁接 header-owned）'
+complete -c llmw -n "__llmw_subact wiki upgrade" -l yes -s y -d '跳过 TTY 二次确认'
+
+# wiki ingest-diff（--relative / --check-stale bool）
+complete -c llmw -n "__llmw_subact wiki ingest-diff" -l relative     -d '输出相对 wiki 根而非 raw/'
+complete -c llmw -n "__llmw_subact wiki ingest-diff" -l check-stale  -d '额外检查 source 页 updated 早于 raw mtime'
+
+# ===== wiki write 子命令 =====
+set -l WIKI_WRITE_ACTS log index touch new memory
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "log"    -d '追加 log 条目'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "index"  -d '操作 index 条目'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "touch"  -d '刷新 wiki 页面的 updated 字段'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "new"    -d '创建新 wiki 内容页'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "memory" -d '创建/索引 MEMORY 条目'
+
+# wiki write log: --op 有离散值 → A 类；其余 free-form（B 类）/ bool
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a --op=ingest" -f -d 'op=ingest'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a --op=query"  -f -d 'op=query'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a --op=lint"   -f -d 'op=lint'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a --op=setup"  -f -d 'op=setup'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a "--title="      -f -d '标题'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -l bulk           -d '批量模式'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a "--topic="     -f -d '主题'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a "--count="     -f -d '计数'
+
+# wiki write index: add | remove（positional）+ posarg 自由文本路径（不补）
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from index; and not __fish_seen_subcommand_from add remove" -f -a "add"    -d '添加条目'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from index; and not __fish_seen_subcommand_from add remove" -f -a "remove" -d '删除条目'
+
+# wiki write new（type/title/slug/tags/sources free-form → B 类；--description B 类）
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from new" -a "--type="        -f -d 'type (source / comparison / synthesis / concept / entity)'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from new" -a "--slug="        -f -d '页面 slug'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from new" -a "--title="       -f -d '标题'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from new" -a "--description="  -f -d '描述'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from new" -a "--tags="         -f -d 'tags 逗号分隔'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from new" -a "--sources="      -f -d 'sources (raw 路径，逗号分隔)'
+
+# wiki write memory（slug/title free-form → B 类；--index-line free-form）
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from memory" -a "--slug="        -f -d 'MEMORY 条目 slug'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from memory" -a "--title="       -f -d '短名（≤30 字）'
+complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from memory" -a "--index-line="  -f -d '索引行'
+
+# ===== wiki external 子命令 =====
+set -l WIKI_EXTERNAL_ACTS add remove list rebuild
+complete -c llmw -n "__fish_seen_subcommand_from wiki external; and not __fish_seen_subcommand_from $WIKI_EXTERNAL_ACTS" -f -a "add"     -d '接入外部仓（命名协商 + 登记 + 建 symlink）'
+complete -c llmw -n "__fish_seen_subcommand_from wiki external; and not __fish_seen_subcommand_from $WIKI_EXTERNAL_ACTS" -f -a "remove"  -d '注销外部仓（删 entry + 删 symlink）'
+complete -c llmw -n "__fish_seen_subcommand_from wiki external; and not __fish_seen_subcommand_from $WIKI_EXTERNAL_ACTS" -f -a "list"    -d '列出所有 entry + 状态'
+complete -c llmw -n "__fish_seen_subcommand_from wiki external; and not __fish_seen_subcommand_from $WIKI_EXTERNAL_ACTS" -f -a "rebuild" -d '跨主机重建（新机器跑一次）'
+
+# wiki external add（--name / --notes free-form → B 类）
+complete -c llmw -n "__llmw_subact wiki external; and __fish_seen_subcommand_from add" -a "--name="  -f -d 'kebab-case symlink 名（与用户协商）'
+complete -c llmw -n "__llmw_subact wiki external; and __fish_seen_subcommand_from add" -a "--notes=" -f -d '接入备注（agent scribe 进 anchor）'
+
+# wiki external list（--json bool）
+# （无专属 flag，留空 scope 声明——全局 --json 由 line 82 兜底，避免重复定义）
+
+# wiki external rebuild（--target NAME=PATH free-form → B 类；--yes bool）
+complete -c llmw -n "__llmw_subact wiki external; and __fish_seen_subcommand_from rebuild" -a "--target=" -f -d '覆盖本地路径 NAME=PATH（可重复）'
+complete -c llmw -n "__llmw_subact wiki external; and __fish_seen_subcommand_from rebuild" -l yes -s y -d '跳过 TTY 二次确认'

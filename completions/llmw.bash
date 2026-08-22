@@ -15,7 +15,7 @@ _llmw() {
     # = 后，COMP_WORDS[COMP_CWORD] 是 "="）。规范化 cur 回 `--flag=` 形式以复用下方 --flag=*
     # 分支（返回裸 value，readline 自动附加到 = 后）。仅对带值 flag 触发，避免误伤 bool flag。
     case "$prev" in
-        --name|--model|--model-id|--workspace|--path|--topic|--display-name|--description|--tag|--base-url|--api-key|--window-suffix)
+        --name|--model|--model-id|--workspace|--path|--topic|--display-name|--description|--tag|--tags|--base-url|--api-key|--window-suffix|--target-format|--target|--op|--title|--slug|--index-line|--count|--severity|--notes|--sources|--bulk)
             case "$cur" in
                 "=") cur="${prev}=" ;;
                 =*)  cur="${prev}${cur}" ;;
@@ -71,10 +71,15 @@ _llmw() {
     }
 
     local COMMON="--workspace= --json --debug --quiet -q"
-    local TOP="init config list status model wiki"
-    local WIKI_ACTS="add remove rename show config enter stop"
+    local TOP="init config list status check-fixtures upgrade model wiki"
+    local WIKI_ACTS="add remove rename show config enter stop lint check-fixtures upgrade ingest-diff write external"
+    local WIKI_WRITE_ACTS="log index touch new memory"
+    local WIKI_EXTERNAL_ACTS="add remove list rebuild"
+    local WIKI_LINT_SEVERITY="error warn info all"
+    local WIKI_WRITE_LOG_OPS="ingest query lint setup"
+    local WIKI_WRITE_INDEX_ACTS="add remove"
     local MODEL_ACTS="add list show set-default unset-default remove"
-    local CFG_KEYS="default_model enter_cli templates_version created_at schema_version"
+    local CFG_KEYS="enter_cli templates_version created_at schema_version"
 
     COMPREPLY=()
 
@@ -98,7 +103,7 @@ _llmw() {
             COMPREPLY=($(compgen -d -- "${cur#*=}"))
             return 0
             ;;
-        --topic=*|--display-name=*|--description=*|--tag=*|--base-url=*|--api-key=*|--new=*|--window-suffix=*)
+        --topic=*|--display-name=*|--description=*|--tag=*|--tags=*|--base-url=*|--api-key=*|--new=*|--window-suffix=*|--target-format=*|--target=*|--op=*|--title=*|--slug=*|--index-line=*|--count=*|--severity=*|--notes=*|--sources=*|--bulk=*)
             # 带值 flag 但值是 free-form；无候选
             COMPREPLY=()
             return 0
@@ -123,23 +128,29 @@ _llmw() {
         status)
             COMPREPLY=($(compgen -W "--tmux $COMMON" -- "$cur"))
             ;;
+        check-fixtures)
+            COMPREPLY=($(compgen -W "--target-format= --list-rules $COMMON" -- "$cur"))
+            ;;
+        upgrade)
+            COMPREPLY=($(compgen -W "--apply --yes -y $COMMON" -- "$cur"))
+            ;;
         config)
             if [ -z "$sub_action" ]; then
                 COMPREPLY=($(compgen -W "get set unset $COMMON" -- "$cur"))
             else
-                case "$sub_action" in
-                    get|unset)
-                        COMPREPLY=($(compgen -W "$CFG_KEYS" -- "$cur"))
-                        ;;
-                    set)
-                        # set <key> <value>: COMP_WORDS[0]=llmw, [1]=config, [2]=set,
-                        # [3]=key, [4]=value。cword=3 -> 补 key；cword=4 -> value 不补
-                        # （与 wiki config set 的 wiki_pos 索引语义对齐）
-                        if [ "$COMP_CWORD" -eq 3 ]; then
-                            COMPREPLY=($(compgen -W "default_model enter_cli" -- "$cur"))
-                        fi
-                        ;;
-                esac
+                        case "$sub_action" in
+                            get|unset)
+                                COMPREPLY=($(compgen -W "$CFG_KEYS" -- "$cur"))
+                                ;;
+                            set)
+                                # set <key> <value>: COMP_WORDS[0]=llmw, [1]=config, [2]=set,
+                                # [3]=key, [4]=value。cword=3 -> 补 key；cword=4 -> value 不补
+                                # （与 wiki config set 的 wiki_pos 索引语义对齐）
+                                if [ "$COMP_CWORD" -eq 3 ]; then
+                                    COMPREPLY=($(compgen -W "enter_cli" -- "$cur"))
+                                fi
+                                ;;
+                        esac
             fi
             ;;
         model)
@@ -274,6 +285,66 @@ _llmw() {
                             COMPREPLY=($(compgen -W "--window-suffix= -y --yes $COMMON" -- "$cur"))
                         else
                             COMPREPLY=($(compgen -W "--name= --window-suffix= -y --yes $COMMON" -- "$cur"))
+                        fi
+                        ;;
+                    lint)
+                        COMPREPLY=($(compgen -W "--severity= --no-git --check-version --apply $COMMON" -- "$cur"))
+                        ;;
+                    check-fixtures)
+                        COMPREPLY=($(compgen -W "--target-format= --list-rules $COMMON" -- "$cur"))
+                        ;;
+                    upgrade)
+                        COMPREPLY=($(compgen -W "--dry-run --apply --yes -y $COMMON" -- "$cur"))
+                        ;;
+                    ingest-diff)
+                        COMPREPLY=($(compgen -W "--relative --check-stale $COMMON" -- "$cur"))
+                        ;;
+                    write)
+                        # 三段式：write <act> [flags...] 收集第三个位置参数
+                        local -a w_pos=()
+                        i=1
+                        while [ "$i" -lt "$COMP_CWORD" ]; do
+                            w="${COMP_WORDS[$i]}"
+                            case "$w" in
+                                --*=*|-*) ;;
+                                *) w_pos+=("$w") ;;
+                            esac
+                            i=$((i + 1))
+                        done
+                        # w_pos[0]=wiki, w_pos[1]=write, w_pos[2]=act, w_pos[3]=positional
+                        if [ -z "${w_pos[2]:-}" ]; then
+                            COMPREPLY=($(compgen -W "$WIKI_WRITE_ACTS $COMMON" -- "$cur"))
+                        else
+                            case "${w_pos[2]}" in
+                                log)    COMPREPLY=($(compgen -W "--op= --title= --bulk --topic= --count= $COMMON" -- "$cur")) ;;
+                                index)  COMPREPLY=($(compgen -W "$COMMON" -- "$cur")) ;;
+                                touch)  COMPREPLY=($(compgen -W "$COMMON" -- "$cur")) ;;
+                                new)    COMPREPLY=($(compgen -W "--type= --slug= --title= --description= --tags= --sources= $COMMON" -- "$cur")) ;;
+                                memory) COMPREPLY=($(compgen -W "--slug= --title= --index-line= $COMMON" -- "$cur")) ;;
+                            esac
+                        fi
+                        ;;
+                    external)
+                        # 三段式：external <act> [flags...]
+                        local -a e_pos=()
+                        i=1
+                        while [ "$i" -lt "$COMP_CWORD" ]; do
+                            w="${COMP_WORDS[$i]}"
+                            case "$w" in
+                                --*=*|-*) ;;
+                                *) e_pos+=("$w") ;;
+                            esac
+                            i=$((i + 1))
+                        done
+                        if [ -z "${e_pos[2]:-}" ]; then
+                            COMPREPLY=($(compgen -W "$WIKI_EXTERNAL_ACTS $COMMON" -- "$cur"))
+                        else
+                            case "${e_pos[2]}" in
+                                add)     COMPREPLY=($(compgen -W "--name= --notes= $COMMON" -- "$cur")) ;;
+                                remove)  COMPREPLY=($(compgen -W "$COMMON" -- "$cur")) ;;
+                                list)    COMPREPLY=($(compgen -W "$COMMON" -- "$cur")) ;;
+                                rebuild) COMPREPLY=($(compgen -W "--target= --yes -y $COMMON" -- "$cur")) ;;
+                            esac
                         fi
                         ;;
                 esac
