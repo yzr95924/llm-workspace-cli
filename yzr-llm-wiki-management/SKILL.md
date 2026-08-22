@@ -1,16 +1,18 @@
 ---
 name: yzr-llm-wiki-management
 description: |
-  当用户和本地、单用户、复利型 Markdown 个人 wiki（Karpathy 'LLM owns wiki' 模式）打交道时
-  使用本 skill——覆盖：批量摄取 raw/ 资料（论文 / 文章 / 剪藏 / 外部代码仓 symlink
-  接入）、跨页综合 / 对比 / 矛盾协调 / 答案归档回 wiki、矛盾 / 孤儿 / 过期摘要 lint、format
-  升级迁移。坚持 raw/ 用户掌控 + wiki/ LLM 拥有 + AGENTS.md 单一真源 四层纪律。
-  触发："把这篇论文摄取进 wiki" / "总结 wiki 里关于 X 的内容" / "wiki 里 A 和 B 说法矛盾，
-  帮我协调" / "扫一下 wiki 有没有孤儿页 / 过期摘要" / "升级 wiki / 迁移到最新 format / 检查
-  wiki 版本" / "把 X 仓库（源码）纳入 wiki"。
-  不适用：云端 / 团队协作 wiki（Notion / Confluence / Outline / GitHub Wiki）。
-  **仅当 cwd 是 wiki 根（含 `wiki_metadata.toml` + AGENTS.md 骨架）时触发**；workspace 层
-  / 跨 wiki 场景走 `yzr-llm-workspace-management`；其它目录不适用。
+  当用户在本地、单用户、复利型 Markdown 个人 wiki（Karpathy 'LLM owns wiki' 模式）内工作时
+  使用本 skill——覆盖：摄取 raw/ 资料（论文 / 剪藏 / 外部代码仓 symlink）、查询与跨页
+  综合 / 矛盾协调、结论归档回 wiki、孤儿 / 过期摘要 lint、format 升级。三层纪律：
+  raw/ 用户掌控 + wiki/ LLM 拥有 + AGENTS.md 单一真源。
+  触发："把这篇论文摄取进 wiki" / "wiki 里有没有 / 总结一下关于 X 的内容" / "wiki 里 A 和
+  B 说法矛盾" / "把刚才的结论记进 wiki" / "扫一下 wiki 有没有孤儿页 / 过期摘要" /
+  "升级 wiki / 检查 wiki 版本" / "把 X 仓库纳入 wiki"。只要用户要消化资料 / 查 wiki 沉淀 /
+  归档新结论——即使没提 skill 名，也务必使用本 skill。
+  不适用：云端 / 团队 wiki（Notion / Confluence / Outline 等）；wiki 元数据配置、增删
+  wiki、session 启停（单条 llmw 命令，直接跑即可）。
+  **仅当 cwd 是 wiki 根（含 `wiki_metadata.toml` + AGENTS.md 骨架）时触发**；跨 wiki /
+  workspace 层走 `yzr-llm-workspace-management`；其它目录不适用。
 metadata:
   author: Zuoru YANG
   category: knowledge-base
@@ -33,19 +35,6 @@ metadata:
   §工作流各节）。高频确定性任务固化在 CLI，agent 只负责需要判断的部分。
 - **references/**——按需加载：各操作详细流程（ingest / query / lint / upgrade）、页面模板
   （page-templates.md）、lint-checklist、external-repo（接入 + 跨主机重建）。骨架模板 + fixtures（CLI 字节级比对金标准）内建于 CLI 包资产（`llmw wiki check-fixtures` 探测），upgrade-workflow.md §六 (语义合并规则，agent 走 upgrade plan 时的合并依据)
-
-## 何时不使用
-
-"何时使用 / 不适用"已在 frontmatter description（含触发词），正文不重抄。本节只补**出路**与
-正文独有负例：
-
-- **云端协作 wiki**（Notion / Confluence / Outline Wiki / GitHub Wiki）——走对应的云端 wiki skill
-- **一次性文档生成**（不是累积型）——直接用普通文件写入流程
-- **没有 raw/ 资料 + 没有累积需求**——skill 的价值在"复利"，一次性整理用不上
-- **需强结构化数据库**（带 schema / SQL / 全文检索后端）——wiki 规模 ≤ 数百页时
-  index.md 足够；超过该规模再考虑迁移到专用工具
-- **多人实时协作**——本 skill 假设单人使用（多账号实时协同走云端 wiki）
-- **系统设计文档写作**（单篇正式设计文档）——走专门的系统文档 skill
 
 ## 输入 / 输出
 
