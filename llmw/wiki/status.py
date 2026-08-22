@@ -208,7 +208,7 @@ def _enumerate(now: float) -> List[Dict]:
     按 wiki → 窗口名稳定排序（--json 用此序）；state 判定在排序后逐个填充
     （capture-pane 短路：dead / 假活 shell 不捕获）。表格用另行按 state 排序的副本。
     """
-    rows = [r for r in (byobu.list_windows() or []) if r.wiki]
+    rows = [r for r in byobu.list_windows() if r.wiki]
     rows.sort(key=lambda r: (r.wiki, r.window_name))
     dicts = [d for d in (_row_to_dict(r, now) for r in rows) if d is not None]
     for d in dicts:

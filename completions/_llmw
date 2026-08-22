@@ -381,7 +381,6 @@ _llmw_wiki() {
                     ;;
                 upgrade)
                     _arguments \
-                        '--dry-run[仅打印计划，不写文件]' \
                         '--apply[落地（重渲染 byte-owned / 块替换 block-owned / 嫁接 header-owned）]' \
                         '(--yes -y)'{--yes,-y}'[跳过 TTY 二次确认]' \
                         "${COMMON_OPTS[@]}" && ret=0

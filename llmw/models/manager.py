@@ -147,7 +147,6 @@ def model_add(
             )
 
     # 加载现有 registry；不存在 → 初始化
-    # 加载现有 registry；不存在 → 初始化
     try:
         reg = load(workspace_root)
     except RegistryMissing:

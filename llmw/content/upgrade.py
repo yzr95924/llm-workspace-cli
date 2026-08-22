@@ -34,17 +34,11 @@ from llmw import WIKI_FORMAT_VERSION
 from llmw import __version__ as CLI_VERSION
 from llmw.content import render as _render
 from llmw.content import wiki_fixtures
+from llmw.content._check_common import read_text as _read_text  # noqa: E402
 from llmw.fsutil import atomic_write
 from llmw.wiki import store as wiki_store
 
 # ===== plan_resync: 计算 resync 计划（不写盘）=====
-
-
-def _read_text(p: Path) -> Optional[str]:
-    try:
-        return p.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return None
 
 
 def _load_meta(wiki_root: Path) -> Optional[Dict[str, str]]:
@@ -114,9 +108,6 @@ def _render_growth_headers(*, old_text: str, fixture_text: str, rel_path: str) -
     old_fm, old_intro, old_sections = _split(old_text)
     new_fm, new_intro, new_sections = _split(fixture_text)
 
-    if new_fm is None and new_sections is None:
-        return ""
-
     out = []
     if new_fm is not None:
         out.append(new_fm)
@@ -174,13 +165,10 @@ def _has_growth(lines: List[str]) -> bool:
             continue
         if re.match(r"^_\([^)]+\)_$", s):
             continue  # `_（暂无内容）_` 等占位符
-        if s.startswith("<!--") and "-->" in s:
-            continue
         return True
     return False
 
 
-BYTE_OWNED = {"AGENTS.md": True, "CLAUDE.md": True}
 GROWTH_FILES = {
     "wiki/index.md": "fixtures/index.md.txt",
     "wiki/log.md": "fixtures/log.md.txt",

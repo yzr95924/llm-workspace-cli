@@ -34,6 +34,12 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set
 
 # 复用 ingest_diff 的轻量 frontmatter 解析 + log_format 的日期解析 helper
+from llmw.content._check_common import (  # noqa: E402
+    SEMVER_RE,
+)
+from llmw.content._check_common import (
+    compare_semver as _compare_semver,
+)
 from llmw.content.ingest_diff import parse_frontmatter_simple  # noqa: E402
 from llmw.content.log_format import (  # noqa: E402
     LOG_LINE_RE,
@@ -600,13 +606,7 @@ def check_log_format(wiki_root: Path) -> List[str]:
     if not log_path.is_file():
         return ["log-missing: wiki/log.md 不存在"]
     text = log_path.read_text(encoding="utf-8", errors="replace")
-    # 跳过 frontmatter
-    body_start = 0
-    if text.startswith("---"):
-        m = re.match(r"^---\n.*?\n---\n?", text, re.DOTALL)
-        if m:
-            body_start = m.end()
-    body = text[body_start:]
+    body = _strip_frontmatter_body(text)
     for i, line in enumerate(body.splitlines(), start=1):
         if not line.strip():
             continue
@@ -638,12 +638,7 @@ def check_log_truncation(wiki_root: Path) -> List[str]:
     if not log_path.is_file():
         return findings
     text = log_path.read_text(encoding="utf-8", errors="replace")
-    body_start = 0
-    if text.startswith("---"):
-        m = re.match(r"^---\n.*?\n---\n?", text, re.DOTALL)
-        if m:
-            body_start = m.end()
-    body = text[body_start:]
+    body = _strip_frontmatter_body(text)
     entry_count = sum(1 for line in body.splitlines() if LOG_LINE_RE.match(line))
     if entry_count > LOG_RETENTION_LIMIT:
         findings.append(
@@ -1134,8 +1129,6 @@ def check_memory_index(wiki_root: Path) -> List[str]:
                 f"{target.relative_to(wiki_root).as_posix()}，但该文件不存在"
             )
     # 扫 MEMORY/*.md（排除 MEMORY.md 本身）；任一不在 indexed → memory-not-indexed
-    if not mem_dir.is_dir():
-        return findings
     for p in sorted(mem_dir.glob("*.md")):
         if p.name == "MEMORY.md":
             continue
@@ -1272,7 +1265,6 @@ def severity_of(finding: str) -> str:
 # | Wiki Format 版本 | 0.7.0 |
 # 兼容用户编辑后的格式变体（多余空格、备注尾部等）；semver 走单独正则抓取。
 CLAUDE_FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\s*\|")
-SEMVER_RE = re.compile(r"\d+\.\d+\.\d+")
 
 
 def parse_format_version(wiki_root: Path) -> Optional[str]:
@@ -1417,31 +1409,6 @@ def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
             out["patterns"]["type-memory-value"].append({"file": rel, "conflict": False})  # type: ignore
 
     return out
-
-
-def _compare_semver(current: Optional[str], skill: str) -> str:
-    """返回 'equal' / 'older' / 'newer' / 'unknown'。semver 简单元组比较；缺值=unknown。"""
-    if not current:
-        return "unknown"
-
-    def parse(v: str) -> Optional[tuple]:
-        m = SEMVER_RE.search(v)
-        if not m:
-            return None
-        try:
-            return tuple(int(x) for x in m.group(0).split("."))
-        except ValueError:
-            return None
-
-    c = parse(current)
-    s = parse(skill)
-    if not c or not s:
-        return "unknown"
-    if c < s:
-        return "older"
-    if c > s:
-        return "newer"
-    return "equal"
 
 
 def build_upgrade_plan(

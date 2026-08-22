@@ -271,7 +271,7 @@ _llmw() {
                         COMPREPLY=($(compgen -W "--target-format= --list-rules $COMMON" -- "$cur"))
                         ;;
                     upgrade)
-                        COMPREPLY=($(compgen -W "--dry-run --apply --yes -y $COMMON" -- "$cur"))
+                        COMPREPLY=($(compgen -W "--apply --yes -y $COMMON" -- "$cur"))
                         ;;
                     ingest-diff)
                         COMPREPLY=($(compgen -W "--relative --check-stale $COMMON" -- "$cur"))

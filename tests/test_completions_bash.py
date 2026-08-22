@@ -174,7 +174,7 @@ class TestBashDynamicValueCompletion:
         for n in wiki_names:
             lines.append(f"[wikis.{n}]")
             lines.append(f'path = "{n}"')
-            lines.append(f'created_at = "2026-01-01T00:00:00Z"')
+            lines.append('created_at = "2026-01-01T00:00:00Z"')
             lines.append("")
         (ws / "workspace.toml").write_text("\n".join(lines) + "\n", encoding="utf-8")
         return ws

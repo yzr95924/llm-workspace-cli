@@ -54,21 +54,6 @@ def _check_enter_cli(value: str) -> None:
         )
 
 
-def _parse_bool(key: str, value: str) -> bool:
-    """bool 型 config 值解析：仅接受 TOML 字面值 true/false（严格小写）。
-
-    不能走 bool(value)——bool("false") is True。
-    """
-    if value == "true":
-        return True
-    if value == "false":
-        return False
-    raise InvalidConfigKey(
-        f"{key} 值 '{value}' 非法",
-        hint="可选: true, false",
-    )
-
-
 # ===== init =====
 
 
@@ -285,8 +270,6 @@ def config_get(workspace_root: Path, key: Optional[str]) -> None:
     val = _current_value(ws, local, key)
     if val is None:
         print("<unset>")
-    elif isinstance(val, bool):
-        print(str(val).lower())  # 打 TOML 字面 true/false，不是 Python True/False
     else:
         print(val)
 
@@ -300,8 +283,7 @@ def config_set(workspace_root: Path, key: str, value: str) -> None:
         raise InvalidConfigKey(f"KEY '{key}' 不可 set（只读）")
     if key == "enter_cli":
         _check_enter_cli(value)
-    # bool 不能走 expected_type(value)——bool("false") is True
-    parsed = _parse_bool(key, value) if expected_type is bool else expected_type(value)
+    parsed = expected_type(value)
     local = local_store.load(workspace_root)
     setattr(local, key, parsed)
     local_store.save(workspace_root, local)

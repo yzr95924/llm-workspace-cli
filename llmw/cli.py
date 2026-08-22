@@ -383,12 +383,6 @@ def build_parser() -> argparse.ArgumentParser:
         parents=[common],
     )
     pw_upgrade.add_argument(
-        "--dry-run",
-        action="store_true",
-        default=True,
-        help="只输出计划不写盘（默认；传 --apply 显式写入）",
-    )
-    pw_upgrade.add_argument(
         "--apply",
         action="store_true",
         help="显式写盘（覆盖 dry-run 默认）；diff 非空时还需 --yes",
@@ -565,8 +559,6 @@ def _cmd_wiki_content(args) -> int:
         from llmw.content import external_anchor
 
         return external_anchor.dispatch(root, args)
-
-    return 1
 
 
 def main(argv=None) -> int:

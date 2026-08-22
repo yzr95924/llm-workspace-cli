@@ -43,19 +43,34 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional
 
-# 常量 SSOT 在 wiki_lint / log_format，import 不复制。
+# 常量 SSOT 在 _check_common / wiki_lint / log_format / external_anchor，import 不复制。
 from llmw import WIKI_FORMAT_VERSION
 from llmw import __version__ as CLI_VERSION
 from llmw.config import wiki_templates_dir
+from llmw.content._check_common import (  # noqa: E402
+    SEMVER_RE,
+)
+from llmw.content._check_common import (
+    compare_semver as _compare_semver,
+)
+from llmw.content._check_common import (
+    print_rules as _print_rules,
+)
+from llmw.content._check_common import (
+    read_text as _read_text,
+)
+from llmw.content._check_common import (
+    scan_template_outbound_refs as _scan_template_outbound_refs,
+)
+from llmw.content.external_anchor import SOURCE_NAME_RE  # noqa: E402
 from llmw.content.log_format import LOG_LINE_RE  # noqa: E402
 from llmw.content.render import render_wiki_agents_md
 from llmw.content.wiki_lint import (  # noqa: E402
     ANCHOR_FILENAME,
     EXTERNAL_SUBDIR,
     MEMORY_SUBDIR,
-    SEMVER_RE,
 )
 from llmw.errors import WikiMetadataCorrupt
 from llmw.wiki import store as wiki_store
@@ -159,51 +174,14 @@ CHECK_REGISTRY = [
 # -- 解析用正则 --
 AGENTS_FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\s*\|")
 INDEX_CATEGORY_RE = re.compile(r"^## (.+)$")
-SOURCE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 GITIGNORE_TRACK_TOML_RE = re.compile(r"^!\s*raw/external/\.symlink-anchor\.toml\s*(#.*)?$")
 GITIGNORE_EXCLUDE_EXTERNAL_RE = re.compile(r"^\s*raw/external/?\*?\s*(#.*)?$")
 YAML_FRONT_MATTER_RE = re.compile(r"^---\s*\n.*?\n---\s*\n", re.DOTALL)
 
 
-def _read_text(path: Path) -> Optional[str]:
-    """读文件文本；失败返 None（不抛异常；fixture-check 静默容错）。"""
-    try:
-        return path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return None
-
-
 def _skill_format_version() -> Optional[str]:
     """wiki format 版本（SSOT = llmw.WIKI_FORMAT_VERSION 包内常量）。"""
     return WIKI_FORMAT_VERSION
-
-
-def _compare_semver(a: Optional[str], b: Optional[str]) -> str:
-    """返 'equal' / 'older' / 'newer' / 'unknown'。
-
-    本地保留（非 lint_wiki import）：lint_wiki._compare_semver 假定 skill 参数非 None，
-    check 的 current_format 可能为 None（wiki「当前配置」表版本钉定时），需更宽容的缺值处理。
-    """
-    if not a or not b:
-        return "unknown"
-
-    def parse(v: str) -> Optional[Tuple[int, int, int]]:
-        m = SEMVER_RE.search(v)
-        if not m:
-            return None
-        try:
-            return tuple(int(x) for x in m.group(0).split("."))  # type: ignore
-        except ValueError:
-            return None
-
-    av, bv = parse(a), parse(b)
-    if not av or not bv:
-        return "unknown"
-    if av < bv:
-        return "older"
-    if av > bv:
-        return "newer"
-    return "equal"
 
 
 def _parse_anchor_minimal(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
@@ -403,22 +381,6 @@ TEMPLATE_OUTBOUND_PATTERNS = (
     "yzr-llm-wiki-management",
     "OKF",
 )
-TEMPLATE_OUTBOUND_SECTION_RE = re.compile(r"§[0-9]")
-
-
-def _scan_template_outbound_refs(text):
-    """扫模板文本中的出边引用，返回 ["<行号>:<模式>", ...]（空 = 干净）。
-
-    独立成函数便于测试——检测逻辑直接喂合成文本；check 函数做文件 IO + 报告。
-    """
-    hits = []  # type: List[str]
-    for ln_no, ln in enumerate(text.splitlines(), 1):
-        for pat in TEMPLATE_OUTBOUND_PATTERNS:
-            if pat in ln:
-                hits.append(f"{ln_no}:{pat}")
-        if TEMPLATE_OUTBOUND_SECTION_RE.search(ln):
-            hits.append(f"{ln_no}:§节号引用")
-    return hits
 
 
 def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
@@ -436,7 +398,7 @@ def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Di
         out["passed"] = None
         out["skipped"] = "agents-md-template.md 未找到（无法模板自检）"
         return out
-    hits = _scan_template_outbound_refs(template)
+    hits = _scan_template_outbound_refs(template, TEMPLATE_OUTBOUND_PATTERNS)
     if hits:
         out["passed"] = False
         out["expected"] = "模板不含任何指向 skill 目录的引用（自包含措辞；SKILL.md 单向指入模板）"
@@ -545,7 +507,7 @@ def check_symlink_anchor_toml_symlink_matches(wiki_root: Path, info: Dict[str, s
         return out
 
     entry_symlinks = {e["symlink"] for e in entries if e.get("symlink")}
-    real_symlinks = {p.name for p in external_dir.iterdir() if p.is_symlink()} if external_dir.is_dir() else set()
+    real_symlinks = {p.name for p in external_dir.iterdir() if p.is_symlink()}
 
     orphan_entry = sorted(entry_symlinks - real_symlinks)  # anchor 有 entry 但 symlink 缺
     orphan_symlink = sorted(real_symlinks - entry_symlinks)  # symlink 有但 anchor 无 entry
@@ -1056,46 +1018,9 @@ def _format_human(report: Dict[str, object]) -> str:
     return "\n".join(lines)
 
 
-def _format_rules_md() -> str:
-    """--list-rules markdown 输出：代码真源 → 规则清单。"""
-    lines = []  # type: List[str]
-    lines.append("## Wiki fixtures 规则清单")
-    lines.append("")
-    lines.append("| ID | Severity | File | 规则引用 | 说明 |")
-    lines.append("|---|---|---|---|---|")
-    for reg in CHECK_REGISTRY:
-        rid = reg["id"]
-        sev = reg["severity"]
-        file_target = reg.get("file", "")
-        rule_ref = reg["rule_ref"]
-        desc = reg["desc"]
-        lines.append(f"| `{rid}` | {sev} | `{file_target}` | {rule_ref} | {desc} |")
-    return "\n".join(lines)
-
-
-def _rules_json() -> List[Dict[str, object]]:
-    """--list-rules JSON 输出。"""
-    out = []  # type: List[Dict[str, object]]
-    for reg in CHECK_REGISTRY:
-        out.append(
-            {
-                "id": reg["id"],
-                "severity": reg["severity"],
-                "file": reg.get("file", ""),
-                "rule_ref": reg["rule_ref"],
-                "desc": reg["desc"],
-            }
-        )
-    return out
-
-
 def list_rules(as_json: bool = False) -> int:
     """--list-rules 业务入口（自包含，无需 wiki_root）。"""
-    if as_json:
-        print(json.dumps(_rules_json(), indent=2, ensure_ascii=False))
-    else:
-        print(_format_rules_md())
-    return 0
+    return _print_rules("Wiki fixtures 规则清单", CHECK_REGISTRY, as_json)
 
 
 def run(wiki_root: Path, *, as_json: bool = False, target_format: Optional[str] = None) -> int:

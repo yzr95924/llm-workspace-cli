@@ -450,9 +450,10 @@ class TemplateNoOutboundRefsTest(unittest.TestCase):
 
     def _scan(self, text):
         """直接调用模块内的扫描函数（不改真实模板文件）。"""
-        from llmw.content.workspace_fixtures import _scan_template_outbound_refs
+        from llmw.content._check_common import scan_template_outbound_refs
+        from llmw.content.workspace_fixtures import TEMPLATE_OUTBOUND_PATTERNS
 
-        return _scan_template_outbound_refs(text)
+        return scan_template_outbound_refs(text, TEMPLATE_OUTBOUND_PATTERNS)
 
     def test_clean_text_no_hits(self):
         self.assertEqual(

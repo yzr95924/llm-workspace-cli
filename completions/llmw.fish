@@ -204,8 +204,7 @@ complete -c llmw -n "__llmw_subact wiki lint" -l apply               -d '与 --c
 complete -c llmw -n "__llmw_subact wiki check-fixtures" -a "--target-format=" -f -d '目标 format 版本'
 complete -c llmw -n "__llmw_subact wiki check-fixtures" -l list-rules         -d '列出 detector 规则（不跑检查）'
 
-# wiki upgrade（--dry-run / --apply / --yes bool）
-complete -c llmw -n "__llmw_subact wiki upgrade" -l dry-run -d '仅打印计划，不写文件'
+# wiki upgrade（--apply / --yes bool；原 --dry-run flag 已删：默认就是 dry-run，加 --apply 显式写入）
 complete -c llmw -n "__llmw_subact wiki upgrade" -l apply   -d '落地（重渲染 byte-owned / 块替换 block-owned / 嫁接 header-owned）'
 complete -c llmw -n "__llmw_subact wiki upgrade" -l yes -s y -d '跳过 TTY 二次确认'
 

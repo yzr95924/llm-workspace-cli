@@ -37,6 +37,7 @@ from llmw.config import workspace_templates_dir
 from llmw.content import render as _render
 from llmw.content import upgrade as _wiki_upgrade
 from llmw.content import workspace_fixtures
+from llmw.content._check_common import read_text as _read_text  # noqa: E402
 from llmw.fsutil import atomic_write
 from llmw.workspace import store as ws_store
 from llmw.workspace.gitignore import ensure_workspace_gitignore
@@ -47,20 +48,12 @@ _BLOCK_OWNED = (".gitignore",)
 _HEADER_OWNED = ("MEMORY/MEMORY.md",)
 
 # templates_version 解析正则（保留 wiki_format 分量，只换 workspace_format；接受 legacy *_spec 形式）
-_TV_WS_RE = re.compile(r"((?:workspace_format|workspace_spec)\s*=\s*)[0-9]+\.[0-9]+\.[0-9]+")
 _TV_PARSE = re.compile(
     r"(?:workspace_format|workspace_spec)\s*=\s*([0-9]+\.[0-9]+\.[0-9]+)\s*;\s*(?:wiki_format|wiki_spec)\s*=\s*([0-9]+\.[0-9]+\.[0-9]+)"
 )
 
 
 # ===== 辅助 =====
-
-
-def _read_text(p: Path) -> Optional[str]:
-    try:
-        return p.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return None
 
 
 def _extract_display_name_and_setup_date(ws_root: Path):
