@@ -497,12 +497,11 @@ def _short_time(value):
 def _render_list_table(rows: List[dict]) -> None:
     """表格：列宽 = max(内容 + 表头)；meta 缺失时时间列用 "-" 占位，保持列对齐。
 
-    时间列只展示短格式（月-日 时:分）；完整 ISO 时间戳走 --json。
+    时间列只展示短格式（年-月-日 时:分）；path 与 NAME 高度重合，表格不展示（走 --json）。
     """
     created_cells = [_short_time(r["created_at"]) for r in rows]
     last_activity_cells = [_short_time(r["last_activity"]) for r in rows]
     name_w = max(len(r["name"]) for r in rows + [{"name": "NAME"}])
-    path_w = max(len(r["path"]) for r in rows + [{"path": "PATH"}])
     created_w = max(len(c) for c in created_cells + ["CREATED"])
     last_activity_w = max(len(c) for c in last_activity_cells + ["LAST_ACTIVITY"])
     dn_w = max(
@@ -520,7 +519,7 @@ def _render_list_table(rows: List[dict]) -> None:
         model_cells.append(cell)
     model_w = max(len(c) for c in model_cells + ["MODEL"])
     print(
-        f"{'NAME'.ljust(name_w)}  {'PATH'.ljust(path_w)}  "
+        f"{'NAME'.ljust(name_w)}  "
         f"{'CREATED'.ljust(created_w)}  "
         f"{'LAST_ACTIVITY'.ljust(last_activity_w)}  "
         f"{'DISPLAY_NAME'.ljust(dn_w)}  {'TAGS'.ljust(tags_w)}  "
@@ -533,7 +532,7 @@ def _render_list_table(rows: List[dict]) -> None:
         dn = r["display_name"] or "-"
         tags = ",".join(r["tags"]) or "-"
         print(
-            f"{prefix}{r['name'].ljust(name_w - 2)}  {r['path'].ljust(path_w)}  "
+            f"{prefix}{r['name'].ljust(name_w - 2)}  "
             f"{created.ljust(created_w)}  "
             f"{last_act.ljust(last_activity_w)}  "
             f"{dn.ljust(dn_w)}  {tags.ljust(tags_w)}  {model_cell.ljust(model_w)}"
