@@ -51,7 +51,7 @@ bash scripts/test/test_install_uninstall.sh
 ### 手动 smoke 验收
 
 无固定脚本——按需对改动命令跑 happy path；session-visibility 相关自测点见
-`doc/session-visibility-design.md` §5（正常 1-7 / 异常 8-14）。
+`doc/session-visibility-design.md` §5（正常 1-7 / 异常 8-16）。
 
 ## 架构
 

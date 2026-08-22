@@ -67,6 +67,12 @@ _llmw() {
             ;;
         args)
             local ctx_line=${words[2]}
+            # 把命令线整体往右 shift一格：让子处理器以子命令为 words[1]（zsh
+            # 数组 1-based）。这样子函数的 _arguments '1:' spec / ${words[2]} 取
+            # action / name_seen 循环 i=2 起点等全部索引都与当前 bash 实现对齐，
+            # 不再错位。
+            words=("${(@)words[2,-1]}")
+            (( CURRENT-- ))
             case $ctx_line in
                 init)
                     _arguments \
@@ -147,9 +153,13 @@ _llmw_config() {
                     _describe -t keys 'config key' CFG_KEYS
                     ;;
                 set)
+                    # shift 后: words[1]=config, words[2]=set, words[3]=key, ...
+                    # spec '1: :' 消费 "set"（已由 action state 处理），'2:key:->set_key'
+                    # 让光标在 key 位置时进入 set_key state，'3: :' 在 value 位置不补
                     _arguments \
-                        '1:key:->set_key' \
-                        '2: : ' \
+                        '1: : ' \
+                        '2:key:->set_key' \
+                        '3: : ' \
                         "${COMMON_OPTS[@]}" && ret=0
                     case $state in
                         set_key)
@@ -262,22 +272,29 @@ _llmw_wiki() {
         "${COMMON_OPTS[@]}" && ret=0
     case $state in
         action)
+            # action state：光标正好在动作位置。如果 pre-action 已见 --name= 就直接
+            # 列 WIKI_ACTS；否则同时 offer --name=（动态候选）+ --path=（目录补全）+
+            # WIKI_ACTS。注意：content 命令需要 --name 或 --path 前置，CLI 拒收
+            # 后置，所以这里只在动作位置（光标在 WIKI_ACTS 之一之前）才 offer。
             local name_seen=0
+            local path_seen=0
             local -i i=2
             while (( i < CURRENT )); do
                 case ${words[$i]} in
                     --name=*) name_seen=1;;
+                    --path=*) path_seen=1;;
                 esac
                 (( i++ ))
             done
-            if (( name_seen )); then
+            if (( name_seen || path_seen )); then
                 _describe -t actions 'wiki action' WIKI_ACTS
             else
-                local -a WITH_NAME
-                WITH_NAME=(
+                local -a WITH_WIKI_SELECT
+                WITH_WIKI_SELECT=(
                     '--name=[目标 wiki 名]:name:_llmw_wikis'
+                    '--path=[目标 wiki 根目录]:path:_directories'
                 )
-                _arguments "${WITH_NAME[@]}" '*:: :->wiki_args2' && ret=0
+                _arguments "${WITH_WIKI_SELECT[@]}" '*:: :->wiki_args2' && ret=0
                 case $state in
                     wiki_args2)
                         _describe -t actions 'wiki action' WIKI_ACTS
@@ -312,23 +329,10 @@ _llmw_wiki() {
                         '--new=[新 wiki 名 (须符合 NAME_RE)]:new:' \
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;
-                show)
-                    local name_seen=0
-                    local -i i=2
-                    while (( i < CURRENT )); do
-                        case ${words[$i]} in
-                            --name=*) name_seen=1;;
-                        esac
-                        (( i++ ))
-                    done
-                    if (( name_seen )); then
+                    show)
+                        # --name/--path 必须前置（CLI 拒收后置），post-action 只补 COMMON
                         _arguments "${COMMON_OPTS[@]}" && ret=0
-                    else
-                        _arguments \
-                            '--name=[目标 wiki 名]:name:_llmw_wikis' \
-                            "${COMMON_OPTS[@]}" && ret=0
-                    fi
-                    ;;
+                        ;;
                 config)
                     local -a WIKI_CFG_KEYS=(
                         'display_name:显示名'
@@ -336,92 +340,50 @@ _llmw_wiki() {
                         'tags:tags (可重复)'
                         'model:绑定的 model_id'
                     )
-                    local name_seen=0
-                    local -i i=2
-                    while (( i < CURRENT )); do
-                        case ${words[$i]} in
-                            --name=*) name_seen=1;;
+                    # 收集位置参数到 wiki_pos（shifted frame: words[1]=wiki [2]=config
+                    # [3]=cfg_action [4]=cfg_key；从 j=3 起始直接把 cfg_action 当 [1]）
+                    local -a wiki_pos=()
+                    local -i j=3
+                    while (( j < CURRENT )); do
+                        local w=${words[$j]}
+                        case "$w" in
+                            --*=*|-*) ;;
+                            *) wiki_pos+=("$w") ;;
                         esac
-                        (( i++ ))
+                        (( j++ ))
                     done
-                    if (( ! name_seen )); then
-                        _arguments \
-                            '--name=[目标 wiki 名]:name:_llmw_wikis' \
-                            "${COMMON_OPTS[@]}" && ret=0
+                    # wiki_pos[1]=cfg_action, [2]=cfg_key
+                    local cfg_action="${wiki_pos[1]:-}"
+                    local cfg_key="${wiki_pos[2]:-}"
+                    if [[ -z "$cfg_action" ]]; then
+                        local -a CFG_ACTS=(
+                            'get:取值'
+                            'set:设值'
+                            'unset:清值'
+                        )
+                        _describe -t actions 'wiki config action' CFG_ACTS
+                        _arguments "${COMMON_OPTS[@]}" && ret=0
+                    elif [[ -z "$cfg_key" ]]; then
+                        _describe -t keys 'wiki config key' WIKI_CFG_KEYS
+                        _arguments "${COMMON_OPTS[@]}" && ret=0
                     else
-                        # 收集位置参数到 wiki_pos：[0]=wiki [1]=config [2]=cfg_action [3]=cfg_key
-                        local -a wiki_pos=()
-                        local -i j=1
-                        while (( j < CURRENT )); do
-                            local w=${words[$j]}
-                            case "$w" in
-                                --*=*|-*) ;;
-                                *) wiki_pos+=("$w") ;;
-                            esac
-                            (( j++ ))
-                        done
-                        local cfg_action="${wiki_pos[2]:-}"
-                        local cfg_key="${wiki_pos[3]:-}"
-                        if [[ -z "$cfg_action" ]]; then
-                            local -a CFG_ACTS=(
-                                'get:取值'
-                                'set:设值'
-                                'unset:清值'
-                            )
-                            _describe -t actions 'wiki config action' CFG_ACTS
-                            _arguments "${COMMON_OPTS[@]}" && ret=0
-                        elif [[ -z "$cfg_key" ]]; then
-                            _describe -t keys 'wiki config key' WIKI_CFG_KEYS
-                            _arguments "${COMMON_OPTS[@]}" && ret=0
-                        else
-                            # cfg_value 自由文本，不补
-                            _arguments "${COMMON_OPTS[@]}" && ret=0
-                        fi
+                        # cfg_value 自由文本，不补
+                        _arguments "${COMMON_OPTS[@]}" && ret=0
                     fi
                     ;;
                 enter)
-                    local name_seen=0
-                    local -i i=2
-                    while (( i < CURRENT )); do
-                        case ${words[$i]} in
-                            --name=*) name_seen=1;;
-                        esac
-                        (( i++ ))
-                    done
-                    if (( name_seen )); then
-                        _arguments \
-                            '--dry-run[仅打印 overlay 不启动 claude]' \
-                            '--window-suffix=[并行窗口后缀（拼接为 <wiki>-<suffix>）]:suffix:' \
-                            "${COMMON_OPTS[@]}" && ret=0
-                    else
-                        _arguments \
-                            '--name=[目标 wiki 名]:name:_llmw_wikis' \
-                            '--dry-run[仅打印 overlay 不启动 claude]' \
-                            '--window-suffix=[并行窗口后缀（拼接为 <wiki>-<suffix>）]:suffix:' \
-                            "${COMMON_OPTS[@]}" && ret=0
-                    fi
+                    # --name/--path 必须前置；post-action 只补 --dry-run + --window-suffix
+                    _arguments \
+                        '--dry-run[仅打印 overlay 不启动 claude]' \
+                        '--window-suffix=[并行窗口后缀（拼接为 <wiki>-<suffix>）]:suffix:' \
+                        "${COMMON_OPTS[@]}" && ret=0
                     ;;
                 stop)
-                    local name_seen=0
-                    local -i i=2
-                    while (( i < CURRENT )); do
-                        case ${words[$i]} in
-                            --name=*) name_seen=1;;
-                        esac
-                        (( i++ ))
-                    done
-                    if (( name_seen )); then
-                        _arguments \
-                            '--window-suffix=[只匹配 <wiki>-<suffix> 窗口]:suffix:' \
-                            '(--yes -y)'{--yes,-y}'[跳过确认]' \
-                            "${COMMON_OPTS[@]}" && ret=0
-                    else
-                        _arguments \
-                            '--name=[目标 wiki 名]:name:_llmw_wikis' \
-                            '--window-suffix=[只匹配 <wiki>-<suffix> 窗口]:suffix:' \
-                            '(--yes -y)'{--yes,-y}'[跳过确认]' \
-                            "${COMMON_OPTS[@]}" && ret=0
-                    fi
+                    # --name/--path 必须前置；post-action 只补 --window-suffix + --yes
+                    _arguments \
+                        '--window-suffix=[只匹配 <wiki>-<suffix> 窗口]:suffix:' \
+                        '(--yes -y)'{--yes,-y}'[跳过确认]' \
+                        "${COMMON_OPTS[@]}" && ret=0
                     ;;
                 lint)
                     _arguments \

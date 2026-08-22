@@ -99,7 +99,7 @@ _llmw() {
             COMPREPLY=($(compgen -W "$(_llmw_model_ids)" -- "${cur#--model-id=}"))
             return 0
             ;;
-        --workspace=*|--path=*)
+        --name=*|--path=*|--workspace=*)
             COMPREPLY=($(compgen -d -- "${cur#*=}"))
             return 0
             ;;
@@ -185,7 +185,7 @@ _llmw() {
             ;;
         wiki)
             if [ -z "$sub_action" ]; then
-                COMPREPLY=($(compgen -W "--name= $WIKI_ACTS $COMMON" -- "$cur"))
+                COMPREPLY=($(compgen -W "--name= --path= $WIKI_ACTS $COMMON" -- "$cur"))
             else
                 case "$sub_action" in
                     add)
@@ -211,42 +211,23 @@ _llmw() {
                         fi
                         ;;
                     show)
-                        # 检测 --name= 已传否（= 形式；空格形式被 CLI 拒，不认）
-                        local name_seen=0
-                        i=1
-                        while [ "$i" -lt "$COMP_CWORD" ]; do
-                            case "${COMP_WORDS[$i]}" in
-                                --name=*) name_seen=1 ;;
-                            esac
-                            i=$((i + 1))
-                        done
-                        if [ "$name_seen" -eq 1 ]; then
-                            COMPREPLY=($(compgen -W "$COMMON" -- "$cur"))
-                        else
-                            COMPREPLY=($(compgen -W "--name= $COMMON" -- "$cur"))
-                        fi
+                        COMPREPLY=($(compgen -W "$COMMON" -- "$cur"))
                         ;;
                     config)
                         # wiki config 三段式：cfg_action (get/set/unset) + cfg_key + cfg_value
                         # 收集位置参数到 wiki_pos：[0]=wiki [1]=config [2]=cfg_action [3]=cfg_key
                         local WIKI_CFG_KEYS="display_name description tags model"
-                        local name_seen=0
                         local -a wiki_pos=()
                         i=1
                         while [ "$i" -lt "$COMP_CWORD" ]; do
                             w="${COMP_WORDS[$i]}"
-                            case "$w" in
-                                --name=*) name_seen=1 ;;
-                            esac
                             case "$w" in
                                 --*=*|-*) ;;
                                 *) wiki_pos+=("$w") ;;
                             esac
                             i=$((i + 1))
                         done
-                        if [ "$name_seen" -eq 0 ]; then
-                            COMPREPLY=($(compgen -W "--name= $COMMON" -- "$cur"))
-                        elif [ -z "${wiki_pos[2]:-}" ]; then
+                        if [ -z "${wiki_pos[2]:-}" ]; then
                             COMPREPLY=($(compgen -W "get set unset $COMMON" -- "$cur"))
                         elif [ -z "${wiki_pos[3]:-}" ]; then
                             COMPREPLY=($(compgen -W "$WIKI_CFG_KEYS $COMMON" -- "$cur"))
@@ -256,36 +237,10 @@ _llmw() {
                         fi
                         ;;
                     enter)
-                        # 检测 --name= 已传否（= 形式；空格形式被 CLI 拒，不认）
-                        local name_seen=0
-                        i=1
-                        while [ "$i" -lt "$COMP_CWORD" ]; do
-                            case "${COMP_WORDS[$i]}" in
-                                --name=*) name_seen=1 ;;
-                            esac
-                            i=$((i + 1))
-                        done
-                        if [ "$name_seen" -eq 1 ]; then
-                            COMPREPLY=($(compgen -W "--dry-run --window-suffix= $COMMON" -- "$cur"))
-                        else
-                            COMPREPLY=($(compgen -W "--name= --dry-run --window-suffix= $COMMON" -- "$cur"))
-                        fi
+                        COMPREPLY=($(compgen -W "--dry-run --window-suffix= $COMMON" -- "$cur"))
                         ;;
                     stop)
-                        # 检测 --name= 已传否（= 形式；空格形式被 CLI 拒，不认）
-                        local name_seen=0
-                        i=1
-                        while [ "$i" -lt "$COMP_CWORD" ]; do
-                            case "${COMP_WORDS[$i]}" in
-                                --name=*) name_seen=1 ;;
-                            esac
-                            i=$((i + 1))
-                        done
-                        if [ "$name_seen" -eq 1 ]; then
-                            COMPREPLY=($(compgen -W "--window-suffix= -y --yes $COMMON" -- "$cur"))
-                        else
-                            COMPREPLY=($(compgen -W "--name= --window-suffix= -y --yes $COMMON" -- "$cur"))
-                        fi
+                        COMPREPLY=($(compgen -W "--window-suffix= -y --yes $COMMON" -- "$cur"))
                         ;;
                     lint)
                         COMPREPLY=($(compgen -W "--severity= --no-git --check-version --apply $COMMON" -- "$cur"))

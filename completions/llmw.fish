@@ -159,8 +159,9 @@ complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subco
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "write"           -d 'wiki 内容写入编排'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "external"        -d 'raw/external 接入 / 重建编排'
 
-# wiki --name（wiki 但未选 action 时；有动态值 → A 类，无 -r）
+# wiki --name / --path（wiki 但未选 action 时；--name 有动态值 → A 类，无 -r；--path 目录补全）
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -l path -f -a "(__fish_complete_directories)" -d '目标 wiki 根目录'
 
 # wiki add（topic/display-name/description/tag free-form → B 类；--model 有动态值 → A 类；--git 是 bool）
 complete -c llmw -n "__llmw_subact wiki add" -a "--topic="        -f -d 'wiki 主题'
@@ -179,11 +180,9 @@ complete -c llmw -n "__llmw_subact wiki remove" -l yes -s y    -d '跳过确认'
 complete -c llmw -n "__llmw_subact wiki rename" -l old -f -a "(__llmw_wikis)" -d '当前 wiki 名'
 complete -c llmw -n "__llmw_subact wiki rename" -a "--new=" -f -d '新 wiki 名 (须符合 NAME_RE)'
 
-# wiki show（--name 有动态值 → A 类，无 -r）
-complete -c llmw -n "__llmw_subact wiki show" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'
+# wiki show（无专属 flag；COMMON 兜底）
 
-# wiki config（--name 有动态值 → A 类，无 -r）
-complete -c llmw -n "__llmw_subact wiki config" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'
+# wiki config（cfg_action / cfg_key 子层补全；无 --name 后置 offer）
 
 # wiki config cfg_action（get/set/unset 三选一）
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from config; and not __fish_seen_subcommand_from get set unset" -f -a "get"   -d '取值'
@@ -196,21 +195,19 @@ complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcomman
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from config; and __fish_seen_subcommand_from get set unset" -f -a "tags"         -d 'tags (可重复)'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from config; and __fish_seen_subcommand_from get set unset" -f -a "model"        -d '绑定的 model_id'
 
-# wiki enter（--name 有动态值 → A 类，无 -r；--dry-run / --window-suffix 是 bool / B 类）
-complete -c llmw -n "__llmw_subact wiki enter" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'
+# wiki enter（--dry-run bool / --window-suffix free-form → B 类；无 --name 后置 offer）
 complete -c llmw -n "__llmw_subact wiki enter" -l dry-run -d '仅打印 overlay 不启动 claude'
 complete -c llmw -n "__llmw_subact wiki enter" -a "--window-suffix=" -f -d '并行窗口后缀（拼接为 <wiki>-<suffix>）'
 
-# wiki stop（--name 有动态值 → A 类，无 -r；--window-suffix B 类；--yes bool）
-complete -c llmw -n "__llmw_subact wiki stop" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'
+# wiki stop（--window-suffix free-form → B 类；--yes bool；无 --name 后置 offer）
 complete -c llmw -n "__llmw_subact wiki stop" -a "--window-suffix=" -f -d '只匹配 <wiki>-<suffix> 窗口'
 complete -c llmw -n "__llmw_subact wiki stop" -l yes -s y -d '跳过确认'
 
 # wiki lint（--severity 有离散值 → A 类候选；其余 bool）
-complete -c llmw -n "__llmw_subact wiki lint" -a --severity=error" -f -d '仅 error'
-complete -c llmw -n "__llmw_subact wiki lint" -a --severity=warn"  -f -d '仅 warn'
-complete -c llmw -n "__llmw_subact wiki lint" -a --severity=info"  -f -d '仅 info'
-complete -c llmw -n "__llmw_subact wiki lint" -a --severity=all"   -f -d '全部（默认）'
+complete -c llmw -n "__llmw_subact wiki lint" -a "--severity=error" -f -d '仅 error'
+complete -c llmw -n "__llmw_subact wiki lint" -a "--severity=warn"  -f -d '仅 warn'
+complete -c llmw -n "__llmw_subact wiki lint" -a "--severity=info"  -f -d '仅 info'
+complete -c llmw -n "__llmw_subact wiki lint" -a "--severity=all"   -f -d '全部（默认）'
 complete -c llmw -n "__llmw_subact wiki lint" -l no-git              -d '跳过 raw/ 的 git status 检查'
 complete -c llmw -n "__llmw_subact wiki lint" -l check-version       -d '扫 format 版本 + legacy 现场（互斥模式）'
 complete -c llmw -n "__llmw_subact wiki lint" -l apply               -d '与 --check-version 联用：stdout JSON 输出 upgrade plan'
@@ -230,45 +227,45 @@ complete -c llmw -n "__llmw_subact wiki ingest-diff" -l check-stale  -d '额外�
 
 # ===== wiki write 子命令 =====
 set -l WIKI_WRITE_ACTS log index touch new memory
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "log"    -d '追加 log 条目'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "index"  -d '操作 index 条目'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "touch"  -d '刷新 wiki 页面的 updated 字段'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "new"    -d '创建新 wiki 内容页'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "memory" -d '创建/索引 MEMORY 条目'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "log"    -d '追加 log 条目'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "index"  -d '操作 index 条目'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "touch"  -d '刷新 wiki 页面的 updated 字段'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "new"    -d '创建新 wiki 内容页'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "memory" -d '创建/索引 MEMORY 条目'
 
 # wiki write log: --op 有离散值 → A 类；其余 free-form（B 类）/ bool
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a --op=ingest" -f -d 'op=ingest'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a --op=query"  -f -d 'op=query'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a --op=lint"   -f -d 'op=lint'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a --op=setup"  -f -d 'op=setup'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a "--title="      -f -d '标题'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -l bulk           -d '批量模式'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a "--topic="     -f -d '主题'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from log" -a "--count="     -f -d '计数'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--op=ingest" -f -d 'op=ingest'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--op=query"  -f -d 'op=query'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--op=lint"   -f -d 'op=lint'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--op=setup"  -f -d 'op=setup'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--title="      -f -d '标题'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -l bulk           -d '批量模式'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--topic="     -f -d '主题'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--count="     -f -d '计数'
 
 # wiki write index: add | remove（positional）+ posarg 自由文本路径（不补）
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from index; and not __fish_seen_subcommand_from add remove" -f -a "add"    -d '添加条目'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from index; and not __fish_seen_subcommand_from add remove" -f -a "remove" -d '删除条目'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from index; and not __fish_seen_subcommand_from add remove" -f -a "add"    -d '添加条目'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from index; and not __fish_seen_subcommand_from add remove" -f -a "remove" -d '删除条目'
 
 # wiki write new（type/title/slug/tags/sources free-form → B 类；--description B 类）
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from new" -a "--type="        -f -d 'type (source / comparison / synthesis / concept / entity)'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from new" -a "--slug="        -f -d '页面 slug'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from new" -a "--title="       -f -d '标题'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from new" -a "--description="  -f -d '描述'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from new" -a "--tags="         -f -d 'tags 逗号分隔'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from new" -a "--sources="      -f -d 'sources (raw 路径，逗号分隔)'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--type="        -f -d 'type (source / comparison / synthesis / concept / entity)'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--slug="        -f -d '页面 slug'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--title="       -f -d '标题'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--description="  -f -d '描述'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--tags="         -f -d 'tags 逗号分隔'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--sources="      -f -d 'sources (raw 路径，逗号分隔)'
 
 # wiki write memory（slug/title free-form → B 类；--index-line free-form）
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from memory" -a "--slug="        -f -d 'MEMORY 条目 slug'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from memory" -a "--title="       -f -d '短名（≤30 字）'
-complete -c llmw -n "__fish_seen_subcommand_from wiki write; and __fish_seen_subcommand_from memory" -a "--index-line="  -f -d '索引行'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--slug="        -f -d 'MEMORY 条目 slug'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--title="       -f -d '短名（≤30 字）'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--index-line="  -f -d '索引行'
 
 # ===== wiki external 子命令 =====
 set -l WIKI_EXTERNAL_ACTS add remove list rebuild
-complete -c llmw -n "__fish_seen_subcommand_from wiki external; and not __fish_seen_subcommand_from $WIKI_EXTERNAL_ACTS" -f -a "add"     -d '接入外部仓（命名协商 + 登记 + 建 symlink）'
-complete -c llmw -n "__fish_seen_subcommand_from wiki external; and not __fish_seen_subcommand_from $WIKI_EXTERNAL_ACTS" -f -a "remove"  -d '注销外部仓（删 entry + 删 symlink）'
-complete -c llmw -n "__fish_seen_subcommand_from wiki external; and not __fish_seen_subcommand_from $WIKI_EXTERNAL_ACTS" -f -a "list"    -d '列出所有 entry + 状态'
-complete -c llmw -n "__fish_seen_subcommand_from wiki external; and not __fish_seen_subcommand_from $WIKI_EXTERNAL_ACTS" -f -a "rebuild" -d '跨主机重建（新机器跑一次）'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from external; and not __fish_seen_subcommand_from $WIKI_EXTERNAL_ACTS" -f -a "add"     -d '接入外部仓（命名协商 + 登记 + 建 symlink）'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from external; and not __fish_seen_subcommand_from $WIKI_EXTERNAL_ACTS" -f -a "remove"  -d '注销外部仓（删 entry + 删 symlink）'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from external; and not __fish_seen_subcommand_from $WIKI_EXTERNAL_ACTS" -f -a "list"    -d '列出所有 entry + 状态'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from external; and not __fish_seen_subcommand_from $WIKI_EXTERNAL_ACTS" -f -a "rebuild" -d '跨主机重建（新机器跑一次）'
 
 # wiki external add（--name / --notes free-form → B 类）
 complete -c llmw -n "__llmw_subact wiki external; and __fish_seen_subcommand_from add" -a "--name="  -f -d 'kebab-case symlink 名（与用户协商）'
