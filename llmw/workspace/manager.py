@@ -521,53 +521,36 @@ def _disp_pad(text, width):
 
 
 def _render_list_table(rows: List[dict]) -> None:
-    """表格：列宽 = max(内容 + 表头)；meta 缺失时时间列用 "-" 占位，保持列对齐。
+    """精简单行表格：NAME / CREATED / LAST_ACTIVITY / MODEL。
 
-    时间列只展示短格式（年-月-日 时:分）；path 与 NAME 高度重合，表格不展示（走 --json）。
-    列宽与补空格均按显示宽度计（中文占 2 列），保证终端列对齐。
+    - 时间列只展示短格式（年-月-日 时:分）；完整 ISO 时间戳走 --json。
+    - path / display_name / tags / model_source 与 NAME 高度重合或多为空，表格不展示（走 --json / wiki show）。
+    - 列宽与补空格均按显示宽度计（中文占 2 列）；行 prefix 固定 2 列（`⚠ ` 或 2 空格），
+      name 统一 pad 到 name_w、表头前补 2 空格，保证最长名字行也不顶歪后续列。
     """
     created_cells = [_short_time(r["created_at"]) for r in rows]
     last_activity_cells = [_short_time(r["last_activity"]) for r in rows]
+    model_cells = [r["model"] or "-" for r in rows]
     name_w = max(_disp_width(r["name"]) for r in rows + [{"name": "NAME"}])
     created_w = max(_disp_width(c) for c in created_cells + ["CREATED"])
     last_activity_w = max(
         _disp_width(c) for c in last_activity_cells + ["LAST_ACTIVITY"]
     )
-    dn_w = max(
-        _disp_width(r["display_name"] or "-")
-        for r in rows + [{"display_name": "DISPLAY_NAME"}]
-    )
-    tags_w = max(
-        _disp_width(",".join(r["tags"]) or "-") for r in rows + [{"tags": ["TAGS"]}]
-    )
-    model_cells = []
-    for r in rows:
-        if r["model"]:
-            cell = r["model"]
-            if r["model_source"]:
-                cell += f" ({r['model_source']})"
-        else:
-            cell = "-"
-        model_cells.append(cell)
     model_w = max(_disp_width(c) for c in model_cells + ["MODEL"])
     print(
-        f"{_disp_pad('NAME', name_w)}  "
+        f"  {_disp_pad('NAME', name_w)}  "
         f"{_disp_pad('CREATED', created_w)}  "
         f"{_disp_pad('LAST_ACTIVITY', last_activity_w)}  "
-        f"{_disp_pad('DISPLAY_NAME', dn_w)}  {_disp_pad('TAGS', tags_w)}  "
         f"{_disp_pad('MODEL', model_w)}"
     )
     for r, created, last_act, model_cell in zip(
         rows, created_cells, last_activity_cells, model_cells
     ):
         prefix = "⚠ " if not r["exists"] else "  "
-        dn = r["display_name"] or "-"
-        tags = ",".join(r["tags"]) or "-"
         print(
-            f"{prefix}{_disp_pad(r['name'], name_w - 2)}  "
+            f"{prefix}{_disp_pad(r['name'], name_w)}  "
             f"{_disp_pad(created, created_w)}  "
             f"{_disp_pad(last_act, last_activity_w)}  "
-            f"{_disp_pad(dn, dn_w)}  {_disp_pad(tags, tags_w)}  "
             f"{_disp_pad(model_cell, model_w)}"
         )
 
