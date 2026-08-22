@@ -45,20 +45,6 @@ function __llmw_model_ids
         | sed -E 's/.*"([^"]+)".*/\1/'
 end
 
-# 已见某个 subcommand？
-function __llmw_seen
-    argparse 'h/help' 'workspace=' 'json' 'debug' 'quiet/q' -- (commandline -opc) 2>/dev/null
-    set -l cmds (string match -rv '^-' -- (commandline -opc))
-    set -l found 0
-    for c in $cmds
-        if contains -- "$c" $argv
-            set found 1
-            break
-        end
-    end
-    return (math "1 - $found")
-end
-
 # 精确：commandline 含 $argv[1]（sub）且含 $argv[2..]（action 任一）
 # 避免 __fish_seen_subcommand_from SUB ACT 的 OR 语义泄露（wiki add 与 model add 都含 "add"）
 function __llmw_subact
@@ -93,42 +79,44 @@ complete -c llmw -l quiet -s q -d '抑制 INFO'
 complete -c llmw -n "__fish_seen_subcommand_from init" -a "--path="         -f -d 'workspace 路径'
 complete -c llmw -n "__fish_seen_subcommand_from init" -a "--display-name=" -f -d 'workspace 显示名'
 
-# list 子命令 flag（--tag free-form → B 类）
-complete -c llmw -n "__fish_seen_subcommand_from list" -a "--tag=" -f -d '仅列出含此 tag (可重复, AND 关系)'
+# list 子命令 flag（--tag free-form → B 类；wiki external list 也含 "list",用 not seen wiki 防止漏出）
+complete -c llmw -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from wiki" -a "--tag=" -f -d '仅列出含此 tag (可重复, AND 关系)'
 
 # status 子命令 flag（--tmux 是 bool）
 complete -c llmw -n "__fish_seen_subcommand_from status" -l tmux -d '输出单行 ●N [✗M]（供状态条集成）'
 
 # check-fixtures 子命令（--target-format free-form → B 类；--list-rules bool）
-complete -c llmw -n "__fish_seen_subcommand_from check-fixtures" -a "--target-format=" -f -d '目标 format 版本（缺省读 llmw.WORKSPACE_FORMAT_VERSION）'
-complete -c llmw -n "__fish_seen_subcommand_from check-fixtures" -l list-rules         -d '列出所有 detector 规则（不跑检查）'
+complete -c llmw -n "__fish_seen_subcommand_from check-fixtures; and not __fish_seen_subcommand_from wiki" -a "--target-format=" -f -d '目标 format 版本（缺省读 llmw.WORKSPACE_FORMAT_VERSION）'
+complete -c llmw -n "__fish_seen_subcommand_from check-fixtures; and not __fish_seen_subcommand_from wiki" -l list-rules         -d '列出所有 detector 规则（不跑检查）'
 
 # upgrade 子命令（--apply / --yes bool）
-complete -c llmw -n "__fish_seen_subcommand_from upgrade" -l apply -d 'dry-run 模式变 apply 模式（写文件；TTY 默认 dry-run）'
-complete -c llmw -n "__fish_seen_subcommand_from upgrade" -l yes -s y -d '跳过 TTY 二次确认'
+complete -c llmw -n "__fish_seen_subcommand_from upgrade; and not __fish_seen_subcommand_from wiki" -l apply -d 'dry-run 模式变 apply 模式（写文件；TTY 默认 dry-run）'
+complete -c llmw -n "__fish_seen_subcommand_from upgrade; and not __fish_seen_subcommand_from wiki" -l yes -s y -d '跳过 TTY 二次确认'
 
-# ===== config 子命令 =====
-complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from get set unset" -f -a "get"    -d '取值'
-complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from get set unset" -f -a "set"    -d '设值'
-complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from get set unset" -f -a "unset"  -d '清值'
+# ===== config 子命令（顶层 config: not seen wiki 防止漏入 wiki config 上下文）=====
+complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from get set unset" -f -a "get"    -d '取值'
+complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from get set unset" -f -a "set"    -d '设值'
+complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from get set unset" -f -a "unset"  -d '清值'
 
-complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "enter_cli"           -d 'agent CLI (claude|qodercli|opencode)'
-complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "templates_version"    -d 'templates 版本(只读)'
-complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "created_at"           -d '创建时间(只读)'
-complete -c llmw -n "__fish_seen_subcommand_from config get unset" -f -a "schema_version"       -d 'schema 版本(只读)'
-complete -c llmw -n "__fish_seen_subcommand_from config set"       -f -a "enter_cli"           -d 'agent CLI (claude|qodercli|opencode)'
+complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "enter_cli"        -d 'agent CLI (claude|qodercli|opencode)'
+complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "templates_version" -d 'templates 版本(只读)'
+complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "created_at"        -d '创建时间(只读)'
+complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "schema_version"    -d 'schema 版本(只读)'
+complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from set"       -f -a "enter_cli"        -d 'agent CLI (claude|qodercli|opencode)'
 
 # ===== model 子命令 =====
 set -l MODEL_ACTS add list show set-default unset-default remove
-complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "add"             -d '新增 model 条目'
-complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "list"            -d '列出所有 model 条目'
-complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "show"            -d '查看单条 model'
-complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "set-default"     -d '标记默认 model'
-complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "unset-default"   -d '清空默认标记'
-complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "remove"          -d '删除 model 条目'
+# ===== model 子命令（顶层 model: not seen wiki 防止漏入 wiki 上下文,
+# 尤其是 `wiki config set model` 中 "model" 作为 key 的 word）=====
+complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "add"             -d '新增 model 条目'
+complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "list"            -d '列出所有 model 条目'
+complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "show"            -d '查看单条 model'
+complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "set-default"     -d '标记默认 model'
+complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "unset-default"   -d '清空默认标记'
+complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "remove"          -d '删除 model 条目'
 
-# model list / unset-default（无专属 flag；显式 scope 声明，与 bash line 148-150 / zsh line 185-187 对齐；
-# 全局 --workspace=/--json/--debug/--quiet/-q 由 line 82-85 兜底）
+# model list / unset-default（无专属 flag；显式 scope 声明，与 bash / zsh 对应分支对齐；
+# 全局 --workspace=/--json/--debug/--quiet/-q 由文件顶部 COMMON 段兜底）
 complete -c llmw -n "__llmw_subact model list"            -f -d '列出所有 model 条目'
 complete -c llmw -n "__llmw_subact model unset-default"   -f -d '清空默认标记'
 
@@ -272,7 +260,7 @@ complete -c llmw -n "__llmw_subact wiki external; and __fish_seen_subcommand_fro
 complete -c llmw -n "__llmw_subact wiki external; and __fish_seen_subcommand_from add" -a "--notes=" -f -d '接入备注（agent scribe 进 anchor）'
 
 # wiki external list（--json bool）
-# （无专属 flag，留空 scope 声明——全局 --json 由 line 82 兜底，避免重复定义）
+# （无专属 flag，留空 scope 声明——全局 --json 由文件顶部 COMMON 段兜底，避免重复定义）
 
 # wiki external rebuild（--target NAME=PATH free-form → B 类；--yes bool）
 complete -c llmw -n "__llmw_subact wiki external; and __fish_seen_subcommand_from rebuild" -a "--target=" -f -d '覆盖本地路径 NAME=PATH（可重复）'

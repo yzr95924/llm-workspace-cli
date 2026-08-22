@@ -4,7 +4,21 @@
 #   ~/.local/share/zsh/site-functions/_llmw
 # 并 prepend fpath 到 ~/.zshrc（带 marker 块幂等）。
 
+# 收集 words[start..CURRENT-1] 中非 flag 的位置词（跳 --flag/--flag=val/-x）
+# 用法: local -a pos=(${(f)"$(_llmw_pos_words 2)"})
+_llmw_pos_words() {
+    local -i i=$1
+    while (( i < CURRENT )); do
+        case ${words[$i]} in
+            --*=*|-*) ;;
+            *) print -r -- "${words[$i]}" ;;
+        esac
+        (( i++ ))
+    done
+}
+
 _llmw() {
+    # COMMON_OPTS 顶层定义，子处理器通过 zsh 动态作用域可见
     local -a COMMON_OPTS
     COMMON_OPTS=(
         '--workspace=[workspace 根路径]:path:_directories'
@@ -26,12 +40,14 @@ _llmw() {
     )
 
     _llmw_workspace() {
+        # 优先用 _LLMW_WS 缓存（dispatcher 处用未 shift 的 words 预计算，
+        # 防止前置全局 --workspace= 在 shift 后丢失）
+        if [[ -n "${_LLMW_WS:-}" ]]; then echo "$_LLMW_WS"; return; fi
         local ws=""
         local -i i=1
         while (( i < CURRENT )); do
-            local w=${words[$i]}
-            case "$w" in
-                --workspace=*) ws="${w#--workspace=}";;
+            case ${words[$i]} in
+                --workspace=*) ws="${words[$i]#--workspace=}";;
             esac
             (( i++ ))
         done
@@ -55,6 +71,9 @@ _llmw() {
             | sed -E 's/.*"([^"]+)".*/\1/'
     }
 
+    # 用未 shift 的 words 预计算 workspace 路径（动态作用域 local，子函数可见）
+    local _LLMW_WS="$(_llmw_workspace)"
+
     local state ret=1
     _arguments -C \
         '1: :->cmd' \
@@ -63,16 +82,21 @@ _llmw() {
 
     case $state in
         cmd)
-            _describe -t commands 'llmw command' TOP_CMDS
+            _describe -t commands 'llmw command' TOP_CMDS && ret=0
             ;;
         args)
-            local ctx_line=${words[2]}
-            # 把命令线整体往右 shift一格：让子处理器以子命令为 words[1]（zsh
-            # 数组 1-based）。这样子函数的 _arguments '1:' spec / ${words[2]} 取
-            # action / name_seen 循环 i=2 起点等全部索引都与当前 bash 实现对齐，
-            # 不再错位。
-            words=("${(@)words[2,-1]}")
-            (( CURRENT-- ))
+            # 找子命令索引 k（跳全局 flags，处理 `llmw --json wiki` 等场景）
+            local -i k=2
+            while (( k <= CURRENT )); do
+                case ${words[$k]} in
+                    --*=*|-*) (( k++ )); continue;;
+                esac
+                break
+            done
+            local ctx_line="${words[$k]:-}"
+            # shift 到子命令位置：words[1]=subcommand（与 bash 对齐）
+            words=("${(@)words[k,-1]}")
+            (( CURRENT -= k - 1 ))
             case $ctx_line in
                 init)
                     _arguments \
@@ -118,13 +142,6 @@ _llmw() {
 }
 
 _llmw_config() {
-    local -a COMMON_OPTS
-    COMMON_OPTS=(
-        '--workspace=[workspace 根路径]:path:_directories'
-        '--json[输出 JSON 格式]'
-        '--debug[打印 traceback]'
-        '(--quiet -q)'{--quiet,-q}'[抑制 INFO]'
-    )
     local -a CFG_ACTS CFG_KEYS
     CFG_ACTS=(
         'get:取值'
@@ -144,29 +161,21 @@ _llmw_config() {
         "${COMMON_OPTS[@]}" && ret=0
     case $state in
         action)
-            _describe -t actions 'config action' CFG_ACTS
+            _describe -t actions 'config action' CFG_ACTS && ret=0
             ;;
         cfg_args)
-            local act=${words[2]}
+            # 位置扫描：cfg_pos[1]=action；set 时再取 cfg_pos[2]=key
+            local -a cfg_pos=(${(f)"$(_llmw_pos_words 2)"})
+            local act="${cfg_pos[1]:-}"
             case $act in
                 get|unset)
-                    _describe -t keys 'config key' CFG_KEYS
+                    _describe -t keys 'config key' CFG_KEYS && ret=0
                     ;;
                 set)
-                    # shift 后: words[1]=config, words[2]=set, words[3]=key, ...
-                    # spec '1: :' 消费 "set"（已由 action state 处理），'2:key:->set_key'
-                    # 让光标在 key 位置时进入 set_key state，'3: :' 在 value 位置不补
-                    _arguments \
-                        '1: : ' \
-                        '2:key:->set_key' \
-                        '3: : ' \
-                        "${COMMON_OPTS[@]}" && ret=0
-                    case $state in
-                        set_key)
-                            local -a SET_KEYS=('enter_cli:agent CLI (claude|qodercli|opencode)')
-                            _describe -t keys 'config key' SET_KEYS
-                            ;;
-                    esac
+                    if [[ -z "${cfg_pos[2]:-}" ]]; then
+                        local -a SET_KEYS=('enter_cli:agent CLI (claude|qodercli|opencode)')
+                        _describe -t keys 'config key' SET_KEYS && ret=0
+                    fi
                     ;;
             esac
             ;;
@@ -175,13 +184,6 @@ _llmw_config() {
 }
 
 _llmw_model() {
-    local -a COMMON_OPTS
-    COMMON_OPTS=(
-        '--workspace=[workspace 根路径]:path:_directories'
-        '--json[输出 JSON 格式]'
-        '--debug[打印 traceback]'
-        '(--quiet -q)'{--quiet,-q}'[抑制 INFO]'
-    )
     local -a MODEL_ACTS
     MODEL_ACTS=(
         'add:新增 model 条目'
@@ -198,10 +200,11 @@ _llmw_model() {
         "${COMMON_OPTS[@]}" && ret=0
     case $state in
         action)
-            _describe -t actions 'model action' MODEL_ACTS
+            _describe -t actions 'model action' MODEL_ACTS && ret=0
             ;;
         model_args)
-            local act=${words[2]}
+            local -a pos=(${(f)"$(_llmw_pos_words 2)"})
+            local act="${pos[1]:-}"
             case $act in
                 add)
                     _arguments \
@@ -242,13 +245,6 @@ _llmw_model() {
 }
 
 _llmw_wiki() {
-    local -a COMMON_OPTS
-    COMMON_OPTS=(
-        '--workspace=[workspace 根路径]:path:_directories'
-        '--json[输出 JSON 格式]'
-        '--debug[打印 traceback]'
-        '(--quiet -q)'{--quiet,-q}'[抑制 INFO]'
-    )
     local -a WIKI_ACTS
     WIKI_ACTS=(
         'add:新建 wiki'
@@ -272,10 +268,7 @@ _llmw_wiki() {
         "${COMMON_OPTS[@]}" && ret=0
     case $state in
         action)
-            # action state：光标正好在动作位置。如果 pre-action 已见 --name= 就直接
-            # 列 WIKI_ACTS；否则同时 offer --name=（动态候选）+ --path=（目录补全）+
-            # WIKI_ACTS。注意：content 命令需要 --name 或 --path 前置，CLI 拒收
-            # 后置，所以这里只在动作位置（光标在 WIKI_ACTS 之一之前）才 offer。
+            # 查 --name=/--path= 是否已见（跳 flag 扫描，flag 插在 wiki 与 action 之间也正确）
             local name_seen=0
             local path_seen=0
             local -i i=2
@@ -287,7 +280,7 @@ _llmw_wiki() {
                 (( i++ ))
             done
             if (( name_seen || path_seen )); then
-                _describe -t actions 'wiki action' WIKI_ACTS
+                _describe -t actions 'wiki action' WIKI_ACTS && ret=0
             else
                 local -a WITH_WIKI_SELECT
                 WITH_WIKI_SELECT=(
@@ -297,13 +290,15 @@ _llmw_wiki() {
                 _arguments "${WITH_WIKI_SELECT[@]}" '*:: :->wiki_args2' && ret=0
                 case $state in
                     wiki_args2)
-                        _describe -t actions 'wiki action' WIKI_ACTS
+                        _describe -t actions 'wiki action' WIKI_ACTS && ret=0
                         ;;
                 esac
             fi
             ;;
         wiki_args)
-            local act=${words[2]}
+            # 位置扫描：pos[1] = wiki action（跳 wiki 本身）
+            local -a pos=(${(f)"$(_llmw_pos_words 2)"})
+            local act="${pos[1]:-}"
             case $act in
                 add)
                     _arguments \
@@ -323,16 +318,14 @@ _llmw_wiki() {
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;
                 rename)
-                    # --old 从已注册 wiki 中补；--new free-form
                     _arguments \
                         '--old=[当前 wiki 名]:old:_llmw_wikis' \
                         '--new=[新 wiki 名 (须符合 NAME_RE)]:new:' \
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;
-                    show)
-                        # --name/--path 必须前置（CLI 拒收后置），post-action 只补 COMMON
-                        _arguments "${COMMON_OPTS[@]}" && ret=0
-                        ;;
+                show)
+                    _arguments "${COMMON_OPTS[@]}" && ret=0
+                    ;;
                 config)
                     local -a WIKI_CFG_KEYS=(
                         'display_name:显示名'
@@ -340,19 +333,9 @@ _llmw_wiki() {
                         'tags:tags (可重复)'
                         'model:绑定的 model_id'
                     )
-                    # 收集位置参数到 wiki_pos（shifted frame: words[1]=wiki [2]=config
-                    # [3]=cfg_action [4]=cfg_key；从 j=3 起始直接把 cfg_action 当 [1]）
-                    local -a wiki_pos=()
-                    local -i j=3
-                    while (( j < CURRENT )); do
-                        local w=${words[$j]}
-                        case "$w" in
-                            --*=*|-*) ;;
-                            *) wiki_pos+=("$w") ;;
-                        esac
-                        (( j++ ))
-                    done
-                    # wiki_pos[1]=cfg_action, [2]=cfg_key
+                    # 位置扫描：wiki_pos 收集 config 子命令之后的位置词
+                    # pos[1]="config" 由 wiki_args 外层消费；从位置 4 起拿 cfg_action
+                    local -a wiki_pos=(${(f)"$(_llmw_pos_words 4)"})
                     local cfg_action="${wiki_pos[1]:-}"
                     local cfg_key="${wiki_pos[2]:-}"
                     if [[ -z "$cfg_action" ]]; then
@@ -361,25 +344,22 @@ _llmw_wiki() {
                             'set:设值'
                             'unset:清值'
                         )
-                        _describe -t actions 'wiki config action' CFG_ACTS
+                        _describe -t actions 'wiki config action' CFG_ACTS && ret=0
                         _arguments "${COMMON_OPTS[@]}" && ret=0
                     elif [[ -z "$cfg_key" ]]; then
-                        _describe -t keys 'wiki config key' WIKI_CFG_KEYS
+                        _describe -t keys 'wiki config key' WIKI_CFG_KEYS && ret=0
                         _arguments "${COMMON_OPTS[@]}" && ret=0
                     else
-                        # cfg_value 自由文本，不补
                         _arguments "${COMMON_OPTS[@]}" && ret=0
                     fi
                     ;;
                 enter)
-                    # --name/--path 必须前置；post-action 只补 --dry-run + --window-suffix
                     _arguments \
                         '--dry-run[仅打印 overlay 不启动 claude]' \
                         '--window-suffix=[并行窗口后缀（拼接为 <wiki>-<suffix>）]:suffix:' \
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;
                 stop)
-                    # --name/--path 必须前置；post-action 只补 --window-suffix + --yes
                     _arguments \
                         '--window-suffix=[只匹配 <wiki>-<suffix> 窗口]:suffix:' \
                         '(--yes -y)'{--yes,-y}'[跳过确认]' \
@@ -421,11 +401,12 @@ _llmw_wiki() {
                         'new:创建新 wiki 内容页'
                         'memory:创建/索引 MEMORY 条目'
                     )
-                    if (( CURRENT == 3 )) || [[ -z "${words[3]:-}" ]]; then
-                        _describe -t actions 'wiki write action' WIKI_WRITE_ACTS
+                    local -a w_pos=(${(f)"$(_llmw_pos_words 4)"})
+                    local wact="${w_pos[1]:-}"
+                    if [[ -z "$wact" ]]; then
+                        _describe -t actions 'wiki write action' WIKI_WRITE_ACTS && ret=0
                         _arguments "${COMMON_OPTS[@]}" && ret=0
                     else
-                        local wact=${words[3]}
                         case $wact in
                             log)
                                 _arguments \
@@ -437,9 +418,13 @@ _llmw_wiki() {
                                     "${COMMON_OPTS[@]}" && ret=0
                                 ;;
                             index)
-                                _arguments \
-                                    '1:action:(add remove)' \
-                                    "${COMMON_OPTS[@]}" && ret=0
+                                if [[ -z "${w_pos[2]:-}" ]]; then
+                                    local -a IDX_ACTS=('add:添加条目' 'remove:删除条目')
+                                    _describe -t actions 'wiki write index action' IDX_ACTS && ret=0
+                                    _arguments "${COMMON_OPTS[@]}" && ret=0
+                                else
+                                    _arguments "${COMMON_OPTS[@]}" && ret=0
+                                fi
                                 ;;
                             touch)
                                 _arguments "${COMMON_OPTS[@]}" && ret=0
@@ -472,11 +457,12 @@ _llmw_wiki() {
                         'list:列出所有 entry + 状态'
                         'rebuild:跨主机重建（新机器跑一次）'
                     )
-                    if (( CURRENT == 3 )) || [[ -z "${words[3]:-}" ]]; then
-                        _describe -t actions 'wiki external action' WIKI_EXTERNAL_ACTS
+                    local -a e_pos=(${(f)"$(_llmw_pos_words 4)"})
+                    local eact="${e_pos[1]:-}"
+                    if [[ -z "$eact" ]]; then
+                        _describe -t actions 'wiki external action' WIKI_EXTERNAL_ACTS && ret=0
                         _arguments "${COMMON_OPTS[@]}" && ret=0
                     else
-                        local eact=${words[3]}
                         case $eact in
                             add)
                                 _arguments \
@@ -484,10 +470,7 @@ _llmw_wiki() {
                                     '--notes=[接入备注]:notes:' \
                                     "${COMMON_OPTS[@]}" && ret=0
                                 ;;
-                            remove)
-                                _arguments "${COMMON_OPTS[@]}" && ret=0
-                                ;;
-                            list)
+                            remove|list)
                                 _arguments "${COMMON_OPTS[@]}" && ret=0
                                 ;;
                             rebuild)

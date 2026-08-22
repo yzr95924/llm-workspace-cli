@@ -47,7 +47,7 @@ def _read_template(path: Path) -> str:
     except OSError as e:
         raise SetupFailed(
             f"读取模板失败: {e.filename}",
-            hint="检查 references/ 是否完整（SKILL 随 CLI 同仓，仓库完整克隆即含）",
+            hint="检查 llmw/content/templates/ 包内资源是否完整（editable 安装或 wheel 打包缺失）",
         ) from e
 
 

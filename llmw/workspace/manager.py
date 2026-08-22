@@ -169,8 +169,8 @@ def _write_workspace_memory_index(workspace_root: Path) -> None:
     refs = workspace_templates_dir()
     if not refs.is_dir():
         raise SkillMissing(
-            f"找不到 workspace SKILL references/ 目录: {refs}",
-            hint="检查 yzr-llm-*/references/ 是否完整（SKILL 随 CLI 同仓，仓库完整克隆即含）",
+            f"找不到包内 templates/workspace/ 目录: {refs}",
+            hint="检查 llmw/content/templates/workspace/ 是否完整（editable 安装或 wheel 打包缺失）",
         )
     try:
         content = (refs / "fixtures" / "memory-index.txt").read_text(encoding="utf-8")

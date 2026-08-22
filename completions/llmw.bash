@@ -15,7 +15,7 @@ _llmw() {
     # = 后，COMP_WORDS[COMP_CWORD] 是 "="）。规范化 cur 回 `--flag=` 形式以复用下方 --flag=*
     # 分支（返回裸 value，readline 自动附加到 = 后）。仅对带值 flag 触发，避免误伤 bool flag。
     case "$prev" in
-        --name|--model|--model-id|--workspace|--path|--topic|--display-name|--description|--tag|--tags|--base-url|--api-key|--window-suffix|--target-format|--target|--op|--title|--slug|--index-line|--count|--severity|--notes|--sources|--bulk)
+        --name|--model|--model-id|--workspace|--path|--topic|--display-name|--description|--tag|--tags|--base-url|--api-key|--window-suffix|--target-format|--target|--op|--title|--slug|--index-line|--count|--severity|--notes|--sources|--old|--new)
             case "$cur" in
                 "=") cur="${prev}=" ;;
                 =*)  cur="${prev}${cur}" ;;
@@ -88,7 +88,20 @@ _llmw() {
     #    与 fish/zsh 一致——三套候选都返回裸 value，由各 shell 的 `=` 机制附加。
     case "$cur" in
         --name=*)
-            COMPREPLY=($(compgen -W "$(_llmw_wikis)" -- "${cur#--name=}"))
+            # 语境收窄：仅 sub==wiki（且非 external 子命令上下文）时补 wiki 名；
+            # sub==model（网关模型名 free-form）与 wiki external（新 kebab symlink 名
+            # free-form）语境下不污染 wiki 名候选。
+            local ext_seen=0
+            for wi in "${COMP_WORDS[@]}"; do
+                case "$wi" in external) ext_seen=1; break;; esac
+            done
+            if [[ "$sub" != "model" && ! ( "$sub" == "wiki" && "$ext_seen" -eq 1 ) ]]; then
+                COMPREPLY=($(compgen -W "$(_llmw_wikis)" -- "${cur#--name=}"))
+            fi
+            return 0
+            ;;
+        --old=*)
+            COMPREPLY=($(compgen -W "$(_llmw_wikis)" -- "${cur#--old=}"))
             return 0
             ;;
         --model=*)
@@ -99,11 +112,11 @@ _llmw() {
             COMPREPLY=($(compgen -W "$(_llmw_model_ids)" -- "${cur#--model-id=}"))
             return 0
             ;;
-        --name=*|--path=*|--workspace=*)
+        --path=*|--workspace=*)
             COMPREPLY=($(compgen -d -- "${cur#*=}"))
             return 0
             ;;
-        --topic=*|--display-name=*|--description=*|--tag=*|--tags=*|--base-url=*|--api-key=*|--new=*|--window-suffix=*|--target-format=*|--target=*|--op=*|--title=*|--slug=*|--index-line=*|--count=*|--severity=*|--notes=*|--sources=*|--bulk=*)
+        --topic=*|--display-name=*|--description=*|--tag=*|--tags=*|--base-url=*|--api-key=*|--new=*|--window-suffix=*|--target-format=*|--target=*|--op=*|--title=*|--slug=*|--index-line=*|--count=*|--severity=*|--notes=*|--sources=*)
             # 带值 flag 但值是 free-form；无候选
             COMPREPLY=()
             return 0
@@ -143,10 +156,19 @@ _llmw() {
                                 COMPREPLY=($(compgen -W "$CFG_KEYS" -- "$cur"))
                                 ;;
                             set)
-                                # set <key> <value>: COMP_WORDS[0]=llmw, [1]=config, [2]=set,
-                                # [3]=key, [4]=value。cword=3 -> 补 key；cword=4 -> value 不补
-                                # （与 wiki config set 的 wiki_pos 索引语义对齐）
-                                if [ "$COMP_CWORD" -eq 3 ]; then
+                                # set <key> <value>: 位置扫描跳 flag
+                                local -a cfg_pos=()
+                                i=1
+                                while [ "$i" -lt "$COMP_CWORD" ]; do
+                                    w="${COMP_WORDS[$i]}"
+                                    case "$w" in
+                                        --*=*|-*) ;;
+                                        *) cfg_pos+=("$w") ;;
+                                    esac
+                                    i=$((i + 1))
+                                done
+                                # cfg_pos: [0]=config [1]=set；长度<3 → 补 key
+                                if [ "${#cfg_pos[@]}" -le 2 ]; then
                                     COMPREPLY=($(compgen -W "enter_cli" -- "$cur"))
                                 fi
                                 ;;
@@ -272,7 +294,14 @@ _llmw() {
                         else
                             case "${w_pos[2]}" in
                                 log)    COMPREPLY=($(compgen -W "--op= --title= --bulk --topic= --count= $COMMON" -- "$cur")) ;;
-                                index)  COMPREPLY=($(compgen -W "$COMMON" -- "$cur")) ;;
+                                index)
+                                # w_pos[0]=wiki [1]=write [2]=index, [3]=add|remove
+                                if [ -z "${w_pos[3]:-}" ]; then
+                                    COMPREPLY=($(compgen -W "add remove $COMMON" -- "$cur"))
+                                else
+                                    COMPREPLY=($(compgen -W "$COMMON" -- "$cur"))
+                                fi
+                                ;;
                                 touch)  COMPREPLY=($(compgen -W "$COMMON" -- "$cur")) ;;
                                 new)    COMPREPLY=($(compgen -W "--type= --slug= --title= --description= --tags= --sources= $COMMON" -- "$cur")) ;;
                                 memory) COMPREPLY=($(compgen -W "--slug= --title= --index-line= $COMMON" -- "$cur")) ;;

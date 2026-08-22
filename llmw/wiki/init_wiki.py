@@ -1,7 +1,7 @@
-"""wiki 仓初始化: 读同仓 yzr-llm-wiki-management/references/ 下的模板与 fixtures,
-把 wiki 仓"出生形态"落盘（按包内 templates/ + fixtures/ 字节金标准；`llmw wiki check-fixtures` 探测）.
+"""wiki 仓初始化: 读包内 llmw/content/templates/wiki/{agents-md,claude-md}-template.md +
+fixtures/ 下的字节金标准（`llmw wiki check-fixtures` 探测）,把 wiki 仓"出生形态"落盘.
 
-CLI 内联实现(wiki 创建归 CLI 负责,skill 只供 references 素材).
+CLI 内联实现(wiki 创建归 CLI 负责,不再依赖同仓 SKILL 的 references/).
 fixtures 是 CLI 字节金标准;完整 gate 走 scripts/test/smoke_fixtures.py
 (CI 跑 real llmw init + wiki add 后用 llmw.content checkers 探测器断言)。
 
@@ -97,7 +97,7 @@ def render_and_write(
         format_version: llmw.WIKI_FORMAT_VERSION,用于 AGENTS.md 占位符.
 
     Raises:
-        SkillMissing: SKILL 的 references/ 目录不存在.
+        SkillMissing: 包内 llmw/content/templates/wiki/ 目录缺失.
         SetupFailed: 模板读取失败 / 占位符残留 / atomic_write 失败.
 
     Note:

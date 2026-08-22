@@ -20,7 +20,8 @@ standalone（不依赖其他脚本 / 第三方库；Python 3.7+）。
 设计权衡:
 - 不落 .migration-plan.json——workspace 修复面恒定 ≤ 4 个结构文件，报告即清单；
   中断后重跑本脚本即可续（检测幂等）。零中间产物。
-- AGENTS.md / CLAUDE.md 走**模板渲染比对**：从末尾「当前配置」表提取 4 变量，渲染 references/workspace-*-template.md 后字节比对——
+- AGENTS.md / CLAUDE.md 走**模板渲染比对**：从末尾「当前配置」表提取 4 变量，渲染包内
+  llmw/content/templates/workspace/workspace-{agents-md,claude-md}-template.md 后字节比对——
   一次性覆盖"旧版本残留 + 本地改动"全部漂移。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
 - 版本新旧（agents-version-is-current）与正文同步（agents-md-template-sync）正交：
   后者渲染时用 workspace 自钉版本替换 {{WORKSPACE_FORMAT_VERSION}}。
@@ -177,21 +178,6 @@ def _extract_template_vars(agents_text: str) -> Dict[str, Optional[str]]:
         "cli": _extract_row(agents_text, CLI_VERSION_ROW_RE),
         "format": format_semver.group(0) if format_semver else None,
     }
-
-
-def _render_agents_template(template: str, vars: Dict[str, Optional[str]], format_ver: str) -> str:
-    return (
-        template.replace("{{WORKSPACE_DISPLAY_NAME}}", vars["name"] or "")
-        .replace("{{SETUP_DATE}}", vars["date"] or "")
-        .replace("{{WORKSPACE_FORMAT_VERSION}}", format_ver)
-        .replace("{{CLI_VERSION}}", vars["cli"] or "")
-    )
-
-
-def _agents_reference() -> Tuple[Optional[str], Path]:
-    """读包内 workspace-agents-md-template.md。"""
-    tpl_path = workspace_templates_dir() / "workspace-agents-md-template.md"
-    return _read_text(tpl_path), tpl_path
 
 
 def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
