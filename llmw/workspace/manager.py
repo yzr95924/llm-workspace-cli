@@ -487,10 +487,20 @@ def _render_list_json(rows: List[dict]) -> None:
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 
+def _short_time(value):
+    """表格展示用短时间：'2026-08-22T12:34:56+00:00' → '2026-08-22 12:34'；缺失返回 '-'。"""
+    if not value:
+        return "-"
+    return f"{value[:10]} {value[11:16]}"
+
+
 def _render_list_table(rows: List[dict]) -> None:
-    """表格：列宽 = max(内容 + 表头)；meta 缺失时时间列用 "-" 占位，保持列对齐。"""
-    created_cells = [r["created_at"] or "-" for r in rows]
-    last_activity_cells = [r["last_activity"] or "-" for r in rows]
+    """表格：列宽 = max(内容 + 表头)；meta 缺失时时间列用 "-" 占位，保持列对齐。
+
+    时间列只展示短格式（月-日 时:分）；完整 ISO 时间戳走 --json。
+    """
+    created_cells = [_short_time(r["created_at"]) for r in rows]
+    last_activity_cells = [_short_time(r["last_activity"]) for r in rows]
     name_w = max(len(r["name"]) for r in rows + [{"name": "NAME"}])
     path_w = max(len(r["path"]) for r in rows + [{"path": "PATH"}])
     created_w = max(len(c) for c in created_cells + ["CREATED"])
