@@ -247,15 +247,20 @@ def plan_resync(ws_root: Path) -> List[Dict[str, object]]:
             continue
         new_text = _render_growth_memory(current)
         diff = _diff_text(current, new_text)
-        plan.append(
-            {
-                "rel_path": rel,
-                "action": "growth-graft",
-                "target": new_text,
-                "diff": diff,
-                "newly_created": False,
-            }
-        )
+        item = {
+            "rel_path": rel,
+            "action": "growth-graft",
+            "target": new_text,
+            "diff": diff,
+            "newly_created": False,
+        }
+        # 旧自定义段（fixture 没有 + 含真实条目）将被丢弃 → 计入 residue，不静默
+        fixture_text = _read_text(workspace_templates_dir() / "fixtures" / "memory-index.txt")
+        if fixture_text is not None:
+            dropped = _wiki_upgrade._dropped_h2_sections(current, fixture_text)
+            if dropped:
+                item["dropped_sections"] = dropped
+        plan.append(item)
 
     return plan
 
@@ -428,6 +433,18 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
     # 4. apply
     changed = apply_resync(ws_root, plan)
 
+    # 4.5 residue：旧自定义段被丢弃（段名=骨架契约），可见化不静默
+    residue = []  # type: List[Dict[str, str]]
+    for item in plan:
+        if item.get("dropped_sections"):
+            names = " / ".join(f"## {s}" for s in item["dropped_sections"])
+            residue.append(
+                {
+                    "type": "dropped-section",
+                    "note": f"{item.get('rel_path')} 旧段 {names} 不在新骨架（段名=骨架契约），已丢弃；如需保留请搬入 ## 索引 或 MEMORY/ 后重跑",
+                }
+            )
+
     # 5. self_verify
     verified = self_verify(ws_root)
     if verified.get("error", 0) > 0:
@@ -436,6 +453,7 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
             "current_format": WORKSPACE_FORMAT_VERSION,
             "target_format": WORKSPACE_FORMAT_VERSION,
             "changed": changed,
+            "residue": residue,
             "verified": verified,
             "hint": "自验失败（版本钉不落）",
         }
@@ -447,18 +465,24 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
     if bumped:
         changed.append({"file": "workspace.toml", "action": "templates_version_bump"})
 
+    status = "done" if not residue else "done_with_residue"
     result = {
-        "status": "done",
+        "status": status,
         "current_format": WORKSPACE_FORMAT_VERSION,
         "target_format": WORKSPACE_FORMAT_VERSION,
         "changed": changed,
+        "residue": residue,
         "verified": verified,
     }
     if as_json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
-        print("== workspace upgrade done ==")
+        print(f"== workspace upgrade {status} ==")
         print(f"changed: {len(changed)} actions")
+        if residue:
+            print(f"residue: {len(residue)} items")
+            for r in residue:
+                print(f"  - [{r.get('type')}] {r.get('note')}")
         print(
             f"verified: error={verified.get('error', 0)} warn={verified.get('warn', 0)} pass={verified.get('pass', 0)}"
         )

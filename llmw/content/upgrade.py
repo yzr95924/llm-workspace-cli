@@ -26,6 +26,7 @@
 
 import difflib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -54,59 +55,66 @@ def _load_meta(wiki_root: Path) -> Optional[Dict[str, str]]:
     }
 
 
+def _split_growth(text: str):
+    """标准 growth 文件解析：frontmatter + intro（到首个 ## 前）+ {## 段名: 段体行}。"""
+    fm = None  # type: Optional[str]
+    intro = []  # type: List[str]
+    sections = {}  # type: Dict[str, List[str]]
+    cur_h2 = None  # type: Optional[str]
+    lines = text.splitlines(keepends=True)
+    i = 0
+    # Frontmatter (可选)
+    if lines and lines[0].rstrip() == "---":
+        j = 1
+        while j < len(lines) and lines[j].rstrip() != "---":
+            j += 1
+        if j < len(lines):
+            fm = "".join(lines[: j + 1])
+            i = j + 1
+    # Intro (frontmatter 后到第一个 ## 之间)
+    while i < len(lines) and not lines[i].startswith("## "):
+        intro.append(lines[i])
+        i += 1
+    # Sections (## 起)
+    while i < len(lines):
+        m = re.match(r"^## (.+)$", lines[i].rstrip())
+        if m:
+            cur_h2 = m.group(1).strip()
+            sections[cur_h2] = []
+            i += 1
+            while i < len(lines) and not lines[i].startswith("## "):
+                sections[cur_h2].append(lines[i])
+                i += 1
+        else:
+            i += 1
+    return fm, intro, sections
+
+
 def _render_growth_headers(*, old_text: str, fixture_text: str, rel_path: str) -> str:
     """growth 文件换头 + 按段嫁接：保留旧 ## 段条目，用新 frontmatter / 说明块 / ## 段头。
 
     算法（按文件类型分三支）:
-    - 标准段文件 (index.md / tags.md / MEMORY.md / SCRIPTS.md):
+    - 标准段文件 (index.md / MEMORY.md / SCRIPTS.md):
       1. 解析旧文件 frontmatter + 说明块（> 段）+ ## 段体
       2. 用新 fixture 的 frontmatter + 说明块 + ## 段头
       3. 对每个 ## 段：若旧文件有同名段 → 填旧段条目；无 → 填 fixture 占位
+      4. 旧文件中 fixture 没有的段不保留（段名 = 骨架契约）；caller 经
+         _dropped_h2_sections 记 residue，不静默
     - 追加式文件 (log.md):
       只换 frontmatter + 说明块头（H1 + > 引用）；所有 ## 条目保留（log 是 append-only）。
+    - tags.md: 无 ## 段，白名单 bullet 全在头部注释行之后 → _graft_tags 只换头部。
     解析失败 → 返空串（caller 判为 blocked_drift，不静默丢条目）。
     """
-    import re
-
     # log.md 特例：append-only，所有 ## 条目保留
     if rel_path.endswith("log.md"):
         return _graft_log(old_text, fixture_text)
 
-    def _split(text: str):
-        fm = None  # type: Optional[str]
-        intro = []  # type: List[str]
-        sections = {}  # type: Dict[str, List[str]]
-        cur_h2 = None  # type: Optional[str]
-        lines = text.splitlines(keepends=True)
-        i = 0
-        # Frontmatter (可选)
-        if lines and lines[0].rstrip() == "---":
-            j = 1
-            while j < len(lines) and lines[j].rstrip() != "---":
-                j += 1
-            if j < len(lines):
-                fm = "".join(lines[: j + 1])
-                i = j + 1
-        # Intro (frontmatter 后到第一个 ## 之间)
-        while i < len(lines) and not lines[i].startswith("## "):
-            intro.append(lines[i])
-            i += 1
-        # Sections (## 起)
-        while i < len(lines):
-            m = re.match(r"^## (.+)$", lines[i].rstrip())
-            if m:
-                cur_h2 = m.group(1).strip()
-                sections[cur_h2] = []
-                i += 1
-                while i < len(lines) and not lines[i].startswith("## "):
-                    sections[cur_h2].append(lines[i])
-                    i += 1
-            else:
-                i += 1
-        return fm, intro, sections
+    # tags.md 特例：无 ## 段，白名单 bullet 全在注释行之后，只换头部说明块
+    if rel_path.endswith("tags.md"):
+        return _graft_tags(old_text, fixture_text)
 
-    old_fm, old_intro, old_sections = _split(old_text)
-    new_fm, new_intro, new_sections = _split(fixture_text)
+    old_fm, old_intro, old_sections = _split_growth(old_text)
+    new_fm, new_intro, new_sections = _split_growth(fixture_text)
 
     out = []
     if new_fm is not None:
@@ -153,10 +161,30 @@ def _graft_log(old_text: str, fixture_text: str) -> str:
     return new_head + old_body
 
 
+def _graft_tags(old_text: str, fixture_text: str) -> str:
+    """tags.md 专用：只换头部（H1 + > 说明块 + `<!-- ... -->` 注释行），保留注释行之后的全部白名单 bullet。
+
+    tags.md 无 `##` 段、无 frontmatter——用户 growth（tag 白名单）全部追加在头部
+    `<!-- ... -->` 注释行之后；找不到该注释锚点 → 返空串（caller 判 blocked，不静默丢条目）。
+    """
+
+    def _split_at_comment(text: str):
+        lines = text.splitlines(keepends=True)
+        for i, ln in enumerate(lines):
+            s = ln.strip()
+            if s.startswith("<!--") and s.endswith("-->"):
+                return "".join(lines[: i + 1]), "".join(lines[i + 1 :])
+        return None, None
+
+    new_head, _ = _split_at_comment(fixture_text)
+    _, old_body = _split_at_comment(old_text)
+    if new_head is None or old_body is None:
+        return ""
+    return new_head + old_body
+
+
 def _has_growth(lines: List[str]) -> bool:
     """段体行是否含真实 growth 内容（非空 / 非占位符 / 非注释）。"""
-    import re
-
     for ln in lines:
         s = ln.strip()
         if not s:
@@ -167,6 +195,16 @@ def _has_growth(lines: List[str]) -> bool:
             continue  # `_（暂无内容）_` 等占位符
         return True
     return False
+
+
+def _dropped_h2_sections(old_text: str, fixture_text: str) -> List[str]:
+    """旧文件有、fixture 没有、且含真实 growth 内容的 ## 段名列表（占位段不记，避免噪声）。
+
+    段名 = 骨架契约（header-owned）：旧段不在新骨架 → 嫁接时丢弃；caller 记 residue，不静默。
+    """
+    _, _, old_sections = _split_growth(old_text)
+    _, _, new_sections = _split_growth(fixture_text)
+    return [h2 for h2, body in old_sections.items() if h2 not in new_sections and _has_growth(body)]
 
 
 GROWTH_FILES = {
@@ -200,10 +238,9 @@ def _render_fixture(fixture_name: str) -> str:
 
 
 def _apply_substitute(text: str, *, topic: str, setup_date: str) -> str:
-    try:
-        return _render._substitute(text, {"TOPIC_NAME": topic, "SETUP_DATE": setup_date})
-    except Exception:
-        return text
+    # 占位符替换失败（模板漂移）→ _substitute 直接抛 SetupFailed，不吞错回退
+    # （否则带 {{TOPIC_NAME}} 的原始 fixture 会被写进用户 wiki）。
+    return _render._substitute(text, {"TOPIC_NAME": topic, "SETUP_DATE": setup_date})
 
 
 def plan_resync(wiki_root: Path, *, meta: Dict[str, str]) -> List[Dict[str, object]]:
@@ -249,21 +286,28 @@ def plan_resync(wiki_root: Path, *, meta: Dict[str, str]) -> List[Dict[str, obje
         if not new_text:
             plan.append({"rel_path": rel, "action": "growth-graft-error", "error": "parsing failed"})
             continue
-        if old_text != new_text:
+        # 标准段文件：旧自定义段（fixture 没有 + 含真实条目）将被丢弃 → 计入 residue，不静默
+        dropped = (
+            _dropped_h2_sections(old_text, fixture_text)
+            if not (rel.endswith("log.md") or rel.endswith("tags.md"))
+            else []
+        )
+        if old_text != new_text or dropped:
             diff = list(
                 difflib.unified_diff(
                     old_text.splitlines(), new_text.splitlines(), lineterm="", n=0, fromfile=rel, tofile=rel
                 )
             )
-            plan.append(
-                {
-                    "rel_path": rel,
-                    "action": "growth-graft",
-                    "old": old_text,
-                    "new": new_text,
-                    "diff": "\n".join(diff),
-                }
-            )
+            item = {
+                "rel_path": rel,
+                "action": "growth-graft",
+                "old": old_text,
+                "new": new_text,
+                "diff": "\n".join(diff) if old_text != new_text else None,
+            }
+            if dropped:
+                item["dropped_sections"] = dropped
+            plan.append(item)
 
     # .gitignore managed block 替换（仅替换 llmw managed 块，段外用户自定义规则不动）
     gi_path = wiki_root / GITIGNORE_REL
@@ -488,6 +532,14 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
                 {
                     "type": "content-page-transform",
                     "note": f"{item.get('rel_path')} growth-graft 解析失败，需人工对照 fixture 重渲染",
+                }
+            )
+        elif item.get("dropped_sections"):
+            names = " / ".join(f"## {s}" for s in item["dropped_sections"])  # type: ignore[arg-type]
+            residue.append(
+                {
+                    "type": "dropped-section",
+                    "note": f"{item.get('rel_path')} 旧段 {names} 不在新骨架（段名=骨架契约），已丢弃；如需保留请搬入固定段或 MEMORY/ 后重跑",
                 }
             )
 
