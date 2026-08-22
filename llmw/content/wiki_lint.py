@@ -77,6 +77,19 @@ DISCUSSIONS_SUBDIR = "discussions"  # raw/ 下用户 + LLM 协作草稿层；与
 MD_LINK_RE = re.compile(r"!?\[([^\]]*)\]\(([^)]+)\)")
 EXTERNAL_URL_RE = re.compile(r"^(https?:|mailto:|//)")
 
+# 代码区剔除：Markdown 语义上 fenced block / 行内 code span 里的 [..](..) 不是链接
+# （渲染器不 linkify），裸文本扫 MD_LINK_RE 会误报——三处 finditer 调用点统一先剔除。
+# 替换为等长空白：保行号 / 偏移稳定（如需按 finditer 偏移回溯原文不受影响）。
+_CODE_FENCE_RE = re.compile(r"^(?P<fence>```|~~~)[^\n]*\n.*?^(?P=fence)[^\n]*$", re.M | re.S)
+_CODE_SPAN_RE = re.compile(r"`[^`\n]*`")
+
+
+def strip_code_regions(text: str) -> str:
+    """剔 fenced code block 与行内 code span（等长空白替换），返回处理后的文本。"""
+    text = _CODE_FENCE_RE.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), text)
+    return _CODE_SPAN_RE.sub(lambda m: " " * len(m.group(0)), text)
+
+
 # 绝对路径检测（Unix + Windows）——见 check_frontmatter 的 `sources-absolute-path` 用途。
 # - Unix 绝对路径：以 `/` 起始
 # - Windows 盘符：`C:\` / `C:/`（兼容正反斜杠，大小写不敏感）
@@ -551,7 +564,7 @@ def check_link_integrity(wiki_root: Path) -> List[str]:
             continue
         rel = p.relative_to(wiki_root).as_posix()
         text = p.read_text(encoding="utf-8", errors="replace")
-        for m in MD_LINK_RE.finditer(text):
+        for m in MD_LINK_RE.finditer(strip_code_regions(text)):
             url = m.group(2)
             target = resolve_link(p, url)
             if target is None:
@@ -577,7 +590,7 @@ def check_index_coverage(wiki_root: Path) -> List[str]:
     index_text = index_path.read_text(encoding="utf-8", errors="replace")
     # 收集 index 引用的所有相对路径
     indexed = set()  # type: Set[str]
-    for m in MD_LINK_RE.finditer(index_text):
+    for m in MD_LINK_RE.finditer(strip_code_regions(index_text)):
         url = m.group(2)
         target = resolve_link(index_path, url)
         if target is None:
@@ -1111,7 +1124,7 @@ def check_memory_index(wiki_root: Path) -> List[str]:
         text = memory_index.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return findings
-    for m in MD_LINK_RE.finditer(text):
+    for m in MD_LINK_RE.finditer(strip_code_regions(text)):
         target = resolve_link(memory_index, m.group(2))
         if target is None:
             continue
