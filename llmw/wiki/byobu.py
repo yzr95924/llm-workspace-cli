@@ -386,8 +386,10 @@ def capture_pane_tail(window_id: str, lines: int = 15) -> str:
 
     只读（capture-pane 不改状态）；失败 → 空串（调用方降级 unknown）。
     target 用 window_id（@N）——target-pane 语法接受窗口引用（取当前 pane）。
+    -J join 折行：STATE 判据依赖跨物理行的逻辑行文本（窄 pane 下 TUI hint
+    会被硬折行拆开，子串匹配失效）。
     """
-    p = _run(["capture-pane", "-p", "-t", window_id, "-S", f"-{lines}"])
+    p = _run(["capture-pane", "-p", "-J", "-t", window_id, "-S", f"-{lines}"])
     if p.returncode != 0:
         return ""
     return p.stdout
