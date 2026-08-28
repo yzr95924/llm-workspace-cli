@@ -1,7 +1,8 @@
 # raw/external/——外部代码仓接入与跨主机重建
 
 > **维护方**：接入决策归用户 + agent；**symlink + anchor 写路径**统一走
-> `llmw wiki external` 子命令；target 仓本体永不触碰。命令面细节在
+> `llmw wiki external` 子命令；target 仓本体永不触碰（此处仅指 **CLI 命令**自身行为——
+> **agent** 对 target 的读写权限以 wiki 根 `AGENTS.md` `raw/external/` 节为准）。命令面细节在
 > `AGENTS.md` `raw/external/` 节（会话常驻）；字段语义与失败兜底在本文件。
 
 ## 一、首次接入
@@ -15,7 +16,7 @@ agent 主导两项判断（CLI 帮不上）：
 - **notes 文本**：可选，agent 自由写（机械 scribe 入 anchor）
 
 命令：`llmw wiki external add <target> --name=<n> [--notes=...]`（CLI 自动建 symlink +
-读 git 身份字段 + 原子写 anchor；target 必须已存在、永不触碰 target 仓本体）。
+读 git 身份字段 + 原子写 anchor；target 必须已存在）。
 命令面细节（4 个子命令 + flag 用法）见 AGENTS.md `raw/external/` 节；本文件不再列举。
 
 ### 字段语义（agent 只在排查损坏时需要读；写入全由 CLI 完成）

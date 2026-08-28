@@ -66,6 +66,7 @@
 - **运行时配置拆出 workspace_local.toml（schema v2）** — 主机相关字段（`enter_cli`）放 gitignored `workspace_local.toml`（动机：跨主机共用 git 仓不互相覆盖 churn；无 secret 不 chmod）；workspace.toml 只剩结构数据，`store.load()` v1→v2 自愈迁移幂等，config 据 `LOCAL_KEYS` 路由 runtime key→local_store。**勿复活 `default_model`**（resolve 从不读它，"默认 model" 只由 registry `is_default` 单一表达）与 `enter_byobu`（删除理由见 AGENTS.md 数据模型节）。延续 [[model-ops-no-env-vars]]「配置走 toml 不走 env」纪律
 - **CLI 有意比格式契约字面严** — `init` 对非空目录一律 `WorkspaceExists`（超集覆盖契约要求）；`wiki add` 走 `check_not_initialized` 校验 6 文件（契约字面仅 3，主动加严）
 - **raw/ 默认子目录 + 格式契约↔CLI 解耦** — CLI fresh init 预建 `raw/{articles,assets,discussions}/`（用户要求，协作草稿层高频用），`raw/external/` 不预建（.gitignore 的 `raw/external/*` 吃掉 external/.gitkeep，`git check-ignore` 实测 IGNORED，预建对 clone 不可见）。判别尺度：格式契约定语义层（目录含义/纪律/provenance），不管实现层（预建哪些/怎么进 git）
+- **external target 仓 agent 可读写（0.43.0 起）** — `raw/external/` symlink 指向的外部仓不受 raw/ 只读约束：agent 有读写权限，语料消费（ingest/query/lint/upgrade）以读为主、写需明确语境（用户要求 / 具体修改任务）；代码改动后走既有同步通道（用户确认 → 受影响 source 页重 ingest）。CLI 侧"永不触碰 target"边界不变（仅指 `llmw wiki external` 命令自身行为）
 
 **SKILL 维护（2026-08-18 起同仓）**
 

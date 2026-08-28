@@ -59,7 +59,7 @@
   `.symlink-anchor.toml`：
   - 首次接入：`llmw wiki external add <target> --name=<n> [--notes=...]`
     ——注册 entry + 建 symlink；git 仓库自动读 `remote_url`/`branch`（非 git 也允许，
-    身份字段省略）；`target` 必须已存在、永不触碰 target 仓本体
+    身份字段省略）；`target` 必须已存在
   - 移除：`llmw wiki external remove <name>`——删 entry + 删 symlink；
     路径若是普通文件/目录会被拒（用户资产保护）；target 仓本体永不触碰
   - 检视：`llmw wiki external list [--json]`
@@ -70,12 +70,12 @@
 - anchor / symlink 漂移（缺 anchor、解析失败、孤儿 symlink、target 失效、子目录
   布局、target 与 symlink 解析不一致）由 `llmw wiki lint` 机械探测，check 名以 lint
   输出为准
-- **target 仓内文件按角色分**：**wiki 维护操作**（ingest / query / lint / upgrade）
-  中 target 只读（librarian 角色，不在仓内跑 `git pull` 之类）；**用户明确要求
-  的开发协作**（修 bug / 重构 / 仓内 git 操作）**不**属 wiki 操作、**不**受 raw/ 只读约束
-  ——target 在 wiki 仓外、有其自身 git、由用户全权处置。代码改动后的 wiki 同步走**既有通道**
-  （用户确认 → 受影响 source 页重 ingest）。
-  **禁止**以"开发协作"为借口在 wiki 维护操作中顺手改 target
+- **target 仓 agent 可读写**：`raw/external/` symlink 指向的外部仓**不**受 raw/ 只读
+  约束——agent 有读写权限（改代码 / 修 bug / 重构 / 仓内 git 操作均可）；target 在
+  wiki 仓外、有其自身 git、由用户全权处置
+- **语料场景以读为主**：ingest / query / lint / upgrade 等语料消费操作中 target 以读
+  为主，写操作要有明确语境（用户要求 / 具体修改任务），不在纯摄取流程中顺手改代码。
+  代码改动后的 wiki 同步走**既有通道**（用户确认 → 受影响 source 页重 ingest）
 - LLM **不**编辑 `raw/external/` 之外的 `raw/` 子树（articles / papers / assets /
   clippings 等仍"LLM 只读"；`discussions/` 是另一处写权限例外——见下节）
 - `.gitignore` 配置：已排好 `raw/external/*` 排除但保留 `.symlink-anchor.toml`——
@@ -104,10 +104,10 @@
   - **消化式**：LLM 把结论写进 `wiki/` 对应页（走标准 ingest 纪律：log / index / 清
     `reviewed` 戳），原稿留删自便，不进 `sources:`
   - **转正式**：用户确认后 LLM `mv raw/discussions/<x>.md raw/articles/<x>.md`（或合适
-    子树），此后回归只读真相源、走标准 ingest；这是 raw/ 只读的**第二处 mv 例外**
+    子树），此后回归只读真相源、走标准 ingest；这是 raw/ 只读的 **mv 例外**
     （迁入正式子树后 LLM 不可再改）
 - **滑坡防线**：discussions/ 的可写性**不得**外推到 raw/ 其他子树（papers /
-  articles / clippings 等仍只读）；上节 target 开发协作切分**不得**外推为"raw/ 也能改"；
+  articles / clippings 等仍只读）；上节 target 仓可读写**不得**外推为"raw/ 也能改"；
   不得用 discussions/ 规避 ingest 纪律（绕归档路径漏 log / index / reviewed 戳）
 
 ### `wiki/` —— LLM 拥有的复利资产
