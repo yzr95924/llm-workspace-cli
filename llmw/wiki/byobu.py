@@ -1,12 +1,15 @@
 """wiki enter 的 tmux 窗口模式 — 当前 session 开 agent 窗口 + 兜底 session llm_workspace
 
 设计 (doc/session-visibility-design.md §2)：enter 把 agent 开成"当前 tmux session 的一个
-窗口"（W' 模型）；不在 tmux 内时用兜底 session llm_workspace。**不维护任何自建 session
+窗口"（W' 模型）；不在 tmux 内时按可见 session 数选路——恰 1 个直接在其中开窗
+（保持单 session 结构，裸 byobu 唯一可见 → 自动选中直达），0 或 ≥2 用兜底 session
+llm_workspace（口径见 visible_sessions）。**不维护任何自建 session
 账本**——spawn 时在窗口上打两个 tmux 用户选项（@llmw_wiki 归属 / @llmw_started 起算
 时间戳）；agent 是窗口主命令，进程退出 → pane 销毁 → 窗口消亡 → 标记随之消亡。
 tmux 窗口表即注册表，枚举即现实——无心跳、无轮询、无僵尸记录。
 
-本模块是 byobu/tmux 的薄封装 + 开窗编排（spawn / 复用 / 打标 / 枚举四原语），
+本模块是 byobu/tmux 的薄封装 + 开窗编排原语（spawn / 复用 / 打标 / 枚举 + session
+可见性查询），
 只被 llmw/wiki/enter.py / llmw/wiki/status.py / llmw/wiki/manager.py 调用；
 不写元数据、不读配置。
 
@@ -80,7 +83,9 @@ from llmw.errors import (
 )
 
 _BYOBU_BIN = "byobu-tmux"
-# 兜底 session 名（代码常量，不可配）：enter 不在 tmux 内时的落点，status/enter 共享
+# 兜底 session 名（代码常量，不可配）：enter 不在 tmux 内（且可见 session 数 ≠1）时的
+# 落点，status/enter 共享。命名约束：禁含 `-`、禁 `_` 开头——byobu-select-session 菜单
+# 按此隐藏 session（口径见 visible_sessions），违规名会被裸 byobu 永远挡在直达门外
 BYOBU_SESSION = "llm_workspace"
 
 # pane_dead 格式变量的字面量（_LIST_FORMAT 的 #{pane_dead}）：消费端统一引此，不裸比较 "1"
@@ -208,6 +213,24 @@ def current_session() -> Optional[str]:
 def has_session(name: str) -> bool:
     """session 是否存在（无 server / 无 session 统一 False）。"""
     return _run(["has-session", "-t", name]).returncode == 0
+
+
+def visible_sessions() -> List[str]:
+    """裸 byobu 菜单可见的 session 名（tmux 外 enter 的选路判定用）。
+
+    口径与 byobu-select-session（/usr/lib/byobu/include/select-session.py 的
+    get_sessions）对齐：隐藏 `_` 开头与含 `-` 的名字——byobu 分组 attach 产生的
+    残影 session（如 ``llm_workspace-7``）落在隐藏区。对齐的意义：enter 在 tmux 外
+    "复用唯一可见 session" 时，选中的 session 与用户敲裸 byobu（唯一可见 → 自动选中）
+    会进的 session 同源；可见性若不一致，一个分组残影会把"唯一真实 session"场景
+    顶成 ≥2，恰在最该生效处失效。无 server / 无 session → []。
+    """
+    p = _run(["list-sessions", "-F", "#{session_name}"])
+    if p.returncode != 0:
+        return []
+    return [
+        s for s in p.stdout.splitlines() if s and not s.startswith("_") and "-" not in s
+    ]
 
 
 def _window_id(p: "subprocess.CompletedProcess[str]") -> Optional[str]:
@@ -411,7 +434,8 @@ def spawn_window(spec: SpawnSpec) -> Tuple[bool, str, bool]:
             backend / ensure，见 SpawnSpec）：
             backend: agent CLI 名（claude/qodercli/opencode），随 R3 打标供 status 使用。
             ensure: True → session 不存在时一步建成（session + 首窗口，防裸 shell 窗口）；
-                False → 假定 session 已存在（tmux 内的当前 session）。
+                False → 假定 session 已存在（tmux 内的当前 session，或 tmux 外
+                唯一可见 session——见 visible_sessions）。
             cmd_argv: agent 命令 argv（首元素为二进制名，spawn 前解析为绝对路径）。
 
     Returns:

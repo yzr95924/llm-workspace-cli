@@ -8,7 +8,8 @@ metadata:
 # enter 走 tmux 窗口（W' 模型）
 
 `llmw wiki enter` 把 agent 开成**当前 tmux session 的一个窗口**：tmux 内发起 → `new-window`
-自动聚焦；不在 tmux 内 → 兜底 session `llm_workspace` + TTY attach / 非 TTY hint。
+自动聚焦；不在 tmux 内 → 按可见 session 数选路（恰 1 → 直接在其中开窗；0 / ≥2 → 兜底
+session `llm_workspace` + TTY attach / 非 TTY hint）。
 fire-and-forget（窗口建成返回 0，退出码不来自 agent）。
 
 **Why:** 以"窗口"而非"进程"为生命周期单元，agent 退出 → 窗口消亡 → 标记随亡，天然无僵尸账本；
@@ -18,6 +19,14 @@ fire-and-forget（窗口建成返回 0，退出码不来自 agent）。
 
 - **窗口名**一律 `<wiki>-<suffix>`（缺省 `main`）；`--window-suffix` 只传后缀，不传恒为
   **复用跳转**——防误开第二个付费 session。
+- **tmux 外选路**（`byobu.visible_sessions`）：恰 1 个可见 session → 直接在其中开窗
+  （保持单 session 结构，裸 `byobu` 唯一可见 → 自动选中直达 agent）；0 → 建
+  `llm_workspace`；≥2 → 兜底 `llm_workspace`（有歧义不猜）。可见性口径对齐
+  byobu-select-session 菜单过滤（隐藏 `_` 开头与含 `-` 的名字——分组残影
+  `llm_workspace-N` 在此列）；**兜底 session 名因此禁含 `-`、禁 `_` 开头**（违规名被
+  byobu 菜单隐藏，直达永久失效）。动因：原"无条件建 llm_workspace"在已有 session 的
+  主机上造出第二个 session，把裸 byobu 直达变成菜单（2026-09-05，假设 A2 被实际
+  用法绕过——用户在 tmux 外跑了 enter）。
 - **复用四条件**：窗口名精确匹配 AND `@llmw_wiki`==wiki AND `@llmw_backend`==当前 backend AND
   pane 非 dead。命中 dead 尸体 → kill-window 收尸后新开；**backend 不符 → 拒绝 enter + hint 先
   stop 或 --window-suffix**（复用会吞掉"切换 agent"意图，2026-08-15 I6）；防劫持同名非 llmw 窗口，

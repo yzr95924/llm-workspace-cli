@@ -50,7 +50,9 @@ fire-and-forget(`llmw/wiki/enter.py:143-177`，读码)。三个痛点：
 三句话：
 
 1. **enter 把 agent 开成"当前 tmux session 的一个窗口"**(W' 模型)——不再使用固定
-   session 收纳所有窗口；不在 tmux 内时，用兜底 session `llm_workspace` 并在 TTY 下直接
+   session 收纳所有窗口；不在 tmux 内时，按**可见 session 数**选路(口径 = 裸 byobu 菜单
+   可见性，见 R4)：恰 1 个 → 直接在其中开窗(保持单 session 结构，裸 `byobu` 唯一可见 →
+   自动选中直达 agent)；0 或 ≥2 → 兜底 session `llm_workspace` 并在 TTY 下直接
    attach。由此 G2 的"一步进入"无需任何新机制：`new-window` 从 client 内发起天然自动聚焦。
 2. **不维护任何自建 session 账本**。spawn 时在窗口上打两个 tmux 用户选项
    (`@llmw_wiki` 归属 / `@llmw_started` 起算时间戳);agent 是窗口主命令，进程退出 →
@@ -89,10 +91,14 @@ $TMUX 存在(主路径,假设 A2)
            3.2 降至 2.7；env 只允许非敏感变量，api_key 恒走 overlay 文件交付）
            → 按 R3 打标 → tmux 自动聚焦,用户落在 agent 窗口
 $TMUX 不存在
-  → ensure 兜底 session llm_workspace(has-session || new-session -d;并发竞争线性降级 ≤3 步)
-  → 同上"复用/新开+打标",作用域为 llm_workspace
+  → 数可见 session(byobu.visible_sessions,口径见 R4)
+  → 恰 1 个:作用域 = 该 session(直接开窗,不建第二个——第二个 session 会把裸 byobu
+    的直达路径变成菜单;打印透明文案"唯一可见 session,不建 llm_workspace")
+  → 0 / ≥2 个:ensure 兜底 session llm_workspace(0 → new-session -d 必须建;
+    ≥2 → 有歧义不猜;并发竞争线性降级 ≤3 步)
+  → 同上"复用/新开+打标",作用域为上述选定的 session
   → stdout 是 TTY → attach-session(落点 = 该窗口,select/new 已置其为 current)
-  → stdout 非 TTY(脚本)→ 只建不 attach,打印"byobu attach -t llm_workspace",exit 0
+  → stdout 非 TTY(脚本)→ 只建不 attach,打印"byobu attach -t <实际 session 名>",exit 0
 ```
 
 `--dry-run`:打印第 1-8 步全部决策(backend / resolved model(redacted)/ overlay 文件
@@ -137,7 +143,7 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
   恒为 `<wiki>-<suffix>` 的窗口一眼可辨是 llmw agent,与用户自开的同名 shell 窗口
   (如数据库操作窗口也叫 `db`)区分开;④ 前缀拼接是构造保证,归属可读性不依赖用户自觉。
 - **R2 复用语义**:作用域 session(tmux 内 = 当前 session;否则 =
-  llm_workspace)内,**窗口名精确匹配 AND `@llmw_wiki` == 当前 wiki AND
+  R4 选路选定的 session)内,**窗口名精确匹配 AND `@llmw_wiki` == 当前 wiki AND
   `@llmw_backend` == 当前 backend AND pane 非 dead** 四条件命中 → select-window;
   命中但 **backend 不符** → 拒绝 enter(exit 1 + hint"先 `stop` 或 `--window-suffix`
   开第二窗口",见下);命中但 pane 已 dead(remain-on-exit=on 残留) →
@@ -164,9 +170,15 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
   node);老窗口无此标 → status 回退 `pane_current_command`。
   不用 `pane_pid`+`ps` 推算启动时间:跨平台分叉、进程语义绕(pane 首进程 ≠ agent 本体),
   而 tmux 3.4 无 `window_start_time` 变量(本机 man 实测)。
-- **R4 兜底 session**:名 `llm_workspace`(沿用既有常量);ensure 竞争只做线性降级(≤3 步,
-  沿用老 `spawn_window` 精神,不上锁);TTY → attach,非 TTY → 打印 attach hint。
-  理由:罕见路径(假设 A2),但让 enter 在任何环境成立,消灭"不在 tmux 就报错"的懒设计。
+- **R4 tmux 外选路**(2026-09-05 修订:原"无条件兜底 llm_workspace"会让 enter 在已有
+  session 的主机上造出第二个 session,破坏"唯一可见 → 裸 byobu 直达",假设 A2 被实际
+  用法绕过):数**可见 session**(口径 = byobu-select-session 菜单过滤:隐藏 `_` 开头与
+  含 `-` 的名字,分组残影 `llm_workspace-N` 在此列)——恰 1 个 → 直接在其中开窗;
+  0 → 建 `llm_workspace`(总得建一个);≥2 → 兜底 `llm_workspace`(有歧义不猜)。
+  兜底 session 名因此**禁含 `-`、禁 `_` 开头**(违规名被 byobu 菜单隐藏,直达永久失效)。
+  ensure 竞争只做线性降级(≤3 步,沿用老 `spawn_window` 精神,不上锁);TTY → attach,
+  非 TTY → 打印 attach hint。理由:enter 在任何环境成立,消灭"不在 tmux 就报错"的懒设计;
+  选路与 byobu 落点同源,enter 开窗的 session 恒 = 用户敲裸 byobu 会进的 session。
 - **R5 status**:枚举走**逐 session**——`list-sessions -F '#{session_name}'`
   + 每 session `list-windows -t <name> -F '#{session_name} #{window_id} #{window_name}
   #{window_activity} #{pane_dead} #{pane_dead_time} #{@llmw_wiki} #{@llmw_started}
@@ -314,8 +326,10 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
    `X-main` / `X-ingest` 两行同 WIKI,归属正确
 4. `status`:列齐全;UPTIME 增长、IDLE 在 `now`/`Nm` 间变化;agent 退出后窗口消失、
    status 不再显示
-5. byobu 外 TTY `enter --name=X` → 兜底 `llm_workspace` + attach 落点正确;
-   非 TTY → 打印 attach hint,exit 0
+5. byobu 外 TTY `enter --name=X` → 无可见 session:兜底 `llm_workspace` + attach 落点正确;
+   恰一个可见 session(含"1 真实 + 分组残影 `Y-N`"场景,残影须不计入) → 窗口直接开入
+   该 session、不新建第二个 session、有透明文案,且事后敲裸 `byobu` 直达该 session;
+   ≥2 可见 → 兜底 `llm_workspace`;非 TTY → 打印 attach hint(含实际 session 名),exit 0
 6. `stop`:确认后 kill-window,status 行消失;N 候选报错消歧;`--yes` 跳确认
 7. `status --tmux` 单行 `●N`;`--json` 结构合法
 

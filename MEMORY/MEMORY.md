@@ -54,7 +54,7 @@
 - **enter_cli 选 agent CLI** — `workspace_local.toml#enter_cli` 白名单 3 值：`claude`（默认，resolve+overlay 写 `<wiki>/.claude/settings.local.json`）、`qodercli`（裸启动，不写 overlay、不解析 model）、`opencode`（resolve+overlay 写 `<wiki>/opencode.json`，见下条）。读取点 `enter.py`
 - **opencode overlay 配置** — `overlay_opencode.py` 渲染 `<wiki>/opencode.json`（own `provider.llmw` 整对象 + 顶层 `model`；apiKey 明文 + chmod 600），与 claude 同族走 resolve+overlay。npm 包固定 `@ai-sdk/anthropic`（OpenAI 协议网关改 `_NPM_PACKAGE` 一行）。**baseURL 必须 +`/v1`**（`_ai_sdk_base_url`：Claude Code 约定 `{base}/v1/messages` vs AI SDK 约定 `{baseURL}/messages`，直填 404）。limit 块 context/output **成对必填**（只写 context 启动拒载）；context 直读 `model.context_window`，output `_MAX_OUTPUT=131_072` 习惯级（待 max_output 字段引入）。cmd `opencode <wiki_dir>` 自读 AGENTS.md；无 habit template（CLAUDE_CODE_* 为 claude 专属）。老文件靠 `_is_up_to_date` 整对象比对下次 enter 自动升级。workspace .gitignore 另加 `**/opencode.json`
 - **enter 不传 --system-prompt** — claude/qodercli/opencode 都靠 `--add-dir` + cwd=wiki 让 agent 自读 `<wiki>/CLAUDE.md`/AGENTS.md；不显式注入避免双计入 + 多 backend 行为对齐
-- **enter 走 tmux 窗口（W' 模型）** — agent 开成当前 tmux session 的窗口，fire-and-forget；窗口名/四条件复用/打标/status 判定链/R8 孤儿清理/实施坑 → [enter-tmux-window-model](enter-tmux-window-model.md)
+- **enter 走 tmux 窗口（W' 模型）** — agent 开成当前 tmux session 的窗口，fire-and-forget；窗口名/四条件复用/tmux 外选路（恰一可见 session 直接开入，兜底名禁 `-`/`_` 头）/打标/status 判定链/R8 孤儿清理/实施坑 → [enter-tmux-window-model](enter-tmux-window-model.md)
 
 **model registry**
 
