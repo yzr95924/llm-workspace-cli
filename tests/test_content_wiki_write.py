@@ -203,11 +203,17 @@ class LogTests(unittest.TestCase):
         log_path = self.root / "wiki" / "log.md"
         text = log_path.read_text(encoding="utf-8")
         frontmatter, _, rest = text.partition("\n---\n")
-        log_path.write_text(frontmatter + "\n---\n" + body + "\n", encoding="utf-8")
+        # canonical 形态：frontmatter 后空行 + 说明块 + 条目
+        preamble = "\n> 说明块\n>\n"
+        log_path.write_text(
+            frontmatter + "\n---\n" + preamble + body + "\n", encoding="utf-8"
+        )
         r = _run(self.root, "log", "--op", "ingest", "--title", "newest")
         self.assertEqual(r.returncode, 0, r.stderr)
         text = self._log_text()
         self.assertTrue(text.startswith("---\ntitle:"), "frontmatter 被截断破坏")
+        # 旧 bug：截断丢 frontmatter 后 preamble（空行 + 说明块）——header-owned 内容必须保留
+        self.assertIn("\n---\n" + preamble, text, "截断后说明块/空行被吞")
         body_lines = text.split("\n---\n", 1)[1].splitlines()
         count = sum(1 for ln in body_lines if LOG_LINE_RE.match(ln))
         self.assertLessEqual(count, 50)
@@ -247,17 +253,24 @@ class IndexTests(unittest.TestCase):
         r = _run(self.root, "index", "add", "wiki/sources/zeta.md")
         self.assertEqual(r.returncode, 0, r.stderr)
         text = self._index_text()
-        sources_section = text.split("## Sources\n", 1)[1].split("\n## ")[0]
+        # 用段界切片（## Sources 与 ## Syntheses 之间）——旧实现靠 split 吞掉
+        # 段界、把搬到文件尾的条目也算作"段内"，掩盖了 Bug 2
+        start = text.index("## Sources\n")
+        stop = text.index("## Syntheses\n")
         lines = [
-            ln for ln in sources_section.splitlines() if ln.strip().startswith("- [")
+            ln.strip()
+            for ln in text[start:stop].splitlines()
+            if ln.strip().startswith("- [")
         ]
         self.assertEqual(
-            [ln for ln in lines if "Alpha Source" in ln or "Zeta Source" in ln],
+            lines,
             [
                 "- [Alpha Source](sources/alpha.md) — alpha 摘要",
                 "- [Zeta Source](sources/zeta.md) — zeta 摘要",
             ],
         )
+        # 段序未被打乱：文件尾仍是 Syntheses 占位符（旧 bug：Sources body 被搬文件尾）
+        self.assertTrue(text.rstrip().endswith("_（暂无内容）_"))
 
     def test_add_into_empty_section_removes_placeholder(self):
         (self.root / "wiki" / "comparisons" / "a-vs-b.md").write_text(
@@ -268,10 +281,37 @@ class IndexTests(unittest.TestCase):
         r = _run(self.root, "index", "add", "wiki/comparisons/a-vs-b.md")
         self.assertEqual(r.returncode, 0, r.stderr)
         text = self._index_text()
-        self.assertNotIn(
-            "_（暂无内容）_", text.split("## Comparisons\n", 1)[1].split("\n## ")[0]
+        start = text.index("## Comparisons\n")
+        stop = text.index("## Entities\n")
+        section = text[start:stop]
+        self.assertIn("- [A vs B](comparisons/a-vs-b.md)", section)
+        self.assertNotIn("_（暂无内容）_", section)
+        self.assertTrue(text.rstrip().endswith("_（暂无内容）_"))
+
+    def test_add_to_middle_section_keeps_adjacent_sections(self):
+        (self.root / "wiki" / "concepts" / "gamma.md").write_text(
+            '---\ntitle: "Gamma Concept"\ntype: concept\ntags: []\n'
+            "created: 2026-07-01 10:00\nupdated: 2026-07-01 10:00\n---\n\n# Gamma Concept\n",
+            encoding="utf-8",
         )
-        self.assertIn("- [A vs B](comparisons/a-vs-b.md)", text)
+        r = _run(self.root, "index", "add", "wiki/concepts/gamma.md")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        text = self._index_text()
+        # 条目必须落在 Concepts 段内（旧 bug：目标段 body 被剪到文件尾）
+        self.assertLess(
+            text.index("## Concepts\n"),
+            text.index("- [Gamma Concept](concepts/gamma.md)"),
+        )
+        self.assertLess(
+            text.index("- [Gamma Concept](concepts/gamma.md)"),
+            text.index("## Entities\n"),
+        )
+        start = text.index("## Concepts\n")
+        stop = text.index("## Entities\n")
+        section = text[start:stop]
+        self.assertIn("- [Beta Concept](concepts/beta.md)", section)
+        self.assertIn("- [Gamma Concept](concepts/gamma.md)", section)
+        self.assertTrue(text.rstrip().endswith("_（暂无内容）_"))
 
     def test_add_duplicate_noop(self):
         r = _run(self.root, "index", "add", "wiki/sources/alpha.md")
@@ -334,6 +374,32 @@ class TouchTests(unittest.TestCase):
     def test_touch_missing_page(self):
         r = _run(self.root, "touch", "wiki/concepts/nope.md")
         self.assertEqual(r.returncode, 2)
+
+    def test_touch_twice_preserves_newlines(self):
+        for _ in range(2):
+            r = _run(self.root, "touch", "wiki/concepts/beta.md")
+            self.assertEqual(r.returncode, 0, r.stderr)
+        text = (self.root / "wiki" / "concepts" / "beta.md").read_text(encoding="utf-8")
+        # 旧 bug：每轮 touch 吞一个换行，两轮后闭合 `---` 与 H1 粘成 `---#` 整页不渲染
+        self.assertIn("---\n\n# Beta Concept", text)
+        self.assertNotIn("---#", text)
+        self.assertIn("正文保持不动。", text)
+        self.assertIn("created: 2026-06-28 14:30", text)
+
+    def test_touch_refuses_glued_frontmatter(self):
+        (self.root / "wiki" / "concepts" / "beta.md").write_text(
+            '---\ntitle: "Beta"\ntype: concept\ntags: []\n'
+            "created: 2026-06-28 14:30\nupdated: 2026-06-28 14:30\n---# Beta\n",
+            encoding="utf-8",
+        )
+        r = _run(self.root, "touch", "wiki/concepts/beta.md")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("粘连", r.stderr)
+        # 病变文件未被改写
+        self.assertIn(
+            "---# Beta",
+            (self.root / "wiki" / "concepts" / "beta.md").read_text(encoding="utf-8"),
+        )
 
 
 class NewTests(unittest.TestCase):

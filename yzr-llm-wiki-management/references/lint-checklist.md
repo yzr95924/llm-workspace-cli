@@ -77,6 +77,12 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 - findings：`missing-frontmatter`（error）/ `invalid-type`（error）/ `invalid-tags`（error，
   `tags` 非 list 类型）/ `missing-sources`（error，source/synthesis 页缺 `sources` 字段或为空——
   与 §二.3 的 `sources-missing`（值不可访问）不同名不同因，均保留）
+- **frontmatter 定界符结构**（`check_frontmatter_structure`）：
+  - `frontmatter-delimiter-glued`（**error**）：闭合 `---` 与正文粘连（如 `---# 标题`）——
+    前置块定界符失效、整页不渲染，而宽松 frontmatter 正则仍"剥得掉"（历史 bug：
+    `write touch` 每轮吞一个换行累积成粘连）。修法：手动 Edit 在闭合 `---` 后补换行
+  - `frontmatter-no-blank-line`（warn）：闭合 `---` 与正文之间缺空行（页面仍可渲染，
+    但已偏离 page-templates.md 金标准）——同上 bug 的第一轮中间态
 
 ### 3. frontmatter 来源（source / synthesis 页）
 
@@ -103,6 +109,10 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 - `index-missing`（error）：`wiki/index.md` 不存在
 - `orphan-page`（error）：非 index / log 页未被 index 引用。正路：
   `llmw wiki write index add`；修法：补条目或按 archive 流程从 index 移除
+- `index-entry-wrong-section`（**error**）：条目落在与页 `type` 不符的 `##` 类别段
+  （覆盖检查只问"有没有条目"、不问"在不在对的段"，故单独查）——历史 bug：
+  `write index add` 把目标段 body 整段剪到文件尾。修法：`write index remove` +
+  `add` 重挂（修复后的 add 会按 type 归回正确段）
 
 ### 6. log.md 格式
 

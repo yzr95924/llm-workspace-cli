@@ -64,6 +64,16 @@ VALID_TYPES = {
 # reviewed 字段仅在值为严格 `true` 时合法；缺省 / 其它值（含 "true" 字符串、yes、1、false）判非法
 WIKI_SUBDIRS = ("entities", "concepts", "sources", "comparisons", "syntheses")
 MEMORY_SUBDIR = "MEMORY"
+
+# index.md 类别段名 ↔ 内容页 type——SSOT（wiki_write 的 cmd_index 从本处 import，
+# 两份映射同仓单源，避免漂移）。
+TYPE_TO_SECTION = {
+    "entity": "Entities",
+    "concept": "Concepts",
+    "source": "Sources",
+    "comparison": "Comparisons",
+    "synthesis": "Syntheses",
+}
 # raw/external 与 source 命名共用同一 kebab-case 正则——SSOT 在 llmw.content.external_anchor（CLI
 # anchor 写路径持有该正则与子目录/文件名常量；lint 仅消费）。
 from llmw.content.external_anchor import (  # noqa: E402
@@ -536,6 +546,46 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
     return findings
 
 
+def check_frontmatter_structure(wiki_root: Path) -> List[str]:
+    """frontmatter 定界符结构（write touch 历史 bug 会把闭合 `---` 与正文粘连）
+
+    宽松 frontmatter 正则（`^---\\n.*?\\n---`）对粘连形态（`---# 标题`）照样"剥得掉"，
+    但前置块定界符失效会让整页不渲染——即"lint 全绿、页面打不开"。两类判定：
+    - 闭合 `---` 必须独占一行（`---` 后只允许空白 + 换行 / EOF）：粘连 → **error**
+      （frontmatter-delimiter-glued）
+    - 闭合定界符与正文之间应有空行（canonical 形态，page-templates.md）：缺空行 →
+      **warn**（frontmatter-no-blank-line，页面仍可渲染但已偏离金标准）
+    """
+    findings = []  # type: List[str]
+    pages = find_md_files(wiki_root)
+    candidates = []  # type: List[Path]
+    for sub in WIKI_SUBDIRS + ("index", "log", "memory"):
+        candidates.extend(pages[sub])
+    for p in candidates:
+        if not p.is_file():
+            continue
+        text = p.read_text(encoding="utf-8", errors="replace")
+        if not text.startswith("---"):
+            continue
+        rel = p.relative_to(wiki_root).as_posix()
+        # 严格闭合：`---` 独占一行（后随空白/换行/EOF），行尾 `---` 前不允许正文字符
+        strict = re.match(r"^---\n.*?\n---[ \t]*(?=\n|$)", text, re.DOTALL)
+        if strict is None:
+            findings.append(
+                f"frontmatter-delimiter-glued: {rel} frontmatter 闭合 `---` 与正文粘连"
+                "（如 `---# 标题`）——前置块定界符失效，整页不渲染；手动 Edit 补换行修复"
+            )
+            continue
+        rest = text[strict.end() :]
+        # rest[0] 是闭合行自身的换行；再往后若还有内容且不以空行（\n）开头 → 缺空行
+        if len(rest) > 1 and not rest[1:].startswith("\n"):
+            findings.append(
+                f"frontmatter-no-blank-line: {rel} 闭合 `---` 与正文之间缺空行"
+                "（frontmatter 后应空一行再接正文，见 page-templates.md）"
+            )
+    return findings
+
+
 def resolve_link(base: Path, link: str) -> Optional[Path]:
     """把 Markdown 链接解析为绝对路径；外部 URL / 锚点返回 None"""
     link = link.strip()
@@ -609,6 +659,53 @@ def check_index_coverage(wiki_root: Path) -> List[str]:
             rel = p.relative_to(wiki_root).as_posix()
             if rel not in indexed:
                 findings.append(f"orphan-page: {rel} 未在 wiki/index.md 中列出")
+    return findings
+
+
+def check_index_section_placement(wiki_root: Path) -> List[str]:
+    """index.md 条目必须落在与页 type 对应的 `##` 类别段内
+
+    宽松覆盖检查（链接存在即可）看不到位置错乱：cmd_index add 历史 bug 会把目标段
+    body 整段剪到文件尾（跟在最后一个 `##` 段后）——条目仍在 index.md 里，orphan
+    不报。本检查逐条目标出条目实际所在段，与页 frontmatter type 推出的期望段比对。
+    目标页缺失（broken-link 报）/ type 缺失或非法（missing-frontmatter / invalid-type
+    报）→ 跳过，不重复报。
+    """
+    findings = []  # type: List[str]
+    index_path = wiki_root / "wiki" / "index.md"
+    if not index_path.is_file():
+        return []  # index-missing 由 check_index_coverage 报
+    index_text = index_path.read_text(encoding="utf-8", errors="replace")
+    current_section = None  # type: Optional[str]  # None = 尚未进入任何 `##` 段
+    for ln in index_text.splitlines():
+        hm = re.match(r"^##\s+(.+?)\s*$", ln.strip())
+        if hm:
+            current_section = hm.group(1)
+            continue
+        em = _INDEX_ENTRY_RE.match(ln.strip())
+        if not em:
+            continue
+        link = em.group(1).strip()
+        target = resolve_link(index_path, link)
+        if target is None:
+            continue
+        try:
+            target.relative_to(wiki_root)
+        except ValueError:
+            continue
+        if not target.is_file():
+            continue
+        fm = parse_frontmatter_simple(target.read_text(encoding="utf-8", errors="replace"))
+        t = str(fm.get("type", "")).strip()
+        expected = TYPE_TO_SECTION.get(t)
+        if expected is None:
+            continue
+        if current_section != expected:
+            rel = target.relative_to(wiki_root).as_posix()
+            findings.append(
+                f"index-entry-wrong-section: {rel} 条目落在 `## {current_section or '(无段)'}`"
+                f"，应按 type={t} 归入 `## {expected}`（index 纪律：按类别分组 + 字母序）"
+            )
     return findings
 
 
@@ -1221,6 +1318,7 @@ def severity_of(finding: str) -> str:
             "raw-modified",
             "missing-frontmatter",
             "invalid-type",
+            "frontmatter-delimiter-glued",
             "sources-missing",
             "sources-malformed",
             "sources-out-of-root",
@@ -1231,6 +1329,7 @@ def severity_of(finding: str) -> str:
             "broken-link",
             "orphan-page",
             "index-missing",
+            "index-entry-wrong-section",
             "log-missing",
             "external-anchor-missing",
             "external-anchor-corrupt",
@@ -1243,7 +1342,14 @@ def severity_of(finding: str) -> str:
     if finding.startswith(("external-anchor-orphan", "external-target-drift")):
         return "warn"
     if finding.startswith(
-        ("stale-summary", "log-format", "filename-not-kebab", "duplicate-title", "log-truncation-recommended")
+        (
+            "stale-summary",
+            "log-format",
+            "filename-not-kebab",
+            "duplicate-title",
+            "log-truncation-recommended",
+            "frontmatter-no-blank-line",
+        )
     ):
         return "warn"
     if finding.startswith(
@@ -1830,8 +1936,10 @@ def run(
     if raw_skip:
         info_notes.append(raw_skip)
     all_findings.extend(check_frontmatter(wiki_root))
+    all_findings.extend(check_frontmatter_structure(wiki_root))
     all_findings.extend(check_link_integrity(wiki_root))
     all_findings.extend(check_index_coverage(wiki_root))
+    all_findings.extend(check_index_section_placement(wiki_root))
     all_findings.extend(check_log_format(wiki_root))
     all_findings.extend(check_log_truncation(wiki_root))
     all_findings.extend(check_stale_summaries(wiki_root))

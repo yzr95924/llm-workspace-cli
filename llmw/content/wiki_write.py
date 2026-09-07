@@ -39,6 +39,7 @@ from llmw.content.log_format import LOG_LINE_RE  # noqa: E402
 from llmw.content.wiki_lint import (  # noqa: E402
     CURRENT_WIKI_FORMAT,
     LOG_RETENTION_LIMIT,
+    TYPE_TO_SECTION,
     parse_format_version,
 )
 
@@ -51,13 +52,6 @@ _TYPE_TO_DIR = {
     "synthesis": "syntheses",
 }
 _CONTENT_TYPES = set(_TYPE_TO_DIR.keys())
-_TYPE_TO_SECTION = {
-    "entity": "Entities",
-    "concept": "Concepts",
-    "source": "Sources",
-    "comparison": "Comparisons",
-    "synthesis": "Syntheses",
-}
 
 _FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?", re.DOTALL)
 _INDEX_ENTRY_RE = re.compile(r"^\s*-\s*\[([^\]]+)\]\(([^)]+)\)(.*)$")
@@ -116,10 +110,14 @@ def cmd_log(wiki_root, args):
         text += line + "\n"
     body_start = _log_body_start(text)
     body = text[body_start:]
-    entry_idx = [i for i, ln in enumerate(body.splitlines()) if LOG_LINE_RE.match(ln)]
+    body_lines = body.splitlines()
+    entry_idx = [i for i, ln in enumerate(body_lines) if LOG_LINE_RE.match(ln)]
     if len(entry_idx) > LOG_RETENTION_LIMIT:
-        cut = entry_idx[-LOG_RETENTION_LIMIT]
-        body = "\n".join(body.splitlines()[cut:]) + "\n"
+        # 保留 frontmatter 后至首条 log 之前的 preamble（空行 + 说明块，header-owned）
+        # ——旧实现 `body.splitlines()[cut:]` 把 cut 前整段丢掉，首轮截断即毁说明块
+        keep_from = entry_idx[-LOG_RETENTION_LIMIT]
+        preamble = body_lines[: entry_idx[0]]
+        body = "\n".join(preamble + body_lines[keep_from:]) + "\n"
         text = text[:body_start] + body
         print(
             f"log 条目数超过 {LOG_RETENTION_LIMIT}，已截断保最近 {LOG_RETENTION_LIMIT} 条"
@@ -191,7 +189,7 @@ def cmd_index(wiki_root, args):
     title = str(fm.get("title", "")).strip()
     if not title:
         return "index add 需要目标页 frontmatter 含非空 title", 2
-    section = _TYPE_TO_SECTION.get(str(fm.get("type", "")).strip())
+    section = TYPE_TO_SECTION.get(str(fm.get("type", "")).strip())
     if section is None:
         return "index add 需要目标页 type 为 5 类内容页之一（当前: {}）".format(fm.get("type")), 2
     desc = str(fm.get("description", "")).strip()
@@ -204,6 +202,7 @@ def cmd_index(wiki_root, args):
 
     in_section = False
     seen_target = False
+    target_idx = None
     section_lines = []
     out = []
     for line in lines:
@@ -215,6 +214,7 @@ def cmd_index(wiki_root, args):
             in_section = m.group(1).strip() == section
             if in_section:
                 seen_target = True
+                target_idx = len(out) - 1
             continue
         if in_section:
             section_lines.append(line)
@@ -237,7 +237,10 @@ def cmd_index(wiki_root, args):
         if section_lines and not section_lines[-1].endswith("\n"):
             section_lines[-1] += "\n"
         section_lines.append(entry + "\n")
-    index_path.write_text("".join(out + section_lines), encoding="utf-8")
+    index_path.write_text(
+        "".join(out[: target_idx + 1] + section_lines + out[target_idx + 1 :]),
+        encoding="utf-8",
+    )
     print(f"已在 wiki/index.md `## {section}` 段添加 {link} 条目", file=sys.stderr)
     return None, 0
 
@@ -250,27 +253,43 @@ def cmd_touch(wiki_root, args):
     if not page_path.is_file():
         return f"touch 目标页不存在：{args.page}", 2
     text = page_path.read_text(encoding="utf-8", errors="replace")
-    m = _FRONTMATTER_RE.match(text)
-    if not m:
+    lines = text.splitlines(keepends=True)
+    if not lines or lines[0].rstrip("\n").strip() != "---":
+        return f"touch 目标页无 frontmatter：{args.page}", 2
+    # 找独占一行的闭合 `---`（frontmatter 定界符必须自成一行，否则前置块失效）。
+    # 命中 `---` 开头但行内还有其它字符（如历史 bug 的 `---# 标题` 粘连）→ 拒写，
+    # 提示先修文件——lint 会报 frontmatter-delimiter-glued。
+    close_idx = None
+    for i in range(1, len(lines)):
+        if not lines[i].startswith("---"):
+            continue
+        if lines[i][3:].rstrip("\n").strip() != "":
+            return (
+                f"touch 目标页 frontmatter 闭合 `---` 与正文粘连"
+                f"（`{lines[i].rstrip(chr(10))}`）：{args.page}——"
+                f"先手动 Edit 补换行再 touch（lint 会报 frontmatter-delimiter-glued）",
+                2,
+            )
+        close_idx = i
+        break
+    if close_idx is None:
         return f"touch 目标页无 frontmatter：{args.page}", 2
     now = _now()
-    block_lines = m.group(1).splitlines()
     changed = []
     new_lines = []
-    for line in block_lines:
+    for line in lines[1:close_idx]:
         if re.match(r"^updated:\s*", line):
-            new_lines.append(f"updated: {now}")
+            new_lines.append(f"updated: {now}\n")
             changed.append(f"updated→{now}")
         elif re.match(r"^(reviewed|reviewed_at):\s*", line):
-            changed.append("删 {}".format(line.split(":", 1)[0]))
+            changed.append("删 {}".format(line.split(":", 1)[0].strip()))
             continue
         else:
             new_lines.append(line)
-    if f"updated: {now}" not in new_lines:
-        new_lines.append(f"updated: {now}")
+    if not any(re.match(r"^updated:\s*", ln) for ln in new_lines):
+        new_lines.append(f"updated: {now}\n")
         changed.append(f"补 updated={now}")
-    new_block = "---\n" + "\n".join(new_lines) + "\n---"
-    page_path.write_text(new_block + text[m.end() :], encoding="utf-8")
+    page_path.write_text("".join(lines[:1] + new_lines + lines[close_idx:]), encoding="utf-8")
     print("touch {}：{}".format(args.page, "；".join(changed) if changed else "无改动"), file=sys.stderr)
     return None, 0
 

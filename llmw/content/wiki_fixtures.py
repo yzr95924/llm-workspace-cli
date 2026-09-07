@@ -854,6 +854,14 @@ SKELETON_REGISTRY = [
         "signals": {"frontmatter_keys": ["title", "type", "tags", "created", "updated"]},
     },
     {
+        "id": "log-md-skeleton",
+        "severity": "warn",
+        "wiki_path": "wiki/log.md",
+        "rule_ref": "wiki/log.md fixture header (wiki 实例内直接可读)",
+        "desc": "wiki/log.md 含说明块（> 引用）——write log 滚动截断历史 bug 曾把 frontmatter 后 preamble 整段吞掉",
+        "signals": {"blockquote": True},
+    },
+    {
         "id": "memory-index-skeleton",
         "severity": "warn",
         "wiki_path": "MEMORY/MEMORY.md",
