@@ -181,14 +181,17 @@
 ## 四、Query 纪律
 
 1. **先看 index，再读相关页**——不要直接全量 grep
-2. **答案带引用**——每条事实带 `(来源: <page path>)`
+2. **答案带引用**——每条事实带 `(来源: <page path>)`；引非 wiki 页的上游事实
+   （raw 资料 / 外部仓 / 网络来源）走稳定锚点：不锚行号 / 页码，引符号名 / 章节标题，
+   git 仓引 commit SHA；瞬态数值带"截至 YYYY-MM-DD"
+   （细则见维护本 wiki 的 skill 的 ingest-workflow「正文引用的稳定性」节）
 3. **矛盾显式标注**——不要"和稀泥"
 4. **好答案问归档**——对比 / 综合 / 发现新联系 → 询问用户是否写回 wiki
 
 ## 五、Lint 纪律
 
 1. **`llmw wiki lint` 检查 deterministic 部分**——raw/ 不可变性、frontmatter、index 覆盖、断链、log 格式
-2. **agent 检查半定性部分**——矛盾、缺失交叉引用、过期主张
+2. **agent 检查半定性部分**——矛盾、缺失交叉引用、过期主张、漂移点引用
 3. **修 lint 不要回退 schema**——若 lint 报告与本文件冲突，**先讨论用户**再决定
 4. **版本漂移响应**——lint / write / check-fixtures 报版本漂移
    （`wiki-format-version-stale` / `agents-md-template-sync` drift / legacy warn）时，

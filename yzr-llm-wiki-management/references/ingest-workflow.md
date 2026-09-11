@@ -170,7 +170,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## 七、正文引用的稳定性（漂移点规避）
 
-写 source / entity / concept 页正文时，引用上游事实前先做**感知测试**：
+写 wiki 页正文、或对话作答中引用上游事实时，先做**感知测试**：
 
 > 这条引用依据的上游事实变化时，wiki 有任何机制（lint / anchor / stale 检查）
 > 能发现吗？不能 = 漂移点——它会静默腐烂成"既成事实"，必须改写。
