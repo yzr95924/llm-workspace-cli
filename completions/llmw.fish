@@ -184,7 +184,7 @@ complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcomman
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from config; and __fish_seen_subcommand_from get set unset" -f -a "model"        -d '绑定的 model_id'
 
 # wiki enter（--dry-run bool / --window-suffix free-form → B 类；无 --name 后置 offer）
-complete -c llmw -n "__llmw_subact wiki enter" -l dry-run -d '仅打印 overlay 不启动 claude'
+complete -c llmw -n "__llmw_subact wiki enter" -l dry-run -d '仅打印决策不启动 agent'
 complete -c llmw -n "__llmw_subact wiki enter" -a "--window-suffix=" -f -d '并行窗口后缀（拼接为 <wiki>-<suffix>）'
 
 # wiki stop（--window-suffix free-form → B 类；--yes bool；无 --name 后置 offer）

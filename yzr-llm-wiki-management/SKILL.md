@@ -16,7 +16,7 @@ description: |
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  wiki_format_version: 0.43.1
+  wiki_format_version: 0.43.2
 ---
 
 # LLM Wiki Management
@@ -69,13 +69,13 @@ metadata:
 > **操作前置（orient ritual，所有操作通用）**：每次 ingest / query / lint 启动前，**不依赖 symlink**
 > ——按以下顺序读完四件套再动手：
 >
-> 1. **确认 `<wiki-root>/AGENTS.md` 已在上下文**（经薄壳 CLAUDE.md 或原生加载——会话常驻；`CLAUDE.md` 是 `@AGENTS.md` 薄壳，不持纪律）——拿到本 wiki 的主题名与「当前配置」表（`Wiki Format 版本` 行）。MEMORY 全文经顶部 `@MEMORY/MEMORY.md` `@import` 已在上下文；tag 白名单在 `wiki/tags.md`（见 §核心原则 §6）
+> 1. **确认 `<wiki-root>/AGENTS.md` 已在上下文**（经薄壳 CLAUDE.md 或原生加载——会话常驻；`CLAUDE.md` 是 `@AGENTS.md` 薄壳，不持纪律）——拿到本 wiki 的主题名与「当前配置」表（`Wiki Format 版本` 行）。MEMORY 全文已在上下文（随 AGENTS.md 顶部引用自动加载）；tag 白名单在 `wiki/tags.md`（见 §核心原则 §6）
 > 2. `Read <$LLM_WIKI_ROOT>/wiki/index.md`——知道有哪些页、分布在哪些类别，避免重复创建 / 漏交叉引用
 > 3. `Read <$LLM_WIKI_ROOT>/wiki/log.md`（最近 ~30 行即可）——看清最近活动，避免重复
 >    ingest / 漏归档旧工作
 > 4. **`Read <$LLM_WIKI_ROOT>/scripts/SCRIPTS.md`**（按需）——确认本 wiki 是否有
 >    项目级扩展脚本的**完整分节契约**（使用场景 / 调用约定 / 作用 / 前置依赖）；不强制（wiki 可无
->    scripts/），但**触发非标工作流前**必须先查（AGENTS.md 顶部的 `@scripts/SCRIPTS.md` `@import` 已加载全文）
+>    scripts/），但**触发非标工作流前**必须先查（`scripts/SCRIPTS.md` 已随 AGENTS.md 自动加载在上下文）
 >
 > 四件套任一未读完不写任何 wiki 内容。100+ 页的 wiki 还应在 `wiki/` 全域
 > `Grep "<topic>"` 补一次——单看 index.md 可能漏掉 entity/concept 页之间的引用关系。

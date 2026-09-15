@@ -355,7 +355,7 @@ _llmw_wiki() {
                     ;;
                 enter)
                     _arguments \
-                        '--dry-run[仅打印 overlay 不启动 claude]' \
+                        '--dry-run[仅打印决策不启动 agent]' \
                         '--window-suffix=[并行窗口后缀（拼接为 <wiki>-<suffix>）]:suffix:' \
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;

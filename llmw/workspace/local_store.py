@@ -39,7 +39,7 @@ class WorkspaceLocal:
     schema_version: int
     created_at: str
     enter_cli: Optional[str] = (
-        None  # DEFAULT_BACKEND (claude) | "qodercli" | "opencode"
+        None  # DEFAULT_BACKEND (opencode) | "claude" | "qodercli"
     )
 
 

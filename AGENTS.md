@@ -77,9 +77,11 @@ llmw.cli (argparse + 分派)
   │           │                          │
   │           └─(add)──▶ chmod 600       └─▶ redact.api_key (list/show 输出)
   │
-  ├──▶ llmw.wiki.enter         ──▶ llmw.models.resolve (wiki → ModelEntry)
+  ├──▶ llmw.wiki.enter         ──▶ llmw.models.resolve (wiki → ModelEntry)  [仅 claude]
   │           │
-  │           └─▶ llmw.models.overlay (apply / inspect) → 写 wiki 启动配置（Local 层）
+  │           ├─▶ llmw.models.overlay (apply / inspect) → 写 wiki 启动配置（Local 层）  [仅 claude]
+  │           │
+  │           ├─▶ llmw.models.overlay_opencode (apply / inspect) → 写 opencode.json instructions 键  [仅 opencode]
   │           │
   │           └─▶ llmw.wiki.byobu.spawn_window（当前 tmux session 开窗/复用 + 打标；
   │               dead 残留自动收尸后新开；不在 tmux 内 → 恰一个可见 session 直接开入其中，否则兜底 llm_workspace + attach）──▶ tmux 窗口表
@@ -115,12 +117,17 @@ llmw.cli (argparse + 分派)
     不复制 SKILL 运行时纪律（ingest / lint），只承担"出生形态"。SKILL 升级时 CLI 自动获益
     （字节一致性 gate 走 `scripts/test/smoke_fixtures.py` 调 `llmw [wiki] check-fixtures` 探测器，
     CI fixtures-smoke job 执行）。
-3. **overlay 交付走 Local 层文件**——model 真相源是 `workspace_models.toml`，不依赖环境变量
-   （[[model-ops-no-env-vars]]）；wiki enter 渲染 resolved model 进 Local 层 `settings.local.json`
-   的 `env` 块（Local 层优先级 > User 层），lazy on enter。`ANTHROPIC_MODEL` 用 `model.name`
-   （网关模型名，如 `MiniMax-M3[1m]`），不是 `model_id` slug；启动时透传 `os.environ`、依赖
-   Local 层 `env` 块优先级稳赢（[[agent-settings-env-precedence]]）。
-   - 详细见 [[overlay-habit-template]]（习惯级 env key 常量）
+3. **overlay 交付走 Local 层文件（仅 claude 路径）**——model 真相源是 `workspace_models.toml`，
+   不依赖环境变量（[[model-ops-no-env-vars]]）；`wiki enter` 在 claude 路径渲染 resolved
+   model 进 Local 层 `settings.local.json` 的 `env` 块（Local 层优先级 > User 层），lazy on
+   enter。opencode 路径（默认）与 qodercli 跳过 model resolve，模型由 agent
+   内部自由切换；opencode 另写 instructions overlay（见下）。`ANTHROPIC_MODEL` 用 `model.name`（网关模型名，如 `MiniMax-M3[1m]`），
+   不是 `model_id` slug；启动时透传 `os.environ`、依赖 Local 层 `env` 块优先级稳赢
+   （[[agent-settings-env-precedence]]）。
+    - 详细见 [[overlay-habit-template]]（习惯级 env key 常量）
+     - opencode 路径额外写 `<wiki>/opencode.json`（整文件 CLI 拥有，wiki 模板 @import
+       ∩ 实际存在文件 → `instructions` 列表；gitignore 保留，每次 enter 幂等渲染，
+       遗留 provider.llmw 明文 apiKey 由此自动剥除）
 
 其余不变量（包内资源统一于 `llmw/content/templates/` / api_key 永不明文出 stdout / CLI 内联 wiki 骨架的
 字节一致性保证）已在本文档承载：资源位置见「架构」数据流与模块边界；
@@ -147,8 +154,8 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 | `llmw.wiki.enter` | 启动 session：resolve model → `overlay.apply` 写启动配置 → `byobu.spawn_window` 收口（当前 session 开窗/复用 + 打标；dead 残留自动收尸后新开；不在 tmux 内 → 兜底 session + attach） | 不写元数据 |
 | `llmw.wiki.byobu` | byobu/tmux 薄封装 + 开窗编排原语：spawn/复用/打标/枚举 + session 可见性查询（`visible_sessions`，tmux 外 enter 的选路口径）（`spawn_window` 四条件复用——窗口名+`@llmw_wiki`+`@llmw_backend`+非 dead，backend 不符拒绝 enter，dead 命中收尸后新开——+ R3 打标；`list_windows` 实时枚举返回 `WindowRow` NamedTuple；窗口名 R1 拼接校验）；enter/status/stop 共用 | 不写元数据、不读配置 |
 | `llmw.wiki.status` | `llmw status`：枚举带标窗口 → WIKI/WINDOW/SESSION/BACKEND/STATE/UPTIME/IDLE 表（dead 行 `✗ exited`；STATE=dead→假活 `⚠ shell`→capture-pane 模式匹配 working/waiting→unknown；actionable-first 排序）+ `--json`（`state` 为 ASCII 稳定值 `dead/shell/working/waiting/unknown` + `backend`）+ `--tmux`（`●N [✗M]`）；R8：workspace 缺失（默认路径）时降级孤儿清理模式——warning + 列表 + TTY 确认后逐窗 kill（`--json`/`--tmux`/非 TTY 只打 hint 不动手） | 主路径不写盘、不 kill 窗口（看归看，关归 stop；R8 孤儿清理是唯一经确认的破例） |
-| `llmw.models.overlay` | `render`/`inspect`/`apply`：resolved ModelEntry → 启动配置 `env` 块；幂等合并 + chmod 600 | — |
-| `llmw.models.overlay_opencode` | 与 overlay 平行：resolved ModelEntry → `<wiki>/opencode.json`（`provider.llmw` + 顶层 `model`；baseURL +`/v1` 规范化） | — |
+| `llmw.models.overlay` | `render`/`inspect`/`apply`：resolved ModelEntry → 启动配置 `env` 块；幂等合并 + chmod 600。仅 claude 路径使用（opencode 走 `overlay_opencode` 写 `instructions` 键） | — |
+| `llmw.models.overlay_opencode` | `render`/`inspect`/`apply`：wiki 模板顶层 @import ∩ 实际存在文件 → `<wiki>/opencode.json` 整文件覆盖写；CLI 整文件拥有（非 CLI 管理 key 被覆盖前 stderr 逐名警告；遗留 `provider.llmw` 明文 apiKey 由此自动剥除），gitignore 保留不入 git（每次 enter 幂等渲染）。仅 opencode 路径使用（opencode 不解析 AGENTS.md 的 @import，用 config instructions 替代） | — |
 | `llmw.models.store` | workspace_models.toml 读写 + schema v2 + 字段校验 + chmod 600 | 不做 CRUD 业务、不做 resolve |
 | `llmw.models.redact` | `redact_api_key` 单一脱敏出口 | — |
 | `llmw.models.resolve` | `resolve_for_wiki` 单一查找入口：wiki.model 优先，否则 registry 默认 | 不做 CRUD |
@@ -204,9 +211,10 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 
 完整 schema 与字段规则见 `MEMORY/` 内对应模块的边界条目。
 
-### `wiki enter` 的 model 解析
+### `wiki enter` 的 model 解析（仅 claude 路径）
 
-`llmw/wiki/enter.py` 通过 `llmw/models/resolve.py:resolve_for_wiki` 拿最终 `ModelEntry`，优先级：
+`llmw/wiki/enter.py` 在 claude 路径通过 `llmw/models/resolve.py:resolve_for_wiki` 拿最终
+`ModelEntry`，优先级：
 
 1. `<wiki>/wiki_metadata.toml` 的 `model` 字段 → 必须在 registry 中存在，否则
    `ModelNotInRegistry` 阻断 enter

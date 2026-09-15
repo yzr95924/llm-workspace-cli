@@ -1,16 +1,18 @@
-"""wiki enter — 启动 AI agent session (默认 claude；workspace_local.toml#enter_cli 切换 qodercli/opencode)
+"""wiki enter — 启动 AI agent session (默认 opencode；workspace_local.toml#enter_cli 切换 claude/qodercli)
 
-claude 路径（默认，overlay.apply 写 <wiki>/.claude/settings.local.json）：resolved model 通过写 <wiki>/.claude/settings.local.json
-的 env 块（Local 层，优先级 > User）交付，lazy on enter。不再注入 subprocess env、不再传
+opencode 路径（默认）：不解析 model（opencode 支持 session 内自由切换模型），
+但通过 `overlay_opencode.apply` 写 `<wiki>/opencode.json` 的 `instructions` 键——
+opencode 不解析 AGENTS.md 的 `@path` 引用（官方推荐用 config `instructions` 字段替代），
+本路径把 wiki 骨架模板的顶层 `@import` 同步到 instructions 数组，使 opencode 与
+claude 路径上下文对齐。cmd 用位置参数传 wiki 目录（opencode 自读 AGENTS.md）。
+
+claude 路径（enter_cli = "claude"）：resolved model 通过 <wiki>/.claude/settings.local.json
+的 env 块（Local 层，优先级 > User）交付，lazy on enter。不注入 subprocess env、不传
 --setting-sources——user 配置（~/.claude/settings.json）正常加载，overlay 在 Local 层稳赢。
 只传 `--add-dir` 让 claude 自读 `<wiki>/CLAUDE.md`，不显式注入 --system-prompt（避免双计入）。
 
-opencode 路径（enter_cli = "opencode"）：与 claude 同族——resolve_for_wiki 生效，但 overlay
-落盘是 <wiki>/opencode.json（llmw/models/overlay_opencode.py；项目级配置优先级 > 全局），
-不含 habit template。cmd 用位置参数传 wiki 目录（opencode 自读 AGENTS.md）。
-
-qodercli 路径（enter_cli = "qodercli"）：跳过 overlay.apply / 不解析 model /
-不写 .claude/——只把 wiki 目录传给 qodercli（qodercli 自读 AGENTS.md）。
+qodercli 路径（enter_cli = "qodercli"）：裸启动——跳过 resolve / overlay，只把 wiki
+目录传给 qodercli（qodercli 自读 AGENTS.md）。
 
 窗口模型（设计 doc/session-visibility-design.md §2.2，byobu 为 enter 硬依赖）：
 enter 把 agent 开成"当前 tmux session 的一个窗口"（W' 模型）——tmux 内发起 → 自动聚焦；
@@ -47,7 +49,6 @@ from llmw.wiki import byobu
 from llmw.wiki.manager import resolve_wiki_path
 from llmw.wiki.store import load as wiki_load
 from llmw.workspace import local_store
-from llmw.workspace.gitignore import ensure_workspace_gitignore
 
 
 def _build_cmd(wiki_path: Path) -> List[str]:
@@ -76,8 +77,7 @@ def _build_cmd_opencode(wiki_path: Path) -> List[str]:
     """构造 opencode 子进程 argv：位置参数 project dir（等价 claude --add-dir 的角色）。
 
     opencode 启动后从 cwd 向上自读 AGENTS.md（wiki 骨架含 AGENTS.md，opencode 优先读它、
-    CLAUDE.md 兜底）。模型由 <wiki>/opencode.json 顶层 model key 指定（overlay_opencode
-    交付），不传 -m——-m 只是"选择已配置 provider/model"，provider 定义仍靠 overlay 文件。
+    CLAUDE.md 兜底）。模型由 opencode session 内自由切换，CLI 不注入。
     """
     return ["opencode", str(wiki_path)]
 
@@ -158,6 +158,7 @@ def _report_spawn_result(
     window_name: str,
     created: bool,
     collected: bool,
+    overlay_refreshed: bool = False,
 ) -> None:
     """spawn 结果的用户可见确认（新建/复用 + 唯一可见复用与收尸透明文案）。"""
     if created:
@@ -177,9 +178,13 @@ def _report_spawn_result(
                 file=sys.stdout,
             )
     else:
+        note = (
+            "；overlay 已刷新落盘，但运行中的 agent 不会重读"
+            if overlay_refreshed
+            else ""
+        )
         print(
-            f"[llmw] ✓ 复用已有窗口 '{window_name}'（agent 已在运行；"
-            "overlay 已刷新落盘，但运行中的 agent 不会重读）",
+            f"[llmw] ✓ 复用已有窗口 '{window_name}'（agent 已在运行{note}）",
             file=sys.stdout,
         )
 
@@ -191,6 +196,7 @@ def _spawn(
     cmd: List[str],
     backend: str,
     dry_run: bool,
+    overlay_refreshed: bool = False,
 ) -> int:
     """最终 spawn 收口（三 backend 共用）：当前 tmux session 开窗/复用（W' 模型）；
     不在 tmux 内 → _select_target_session 按可见 session 数选路：恰 1 个直接在
@@ -198,6 +204,7 @@ def _spawn(
     TTY hint。
 
     backend 随 R3 打标（@llmw_backend），供 status 的 BACKEND 列与 STATE 模式路由。
+    overlay_refreshed：复用窗口时是否已写过 overlay（claude/opencode=True；qodercli=False）。
     """
     if dry_run:
         _print_dry_run_spawn(wiki_path, name, window_name, cmd, backend)
@@ -216,7 +223,7 @@ def _spawn(
             ensure=target.ensure,
         )
     )
-    _report_spawn_result(target, window_name, created, collected)
+    _report_spawn_result(target, window_name, created, collected, overlay_refreshed)
     if target.outside:
         # tmux 外路径（兜底或唯一可见 session 复用）：TTY → attach（落点 = 该窗口，
         # select/new 已置其为 current）；非 TTY（脚本）→ 只建不 attach，打印 hint
@@ -231,7 +238,7 @@ def _spawn(
 
 
 class _EnterPlan(NamedTuple):
-    """claude/opencode 路径的决策簇：enter → _enter_dry_run → 打印块的共用参数
+    """claude 路径的决策簇：enter → _enter_dry_run → 打印块的共用参数
     （T12 同款收参数对象，消 9-11 参数两层透传）。"""
 
     workspace_root: Path
@@ -295,23 +302,6 @@ def _check_enter_env(agent_bin: str, dry_run: bool) -> None:
         )
 
 
-def _ensure_opencode_gitignore(workspace_root: Path) -> None:
-    """opencode 路径前置：overlay 落盘含明文 apiKey，写盘前确保 workspace .gitignore
-    的 ``**/opencode.json`` 排除行就位（老 workspace 的 managed block 可能还是旧版少行）。
-
-    与 wiki remove --purge 升级 .llmw-trash/ 行同一先例（llmw/wiki/manager.py）。
-    写入失败不阻断 enter（用户可手动 gitignore）——但打 warning，不静默。
-    """
-    try:
-        ensure_workspace_gitignore(workspace_root)
-    except OSError as e:
-        print(
-            f"[llmw] warning: workspace .gitignore 更新失败: {e}——"
-            f"建议手动确保含 `**/opencode.json` 排除行",
-            file=sys.stderr,
-        )
-
-
 def _build_enter_plan(
     workspace_root: Path,
     name: str,
@@ -321,16 +311,12 @@ def _build_enter_plan(
     backend: str,
     model: ModelEntry,
 ) -> _EnterPlan:
-    """claude（默认）/ opencode 同族差异装配：只换 overlay 模块 / cmd / 展示文案 /
-    上下文文件（opencode 优先读 AGENTS.md）。"""
-    if backend == "opencode":
-        ov, cmd = overlay_opencode, _build_cmd_opencode(wiki_path)
-        backend_label = "opencode (workspace_local.toml#enter_cli)"
-        context_file = wiki_path / "AGENTS.md"
-    else:
-        ov, cmd = overlay, _build_cmd(wiki_path)
-        backend_label = "claude (默认)"
-        context_file = claude_md
+    """claude 路径专属装配：overlay 模块 / cmd / 展示文案 / 上下文文件。"""
+    ov, cmd = overlay, _build_cmd(wiki_path)
+    suffix = (
+        "（默认）" if backend == DEFAULT_BACKEND else "(workspace_local.toml#enter_cli)"
+    )
+    backend_label = f"{backend} {suffix}"
     return _EnterPlan(
         workspace_root=workspace_root,
         name=name,
@@ -339,7 +325,7 @@ def _build_enter_plan(
         backend=backend,
         ov=ov,
         model=model,
-        context_file=context_file,
+        context_file=claude_md,
         backend_label=backend_label,
         cmd=cmd,
     )
@@ -352,7 +338,8 @@ def enter(
     window_suffix: Optional[str] = None,
 ) -> int:
     """wiki enter 主流程（三 backend 编排）：解析 wiki → 骨架软警告 → 选 backend →
-    环境检查 → qodercli 分流 / claude·opencode（resolve → dry-run 或 overlay → _spawn）。
+    环境检查 → 三分支：qodercli（裸启动）/ opencode（instructions overlay）/
+    claude（resolve + model overlay → _spawn）。
     """
     wiki_path = resolve_wiki_path(workspace_root, name)
 
@@ -369,15 +356,33 @@ def enter(
     backend = _resolve_backend(workspace_root)
     _check_enter_env(backend, dry_run)  # backend 值即 agent 二进制名
 
-    # qodercli 路径：跳过 resolve / overlay；只传目录
+    # qodercli 路径：裸启动——跳过 resolve / overlay；只传目录
     if backend == "qodercli":
-        return _enter_qodercli(
-            workspace_root, name, wiki_path, claude_md, dry_run, window_suffix
+        return _enter_bare(
+            workspace_root,
+            name,
+            wiki_path,
+            claude_md,
+            backend,
+            _build_cmd_qodercli(wiki_path),
+            dry_run,
+            window_suffix,
         )
 
-    # claude（默认）/ opencode 路径：resolve → overlay → spawn（两 backend 同族，
-    # 差异只在 plan 装配）。步骤 6a：resolve 拿最终 model（失败阻断 enter，
-    # 在任何写盘之前）
+    # opencode 路径（默认）：不解析 model，但写 instructions overlay
+    # （opencode 不解析 @import，用 config instructions 替代）
+    if backend == "opencode":
+        return _enter_opencode(
+            workspace_root,
+            name,
+            wiki_path,
+            claude_md,
+            dry_run,
+            window_suffix,
+        )
+
+    # claude 路径：resolve → overlay → spawn。resolve 拿最终 model
+    # （失败阻断 enter，在任何写盘之前）
     model = resolve_for_wiki(workspace_root, name)
     plan = _build_enter_plan(
         workspace_root, name, wiki_path, meta_p, claude_md, backend, model
@@ -390,14 +395,8 @@ def enter(
 
 def _execute_plan(plan: _EnterPlan, window_suffix: Optional[str]) -> int:
     """步骤 6b 执行（与 _enter_dry_run 对称）：lazy 写 overlay（claude=Local 层
-    settings.local.json；opencode=项目级 opencode.json）→ _spawn 收口（当前
-    session 开窗/兜底 attach）。
-
-    opencode 路径前置：overlay 落盘含明文 apiKey，先确保 gitignore 排除行
-    （见 _ensure_opencode_gitignore）。
+    settings.local.json）→ _spawn 收口（当前 session 开窗/兜底 attach）。
     """
-    if plan.backend == "opencode":
-        _ensure_opencode_gitignore(plan.workspace_root)
     plan.ov.apply(plan.wiki_path, plan.model)
     return _spawn(
         plan.wiki_path,
@@ -406,11 +405,12 @@ def _execute_plan(plan: _EnterPlan, window_suffix: Optional[str]) -> int:
         plan.cmd,
         plan.backend,
         dry_run=False,
+        overlay_refreshed=True,
     )
 
 
 def _enter_dry_run(plan: _EnterPlan, window_suffix: Optional[str]) -> int:
-    """claude/opencode 路径的 dry-run 分支：打印决策树后由 _spawn 统一收尾。"""
+    """claude 路径的 dry-run 分支：打印决策树后由 _spawn 统一收尾。"""
     meta = None
     if plan.meta_p.is_file():
         try:
@@ -433,30 +433,33 @@ def _enter_dry_run(plan: _EnterPlan, window_suffix: Optional[str]) -> int:
     )
 
 
-def _enter_qodercli(
+def _enter_bare(
     workspace_root: Path,
     name: str,
     wiki_path: Path,
     claude_md: Path,
+    backend: str,
+    cmd: List[str],
     dry_run: bool,
     window_suffix: Optional[str],
 ) -> int:
-    """qodercli 路径（T12 拆分）：跳过 resolve / overlay；只传目录。
+    """裸启动（qodercli 专用）：跳过 resolve / overlay；只传目录。
 
     dry-run 打印专属决策；cmd/env/spawn 方式/未执行 由 _spawn 统一打印（dry-run）
     或执行（real）。
     """
-    cmd = _build_cmd_qodercli(wiki_path)
-
     if dry_run:
+        suffix = (
+            "（默认）"
+            if backend == DEFAULT_BACKEND
+            else "(workspace_local.toml#enter_cli)"
+        )
         print(f"[llmw] workspace: {workspace_root}", file=sys.stdout)
         print(f"[llmw] wiki:      {name} ({wiki_path})", file=sys.stdout)
+        print(f"[llmw] backend:   {backend} {suffix}", file=sys.stdout)
         print(
-            "[llmw] backend:   qodercli (workspace_local.toml#enter_cli)",
-            file=sys.stdout,
-        )
-        print(
-            "[llmw] (qodercli 不读 .claude/settings.local.json；跳过 overlay.apply / resolve_for_wiki)",
+            f"[llmw] ({backend} 路径：跳过 overlay.apply / resolve_for_wiki；"
+            "模型由 agent 内部自由切换)",
             file=sys.stdout,
         )
         if claude_md.is_file():
@@ -471,17 +474,91 @@ def _enter_qodercli(
         name,
         _window_name(name, window_suffix),
         cmd,
-        "qodercli",
+        backend,
         dry_run,
     )
 
 
-def _print_dry_run_model_backends(plan: _EnterPlan, meta) -> None:
-    """claude/opencode 路径的 dry-run 打印块（T12 拆分）。
+def _enter_opencode(
+    workspace_root: Path,
+    name: str,
+    wiki_path: Path,
+    claude_md: Path,
+    dry_run: bool,
+    window_suffix: Optional[str],
+) -> int:
+    """opencode 路径（默认）：不解析 model，但写 instructions overlay。
 
-    内容不变：workspace/wiki/backend/resolved model/source/overlay 文件（含
-    will-write 判定）+ backend 专属 env 行（opencode=provider 块 / claude=ANTHROPIC_*
-    + habit template，api_key 过 redact）+ context 文件存在性。
+    opencode 不解析 AGENTS.md 的 @path 引用，用 opencode.json 的 instructions 字段替代。
+    本函数调 overlay_opencode.apply（real）或 inspect（dry-run）交付 instructions 文件列表，
+    然后 spawn opencode。
+    """
+    cmd = _build_cmd_opencode(wiki_path)
+    suffix = (
+        "（默认）"
+        if DEFAULT_BACKEND == "opencode"
+        else "(workspace_local.toml#enter_cli)"
+    )
+
+    if dry_run:
+        overlay_path, would_write = overlay_opencode.inspect(wiki_path)
+        print(f"[llmw] workspace: {workspace_root}", file=sys.stdout)
+        print(f"[llmw] wiki:      {name} ({wiki_path})", file=sys.stdout)
+        print(f"[llmw] backend:   opencode {suffix}", file=sys.stdout)
+        print(
+            "[llmw] (opencode 路径：跳过 resolve_for_wiki；模型由 agent 内部自由切换)",
+            file=sys.stdout,
+        )
+        tag = "(will write)" if would_write else "(up to date, skip)"
+        print(f"[llmw] overlay file: {overlay_path}  {tag}", file=sys.stdout)
+        effective = overlay_opencode.effective_instructions(wiki_path)
+        print(
+            "[llmw]   instructions = [" + ", ".join(effective) + "]",
+            file=sys.stdout,
+        )
+        if len(effective) < len(overlay_opencode.INSTRUCTION_FILES):
+            missing = [
+                f for f in overlay_opencode.INSTRUCTION_FILES if f not in effective
+            ]
+            print(
+                "[llmw]   (P1 过滤：下列条目在 wiki 内不存在，已剔除: "
+                + ", ".join(missing)
+                + ")",
+                file=sys.stdout,
+            )
+        if claude_md.is_file():
+            print(
+                f"[llmw] CLAUDE.md: ✓ found ({claude_md.stat().st_size} bytes)",
+                file=sys.stdout,
+            )
+        else:
+            print("[llmw] CLAUDE.md: ✗ missing", file=sys.stdout)
+        return _spawn(
+            wiki_path,
+            name,
+            _window_name(name, window_suffix),
+            cmd,
+            "opencode",
+            dry_run=True,
+        )
+
+    overlay_opencode.apply(wiki_path)
+    return _spawn(
+        wiki_path,
+        name,
+        _window_name(name, window_suffix),
+        cmd,
+        "opencode",
+        dry_run=False,
+        overlay_refreshed=True,
+    )
+
+
+def _print_dry_run_model_backends(plan: _EnterPlan, meta) -> None:
+    """claude 路径的 dry-run 打印块（T12 拆分）。
+
+    内容：workspace/wiki/backend/resolved model/source/overlay 文件（含 will-write
+    判定）+ ANTHROPIC_* env 行（api_key 过 redact）+ habit template + context 文件存在性。
 
     **展示字段一律取自 ov.render(model) 输出**——render 改字段 dry-run 自动跟随，
     不手抄 overlay 内部逻辑（避免"展示与实现耦合"漂移）。
@@ -499,40 +576,26 @@ def _print_dry_run_model_backends(plan: _EnterPlan, meta) -> None:
     tag = "(will write)" if would_write else "(up to date, skip)"
     print(f"[llmw] overlay file: {overlay_path}  {tag}", file=sys.stdout)
     expected = plan.ov.render(plan.model)
-    if plan.backend == "opencode":
-        pid = overlay_opencode.PROVIDER_ID
-        prov = expected["provider"][pid]
-        print(f"[llmw]   provider.{pid}.npm     = {prov['npm']}", file=sys.stdout)
-        print(
-            f"[llmw]   provider.{pid}.baseURL = {prov['options']['baseURL']}",
-            file=sys.stdout,
-        )
-        print(
-            f"[llmw]   provider.{pid}.apiKey  = {redact_api_key(prov['options']['apiKey'])}",
-            file=sys.stdout,
-        )
-        print(f"[llmw]   model                 = {expected['model']}", file=sys.stdout)
-    else:
-        print(
-            f"[llmw]   ANTHROPIC_MODEL      = {expected['ANTHROPIC_MODEL']}",
-            file=sys.stdout,
-        )
-        print(
-            f"[llmw]   ANTHROPIC_BASE_URL   = {expected['ANTHROPIC_BASE_URL']}",
-            file=sys.stdout,
-        )
-        print(
-            f"[llmw]   ANTHROPIC_AUTH_TOKEN = {redact_api_key(expected['ANTHROPIC_AUTH_TOKEN'])}",
-            file=sys.stdout,
-        )
-        # Habit template（非用户可配的代码内常量, 随 overlay 一同写入）——render 输出
-        # 中 ANTHROPIC_* 之外的 key 即 habit template
-        habit = {k: v for k, v in expected.items() if not k.startswith("ANTHROPIC_")}
-        print("[llmw]   (habit template)", file=sys.stdout)
-        # 用最长 key 长度对齐 value 列（habit template 组内对齐, 不与 model env 共享列）
-        width = max(len(k) for k in habit)
-        for k, v in habit.items():
-            print(f"[llmw]     {k:{width}s} = {v}", file=sys.stdout)
+    print(
+        f"[llmw]   ANTHROPIC_MODEL      = {expected['ANTHROPIC_MODEL']}",
+        file=sys.stdout,
+    )
+    print(
+        f"[llmw]   ANTHROPIC_BASE_URL   = {expected['ANTHROPIC_BASE_URL']}",
+        file=sys.stdout,
+    )
+    print(
+        f"[llmw]   ANTHROPIC_AUTH_TOKEN = {redact_api_key(expected['ANTHROPIC_AUTH_TOKEN'])}",
+        file=sys.stdout,
+    )
+    # Habit template（非用户可配的代码内常量, 随 overlay 一同写入）——render 输出
+    # 中 ANTHROPIC_* 之外的 key 即 habit template
+    habit = {k: v for k, v in expected.items() if not k.startswith("ANTHROPIC_")}
+    print("[llmw]   (habit template)", file=sys.stdout)
+    # 用最长 key 长度对齐 value 列（habit template 组内对齐, 不与 model env 共享列）
+    width = max(len(k) for k in habit)
+    for k, v in habit.items():
+        print(f"[llmw]     {k:{width}s} = {v}", file=sys.stdout)
     if plan.context_file.is_file():
         print(
             f"[llmw] {plan.context_file.name}: ✓ found ({plan.context_file.stat().st_size} bytes)",

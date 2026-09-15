@@ -70,9 +70,9 @@ fire-and-forget(`llmw/wiki/enter.py:143-177`，读码)。三个痛点：
 | 1 | 查 `workspace.toml` 注册表得 wiki 目录 | 未注册 → `WikiNotFound`,exit 1 |
 | 2 | wiki 目录存在性检查 | 缺失 → `WikiDirMissing`,exit 1 |
 | 3 | CLAUDE.md / wiki_metadata.toml 缺失 → stderr 软警告，不阻断 | — |
-| 4 | 选 backend:`workspace_local.toml#enter_cli`(claude 默认 / qodercli / opencode),非法值兜回 claude | — |
+| 4 | 选 backend:`workspace_local.toml#enter_cli`(opencode 默认 / claude / qodercli),非法值兜回 opencode | — |
 | 5 | 环境检查：byobu-tmux 在 PATH;agent 二进制在 PATH | 缺一 → exit 2 + 安装 hint(dry-run 跳过) |
-| 6 | qodercli：跳过 6a/6b。claude/opencode:6a `resolve_for_wiki`(失败 exit 1，**此时未写任何盘**);6b `overlay.apply` 落盘启动配置(opencode 先确保 gitignore 排除行) | resolve 失败 → exit 1 |
+| 6 | qodercli：跳过 6a/6b。opencode：跳过 6a，6b `overlay_opencode.apply` 落盘 `instructions` 键（无 secret、无 gitignore 前置）。claude:6a `resolve_for_wiki`(失败 exit 1，**此时未写任何盘**);6b `overlay.apply` 落盘启动配置 | resolve 失败 → exit 1 |
 | 7 | 定窗口名:`--window-suffix` 拼接为 `<wiki>-<suffix>`,缺省 `<wiki>-main`;按 R1 校验 | 非法 → exit 1 |
 | 8 | spawn 分路(见下),成功后打印确认,exit 0 | byobu 命令失败 → `ByobuCommandFailed`,exit 2 |
 
@@ -81,7 +81,7 @@ fire-and-forget(`llmw/wiki/enter.py:143-177`，读码)。三个痛点：
 ```text
 $TMUX 存在(主路径,假设 A2)
   → find_window(当前 session, 窗口名)
-      有且非 dead 且 backend 匹配 → select-window 复用;打印"overlay 已刷新落盘,运行中 agent 不会重读"
+      有且非 dead 且 backend 匹配 → select-window 复用;claude/opencode 路径打印"overlay 已刷新落盘,运行中 agent 不会重读"(qodercli 路径仅打印"agent 已在运行")
       有且非 dead 但 backend 不符 → 拒绝 enter(exit 1):"窗口 '<名>' 正在运行 <旧backend>;
           切换 backend 请先 stop 或 --window-suffix 开第二窗口"
       有但已 dead → kill-window 收尸(R2),落入"无"分支
@@ -101,8 +101,9 @@ $TMUX 不存在
   → stdout 非 TTY(脚本)→ 只建不 attach,打印"byobu attach -t <实际 session 名>",exit 0
 ```
 
-`--dry-run`:打印第 1-8 步全部决策(backend / resolved model(redacted)/ overlay 文件
-will-write 或 up-to-date / 窗口名 / 分路与将执行命令),零写盘零 spawn。
+`--dry-run`:打印第 1-8 步全部决策(backend / 启动配置 / 窗口名 / 分路与将执行命令),
+claude 路径额外打印 resolved model(redacted)与 overlay 文件 will-write 或 up-to-date;
+opencode 路径额外打印 instructions overlay 文件状态;qodercli 无 overlay 行。零写盘零 spawn。
 
 ### 2.3 窗口生命周期状态机
 

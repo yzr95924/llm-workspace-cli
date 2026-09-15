@@ -28,7 +28,7 @@ KNOWN_BACKENDS = frozenset({"claude", "qodercli", "opencode"})
 
 # 默认 backend（workspace_local.toml#enter_cli 未设时的缺省）：唯一真源——
 # local_store 落盘判定 / config dump 文案 / enter 回退 全部引此，不散落 "claude" 字面量。
-DEFAULT_BACKEND = "claude"
+DEFAULT_BACKEND = "opencode"
 
 _OPENCODE_SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 

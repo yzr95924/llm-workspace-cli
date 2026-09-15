@@ -1,130 +1,71 @@
-"""resolved ModelEntry → <wiki>/opencode.json（opencode 项目级 overlay 交付）
+"""wiki 骨架 @import 引用 → <wiki>/opencode.json 整文件（opencode 指令文件交付）
 
-与 overlay.py（claude 路径）平行：opencode 不读 .claude/settings.local.json，其项目级
-配置是 <wiki>/opencode.json（opencode 官方文档：项目级 > OPENCODE_CONFIG > 全局
-~/.config/opencode，项目级稳赢）。enter(real) 调 apply()，enter(dry-run) 调 inspect()。
+opencode 不解析 AGENTS.md 中的 ``@path`` 引用（官方文档明确：
+"While opencode doesn't automatically parse file references in AGENTS.md"），
+推荐用 ``opencode.json`` 的 ``instructions`` 字段（config.mdx "Instructions" 小节 +
+rules.mdx "Custom Instructions"）显式声明额外指令文件列表——与 AGENTS.md **叠加**加载。
 
-owned key（CLI 拥有，每次 enter 幂等对齐）：
+**整文件 CLI 拥有（byte-owned 配置）**——与 ``AGENTS.md`` 的 byte-owned 模板同模型。
+CLI 拥有 ``opencode.json`` 的全部内容；用户自定义 opencode 配置（permission / mcp /
+custom provider 等）应放在全局 ``~/.config/opencode/opencode.json``，opencode 官方
+config 合并机制保证项目级 > 全局，非冲突 key 合并。
 
-- ``provider.llmw``  整对象（npm / options.baseURL / options.apiKey / models）
-- ``model``          顶层默认模型 ``llmw/<model.name>``
+**gitignore 保留 ``**/opencode.json`` 行**——与 ``**/.claude/settings*.json`` 同模型：
+机器本地生成配置，每次 ``llmw wiki enter`` 幂等渲染重建，不入 git。fresh clone 后
+只要走过一次 ``llmw wiki enter`` 即生成（裸跑 opencode 绕开 llmw 属反工作流，缝隙可忽略）。
 
-其余顶层 key（agent / mcp / permission / instructions ...）与其他 provider 一律保留。
-apiKey 明文落盘 + chmod 600，由 workspace .gitignore managed block 的
-``**/opencode.json`` 行排除出 git（与 .claude/settings.local.json 同一安全模型）。
+**遗留 secret 自动剥除**：旧版 overlay_opencode 曾写含明文 apiKey 的 ``provider.llmw``
+块与顶层 ``model: "llmw/..."`` 键（CLI owned）。本次语义改为整文件覆盖，下次 enter
+这些遗留键即消失（CLI 清理自有内容，非 clobber 用户配置——其他 provider id 不存在于
+CLI 旧写入，故"用户自定义 provider"与"CLI 遗留"可由键名/前缀识别）。磁盘 secret 由此
+渐进消失。
 
-**无 habit template**：那是 Claude-Code-specific 的 CLAUDE_CODE_* env key（见
-overlay.py:_HABIT_TEMPLATE），opencode 无对应机制，不写入。
+**P1 防御过滤**：``effective_instructions(wiki_dir)`` 把 ``INSTRUCTION_FILES`` 与
+wiki 内实际存在的文件取交集——缺文件（破坏的 wiki）自动剔除，文件恢复后下次 enter
+自动补回。``INSTRUCTION_FILES`` 仍是 SSOT，过滤是防御性兜底（opencode 对缺失
+instruction 文件的容忍行为未验证）。
 
-**npm 包 = @ai-sdk/anthropic**：registry 的 base_url 与 claude 路径 ANTHROPIC_BASE_URL
-同源——网关说 Anthropic 协议（/v1/messages）。若网关改走 OpenAI 协议，把 _NPM_PACKAGE
-一行常量换成 @ai-sdk/openai-compatible。
+**额外 key 警告（不静默）**：现有文件含 ``{$schema, instructions}`` 之外的 key 时，
+apply 会 stderr 逐名点名"将被覆盖"——巡检 #7 卖点是可见性，自己不该静默吞用户内容。
+覆盖仍然执行（CLI 整文件拥有），只是不静默。
 
-**limit = {context: registry.context_window, output: 128K}**（context 由 registry 字段
-驱动,output 仍习惯级 `_MAX_OUTPUT`）：自定义 provider 不会被 models.dev 收录，opencode
-无从得知模型限额,必须显式声明才能管理上下文余量。**context 与 output 必须成对**——
-opencode schema 校验要求 limit 块两键齐全,缺 output 直接拒载整个配置（实测：
-Missing key provider.llmw.models.<name>.limit.output）。context_window
-为 registry 必填字段（`ModelEntry.context_window: int`,无 fallback,缺字段 loader 抛
-InvalidModelField）——opencode 路径按模型输出限额,claude 路径不读(context 由 `[1m]` 后缀
-或 1M 约定传递）。output 保留习惯级常量,值对齐 opencode 内嵌 models.dev 的 MiniMax-M3
-(output 131072)；将来按模型区分时同样升级为 registry 字段。
+**JSON 损坏绝不 clobber**：现有文件非法 JSON → ``OverlayFileUnparseable``，调用方
+阻断 enter，由用户手动修复。
 
-**models key 剥 `[...]` 后缀**（`_gateway_model_id`）：`[1m]` 是 Claude Code 侧的 1M
-context 命名约定，opencode/AI SDK 直连网关时不能照发——四网关实测：
-qwen / glm 400 拒带后缀名；kimi 在真实 max_tokens（32000）下 401 拒
-（`other:k3[1m]`，报文自承须 `k3`；max_tokens=1 的小探针反而 200，易误诊）；
-minimax 两种都收。剥后缀后四网关全 200。models 条目**不再写 "name" 展示字段**——
-与剥后缀后的 key 同值即冗余，opencode 缺省用 key 做显示名；opencode 场景下
-`[1m]` 彻底不可见（用户要求统一去掉；claude 路径不受影响，overlay.py
-仍写原 name，k3[1m] 在 Claude Code 实测可用）。context 知识已由 limit.context
-显式提供，不依赖名字后缀。
-
-**baseURL 需要 +/v1 规范化**（`_ai_sdk_base_url`，对 MiniMax 网关实测）：
-registry 存的是 Claude Code 约定——请求 URL = ``{base_url}/v1/messages``（Claude Code
-自己拼 /v1）；AI SDK @ai-sdk/anthropic 的约定是请求 URL = ``{baseURL}/messages``。
-两者相差一个 /v1 段，直填 registry 原值会 404（已实测复现）。render 时对不以 /v1
-结尾的 base_url 追加 /v1；已带 /v1 的原样保留。网关协议、认证（x-api-key）、
-MiniMax-M3[1m] 推理均已对真实 gateway 端到端验证通过。
-
-**只写严格 JSON**：opencode 自身支持 JSONC，但 llmw 用 json 模块读写——用户手写过带
-注释的 opencode.json 会在 _load_existing 抛 OverlayFileUnparseable，绝不 clobber。
+**与 wiki 模板同步**：``INSTRUCTION_FILES`` 与 ``agents-md-template.md`` 的顶层
+``@path`` 行必须一一匹配——由 ``wiki_fixtures.py`` 的
+``opencode-instructions-sync`` 规则保证。
 """
 
 import json
+import sys
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from llmw.errors import OverlayFileUnparseable
-from llmw.fsutil import atomic_write, chmod_600, load_json_optional
-from llmw.models.store import ModelEntry
+from llmw.fsutil import atomic_write, load_json_optional
 
-# provider id / npm 包 / $schema：代码内常量（非用户可配），增删改一律改这里。
-# PROVIDER_ID 公开——enter 的 dry-run 展示引用它；npm / schema 保持私有（模块内使用）。
-PROVIDER_ID = "llmw"
-_NPM_PACKAGE = (
-    "@ai-sdk/anthropic"  # 网关 = Anthropic 协议（与 ANTHROPIC_BASE_URL 同源）
+# 必须同步加载的指令文件列表——与 agents-md-template.md 的顶层 @import 一一对应。
+# 架构含义：opencode 无 @import 展开，此常量（经 effective_instructions 过滤后）
+# 是 opencode 路径的等价物。
+# wiki_fixtures.py:opencode-instructions-sync 保证本常量与模板 @import 同步。
+INSTRUCTION_FILES: Tuple[str, ...] = (
+    "MEMORY/MEMORY.md",
+    "scripts/SCRIPTS.md",
 )
+
 _SCHEMA_URL = "https://opencode.ai/config.json"
-# 习惯级常量（非用户可配）：自定义 provider 不在 models.dev，须显式声明限额；
-# output 须有（opencode schema 强制 context/output 成对，缺 output 拒载配置）；
-# 值对齐 opencode 内嵌 models.dev 的 MiniMax-M3（output 131072）。
-# context_window 为 registry 必填字段，不再走常量。
-_MAX_OUTPUT = 131_072
+
+# CLI 整文件拥有的顶层 key 集合；apply 时若现有文件含此集合之外的 key，会逐名警告。
+_OWNED_KEYS = frozenset({"$schema", "instructions"})
 
 
-def _gateway_model_id(name: str) -> str:
-    """model.name → 线上发送的 model id：剥掉 `[...]` 后缀（k3[1m] → k3）。
+def effective_instructions(wiki_dir: Path) -> List[str]:
+    """INSTRUCTION_FILES 与 wiki 内实际存在文件的交集（P1 防御过滤）。
 
-    `[1m]` 是 Claude Code 侧的 1M context 命名约定；opencode/AI SDK 直连网关
-    时各网关对带后缀名容忍度不一（四网关实测，详见模块 docstring），
-    剥后缀后全放行。opencode 的 context 知识由 limit.context 显式提供。
+    缺文件（破坏的 wiki）自动剔除；文件恢复后下次 enter 自动补回。
     """
-    return name.split("[", 1)[0]
-
-
-def _ai_sdk_base_url(base_url: str) -> str:
-    """registry base_url（Claude Code 约定）→ AI SDK baseURL。
-
-    Claude Code 请求 {base_url}/v1/messages；AI SDK @ai-sdk/anthropic 请求
-    {baseURL}/messages。registry 存前者（与 claude 路径 ANTHROPIC_BASE_URL 同源），
-    渲染给 AI SDK 时必须补 /v1 段，否则 404（MiniMax 网关实测复现）。
-    已是 /v1 结尾则原样保留（幂等，不双重追加）。
-    """
-    b = base_url.rstrip("/")
-    return b if b.endswith("/v1") else b + "/v1"
-
-
-def render(model: ModelEntry) -> dict:
-    """ModelEntry → owned 片段：provider.llmw 整对象 + 顶层 model key。
-
-    models map 的 key（= 线上发送的 model id）用 `_gateway_model_id` 剥掉 `[...]`
-    后缀的名字（如 k3），不是 model_id slug；不写 "name" 展示字段（与 key 同值即
-    冗余，opencode 缺省用 key 显示）——opencode 场景下 `[1m]` 后缀彻底不可见。
-    baseURL 走 _ai_sdk_base_url 规范化（Claude Code 约定 → AI SDK 约定）。
-    """
-    model_id = _gateway_model_id(model.name)
-    return {
-        "provider": {
-            PROVIDER_ID: {
-                "npm": _NPM_PACKAGE,
-                "name": "llmw registry",
-                "options": {
-                    "baseURL": _ai_sdk_base_url(model.base_url),
-                    "apiKey": model.api_key,
-                },
-                "models": {
-                    model_id: {
-                        "limit": {
-                            "context": model.context_window,
-                            "output": _MAX_OUTPUT,
-                        },
-                    }
-                },
-            }
-        },
-        "model": f"{PROVIDER_ID}/{model_id}",
-    }
+    return [f for f in INSTRUCTION_FILES if (wiki_dir / f).is_file()]
 
 
 def _load_existing(path: Path) -> Optional[dict]:
@@ -138,59 +79,68 @@ def _load_existing(path: Path) -> Optional[dict]:
     except ValueError as e:
         raise OverlayFileUnparseable(
             f"{path} 不是合法 JSON: {e}",
-            hint="手动修复或删除该文件后重试；CLI 不会覆盖损坏文件（注意 llmw 只读写严格 JSON，不支持 JSONC 注释）",
+            hint="手动修复或删除该文件后重试；CLI 不会覆盖损坏文件",
         )
 
 
-def _is_up_to_date(data: Optional[dict], expected: dict) -> bool:
-    """owned 部分（provider.llmw 整对象 + 顶层 model）是否已全部 == expected。"""
+def render(wiki_dir: Path) -> dict:
+    """渲染整文件：``{"$schema": ..., "instructions": [...]}``。
+
+    instructions 经 effective_instructions 过滤（P1）。无 ModelEntry 参数——
+    与模型无关，纯骨架常量。
+    """
+    return {
+        "$schema": _SCHEMA_URL,
+        "instructions": effective_instructions(wiki_dir),
+    }
+
+
+def _extra_keys(data: Optional[dict]) -> List[str]:
+    """现有文件中 CLI 不拥有的顶层 key 列表（被 apply 覆盖前会被 warning）。"""
     if not data:
-        return False
-    provider = data.get("provider")
-    if not isinstance(provider, dict):
-        return False
-    return (
-        provider.get(PROVIDER_ID) == expected["provider"][PROVIDER_ID]
-        and data.get("model") == expected["model"]
-    )
+        return []
+    return sorted(k for k in data if k not in _OWNED_KEYS)
 
 
-def inspect(wiki_dir: Path, model: ModelEntry) -> Tuple[Path, bool]:
+def inspect(wiki_dir: Path) -> Tuple[Path, bool]:
     """dry-run 用：返回 (path, would_write)。不写盘。
 
-    would_write=True 当且仅当文件不存在或 owned 部分 != expected。
+    would_write=True 当且仅当文件不存在或与 render 期望不一致（含遗留 key 待剥除）。
     损坏文件（JSON 非法）→ OverlayFileUnparseable（与 apply 一致，绝不 clobber）。
     """
     path = wiki_dir / "opencode.json"
-    expected = render(model)
     data = _load_existing(path)
-    return path, not _is_up_to_date(data, expected)
+    if data is None:
+        return path, True
+    return path, data != render(wiki_dir)
 
 
-def apply(wiki_dir: Path, model: ModelEntry) -> Path:
-    """real enter 用：幂等合并写 + chmod 600。返回写入 path。
+def apply(wiki_dir: Path) -> Path:
+    """real enter 用：幂等整文件覆盖写。返回写入 path。
 
-    - 只覆盖 owned 部分（provider.llmw 整对象 + 顶层 model），保留其他 provider、
-      env 外所有其他顶层 key（如 agent / mcp / permission）
-    - owned 部分已一致 → 不写、不动 mtime（幂等短路）
+    - 现有文件 == render 期望 → 不写、不动 mtime（幂等短路）
+    - 现有文件含 ``{$schema, instructions}`` 之外的 key → stderr 逐名警告将被覆盖
+      （CLI 整文件拥有；遗留 ``provider.llmw`` 明文 apiKey / 悬空 ``model`` 键
+      由此自动剥除，磁盘 secret 渐进消失）
+    - 新建文件即 ``{"$schema": ..., "instructions": [...]}``
     - JSON 非法 → OverlayFileUnparseable，绝不 clobber
+    - 无 secret，不 chmod 600
+    - 整文件不入 git（gitignore 保留；机器本地生成，每次 enter 重建）
     """
     path = wiki_dir / "opencode.json"
-    expected = render(model)
+    data = _load_existing(path)
+    expected = render(wiki_dir)
 
-    data = _load_existing(path) or {}
-    if _is_up_to_date(data, expected):
+    if data is not None and data == expected:
         return path  # 幂等短路
 
-    data.setdefault("$schema", _SCHEMA_URL)
-    provider = data.get("provider")
-    if not isinstance(provider, dict):
-        provider = {}
-    provider[PROVIDER_ID] = expected["provider"][PROVIDER_ID]
-    data["provider"] = provider
-    data["model"] = expected["model"]
+    extras = _extra_keys(data)
+    if extras:
+        print(
+            f"[llmw] warning: {path} 含非 CLI 管理 key，将被覆盖: {', '.join(extras)}"
+            "（opencode 自定义配置应放全局 ~/.config/opencode/opencode.json）",
+            file=sys.stderr,
+        )
 
-    atomic_write(path, json.dumps(data, ensure_ascii=False, indent=2))
-    # 安全：overlay 含明文 apiKey，强制 600（NFS best-effort）
-    chmod_600(path)
+    atomic_write(path, json.dumps(expected, ensure_ascii=False, indent=2))
     return path

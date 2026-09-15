@@ -32,8 +32,8 @@ llmw model add --model-id=minimax-m3-1m \
 llmw wiki --name=llm-systems add --topic="LLM Systems" \
   --display-name="LLM 系统研究" --description="跟踪 LLM 系统论文与博客" \
   --tag=research --tag=llm --model=minimax-m3-1m
-llmw wiki --name=llm-systems enter          # 启动 agent session（默认 claude；当前 tmux session 开窗）
-llmw wiki --name=llm-systems enter --dry-run  # 先看决策（backend / model / overlay / 窗口名 / 命令）
+llmw wiki --name=llm-systems enter          # 启动 agent session（默认 opencode；当前 tmux session 开窗）
+llmw wiki --name=llm-systems enter --dry-run  # 先看决策（backend / 启动配置 / 窗口名 / 命令）
 llmw status                                 # 一屏看所有运行中的 session
 llmw wiki --name=llm-systems stop           # 关窗口
 llmw wiki --name=llm-systems remove --purge --yes   # 移除并删除目录（默认备份到 .llmw-trash/）
@@ -81,12 +81,12 @@ llmw wiki --name=llm-systems remove --purge --yes   # 移除并删除目录（�
 
 | `enter_cli` | 命令 | model 解析 | overlay 交付 |
 | --- | --- | --- | --- |
-| `claude`（默认） | `claude --add-dir <wiki>` | ✓ | `<wiki>/.claude/settings.local.json`（Local 层 env 块） |
-| `opencode` | `opencode <wiki>` | ✓ | `<wiki>/opencode.json`（项目级，明文 apiKey 经 gitignore 排除） |
+| `opencode`（默认） | `opencode <wiki>` | ✗ | `<wiki>/opencode.json`（整文件 CLI 拥有，gitignored，每次 enter 幂等渲染） |
+| `claude` | `claude --add-dir <wiki>` | ✓ | `<wiki>/.claude/settings.local.json`（Local 层 env 块） |
 | `qodercli` | `qodercli --add-dir <wiki>` | ✗ | ✗ |
 
 ```bash
-llmw config set enter_cli opencode   # 切换；llmw config unset enter_cli 回退默认
+llmw config set enter_cli claude   # 切换；llmw config unset enter_cli 回退默认
 ```
 
 ### 窗口模式（enter / status / stop）

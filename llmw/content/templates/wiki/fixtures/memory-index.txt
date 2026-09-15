@@ -1,8 +1,6 @@
 # MEMORY
 
-> LLM agent 的持久化记忆索引（无 frontmatter；`<wiki-root>/AGENTS.md` 顶部
-> `@MEMORY/MEMORY.md` 自动加载本文件全文；不展开 `@import` 的 agent 按 AGENTS.md
-> 顶部 Read 指令兜底）。
+> LLM agent 的持久化记忆索引（无 frontmatter；随 `<wiki-root>/AGENTS.md` 自动加载本文件全文，会话常驻）。
 >
 > **条目形式按事实颗粒度选**：
 > - **完整条目**——需要解释"为什么这么做"或"将来怎么用"（上下文 / 解决步骤 / 未来

@@ -6,12 +6,11 @@
 > **本文件（`AGENTS.md`）是本 wiki 纪律的单一真源（SSOT）**——工具无关。由 llmw CLI 在初始化时
 > 按其包内官方模板渲染生成（模板随 CLI 分发，不在本 wiki 内）；后续可由用户编辑，**但**
 > 任何与本 skill 的核心原则冲突的修改都视为"非标准配置"，skill 行为不再保证一致。
-> **本 wiki 特有的纪律 / 偏好请沉淀到 `MEMORY/`**（由下方 `@import` 加载，会话常驻），不要写进本文件——
+> **本 wiki 特有的纪律 / 偏好请沉淀到 `MEMORY/`**，不要写进本文件——
 > 模板升级时本文件按 CLI 最新模板**全量重渲染**，本地修改一律不保留。
 >
-> **关键**：本文件里凡 `@path/to/file` 形式的引用（如 `@MEMORY/MEMORY.md`、`@scripts/SCRIPTS.md`），
-> 都用 Read 工具**必须**读取（不是"按需"）——它们与你**当前任务**直接相关。不自动展开 `@import` 的 agent 尤须手动执行，
-> 否则漏上下文。
+> 下方 `@path` 行声明本文件的**必读上下文**（随本文件自动加载，会话常驻——支持 `@import`
+> 的环境内联展开；其他环境由外部配置注入等价内容）。
 
 @MEMORY/MEMORY.md
 
@@ -153,8 +152,8 @@
   主题模板预处理等）、外部 CLI 胶水（pdf 抽图 / obsidian 同步等）、自动化 hook（pre-commit 校验、
   ingest 前清洗等）。**不**放置 CLI 自带的 lint / ingest-diff / write 工具（随 llmw 分发，复制进来
   会版本漂移）
-- 纪律：添加 / 修改 / 删除脚本只登记 [`scripts/SCRIPTS.md`](scripts/SCRIPTS.md) 一处（顶部
-  `@import` 自动加载）；登记形态 / 每脚本契约 / 执行纪律见其头部说明块。agent **不自动遍历**
+- 纪律：添加 / 修改 / 删除脚本只登记 [`scripts/SCRIPTS.md`](scripts/SCRIPTS.md) 一处（随 AGENTS.md
+  自动加载，会话常驻）；登记形态 / 每脚本契约 / 执行纪律见其头部说明块。agent **不自动遍历**
   `scripts/` 跑任何东西——先看 SCRIPTS.md 再按"调用约定"显式执行
 
 ## 二、写入纪律
@@ -202,7 +201,7 @@
 ## 六、本文件本身的纪律
 
 - **本文件由 llmw CLI 渲染拥有（byte-owned）——禁手改**。自定义纪律沉淀去 `MEMORY/`
-  （由顶部 `@MEMORY/MEMORY.md` 自动加载，会话常驻）；手改会被
+   （经顶部引用自动加载，会话常驻）；手改会被
   `agents-md-template-sync` check 判 drift、`llmw upgrade --apply`
   重渲染覆盖（「当前配置」表里 4 个 per-wiki 字段由 upgrade 自动保留现值）。
 - 本文件是 schema，**不是 wiki 内容**——不要往里塞 wiki 主题相关的笔记

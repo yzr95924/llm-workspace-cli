@@ -132,7 +132,7 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": "MEMORY/MEMORY.md",
         "rule_ref": "MEMORY/MEMORY.md fixture header (wiki 实例内直接可读)",
-        "desc": "MEMORY/MEMORY.md（索引）不带 YAML frontmatter（其 ## 索引 段条目由 AGENTS.md 顶部 @MEMORY/MEMORY.md @import 加载）",
+        "desc": "MEMORY/MEMORY.md（索引）不带 YAML frontmatter（其 ## 索引 段条目随 AGENTS.md 顶部引用自动加载）",
     },
     {
         "id": "memory-entries-indexed",
@@ -168,6 +168,13 @@ CHECK_REGISTRY = [
         "file": "wiki_metadata.toml",
         "rule_ref": "lint-checklist.md §八（fixtures 边界，check 清单由 CLI 注册表承载）",
         "desc": "wiki_metadata.toml 含 SKILL scan 读取的 6 字段：name / topic / display_name / description / tags / created_at",
+    },
+    {
+        "id": "opencode-instructions-sync",
+        "severity": "error",
+        "file": "agents-md-template.md",
+        "rule_ref": "opencode config.mdx Instructions 小节 + overlay_opencode.INSTRUCTION_FILES",
+        "desc": "包内 agents-md-template.md 的顶层 @import 引用与 overlay_opencode.INSTRUCTION_FILES 一一对应（opencode 不解析 @import，用 instructions 字段替代）",
     },
 ]
 
@@ -705,6 +712,43 @@ def check_wiki_metadata_reads_satisfied(wiki_root: Path, info: Dict[str, str]) -
     return out
 
 
+# opencode instructions 同步：AGENTS.md 模板的顶层 @import 引用必须与
+# overlay_opencode.INSTRUCTION_FILES 一一对应——opencode 不解析 @import，
+# 用 opencode.json 的 instructions 字段替代（官方推荐），两份数据必须同步。
+_TEMPLATE_AT_IMPORT_RE = re.compile(r"^@(\S+)\s*$", re.MULTILINE)
+
+
+def _scan_template_at_imports(template: str) -> List[str]:
+    """扫模板文本中的顶层 @path 引用（整行 `@path`，排除行内 @提及）。"""
+    return _TEMPLATE_AT_IMPORT_RE.findall(template)
+
+
+def check_opencode_instructions_sync(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
+    """包内 agents-md-template.md 的顶层 @import 与 overlay_opencode.INSTRUCTION_FILES 同步。
+
+    opencode 不解析 AGENTS.md 的 @path 引用，用 opencode.json 的 instructions 字段替代
+    （官方 config.mdx "Instructions" 小节）。overlay_opencode.INSTRUCTION_FILES 是 opencode
+    路径写入的 instructions 列表，必须与模板顶层 @import 一一对应——否则 opencode 路径
+    上下文缺失或冗余。两份数据各自是各自模块的 SSOT，由本 check 机械强制。
+    """
+    from llmw.models.overlay_opencode import INSTRUCTION_FILES
+
+    out = {"passed": True, "severity": "error", "file": "agents-md-template.md"}  # type: Dict[str, object]
+    template = _read_text(wiki_templates_dir() / "agents-md-template.md")
+    if template is None:
+        out["passed"] = None
+        out["skipped"] = "agents-md-template.md 未找到（无法自检）"
+        return out
+    template_refs = _scan_template_at_imports(template)
+    expected = list(INSTRUCTION_FILES)
+    if template_refs == expected:
+        return out
+    out["passed"] = False  # type: ignore
+    out["expected"] = "overlay_opencode.INSTRUCTION_FILES = " + repr(expected)
+    out["actual"] = "模板顶层 @import = " + repr(template_refs)
+    return out
+
+
 # ============================================================================
 # 骨架字段级比对——gitignore 读包内 fixtures/；
 # 其余骨架信号（frontmatter 键 / H1 / 说明块 / ## 标题）硬编码在 SKELETON_REGISTRY
@@ -944,6 +988,7 @@ CHECK_FUNCTIONS = [
     ("scripts-md-no-frontmatter", check_scripts_md_no_frontmatter),
     ("tags-md-no-frontmatter", check_tags_md_no_frontmatter),
     ("wiki-metadata-reads-satisfied", check_wiki_metadata_reads_satisfied),
+    ("opencode-instructions-sync", check_opencode_instructions_sync),
 ] + [(s["id"], _make_skeleton_check(s)) for s in SKELETON_REGISTRY]
 
 

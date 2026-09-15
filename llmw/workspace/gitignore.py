@@ -19,8 +19,11 @@ from llmw.fsutil import atomic_write
 # - workspace_local.toml  主机相关运行时配置 (enter_cli，schema v2 起从 workspace.toml
 #                          拆出；跨主机各异，必须本地化)
 # - .llmw-trash/          wiki remove --purge 写入的备份目录
-# - **/opencode.json      enter_cli=opencode 的 overlay 落盘（含明文 apiKey，与
-#                          settings*.json 同一安全模型，见 llmw/models/overlay_opencode.py）
+# - **/opencode.json      机器本地生成配置（overlay_opencode 整文件拥有，
+#                          每次 llmw wiki enter 幂等渲染重建），不入 git
+#                          （与 **/.claude/settings*.json 同模型）；
+#                          保留行同时兜底遗留含明文 apiKey 的老文件（整文件覆盖
+#                          在下次 enter 自动剥除 provider.llmw，但剥除前仍需排除）
 GITIGNORE_LINES = (
     "workspace_models.toml",
     "**/.claude/settings*.json",

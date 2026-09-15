@@ -177,7 +177,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 14. MEMORY.md 索引一致性
 
 - `memory-not-indexed`（info）：`MEMORY/*.md`（非 `MEMORY.md`）未在 MEMORY.md
-  `## 索引` 段列出——下次 `@import` 加载后该条目不可见。正路：
+  `## 索引` 段列出——下次加载后该条目不可见。正路：
   `llmw wiki write memory add`（原子追加索引行）；修法：追加一行 `- [Title](<slug>.md) — 一句话`
 - `memory-index-dangling`（warn）：索引指向的 `<slug>.md` 不存在（索引与磁盘脱节；
   短条目 `- 一句话事实` 无链接、不算）
