@@ -36,7 +36,7 @@ metadata:
 
 | 信息 | 来源 | 备注 |
 | --- | --- | --- |
-| Workspace 路径 | `$LLMW_WORKSPACE` 或默认 `~/yzr-llm-wiki-workspace` 或交互问 | CLI 通常在 enter 时设好变量 |
+| Workspace 路径 | `$LLMW_WORKSPACE`，或默认 `~/yzr-llm-wiki-workspace`，或交互问 | 环境变量未设时 CLI 走默认路径 |
 | 操作类型 | 用户自然语言 | scan / query / link / lint / upgrade |
 | Query 范围（仅 query） | 用户自然语言或显式指定 wiki 名 | 不指定走全局 INDEX 路由 |
 
@@ -108,8 +108,7 @@ metadata:
    - 读 `<wiki>/wiki/log.md` 末条拿 last activity
    - 读 `<wiki>/MEMORY/` 拿 memory files 数（仅文件名）
 3. 读 `<workspace>/MEMORY/MEMORY.md` 索引，按 A2 排序规则聚合，写 INDEX.md + STATS.md（格式 A2/A3）
-4. 原子写（POSIX `tmp + fsync + rename`）
-5. 对话中报告："已刷新 INDEX.md / STATS.md，X 个 wiki，Y 个 page，Z 个原始资料"
+4. 对话中报告："已刷新 INDEX.md / STATS.md，X 个 wiki，Y 个 page，Z 个原始资料"
 
 **何时不做 scan**：用户只想做 query → 先用现有 INDEX.md；INDEX.md 缺失或明显过期（覆盖不到新增 wiki）再提示先 scan。
 
@@ -302,7 +301,7 @@ metadata:
 
 #### A6.2 MEMORY/*.md（非 MEMORY.md）
 
-frontmatter 仅 `title` 必填；`type` 若写固定 `workspace-memory`（与 wiki 侧 MEMORY 解耦口径对齐）；`created`/`updated`/`tags`/`description`/`wikis` 全 optional。lint `memory-not-indexed` 兜底；不强制 inbound 链接，不在 INDEX.md 列出。
+frontmatter 仅 `title` 必填；`type` 若写则固定为 `workspace-memory`（与 wiki 侧 MEMORY 解耦口径对齐）；`created`/`updated`/`tags`/`description`/`wikis` 全 optional。lint `memory-not-indexed` 兜底；不强制 inbound 链接，不在 INDEX.md 列出。
 
 ### A7. Frontmatter 字段通用规则
 

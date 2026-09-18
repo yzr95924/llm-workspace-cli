@@ -122,7 +122,7 @@ Query 跨页综合，暴露单篇看不到的**联系**（A 和 B 都涉及 self
 ## 五、Query 的边界
 
 - **不**引用未存在于 wiki 的来源——只引用 wiki 内的页面
-- **不**绕过 source 页直接读 raw——raw 已在 source 页消化过（冲突时才回 raw 复核）
+- **不**绕过 source 页直接读 raw（冲突时才回 raw 复核，见 Step 2）
 
 > 其余边界以 wiki 根 `AGENTS.md` Query 纪律节为准。
 

@@ -1,6 +1,6 @@
 # 页面模板
 
-按 `type` 分 5 种。**所有页面**共有 frontmatter 段（见下）+ 类型特定字段 + 自由正文。
+按 `type` 分 5 种。**5 类内容页**共有 frontmatter 段（见下）+ 类型特定字段 + 自由正文。
 
 > **本文件是 content-owned 产物（wiki 内容页）纪律的 canonical**——frontmatter 字段
 > 全集 / 建页阈值 / 认知质量信号 / 矛盾处理 Update Policy 的唯一维护点（AGENTS.md
@@ -12,7 +12,7 @@
 
 > **frontmatter 写法约束**（与 `llmw wiki ingest-diff` 内的轻量 YAML 解析器对齐）：仅支持单行
 > `key: value`、inline 数组 `[a, b, c]`、`- item` 列表项三种形式。**不要**使用多行折叠 `>` /
-> `|`、YAML 锚点 `&` / `*`、嵌套 map——脚本会静默解析失败、返回空 dict、后续 ingest 与 lint
+> `|`、YAML 锚点 `&` / `*`、嵌套 map——该解析器会静默失败、返回空 dict，后续 ingest 与 lint
 > 行为未定义。
 
 ## 一、共有 frontmatter 段
@@ -39,12 +39,12 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 ```
 
 > **为什么必填 5 字段**：`title` / `type` / `tags` / `created` / `updated` 是 OKF §9
-> 「字段齐全性」与 lint 校验一致性的最小交集——`title`（人/grep 找页）、`type`
+> 「Conformance」与 lint 校验一致性的最小交集——`title`（人/grep 找页）、`type`
 > （决定子目录 + lint 校验路径）、`created` / `updated`（stale / orphan 判定）、
 > `tags`（taxonomy 过滤）。少于 5 字段会让"抓腐烂"判定失效；多于 5 字段 OK 但不强制。
 > **为什么 5 类内容页**：`entity` / `concept` / `source` / `comparison` / `synthesis`
 > 覆盖 wiki 复利的 5 种认知角色（实体 / 概念 / 资料 / 对比 / 综合），与 lint 校验路径、
-> index 分组、OKF §4.1 字段齐全性一致；`index` / `log` 是 reserved（见 §6 / §7），
+> index 分组、OKF §4.1 字段要求一致；`index` / `log` 是 reserved（见 §6 / §7），
 > 仅标记用途、lint 跳过它们。
 
 **字段说明**：
@@ -55,10 +55,11 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 - `type`——驱动 lint 校验 + index 分组；合法值仅上述 5 种（`llmw wiki lint` 强制）。`index.md` /
   `log.md` 是 **reserved 文件**（结构见 §6 / §7），自带 frontmatter，其中 `type: index` /
   `type: log` 仅作标记、lint 跳过它们——不算概念页 type
-- `tags`——用于跨页搜索 + 未来可能的 dataview 查询。**取值必须严格在 `wiki/tags.md` 白名单内**（取值 / 解析 / 审计循环 canonical 在 fixture 头部说明块；lint 语义见 [`lint-checklist.md` §11](lint-checklist.md)）
-- `created` / `updated`——**严格** `YYYY-MM-DD HH:MM` 格式（lint 解析用；
-  `YYYY-MM-DD` 也接受，按精度宽容解析三种格式：date-only /
-  HH:MM / HH:MM:SS）
+- `tags`——用于跨页搜索 + 未来可能的 dataview 查询。**取值必须严格在 `wiki/tags.md` 白名单内**
+  （取值 / 解析 / 审计循环 canonical 在 fixture 头部说明块；lint 语义见
+  [`lint-checklist.md` §11](lint-checklist.md)）
+- `created` / `updated`——写入用 `YYYY-MM-DD HH:MM`；lint 按精度宽容解析三种格式：
+  date-only / HH:MM / HH:MM:SS
 - 类型特定字段（`sources` / `compared` / `threads`）见各模板
 - `reviewed` / `reviewed_at` / `contested` / `contradictions`——**可选**可信度与认知质量信号，见下
 
@@ -104,8 +105,8 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 
 **两道闸门**：
 
-1. **纪律闸门**——生命周期纪律 canonical = 本节（AGENTS.md 模板只留
-   "写页规则见 skill 页面模板文档"指针）
+1. **纪律闸门**——生命周期纪律 canonical = 本节（AGENTS.md 模板声明"内容页写页规则不在本文件"，
+   指向 skill 页面模板文档）
 2. **lint 兜底**——`reviewed-stale` 触发条件：`reviewed: true` 存在 **且** `updated > reviewed_at`，
    把 LLM 漏清戳的页面拎出来提示人复审
 
@@ -146,7 +147,7 @@ type: entity
 tags: [<必填但可空>]
 created: YYYY-MM-DD HH:MM
 updated: YYYY-MM-DD HH:MM
-aliases: [<可选>, <可选>]  # 别名数组，方便搜索（不受 §8 kebab-case 文件名规则约束）
+aliases: [<可选>, <可选>]  # 别名数组，方便搜索（自由文本，不受文件名 kebab-case 规则约束）
 ---
 ```
 
@@ -248,7 +249,7 @@ venue: <会议名 / 期刊>          # 可选
 # <Title>
 
 **作者**：<authors>
-**来源**：[<raw path>](../../raw/<...>)（必填项；absent → lint sources-missing）
+**来源**：[<raw path>](../../raw/<...>)（必填项；缺失时 lint 报 `sources-missing`）
 
 ## 摘要
 
@@ -443,8 +444,8 @@ op ∈ `ingest`/`query`/`lint`/`setup`；日期也接受 `YYYY-MM-DD`（lint 按
 ### 建页 / 追加 / 归档阈值（Page Thresholds）
 
 不是每个 entity / concept 都值得独立成页——没阈值 wiki 会被名词堆爆，几个月后 index 翻不到底。
-**宁可错过一个 entity 也不要堆十个空页**——"克制"是 wiki 长期
-可用性的具体化，堆一千个空 entity 后 lint 报告会被噪声淹没。
+**宁可错过一个 entity 也不要堆十个空页**——"克制"是 wiki 长期可用性的具体化：堆一千个空
+entity，lint 报告会被噪声淹没。
 
 | 动作 | 触发条件 |
 | --- | --- |

@@ -29,12 +29,14 @@ metadata:
 本 skill 提供三块交付物：
 
 - **SKILL.md（本文）**——工作流 + 纪律的"宪法"
-- **确定性执行（归 llmw CLI，`llmw.content`）**——本 skill **零代码**。原 scripts/ 的
-  deterministic 工具（lint / fixtures 检查 / ingest 探测 / 机械写）全部收敛为
+- **确定性执行（归 llmw CLI，`llmw.content`）**——本 skill **零代码**。deterministic 工具
+  （lint / fixtures 检查 / ingest 探测 / 机械写）全部收敛为
   `llmw` 子命令：`llmw wiki lint / check-fixtures / ingest-diff / write`（详见
-  §工作流各节）。高频确定性任务固化在 CLI，agent 只负责需要判断的部分。
+  「工作流 / 步骤」各节）。高频确定性任务固化在 CLI，agent 只负责需要判断的部分。
 - **references/**——按需加载：各操作详细流程（ingest / query / lint / upgrade）、页面模板
-  （page-templates.md）、lint-checklist、external-repo（接入 + 跨主机重建）。骨架模板 + fixtures（CLI 字节级比对金标准）内建于 CLI 包资产（`llmw wiki check-fixtures` 探测），upgrade-workflow.md §六 (语义合并规则，agent 走 upgrade plan 时的合并依据)
+  page-templates.md、lint-checklist、external-repo（接入 + 跨主机重建）；upgrade-workflow.md §六
+  语义合并规则是 agent 走 upgrade plan 时的合并依据。骨架模板 + fixtures（CLI 字节级比对金标准）
+  内建于 CLI 包资产（`llmw wiki check-fixtures` 探测）
 
 ## 输入 / 输出
 
@@ -59,8 +61,8 @@ metadata:
 - **lint** → `log` 中报告：raw/ 是否被改、孤儿页、断裂交叉引用、过期摘要、缺
   frontmatter、log.md 格式
 - **upgrade** → `llmw wiki upgrade`（dry-run → `--apply --yes`）修骨架（byte/block/
-  header-owned + legacy paths）；内容页 frontmatter legacy 走 `lint --check-version --apply`
-  拿 `actions[]`，agent 按 `references/upgrade-workflow.md` §六 修；详见 §5 Upgrade
+   header-owned + legacy paths）；内容页 frontmatter legacy 走 `lint --check-version --apply`
+   拿 `actions[]`，agent 按 `references/upgrade-workflow.md` §六 修；详见「5. Upgrade」节
 
 ## 执行原则 / 边界
 
@@ -69,7 +71,9 @@ metadata:
 > **操作前置（orient ritual，所有操作通用）**：每次 ingest / query / lint 启动前，**不依赖 symlink**
 > ——按以下顺序读完四件套再动手：
 >
-> 1. **确认 `<wiki-root>/AGENTS.md` 已在上下文**（经薄壳 CLAUDE.md 或原生加载——会话常驻；`CLAUDE.md` 是 `@AGENTS.md` 薄壳，不持纪律）——拿到本 wiki 的主题名与「当前配置」表（`Wiki Format 版本` 行）。MEMORY 全文已在上下文（随 AGENTS.md 顶部引用自动加载）；tag 白名单在 `wiki/tags.md`（见 §核心原则 §6）
+> 1. **确认 `<wiki-root>/AGENTS.md` 已在上下文**（经 `@AGENTS.md` 薄壳 `CLAUDE.md` 或原生加载——
+>    会话常驻，薄壳不持纪律）——拿到本 wiki 的主题名与「当前配置」表（`Wiki Format 版本` 行）。
+>    MEMORY 全文随 AGENTS.md 顶部引用自动加载；tag 白名单在 `wiki/tags.md`（见「核心原则」第 6 条）
 > 2. `Read <$LLM_WIKI_ROOT>/wiki/index.md`——知道有哪些页、分布在哪些类别，避免重复创建 / 漏交叉引用
 > 3. `Read <$LLM_WIKI_ROOT>/wiki/log.md`（最近 ~30 行即可）——看清最近活动，避免重复
 >    ingest / 漏归档旧工作
@@ -81,10 +85,12 @@ metadata:
 > `Grep "<topic>"` 补一次——单看 index.md 可能漏掉 entity/concept 页之间的引用关系。
 
 1. **raw/ 由用户掌控，LLM 只读**——两处写权限例外（`raw/external/` symlink 接入 + `raw/discussions/` 协作草稿）不得外推；操作细节见 [`references/external-repo.md`](references/external-repo.md) / [`references/ingest-workflow.md §10`](references/ingest-workflow.md)
-2. **写操作正路 = `llmw wiki write` 系列**——log 追加走 `write log`、新建页走 `write new`、编辑已审页后清 `reviewed` 戳走 `write touch`、MEMORY 新条目走 `write memory add`、index 条目走 `write index add`；格式 + `LOG_RETENTION_LIMIT` 截断由脚本保证，lint 只兜底带外手改。**逃生舱**：脚本不支持的形态手写 Edit/Write 合法、lint 兜底——脚本是默认路径不是闸门
+2. **写操作正路 = `llmw wiki write` 系列**——log 追加走 `write log`、新建页走 `write new`、编辑已审页后清 `reviewed` 戳走 `write touch`、MEMORY 新条目走 `write memory add`、index 条目走 `write index add`；格式 + `LOG_RETENTION_LIMIT` 截断由 `write` 命令保证，lint 只兜底带外手改。**逃生舱**：命令不支持的形态手写 Edit/Write 合法、lint 兜底——`llmw wiki write` 是默认路径不是闸门
 3. **每页必带 YAML frontmatter——新建页走 `llmw wiki write new`**（5 必填 + 推荐 `description`）。权威定义（`type` 取值 / reserved / `sources` 特化 / 可信度信号）见 [`references/page-templates.md`](references/page-templates.md) §一；例外清单（index / log / MEMORY / MEMORY*）同节
 4. **LLM 修改已审核页必须清 `reviewed` 戳**——每次编辑后跑 `llmw wiki write touch`；生命周期规则 canonical 见 [`page-templates.md`](references/page-templates.md) 「可信度与认知质量信号」段；lint 用 `reviewed-stale` 兜底
-5. **MEMORY/ 是 LLM agent 的私有记忆**——新条目走 `llmw wiki write memory add`；只改 `MEMORY/MEMORY.md` 这一份（无副本漂移）。物理位置在 `<wiki-root>/` 而非 `wiki/` 内 = publish 时自然留作私有层不外传；写入流程见工作流 §4
+5. **MEMORY/ 是 LLM agent 的私有记忆**——新条目走 `llmw wiki write memory add`；MEMORY 只存在
+   `<wiki-root>/` 这一份（无副本漂移），物理位置在 `wiki/` 外 = publish 时自然留作私有层不外传。
+   写入流程见「4. Memory」节
 6. **tag 白名单在 `wiki/tags.md`**——取值 / 解析 / 审计循环 canonical 在 fixture 头部说明块（落盘即读）；lint 语义见 [`lint-checklist.md §11`](references/lint-checklist.md)
 
 ### 边界
@@ -103,7 +109,7 @@ metadata:
 
 > 本 skill 是纪律型 skill（含多条"必须 / 禁止 / 不"+"**不**" 起始段）。纪律型禁令在
 > LLM 压力下会被以各种合理化借口绕开——三件套只堵一类：**已被合理化的违反**。
-> 未被合理化的违反（直接忽略规则）= 缺 §反模式 清单本身，与三件套无关。
+> 未被合理化的违反（直接忽略规则）属「反模式」清单的覆盖面问题，与三件套无关。
 
 #### Rationalization Table
 
@@ -122,17 +128,18 @@ metadata:
 
 #### 违反字面 = 违反精神
 
-任何对 §核心原则 / §边界 / §反模式 三段禁令的"看起来不同但效果一致"绕法都算违反——本 skill 常见绕法前三：
+任何对「核心原则 / 边界 / 反模式」三段禁令的"看起来不同但效果一致"绕法都算违反——最常见的三种：
 
-- 把 `Edit` / `Write` 改为 `Read` + 手动生成新内容再 `Write`——**不算**绕开"用 Read 之外工具做自动修改"禁令，操作工具是 Write 一样算
+- 把 `llmw wiki write` 能做的写操作改用手写 `Edit` / `Write` 完成，再声称走了逃生舱——**不算**：
+  逃生舱只覆盖命令不支持的形态，默认路径只有 `llmw wiki write` 系列
 - 把"不删除 wiki 页"解释为"先把内容拷出去再 `rm` 然后写回"——**不算**绕开不删禁令，状态效果完全等同
-- 把"raw/ 由用户掌控，LLM 只读"解释为"我`cp` 进 raw/ 后立即再`rm`，窗口里我读到了内容 = 等价于只读"——**不算**，写入发生在第一步
+- 把"raw/ 由用户掌控，LLM 只读"解释为"我 `cp` 进 raw/ 后立即 `rm`，读取发生在删除前所以等于只读"——**不算**：写入发生在第一步
 
 **禁止**用"严格按字面 / 严格按精神"二选一措辞给 agent 留退路——任何"看起来不同但效果等价"都是违反。
 
 #### Red Flags（念头清单 — 出现即停）
 
-念头出现 ≠ 已违反；念头 = 警告 = 重读 §核心原则 / §边界 / §反模式 三段。
+念头出现 ≠ 已违反；念头 = 警告 = 重读「核心原则 / 边界 / 反模式」三段。
 
 - "用户说'随便记一下 / 赶时间 / 别太正式'——纪律可以打折了"（实跑观察）
 - "我觉得这一步对当前 case 不必要"
@@ -157,13 +164,13 @@ metadata:
 > wiki 仓的**创建与删除**由 workspace CLI 负责——命令是 `llmw`（**与本 skill 同仓维护**，
 > 命令名与参数见其自带文档）；
 > wiki 仓的"出生形态"由 CLI 包内模板渲染决定——`llmw wiki check-fixtures` 探测。
-> 产物形态见 §输入/输出 操作产物。
+> 产物形态见「输入 / 输出 → 操作产物」。
 
 **LLM agent 接管后做什么**：
 
 1. 验证 CLI 落盘——读 `<wiki-root>/AGENTS.md` 确认主题名 + 日期替换正确；
    `wiki/index.md` / `wiki/log.md` 存在且 frontmatter 完整；`<wiki-root>/CLAUDE.md` 是薄壳
-2. 跑 orient ritual（见 §执行原则 / 边界 顶部引用块）
+2. 跑 orient ritual（见「执行原则 / 边界」顶部引用块）
 3. 询问用户是否做首次 ingest——若是，把第一份资料路径给 agent
 
 ### 1. Ingest（摄取新资料）
@@ -218,11 +225,11 @@ metadata:
 **流程**：
 
 1. 跑 `llmw wiki lint` 做 deterministic 检查
-2. 脚本覆盖（大类如下，权威清单见 [`references/lint-checklist.md`](references/lint-checklist.md)）：
+2. lint 覆盖面（大类如下，权威清单见 [`references/lint-checklist.md`](references/lint-checklist.md)）：
    raw 不可变性 / frontmatter 字段 / 孤儿页 / 断链 / log.md 格式 / 过期摘要 / 页面体量
    / 可信度与认知质量信号（`reviewed` / `contested` / `contradictions`）/ `raw/external/`
-   symlink ↔ anchor 关联（external-repo.md）/ fixtures 一致性（见下文「fixtures 一致性检查」段）
-3. 脚本输出后 **agent 还要做半定性检查**：矛盾主张 / 缺失交叉引用 / 建议新摄取方向
+   symlink ↔ anchor 关联（external-repo.md）/ fixtures 一致性
+3. lint 输出后 **agent 还要做半定性检查**：矛盾主张 / 缺失交叉引用 / 建议新摄取方向
 4. 报告 + 询问用户哪些修
 
 详细 checklist 见 [`references/lint-checklist.md`](references/lint-checklist.md)。
@@ -238,8 +245,8 @@ metadata:
 - 跨 ingest 关联（两 source 页指向同一论文不同章节）
 - lint 报告的 recurring pattern（每次 lint 都报某 type 缺字段）
 
-**流程摘要**（agent 主动；frontmatter 字段 / 索引同步 / 完整 vs 短条目判定的权威定义在
-wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明块 canonical）：
+**流程摘要**（agent 主动；frontmatter 字段 / 索引同步 / 完整 vs 短条目判定的 canonical 定义 =
+wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明块）：
 
 1. 决定是否值得写——能否让未来 agent 工作更顺？
 2. 判别条目形式：**完整**（含 why+how 上下文）→ `llmw wiki write memory add --slug=... --title=...`

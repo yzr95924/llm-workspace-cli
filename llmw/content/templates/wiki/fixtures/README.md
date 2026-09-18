@@ -2,11 +2,9 @@
 
 CLI 实现 wiki 仓时落盘的 `wiki/index.md` / `wiki/log.md` / `wiki/tags.md`
 / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` / `.gitignore` 六个文件的**字节金标准**。
-同仓后 fixtures 是唯一字节金标准（跨仓时代的 `references/canonical/` 双份已删）。
-从引入各 fixture 头部说明块开始，它们承载该文件的**格式 / 操作契约 canonical**
-（frontmatter / 条目格式 / retention / 解析约束——原散在 AGENTS.md 模板各边界段与 skill
-格式契约，规则跟着维护者走，落盘进实例 agent 直接读）。跨文件的**同步触发判定**不在
-fixture——家是 wiki `AGENTS.md`「写入纪律」（见下「规则分层」）。
+各 fixture 头部说明块承载该文件的**格式 / 操作契约 canonical**
+（frontmatter / 条目格式 / retention / 解析约束），规则跟着文件落盘，实例 agent 直接读。
+跨文件的**同步触发判定**不在 fixture——家是 wiki `AGENTS.md`「写入纪律」（见下「规则分层」）。
 
 ## 规则分层（一规则一家）
 
@@ -42,12 +40,13 @@ CLI 把 fixtures 视为**带占位符的字节模板**：用用户传入的 mapp
 
 | | 模板（`*-template.md`） | fixture（`*.txt`） |
 |---|---|---|
-| **形态** | 带 `{{占位符}}` 的完整文档（`AGENTS.md` / `CLAUDE.md`） | 带占位符的字节模板（header-owned 文件的出生形态） |
-| **作用** | CLI init / upgrade 时渲染完整文件 | byte-owned + header-owned 文件的字节级比对金标准 |
+| **形态** | 带 `{{占位符}}` 的完整文档（`AGENTS.md` / `CLAUDE.md`） | 字节模板（部分带占位符；header-owned / block-owned 文件的出生形态） |
+| **作用** | CLI init / upgrade 时渲染完整文件 | header-owned + block-owned 文件的出生字节金标准 |
 | **变更** | 改模板 → bump `wiki_format_version`（实例需 upgrade reconcile） | 同左（字节变化即 bump） |
 | **权威性** | 模板是字节权威（CLI 包内 SSOT） | fixture 是字节权威（CLI 包内 SSOT） |
 
-模板与 fixture 共同承载 CLI 的骨架所有权（byte-owned + header-owned）；block-owned + content-owned 由其他机制承载（`.gitignore` managed block 在 gitignore 模块；content-owned 由 skill 的 page-templates.md 承载）。
+模板承载 byte-owned 文件（`AGENTS.md` / `CLAUDE.md`）的字节权威；fixtures 承载 header-owned +
+block-owned（`.gitignore`）文件的出生字节；content-owned 由 skill 的 page-templates.md 承载。
 
 ## 六个 fixture 对应的"角色"
 
@@ -102,7 +101,7 @@ CLI 替换后做内容级验证（不能用 fixture 字节比对）：
 ## 字节级一致性证据
 
 用固定测试 mapping `{TOPIC_NAME: "Test", SETUP_DATE: "2026-06-28 14:30"}` 渲染 fixtures 即得
-原 canonical/ 字面量——`tests/test_content_wiki_fixtures.py` 与
+金标准字面量——`tests/test_content_wiki_fixtures.py` 与
 `scripts/test/smoke_fixtures.py` 的探测器断言共同保证：CLI 或 fixture 任一改坏，
 CI 立即红。
 

@@ -11,7 +11,7 @@
 
 ```text
 1. 告知用户：本 skill 不直接创建 wiki 仓；wiki 创建由 workspace CLI（`llmw`）负责
-   → 推荐路径建议在 ~/wiki/llm-systems
+   → 推荐路径：~/wiki/llm-systems
 2. 用户调 workspace CLI（具体命令以 `llmw wiki add --help` 为准）：
     llmw wiki --name=llm-systems add --topic="LLM Systems"
      → CLI 按包内模板落盘目录 + AGENTS.md（SSOT）+ CLAUDE.md（薄壳）+ index.md + log.md + .gitignore
@@ -20,8 +20,8 @@
     → 读 ~/wiki/llm-systems/AGENTS.md 确认主题名替换正确（CLAUDE.md 是 `@AGENTS.md` 薄壳）
     → 验证 wiki/index.md / wiki/log.md 存在且 frontmatter 完整
     → 提示用户：raw/articles/ 作为"资料投放口"，可放剪藏 / PDF / 笔记
-4. 提示用户：wiki 根目录内的 AGENTS.md 经薄壳 CLAUDE.md 自动加载（经薄壳加载的 agent），
-    或被原生读 AGENTS.md 的 agent 直读；别处工作时 skill 经 $LLM_WIKI_ROOT 按需读取，不必 symlink
+4. 提示用户：wiki 根内 AGENTS.md 由 agent 自动加载（CLAUDE.md 薄壳引入或原生直读）；
+    在别处工作时 skill 按 $LLM_WIKI_ROOT 按需读取，无需 symlink
 ```
 
 ## 样例二：ingest 一份原始资料
@@ -71,7 +71,7 @@
 
 ```text
 1. llmw wiki --path=~/wiki/llm-systems lint
-2. 脚本报告：
+2. CLI 报告：
    - raw/ 干净（启用 git 时 git status clean；未启用时此项自动跳过 + 输出顶部 `[NOTES]` 提示跳过原因）
    - 3 个页面缺 updated 字段
    - 1 个失效引用：concepts/transformer.md 链到 sources/bigtable.md 但后者不存在
@@ -95,11 +95,11 @@
 
 ```text
 1. 跑操作前置：读 ~/wiki/llm-systems/AGENTS.md 末尾「当前配置」表的 `Wiki Format 版本`（CLI init
-   时从 skill `metadata.wiki_format_version` 镜像，老 wiki 落后于 skill 当前版本）+
+   时从包内 `WIKI_FORMAT_VERSION` 常量渲染；老 wiki 会落后于当前版本）+
    wiki/index.md + wiki/log.md 最近 30 行
 2. 跑升级 dry-run 看骨架计划：
     llmw wiki --path=~/wiki/llm-systems upgrade
-    脚本输出 plan（每个文件 action：render / growth-graft / gitignore-block）
+    CLI 输出 plan（每个文件 action：render / growth-graft / gitignore-block）
 3. 若 plan 含 diff 触发 blocked_drift → 与用户裁定本地定制：
    - AGENTS.md / CLAUDE.md 中多出模板渲染稿的行/段 = 用户本地定制
    - 逐条决定搬到 MEMORY/ 还是丢弃

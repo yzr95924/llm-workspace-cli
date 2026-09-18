@@ -96,7 +96,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ### Step 5：更新 `wiki/index.md`
 
 - `llmw wiki write index add <wiki/sources/<slug>.md>`（或新建的 entity / concept 页）
-  ——脚本从页 frontmatter 抽 title / description，定位类别段、字母序插入
+  ——CLI 从页 frontmatter 抽 title / description，定位类别段、字母序插入
   （条目格式 `- [<title>](<path>) — <description>`，摘要直接复制 frontmatter
   `description` 防漂移）
 - 若新建了 entity / concept 页：同时**反向检查**——之前 source 页是否该有指向新页的
@@ -105,7 +105,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ### Step 6：追加 `log.md`
 
 - `llmw wiki write log --op=ingest --title="<source 页 title>"`——严格格式 + 超过
-  `LOG_RETENTION_LIMIT` 自动截断保最近 N 条（frontmatter 不动），脚本保证
+  `LOG_RETENTION_LIMIT` 自动截断保最近 N 条（frontmatter 不动），CLI 保证
 - 一次 ingest 多个文件 → **重复 `--title`**（每条对应一个 source 页）；
   批处理走 `--bulk --topic ... --count ...`（见 §五）
 
@@ -161,7 +161,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## 六、判定"是否新建 entity / concept 页"
 
-阈值 canonical 见 [`page-templates.md §三「建页 / 追加 / 归档阈值」`](page-templates.md)：≥ 2 个 source 页提及 **或** 本页中心主题 → 建；路过提及 / 粒度过细 / 已有同名近义页 → 不建。
+阈值 canonical 见 [`page-templates.md §三「建页 / 追加 / 归档阈值」`](page-templates.md)：
+≥ 2 个 source 页提及 **或** 本页中心主题 → 建；路过提及 / 粒度过细 / 已有同名近义页 → 不建。
 
 **单篇 ingest 视角的套用**：本 raw 的中心主题 / 反复出现的核心概念 → 建；路过 / 类比 / 背景提及 → 不建；已有同名 / 近义页 → 先 search 再定（写前必搜）。
 
@@ -192,11 +193,11 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## 九、反模式
 
-- ❌ 一份资料写 5 个 source 页（粒度过细）——按"主题"分，不是按"raw 文件 1:1"
-- ❌ source 页只复制 raw 内容——必须消化、提炼、加 cross-refs
-- ❌ 跨主题的 entity 混在一起——本 skill 假设一个 wiki 一个主题；跨主题用不同的 wiki
+- 一份资料写 5 个 source 页（粒度过细）——按"主题"分，不是按"raw 文件 1:1"
+- source 页只复制 raw 内容——必须消化、提炼、加 cross-refs
+- 跨主题的 entity 混在一起——本 skill 假设一个 wiki 一个主题；跨主题用不同的 wiki
 
 ## 十、raw/discussions/ 草稿消化（可选入口）
 
-> **完整纪律**（路径 / 谁可写 / 脚本契约三道 / 归档路径两条 / 滑坡防线）由
+> **完整纪律**（路径 / 谁可写 / CLI 契约三道 / 归档路径两条 / 滑坡防线）由
 > wiki 根 `AGENTS.md` 的 `raw/discussions/` 节承载——agent 自动加载必读。

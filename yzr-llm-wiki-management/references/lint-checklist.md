@@ -6,7 +6,7 @@ base is not the reading or the thinking — it's the bookkeeping." Lint 把 book
 
 Lint 分**两层**：
 
-1. **Deterministic**（脚本检查，可程序化）——`llmw wiki lint` 内部实现
+1. **Deterministic**（CLI 检查，可程序化）——`llmw wiki lint` 内部实现
 2. **Semi-qualitative**（agent 检查，需理解语义）——本文件"半定性检查"段
 
 **与 `llmw wiki write` 的分工**：log / index / touch / new / memory 的**正路**是
@@ -25,12 +25,13 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --severity=error
 
 ### 子命令 `--check-version`
 
-扫当前 wiki 的 format 版本（解析 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 行）与本 skill `metadata.wiki_format_version`（脚本常量
-`CURRENT_WIKI_FORMAT`）比对 + 扫当前格式 frontmatter 误用（`type-memory-value`）+ 自动调 fixtures 检查：
+扫当前 wiki 的 format 版本（解析 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 行）
+与本 skill `metadata.wiki_format_version`（CLI 常量 `CURRENT_WIKI_FORMAT`）比对 + 扫当前格式
+frontmatter 误用（`type-memory-value`）+ 自动调 fixtures 检查：
 
 ```bash
 llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version --json
-# 加 --apply 输出 upgrade plan（stdout JSON，不落盘）供 agent 按 [`upgrade-workflow.md`](upgrade-workflow.md) 走 Edit/Write 修复
+# 加 --apply 输出 upgrade plan（stdout JSON，不落盘）供 agent 按 upgrade-workflow.md 走 Edit/Write 修复
 llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version --apply --json
 ```
 
@@ -41,7 +42,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 迁移依据 SSOT = plan `actions[]`（remove/add_or_modify/to_action 自含）+
 [`upgrade-workflow.md` §六](upgrade-workflow.md)。
 
-## 二、Deterministic 检查清单（脚本执行）
+## 二、Deterministic 检查清单（CLI 执行）
 
 > 机制细节（实现用的正则 / 函数 / 分支条件）在 CLI lint 实现的 docstring——本节只给
 > 口径：**finding 名 / 严重性 / 触发 / 修法**。
@@ -68,7 +69,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 2. frontmatter 完整性
 
 - 扫 `wiki/` 5 个内容子目录 + `<wiki-root>/MEMORY/*.md`（排除 `MEMORY.md` 本身）
-- 口径两类（§9 vs §5.2）：**wiki 5 类内容页** 5 必填（`title` / `type` /
+- 口径两类：**wiki 5 类内容页** 5 必填（`title` / `type` /
   `created` / `updated` / `tags`，字段定义见 [page-templates.md §一](page-templates.md)）；
   **MEMORY/*.md** 仅 `title` 必填（其余全 optional）
 - `type` 取值：5 类内容页；MEMORY 桶额外 `memory` / `memory-entry`
@@ -143,7 +144,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 - 解析 `<wiki-root>/wiki/tags.md`（**唯一来源**）裸 bullet 列表。文件必须是**裸 bullet**
   （包在 code block / HTML comment 里 = 解析 0 tag 静默跳过）；支持
-  `- category：tag1 / tag2` 中英文分隔
+  `- category：tag1 / tag2`（中文 / 英文冒号均可）
 - 仅对 5 类内容页做包含校验；**MEMORY agent 私有**不共享 taxonomy；tags.md 自身不参与
 - 找不到任何 tag 源 → 静默跳过（新 setup 不报错）
 - `tag-not-in-taxonomy`（**info**）——审计循环：用户删 tags.md bullet → 下次 lint 报
@@ -244,7 +245,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ## 四、报告格式
 
-脚本 + agent 一起输出统一格式，每条带：**严重性** + **类别** + **文件:行** + **描述**。
+CLI + agent 一起输出统一格式，每条带：**严重性** + **类别** + **文件:行** + **描述**。
 
 ```text
 [ERROR] raw-modified: raw/articles/foo.md has uncommitted changes
@@ -290,11 +291,12 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 - **不**自动修——只报告；修由用户 / agent 决定
 - **不**评估内容质量（不是 fact-checker）——只看结构和纪律
 - **不**评估 frontmatter 的语义是否合理（只检查字段存在性 + 类型合法）
-- **不**取代 schema（`AGENTS.md`）——schema 是源头，lint 是脚本化检查
+- **不**取代 schema（`AGENTS.md`）——schema 是源头，lint 是 CLI 实现的检查
 - **fixtures 边界**——`llmw wiki check-fixtures` 扫「约定文件」
   （AGENTS.md 末尾「当前配置」表 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
   MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
   wiki_metadata.toml）的合规性：
-   check 清单以 `llmw wiki check-fixtures --json` 输出为准（CLI 内部注册表唯一真源；
-   结构探测 + 骨架字段比对两类，后者读 llmw 包内字节金标准作 SSOT）；语义合并走 §五
-   由 LLM 判断——脚本不替代人。常规 lint 另跑 `check_format_version`（§二前置）报版本漂移 warn
+     check 清单以 `llmw wiki check-fixtures --json` 输出为准（CLI 内部注册表唯一真源；
+     结构探测 + 骨架字段比对两类，后者读 llmw 包内字节金标准作 SSOT）；语义合并由 LLM 按
+     [`upgrade-workflow.md` §六](upgrade-workflow.md) 判断——CLI 不替代人。常规 lint 另跑
+     `check_format_version`（§二前置）报版本漂移 warn

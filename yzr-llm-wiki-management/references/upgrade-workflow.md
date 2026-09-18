@@ -10,7 +10,9 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 
 ## 为什么需要这一步
 
-每个 wiki 仓在 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 字段钉一份版本（CLI init 时从本 skill `metadata.wiki_format_version` 镜像，单源对齐）。本 workflow 处理 format 演进后的**检测 + 修复**。
+每个 wiki 仓在 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 字段钉一份版本
+（CLI init 时从包内 `WIKI_FORMAT_VERSION` 常量渲染；本 skill `metadata.wiki_format_version`
+与其同值由 CI gate 保证）。本 workflow 处理 format 演进后的**检测 + 修复**。
 
 ## 职责切分（**关键**——三方分工）
 
@@ -54,9 +56,9 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
    llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version
    ```
 
-     - 报告 `needs_upgrade` / legacy pattern groups（如有 legacy 现场）
-     - 若 legacy 有现场 → `--apply --json` 拿 stdout `actions[]`，agent 按 `to_action` 字段用 Edit 落
-     - **跳过 `skipped_conflicts[]`**——永不自动覆盖人工决策
+   - 报告 `needs_upgrade` / legacy pattern groups（如有 legacy 现场）
+   - 若 legacy 有现场 → `--apply --json` 拿 stdout `actions[]`，agent 按 `to_action` 字段用 Edit 落
+   - **跳过 `skipped_conflicts[]`**——永不自动覆盖人工决策
 
 5. **验证**：重跑 `llmw wiki upgrade` + `llmw wiki lint --check-version`：
    - `needs_upgrade == false` 且无残留 legacy + upgrade 退出 `done` → 告知用户完成
@@ -85,7 +87,7 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 
 > lint plan `actions[]` 自含 `to_action`（内容页 legacy 修复直接用 Edit/Write 落）；
 > 本文件 §六 定义**跨 entry 的语义合并**（index 重复条目 / 多 MEMORY 条目归并）——agent 按本节规则走。
-> 脚本不替代语义判断。
+> CLI 不替代语义判断。
 
 ### 6.1 wiki/index.md 条目合并
 

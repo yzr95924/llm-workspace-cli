@@ -2,6 +2,9 @@
 
 This file provides guidance to AI coding agents when working with code in this repository.
 
+> **关键**：本文件里凡 `@path/to/file` 形式的引用（如 `@MEMORY/MEMORY.md`），都用 Read 工具按需
+> 读取——它们与你**当前任务**直接相关。不自动展开 `@import` 的 agent 尤须手动执行，否则漏上下文。
+
 @MEMORY/MEMORY.md
 
 ## 项目定位
@@ -35,6 +38,11 @@ This file provides guidance to AI coding agents when working with code in this r
 ruff format --check .        # 格式化校验（CI lint job）
 ruff check .                 # 静态检查（CI lint job）
 pytest -q                    # 单元/集成测试（CI test job，矩阵 py3.7 + py3.11）
+
+python3 scripts/test/smoke_fixtures.py
+                            # fixtures 字节一致性 gate（CI fixtures-smoke job）
+python3 scripts/test/check_skill_cli_contract.py
+                            # skill↔CLI 契约 gate（CI lint job）；改 CLI 子命令 / flag / finding / rule_ref 后必跑
 
 bash scripts/test/test_install_uninstall.sh
                             # install/uninstall 集成测试（用临时 HOME 隔离）
@@ -109,7 +117,7 @@ llmw.cli (argparse + 分派)
    agent 决定内容，CLI 只负责 `log` 行追加 / `index` 条目挂载 / anchor entry 追加等无语义变换操作）。
    `raw/` / `wiki/` 内**任何**需要 LLM 判断的写入都由 skill 在 session 内执行，CLI 绝不创作
    ——这条红线由 `llmw.content` 包封装所有确定性操作（见模块边界表 `llmw.content` 一行）。
- 2. **CLI 内联实现 wiki 创建**：原 `setup_wiki.py` 已删除（skill 迁移时随之移除）；
+2. **CLI 内联实现 wiki 创建**：原 `setup_wiki.py` 已删除（skill 迁移时随之移除）；
     CLI 通过 `llmw.wiki.init_wiki` 读包内 `llmw/content/templates/wiki/` 的
     `agents-md-template.md` / `claude-md-template.md` / `fixtures/*.txt`
     作为字节金标准，占位符替换后落盘；
@@ -117,16 +125,15 @@ llmw.cli (argparse + 分派)
     （字节一致性 gate 走 `scripts/test/smoke_fixtures.py` 调 `llmw [wiki] check-fixtures` 探测器，
     CI fixtures-smoke job 执行）。
 3. **overlay 交付走 Local 层文件（仅 claude 路径）**——model 真相源是 `workspace_models.toml`，
-   不依赖环境变量（[[model-ops-no-env-vars]]）；`wiki enter` 在 claude 路径渲染 resolved
-   model 进 Local 层 `settings.local.json` 的 `env` 块（Local 层优先级 > User 层），lazy on
-   enter。opencode 路径（默认）与 qodercli 跳过 model resolve，模型由 agent
-   内部自由切换；opencode 另写 instructions overlay（见下）。`ANTHROPIC_MODEL` 用 `model.name`（网关模型名，如 `MiniMax-M3[1m]`），
-   不是 `model_id` slug；子进程 env 透传与优先级机制见「`wiki enter` 的 model 解析」节
-   （[[agent-settings-env-precedence]]）。
-    - 详细见 [[overlay-habit-template]]（习惯级 env key 常量）
-     - opencode 路径额外写 `<wiki>/opencode.json`（整文件 CLI 拥有，wiki 模板 @import
-       ∩ 实际存在文件 → `instructions` 列表；gitignore 保留，每次 enter 幂等渲染，
-       遗留 provider.llmw 明文 apiKey 由此自动剥除）
+   不依赖环境变量（[[model-ops-no-env-vars]]）。claude 路径 `wiki enter` 用 `resolve_for_wiki`
+   拿 ModelEntry（wiki `model` 字段优先、须在 registry 中否则阻断 enter；否则取 `is_default`），
+   渲染进 Local 层 `settings.local.json` 的 `env` 块（优先级 > User 层）：
+   `ANTHROPIC_MODEL`=网关模型名 `model.name`（如 `MiniMax-M3[1m]`，不是 `model_id` slug）/
+   `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN`。opencode 路径（默认）与 qodercli 跳过 model
+   resolve，模型由 agent 内部自由切换；opencode 另写 `<wiki>/opencode.json` instructions 整文件
+   overlay（gitignore 保留、每次 enter 幂等渲染，遗留 `provider.llmw` 明文 apiKey 自动剥除）。
+   子进程 env 透传与优先级机制见 [[agent-settings-env-precedence]]，习惯级 env key 见
+   [[overlay-habit-template]]。
 
 其余不变量（包内资源统一于 `llmw/content/templates/` / api_key 永不明文出 stdout / CLI 内联 wiki 骨架的
 字节一致性保证）已在本文档承载：资源位置见「架构」数据流与模块边界；
@@ -140,7 +147,7 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 | `llmw.cli` | argparse + 全局 flag + 分派 | 不含业务逻辑 |
 | `llmw.backends` | backend 单一真源：`KNOWN_BACKENDS`（enter_cli 白名单 / 打标 / 校验共用）+ `STATE_PATTERNS`（status 的 STATE 模式注册表）+ `match_working`/`match_waiting`；加新 agent 只改此文件 | 不写盘、不做 tmux IO |
 | `llmw.config` | workspace 路径解析、SKILL 脚本路径、模板目录定位 | 不解析 workspace.toml |
-| `llmw.content` | **所有**确定性操作单仓收口：`render.py`（骨架渲染单一入口）/ `upgrade.py`（wiki 升级引擎 + 3 终态）/ `upgrade_workspace.py`（workspace 升级引擎）/ `wiki_fixtures.py` + `workspace_fixtures.py`（规则注册表 + 探测器；共享脚手架下沉到 `_check_common.py`）/ `wiki_lint.py` + `ingest_diff.py` + `wiki_write.py` + `external_anchor.py` + `log_format.py`（内容层命令；anchor + symlink 写路径唯一入口；log_format 是 log 行正则 + 日期解析 SSOT，被 wiki_write / ingest_diff / wiki_lint 三方复用；`_check_common.py` 共享 check 系列无状态 helper：read_text / compare_semver / SEMVER_RE / 模板出边扫描 / 规则清单输出）/ `legacy_paths.toml`（数据）。变量 SSOT = metadata toml + `__version__` 常量；不从旧文件反提取变量 | 不写 `raw/` / `wiki/` 语义内容（除上文红线例外的 `raw/external/` anchor + symlink）；不调用 LLM；不读用户 git 状态；不写元数据 toml（`store` 负责） |
+| `llmw.content` | **所有**确定性操作单仓收口：`render.py`（骨架渲染单一入口）/ `upgrade.py` + `upgrade_workspace.py`（升级引擎 + 3 终态）/ `wiki_fixtures.py` + `workspace_fixtures.py`（规则注册表 + 探测器，共享脚手架在 `_check_common.py`）/ 内容层命令 `wiki_lint.py` / `ingest_diff.py` / `wiki_write.py` / `external_anchor.py` / `log_format.py`（log 行正则 + 日期解析 SSOT）/ `legacy_paths.toml`（数据）。变量 SSOT = metadata toml + `__version__` 常量；不从旧文件反提取变量 | 不写 `raw/` / `wiki/` 语义内容（红线例外见项目定位）；不调用 LLM；不读用户 git 状态；不写元数据 toml（`store` 负责） |
 | `llmw.errors` | 自定义异常（按 exit_code 1/2/3 分层） | — |
 | `llmw.fsutil` | 原子写（tmp + fsync + rename）、ISO8601 时间 | — |
 | `llmw._compat` | tomllib (3.11+) / tomli (<3.11) 兼容层 + 手写 toml dump | — |
@@ -151,10 +158,10 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 | `llmw.wiki.init_wiki` | 渲染骨架（读 templates + .gitkeep 占位）；读 `llmw/content/templates/wiki/` → atomic_write；.gitkeep 无条件落盘（红线：不碰 git） | 不写 wiki_metadata.toml、不进 wiki 业务流 |
 | `llmw.wiki.manager` | add/remove/show/config/stop 业务；add 调 init_wiki + 打印手动 git hint；校验 model_id；stop 枚举带标窗口 + kill-window（R6） | 不进 wiki 内部、不读 wiki/ 内容 |
 | `llmw.wiki.enter` | 启动 session：resolve model → `overlay.apply` 写启动配置 → `byobu.spawn_window` 收口（当前 session 开窗/复用 + 打标；dead 残留自动收尸后新开；不在 tmux 内 → 兜底 session + attach） | 不写元数据 |
-| `llmw.wiki.byobu` | byobu/tmux 薄封装 + 开窗编排原语：spawn/复用/打标/枚举 + session 可见性查询（`visible_sessions`，tmux 外 enter 的选路口径）（`spawn_window` 四条件复用——窗口名+`@llmw_wiki`+`@llmw_backend`+非 dead，backend 不符拒绝 enter，dead 命中收尸后新开——+ R3 打标；`list_windows` 实时枚举返回 `WindowRow` NamedTuple；窗口名 R1 拼接校验）；enter/status/stop 共用 | 不写元数据、不读配置 |
-| `llmw.wiki.status` | `llmw status`：枚举带标窗口 → WIKI/WINDOW/SESSION/BACKEND/STATE/UPTIME/IDLE 表（dead 行 `✗ exited`；STATE=dead→假活 `⚠ shell`→capture-pane 模式匹配 working/waiting→unknown；actionable-first 排序）+ `--json`（`state` 为 ASCII 稳定值 `dead/shell/working/waiting/unknown` + `backend`）+ `--tmux`（`●N [✗M]`）；R8：workspace 缺失（默认路径）时降级孤儿清理模式——warning + 列表 + TTY 确认后逐窗 kill（`--json`/`--tmux`/非 TTY 只打 hint 不动手） | 主路径不写盘、不 kill 窗口（看归看，关归 stop；R8 孤儿清理是唯一经确认的破例） |
+| `llmw.wiki.byobu` | byobu/tmux 薄封装 + 开窗编排原语：spawn/复用/打标/枚举 + `visible_sessions` 可见性查询（tmux 外 enter 的选路口径）；`spawn_window` 四条件复用（窗口名 + 打标 + backend + 非 dead，dead 命中收尸后新开）、`list_windows` 返回 `WindowRow`；enter/status/stop 共用 | 不写元数据、不读配置 |
+| `llmw.wiki.status` | `llmw status`：枚举带标窗口 → WIKI/WINDOW/SESSION/BACKEND/STATE/UPTIME/IDLE 表 + `--json`（`state` 为 ASCII 稳定值 `dead/shell/working/waiting/unknown`）+ `--tmux`（`●N [✗M]`）；STATE 判定走 capture-pane 模式匹配；R8：workspace 缺失（默认路径）时降级孤儿清理模式——warning + 列表 + TTY 确认后逐窗 kill（`--json`/`--tmux`/非 TTY 只打 hint 不动手） | 主路径不写盘、不 kill 窗口（看归看，关归 stop；R8 孤儿清理是唯一经确认的破例） |
 | `llmw.models.overlay` | `render`/`inspect`/`apply`：resolved ModelEntry → 启动配置 `env` 块；幂等合并 + chmod 600。仅 claude 路径使用（opencode 走 `overlay_opencode` 写 `instructions` 键） | — |
-| `llmw.models.overlay_opencode` | `render`/`inspect`/`apply`：wiki 模板顶层 @import ∩ 实际存在文件 → `<wiki>/opencode.json` 整文件覆盖写；CLI 整文件拥有（非 CLI 管理 key 被覆盖前 stderr 逐名警告；遗留 `provider.llmw` 明文 apiKey 由此自动剥除），gitignore 保留不入 git（每次 enter 幂等渲染）。仅 opencode 路径使用（opencode 不解析 AGENTS.md 的 @import，用 config instructions 替代） | — |
+| `llmw.models.overlay_opencode` | `render`/`inspect`/`apply`：wiki 模板顶层 @import ∩ 实际存在文件 → `<wiki>/opencode.json` 整文件覆盖写（CLI 拥有；非 CLI 管理 key 覆盖前 stderr 逐名警告；遗留 `provider.llmw` 明文 apiKey 自动剥除；gitignore 保留，每次 enter 幂等渲染）。仅 opencode 路径使用 | — |
 | `llmw.models.store` | workspace_models.toml 读写 + schema v2 + 字段校验 + chmod 600 | 不做 CRUD 业务、不做 resolve |
 | `llmw.models.redact` | `redact_api_key` 单一脱敏出口 | — |
 | `llmw.models.resolve` | `resolve_for_wiki` 单一查找入口：wiki.model 优先，否则 registry 默认 | 不做 CRUD |
@@ -174,7 +181,7 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 
 ### 全局 flag 与退出码
 
-全局 flag：`--workspace PATH` / `--json` / `--debug` / `--quiet / -q`。
+全局 flag：`--workspace=PATH` / `--json` / `--debug` / `--quiet`/`-q`。
 
 | 退出码 | 含义 |
 | --- | --- |
@@ -190,46 +197,19 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 
 四份元数据文件，都走原子写（`fsutil.atomic_write` = `tmp + fsync + os.replace`）：
 
-- **`<workspace>/workspace.toml`**：schema v2；`schema_version` / `created_at` /
-  `templates_version`（只读）+ `[wikis.<name>]` 注册表。只承载结构数据（运行时配置在
-  `workspace_local.toml`）。老 v1 schema 已退役（`load` v1 直接拒）——2026-08 后不再有自愈路径。
-- **`<workspace>/workspace_local.toml`**：schema v1；`schema_version` / `created_at`（只读）+
-  `enter_cli`（可 set/unset）。主机相关运行时配置——跨主机共用一个 git 仓
-  会互相覆盖产生 churn，故拆出本地化。**不入 git**（与 `workspace_models.toml` 同一 gitignore
-  managed block），无 secret 不 chmod 600。`enter` / `config` 均从此读。
-  （`enter_byobu` 已删除——窗口路径全环境成立，直启模式无存在场景；老文件残留键 load 静默忽略。）
-- **`<workspace>/workspace_models.toml`**（model registry）：schema v2；`schema_version` / `created_at` /
-  `updated_at`（只读，CLI 自动 bump）+ `[[models]]` 数组，每条含 `model_id` / `name` / `base_url` /
-  `api_key` / `context_window`（必填整数，无 fallback）/ 可选 `is_default`。约束：model_id 唯一
-  （`^[a-z0-9_-]{1,64}$`，复用 wiki NAME_RE），
-  `is_default` 全局至多 1 条。**不入 git**——`init` 时通过 workspace `.gitignore`（带
-  `>>> llmw (managed by llmw) <<<` 标记段）自动排除。
-- **`<wiki>/wiki_metadata.toml`**：schema v2；`schema_version` / `name` / `topic` / `created_at` /
-  `updated_at`（只读，CLI 自动 bump）+ `display_name` / `description` / `tags` / `model`（可
-  set/unset）。`model` 字段存的是 registry 中的 `model_id`，不是 url / key。
+- **`<workspace>/workspace.toml`**：schema v2；只承载结构数据 + `[wikis.<name>]` 注册表。老 v1
+  schema 已硬退役（`load` 直接拒，2026-08 后无自愈路径）。
+- **`<workspace>/workspace_local.toml`**：主机相关运行时配置（`enter_cli`，可 set/unset），
+  跨主机共用 git 仓不互相 churn。**不入 git**（与 `workspace_models.toml` 同一 gitignore
+  managed block），无 secret 不 chmod 600；`enter` / `config` 均从此读。
+  （`enter_byobu` 已删——窗口路径全环境成立，直启无场景；残留键 load 静默忽略。）
+- **`<workspace>/workspace_models.toml`**（model registry）：`[[models]]` 每条含 `model_id`
+  （唯一，`^[a-z0-9_-]{1,64}$`）/ `name` / `base_url` / `api_key` / `context_window`（必填整数，
+  无 fallback）/ 可选 `is_default`（全局至多 1 条）。**不入 git**——`init` 写 workspace
+  `.gitignore` managed 块自动排除；chmod 600；api_key 只经 `redact` 出口。
+- **`<wiki>/wiki_metadata.toml`**：schema v2；`model` 字段存 registry 中的 `model_id`，不是 url / key。
 
-完整 schema 与字段规则见 `MEMORY/` 内对应模块的边界条目。
-
-### `wiki enter` 的 model 解析（仅 claude 路径）
-
-`llmw/wiki/enter.py` 在 claude 路径通过 `llmw/models/resolve.py:resolve_for_wiki` 拿最终
-`ModelEntry`，优先级：
-
-1. `<wiki>/wiki_metadata.toml` 的 `model` 字段 → 必须在 registry 中存在，否则
-   `ModelNotInRegistry` 阻断 enter
-2. 否则 registry 中 `is_default=true` 的唯一条目
-
-`overlay.apply` 写 wiki 启动配置 `env` 块（Local 层，优先级 > User）：
-
-```text
-ANTHROPIC_MODEL      = <model.name>    # 网关模型名（口径见不变量 3）
-ANTHROPIC_BASE_URL   = <base_url>
-ANTHROPIC_AUTH_TOKEN = <api_key>
-```
-
-agent CLI 子进程透传 `os.environ`、依赖 Local 层 `env` 块优先级稳赢（[[agent-settings-env-precedence]]）。
-`enter --dry-run` 打印 overlay file（路径 + 是否需要更新）+ api_key 走 redact，不执行 agent CLI、
-不写文件。
+字段级规则（字段名 / 取值约束）见各 `store` 的 `validate` 函数——schema 校验全在 store 层。
 
 ## 项目规约（MEMORY/）
 
@@ -244,9 +224,8 @@ agent CLI 子进程透传 `os.environ`、依赖 Local 层 `env` 块优先级稳�
 ## 开发注意事项
 
 - **不要写 wiki 内容**：除「项目定位」声明的红线例外（`raw/external/` anchor + symlink，
-  仅经 `llmw wiki external` 命令）外，任何对 `raw/` 或 `wiki/` 的写入都违反不变量 I-1。
-- **不要复活 setup_wiki.py**：已删除（skill 侧明确），wiki 骨架由 CLI 内联生成
-  （读包内 `llmw/content/templates/`）；不要"为了模块化"把渲染拆回脚本。
+  仅经 `llmw wiki external` 命令）外，任何对 `raw/` 或 `wiki/` 的写入都违反不变量 1。
+- **不要复活 setup_wiki.py**：wiki 骨架由 CLI 内联生成（详不变量 2），别把渲染拆回脚本。
 - **不要在 `llmw.content` 之外做骨架渲染**：所有确定性操作（render / checker
   fixture 字节比对 / upgrade resync / legacy paths / 内容层命令）统一入口
   `llmw.content` 包——外部模块不要"为了复用"自己写 `_substitute` 或重读
@@ -265,6 +244,8 @@ agent CLI 子进程透传 `os.environ`、依赖 Local 层 `env` 块优先级稳�
 - **NFS 不安全**：原子写走 POSIX `rename`，本地 ext4 / APFS 安全；**不要在 NFS 挂载的 workspace
   上跑 `llmw`**。`workspace_models.toml` 在 NFS 上 `chmod 600` 会 silently 失败，权限安全是
   best-effort。
+- **Markdown 行宽 ≤120**：`.markdownlint.jsonc` MD013（表格 / 代码块豁免）；改模板与仓根
+  文档同样适用。
 - **CI 矩阵**：lint job 跑 ruff（py3.11）；test job 跑 pytest，矩阵 py3.7 + py3.11，用官方
   python 容器（不受 runner 镜像变动影响）；3.7 上不装 ruff、不装 pytest-cov
   （`pip install -e . "pytest>=7,<8"`）。

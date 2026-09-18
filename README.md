@@ -1,6 +1,6 @@
 # llmw — Wiki Workspace CLI
 
-管理一个 workspace（一个 git 仓，含多个 wiki 子目录）下的多个 wiki。wiki 由 CLI 创建，内容的 ingest / lint / query 由 [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm-workspace-cli/tree/master/yzr-llm-wiki-management) skill 在 session 内负责。CLI 只管元数据与 session 启动。两 skill（`yzr-llm-wiki-management` / `yzr-llm-workspace-management`）与 CLI **同仓**。
+一个 workspace = 一个 git 仓，含多个 wiki 子目录。llmw 负责 wiki 创建、元数据与 session 启动；wiki 内容（ingest / lint / query）由 [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm-workspace-cli/tree/master/yzr-llm-wiki-management) skill 在 session 内负责，跨 wiki 操作走 `yzr-llm-workspace-management`。两个 skill 与 CLI **同仓**。
 
 ## 安装
 
@@ -10,7 +10,7 @@ cd llm-workspace-cli
 ./scripts/install.sh
 ```
 
-生成 `~/.local/bin/llmw`（wrapper 内嵌本仓库路径，用 `PYTHONPATH` 解析 `llmw` 包，**无需 pip/venv**），并注册 PATH / completion（bash/fish/zsh 三套）/ 两个 skill 的 symlink。装完 source 对应 shell rc 即可。Python 3.11+ 零第三方依赖；<3.11 需 `pip install 'tomli>=1.1'`。
+生成 `~/.local/bin/llmw`（wrapper 内嵌本仓库路径，用 `PYTHONPATH` 解析 `llmw` 包，**无需 pip/venv**）。同时注册 PATH / completion（bash/fish/zsh 三套）与两个 skill 的 symlink；装完 source 对应 shell rc 即可。Python 3.11+ 零第三方依赖；<3.11 需 `pip install 'tomli>=1.1'`。
 
 卸载（删 wrapper + PATH marker + completion + skill symlink，**不删仓库、不删 workspace 数据**）：
 
@@ -25,18 +25,18 @@ cd llm-workspace-cli
 > 带值 flag 一律用 `--flag=VALUE`（空格分隔会被拒）；前缀缩写已禁用。bool flag 与位置参数不受影响。
 
 ```bash
-llmw init                                    # 初始化 workspace（默认 ~/yzr-llm-wiki-workspace；不碰 git）
+llmw init
 llmw model add --model-id=minimax-m3-1m \
   --name="MiniMax-M3[1m]" --base-url="https://api.example.com" \
   --api-key="sk-xxxxxxxx" --default
 llmw wiki --name=llm-systems add --topic="LLM Systems" \
   --display-name="LLM 系统研究" --description="跟踪 LLM 系统论文与博客" \
   --tag=research --tag=llm --model=minimax-m3-1m
-llmw wiki --name=llm-systems enter          # 启动 agent session（默认 opencode；当前 tmux session 开窗）
-llmw wiki --name=llm-systems enter --dry-run  # 先看决策（backend / 启动配置 / 窗口名 / 命令）
-llmw status                                 # 一屏看所有运行中的 session
-llmw wiki --name=llm-systems stop           # 关窗口
-llmw wiki --name=llm-systems remove --purge --yes   # 移除并删除目录（默认备份到 .llmw-trash/）
+llmw wiki --name=llm-systems enter          # 启动 agent session
+llmw wiki --name=llm-systems enter --dry-run  # 先看决策，不执行
+llmw status
+llmw wiki --name=llm-systems stop
+llmw wiki --name=llm-systems remove --purge --yes
 ```
 
 ## 命令一览
@@ -65,15 +65,13 @@ llmw wiki --name=llm-systems remove --purge --yes   # 移除并删除目录（�
 
 | 命令 | 作用 |
 | --- | --- |
-| `llmw wiki --name=NAME add [--topic=...] [--display-name=...] [--description=...] [--tag=TAG]... [--model=MODEL_ID] [--git]` | 新建 wiki；非 TTY 下 metadata flag 全必填；`--model` 必须在 registry 中；`--git` 为 vestigial flag（CLI 不碰 git，落盘后打印手动 hint） |
+| `llmw wiki --name=NAME add [--topic=...] [--display-name=...] [--description=...] [--tag=TAG]... [--model=MODEL_ID] [--git]` | 新建 wiki；非 TTY 下 metadata flag 全必填；`--model` 必须在 registry 中；`--git` 为残留 flag（无实际作用；CLI 不碰 git，落盘后只打印手动 hint） |
 | `llmw wiki --name=NAME remove [--purge] [--no-backup] [--yes\|-y]` | 移除 wiki；`--purge` 删子目录（默认备份到 `.llmw-trash/`）；`--no-backup` 跳过备份 |
 | `llmw wiki rename --old=OLD --new=NEW [--json] [--quiet]` | 重命名 wiki（3 处同步 + 冲突硬阻挡） |
 | `llmw wiki --name=NAME show [--json]` | 查看 wiki 详情（resolved model 来源 + api_key redact） |
 | `llmw wiki --name=NAME config [get\|set\|unset] [KEY] [VALUE]` | 读写 `wiki_metadata.toml`；无参数 + TTY 进交互模式 |
 | `llmw wiki --name=NAME enter [--dry-run] [--window-suffix=SUFFIX]` | 启动 agent session（backend 见下；当前 tmux session 开窗，不在 tmux 内 → 兜底 attach） |
 | `llmw wiki --name=NAME stop [--window-suffix=SUFFIX] [--yes\|-y]` | 终止该 wiki 的 agent 窗口 |
-
-`config` 的合法 KEY 列表由命令本身输出（非 TTY 打印字段清单），此处不重复。
 
 ### agent CLI 切换（`wiki enter` 的 backend）
 
@@ -91,7 +89,7 @@ llmw config set enter_cli claude   # 切换；llmw config unset enter_cli 回退
 
 ### 窗口模式（enter / status / stop）
 
-`wiki enter` 把 agent 开成**当前 tmux session 的一个窗口**（不在 tmux 内 → 恰一个可见 session 时直接开入其中，否则兜底 `llm_workspace` session + attach）。窗口名 `<wiki>-<suffix>`（suffix 默认 `main`）；**不传 `--window-suffix` 恒为复用跳转，传了才是新开并行窗口**。enter 是 fire-and-forget（窗口建成即返回 0）。设计细节（复用四条件 / 打标 / remain-on-exit / 孤儿模式 / STATE 判定）见 `doc/session-visibility-design.md`。
+`wiki enter` 把 agent 开成**当前 tmux session 的一个窗口**。不在 tmux 内时：恰有一个可见 session 就直接开入其中，否则兜底 `llm_workspace` session + attach。窗口名 `<wiki>-<suffix>`（suffix 默认 `main`）；**不传 `--window-suffix` 恒为复用跳转，传了才是新开并行窗口**。enter 是 fire-and-forget（窗口建成即返回 0）。设计细节（复用四条件 / 打标 / remain-on-exit / 孤儿模式 / STATE 判定）见 `doc/session-visibility-design.md`。
 
 ## 退出码
 
