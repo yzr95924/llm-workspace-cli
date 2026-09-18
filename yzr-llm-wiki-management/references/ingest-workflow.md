@@ -65,13 +65,11 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
    `<slug>.md`
 4. **脚手架走 `llmw wiki write new --type=source --slug=... --title=... --sources=raw/...`**
    （自动生成 5 必填 frontmatter + H1，slug 校验 + 拒覆盖）——然后 Edit 写正文，
-   使用 source 模板（见 [`page-templates.md`](page-templates.md) §二.3）：
-   - frontmatter：title / description（一句话摘要，index 摘要从它来）/ type=source /
-     tags / sources=[raw 路径] / updated=today（`created`：全新文件设 today；stale-raw 保留原值）
-   - 正文：
-     - 摘要（200-500 字）——核心论点 / 关键数据 / 与本 wiki 其他资料的关系
-     - 关键引用——可独立成段的引文 / 数字 / 结论
-     - 链接出去的 cross-refs——相关 entity / concept / source 页
+   使用 source 模板（见 [`page-templates.md`](page-templates.md) §二.3，字段定义不重抄）：
+   - 摘要（200-500 字）——核心论点 / 关键数据 / 与本 wiki 其他资料的关系
+   - 关键引用——可独立成段的引文 / 数字 / 结论
+   - 链接出去的 cross-refs——相关 entity / concept / source 页
+   - `created`：全新文件设 today；stale-raw 重摄取保留原值
    - **认知质量信号（可选）**：fast-moving / 争议 / 单一弱来源的 source 页，建议在 frontmatter
      标 `contested: true`（仅当**确属矛盾未裁定**时）——`confidence` 字段已退役，
      可信度由"是否人工审核过"承载（详见 [page-templates.md §一](page-templates.md)）
@@ -130,7 +128,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 - `sources` 必填——`raw/` 下相对路径数组，至少 1 条（`raw/discussions/` 路径 lint 报
   `source-in-discussions`，需先归档到 `raw/articles/` 或重摄取）
-- 推荐 `description`（一句话摘要，index 摘要从它来避免漂移）
+- 推荐 `description`
 - 推荐 `authors` / `published` / `url` / `venue`——便于 index 摘要 + 反向溯源
 
 ## 五、批处理摄取（≥ 3 份 raw 同时摄入）
@@ -139,8 +137,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 > log 标题前缀约定一律写在本节。
 
 当 `llmw wiki ingest-diff` 返回 ≥ 3 个待摄取文件，或用户明确说"把这堆一起 ingest / 整批过稿"，
-走批处理路径而非逐份处理。批处理的关键是**一次聚合、一次写入、一次索引**——
-避免 N 次重复 search / N 次 index 更新 / N 条 log。
+走批处理路径而非逐份处理。
 
 ### 5 步流程
 

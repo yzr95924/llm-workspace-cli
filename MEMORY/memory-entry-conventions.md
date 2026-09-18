@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-MEMORY 条目形式（完整 vs 短）的判别 + 写入纪律的权威约定。对齐 [`yzr-llm-wiki-management` SKILL.md §4 Memory](https://github.com/yzr95924/llm_workspace_cli/blob/master/yzr-llm-wiki-management/SKILL.md) 的"判别条目形式"规则，结合本仓特点做精简。
+MEMORY 条目形式（完整 vs 短）的判别 + 写入纪律的权威约定。对齐 [`yzr-llm-wiki-management` SKILL.md §4 Memory](https://github.com/yzr95924/llm-workspace-cli/blob/master/yzr-llm-wiki-management/SKILL.md) 的"判别条目形式"规则，结合本仓特点做精简。
 
 **Why:** `MEMORY/MEMORY.md` 被 `<workspace-root>/CLAUDE.md` 用 `@MEMORY/MEMORY.md` import 会话常驻——每条都进上下文。**裸行承载一句话事实**比让 agent 跳去 `Read` 整个 `<slug>.md` 文件快得多也省得多；但"将来怎么用 / 如何避免"等需要完整上下文的，短行承载不下。两类条目按颗粒度选，写错形式要么冗长占用上下文、要么太短丢失关键信息。
 
@@ -47,4 +47,4 @@ MEMORY 条目形式（完整 vs 短）的判别 + 写入纪律的权威约定。
 - **完整条目正文**走 **Why:** + **How to apply:** 三段式（与本条、与其他既有完整条目一致）；reference / 频查文档用 `## 背景 / ## 判别 / ## 写入纪律` sub-section 也可，但 default 是三段式
 - **cross-link 用 `[[slug]]`** 表达"1 跳之内的紧密主题相关"；不凑数、不加孤儿链
 
-**与 Claude 会话级 memory 的关系**：本仓 `MEMORY/MEMORY.md` 是项目级规则**唯一**真源；Claude 会话级 memory（`~/.claude/projects/.../memory/`）只放指向本文件的指针（如 `MEMORY rules → /root/llm_workspace_cli/MEMORY/MEMORY.md`），不再持有内容副本。如果 agent 在个人 memory 目录发现内容副本，应主动删副本、改留指针。
+**会话级 memory 副本处置**：agent 在会话级 memory 目录（如 `~/.claude/projects/.../memory/`）发现内容副本时，主动删副本、只留一行指针（如 `MEMORY rules → /root/llm-workspace-cli/MEMORY/MEMORY.md`）。

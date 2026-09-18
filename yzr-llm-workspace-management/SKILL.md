@@ -15,13 +15,13 @@ description: |
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  workspace_format_version: 0.10.0
+  workspace_format_version: 0.10.1
 ---
 
 # LLM Workspace Management
 
 维护一个**本地多 wiki** 工作区的"全局视图"和跨 wiki 编排——单 wiki 的 ingest / query / lint 走
-`yzr-llm-wiki-management` skill。本 skill 站在所有 wiki 之上，做需要跨 wiki 判断的事。
+`yzr-llm-wiki-management` skill。
 
 两块交付物：
 
@@ -126,10 +126,8 @@ metadata:
 | **route** | "应该查哪个 wiki" / "属于哪个 wiki" | 读 INDEX.md → 按 topic / tag / description 匹配 → 返回 1-3 个候选 wiki |
 | **synthesis** | "总结所有" / "综合所有 wiki" / 兜底 | route → 每候选 wiki query → 合并 + 标注每 wiki 来源 |
 
-**good query 必有"是否归档"环节**——归档位置：
-
-- 答案涉及**单 wiki** → `<wiki>/wiki/syntheses/<slug>.md`（走 `yzr-llm-wiki-management`）
-- 答案涉及**多 wiki** → `<workspace>/cross_queries/<slug>.md`（本 skill 直接写，格式 A4）
+**good query 必有"是否归档"环节**——归档落点与两级归属的纪律见 `<workspace>/AGENTS.md`
+「查询 / 综合纪律」；workspace 级归档由本 skill 直接写（格式 A4），wiki 级部分转交 `yzr-llm-wiki-management`。
 
 归档正文引用上游易变事实时过感知测试——规则 SSOT 见 `yzr-llm-wiki-management` 的 `references/ingest-workflow.md`「正文引用的稳定性」节。
 
@@ -168,8 +166,6 @@ metadata:
 ### 5. Memory（跨 wiki agent 私有记忆）
 
 **触发**：在 scan / query / link / lint 过程中识别到**跨 wiki**值得沉淀的信息时主动写。
-
-一行判别：**跨 wiki**偏好/关联/模式/经验 → 写；**单 wiki**观察 → 转交 `yzr-llm-wiki-management`；**跨 wiki 综合答案本身** → 归档 `cross_queries/`；**一次性观察** → 直接 chat。
 
 完整"何时写/不写" + 判别尺度 canonical = `<workspace>/AGENTS.md` 的「Memory 纪律」节（byte-owned 模板渲染），本附录不重复。
 
@@ -224,7 +220,7 @@ metadata:
 
 - **必读**：`<workspace>/AGENTS.md`（= `workspace-agents-md-template.md` 模板渲染稿，byte-owned）——workspace 级契约的 canonical
 - **单 wiki 契约**：`yzr-llm-wiki-management` SKILL.md + references/（本 skill 读 wiki 文件时按其契约理解，不直接写）
-- **CLI 文档**：workspace CLI（命令 `llmw`，与本 skill 同仓维护）——`init / add / remove / config / enter / model ...` 命令参考此处
+- **CLI 文档**：workspace CLI（命令 `llmw`，与本 skill 同仓维护）——命令面参考 `llmw --help`
 
 ## 附录：产物格式契约与读取契约
 
@@ -290,7 +286,6 @@ metadata:
 
 ### A5. LINT.md
 
-- 维护方：**skill** 在 `lint` 时写最近一次报告（**不**累积，每次 lint 覆盖，是快照）
 - frontmatter 必填（A7） + `type: workspace-lint`
 - 正文骨架：`# <Workspace> — Lint Report (<YYYY-MM-DD>)` + `## Per-wiki Issues`（每 wiki 一段，本 wiki 内 lint 走 yzr-llm-wiki-management）+ `## Workspace-level Issues`（跨 wiki 重复 entity / 未注册子目录 / STATS 过期 / MEMORY 索引一致 / ...)
 - skill 写入场景：`lint`（每次覆盖）

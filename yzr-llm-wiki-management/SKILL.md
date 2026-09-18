@@ -16,7 +16,7 @@ description: |
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  wiki_format_version: 0.43.2
+  wiki_format_version: 0.43.3
 ---
 
 # LLM Wiki Management
@@ -184,14 +184,12 @@ metadata:
 
 ### 批处理摄取（≥ 3 份 raw 同时摄入）
 
-走批处理路径而非逐份。**一次聚合、一次写入、一次索引**——避免 N 次重复 search / N 次
-index 更新 / N 条 log。5 步流程 + 为什么批处理 + log 标题前缀 `Bulk:` 的细节见
+走批处理路径而非逐份，5 步流程 + 理由 + log 标题前缀 `Bulk:` 的细节见
 [`references/ingest-workflow.md`](references/ingest-workflow.md)「批处理」节。
 
 **外部代码仓作为语料**——若用户说"把 X 仓库纳入 wiki"：**不**内嵌拷仓，走
 [`external-repo.md`](references/external-repo.md) 的 symlink 路径
-（`raw/` 总纪律的**写权限例外之一**——symlink + anchor 一律经 `llmw wiki external`
-CLI 子命令落盘；另一处例外是 `raw/discussions/` 协作草稿，见 ingest-workflow.md §10）。
+（symlink + anchor 一律经 `llmw wiki external` CLI 子命令落盘）。
 接入命令：`llmw wiki external add <target> --name=<n> [--notes=...]`（CLI 自动建 symlink +
 读 git 身份字段 + 原子写 anchor）；随后 `llmw wiki ingest-diff` 扫描；漂移刷新 /
 跨主机重建（`llmw wiki external rebuild`）见 [`references/external-repo.md`](references/external-repo.md)。
@@ -222,7 +220,7 @@ CLI 子命令落盘；另一处例外是 `raw/discussions/` 协作草稿，见 i
 1. 跑 `llmw wiki lint` 做 deterministic 检查
 2. 脚本覆盖（大类如下，权威清单见 [`references/lint-checklist.md`](references/lint-checklist.md)）：
    raw 不可变性 / frontmatter 字段 / 孤儿页 / 断链 / log.md 格式 / 过期摘要 / 页面体量
-   / 认知质量与可信度信号（`reviewed` / `contested` / `contradictions`）/ `raw/external/`
+   / 可信度与认知质量信号（`reviewed` / `contested` / `contradictions`）/ `raw/external/`
    symlink ↔ anchor 关联（external-repo.md）/ fixtures 一致性（见下文「fixtures 一致性检查」段）
 3. 脚本输出后 **agent 还要做半定性检查**：矛盾主张 / 缺失交叉引用 / 建议新摄取方向
 4. 报告 + 询问用户哪些修
@@ -261,7 +259,7 @@ wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明
 reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy warn。
 
 **职责**：三方分工——CLI `llmw [wiki] upgrade` 修骨架（byte/block/header-owned + legacy
-paths + self-verify + blocked_drift 3 终态）；lint plan `actions[]` 修内容页 frontmatter
+paths + self-verify + blocked_drift 门禁）；lint plan `actions[]` 修内容页 frontmatter
 legacy（当前仅 `type-memory-value`）；agent 负责 drift 裁定（本地定制搬 MEMORY 或丢弃）+
 §六语义合并（index 重复 / MEMORY 归并）。迁移期不走 `llmw wiki write`；
 **不**追加 log 条目。

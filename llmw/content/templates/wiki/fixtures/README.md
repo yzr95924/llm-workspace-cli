@@ -3,8 +3,29 @@
 CLI 实现 wiki 仓时落盘的 `wiki/index.md` / `wiki/log.md` / `wiki/tags.md`
 / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` / `.gitignore` 六个文件的**字节金标准**。
 同仓后 fixtures 是唯一字节金标准（跨仓时代的 `references/canonical/` 双份已删）。
-从引入各 fixture 头部说明块开始，它们承载该文件的**操作纪律 canonical**（原在 AGENTS.md 模板
-§一（本 wiki 的边界）各段与 skill 格式契约——规则跟着维护者走，落盘进实例 agent 直接读）。
+从引入各 fixture 头部说明块开始，它们承载该文件的**格式 / 操作契约 canonical**
+（frontmatter / 条目格式 / retention / 解析约束——原散在 AGENTS.md 模板各边界段与 skill
+格式契约，规则跟着维护者走，落盘进实例 agent 直接读）。跨文件的**同步触发判定**不在
+fixture——家是 wiki `AGENTS.md`「写入纪律」（见下「规则分层」）。
+
+## 规则分层（一规则一家）
+
+wiki 体系每条纪律恰有一个 canonical 载体；其余位置要么不写，要么只写一行**裸指针**
+（名称锚点 / 链接，不夹带规则正文）：
+
+| 规则类型 | canonical 家 |
+|---|---|
+| 跨文件同步触发判定（何时动 index.md / log.md） | wiki `AGENTS.md`「写入纪律」「写后必同步」条 |
+| 单文件格式 / 操作契约（怎么写、retention、解析约束） | 该 fixture 头部说明块 |
+| 工作流步骤（ingest / query / lint 的执行过程） | skill `references/*.md` |
+| 文件边界（路径 / 性质 / 所有权） | wiki `AGENTS.md` 各边界卡（「一、本 wiki 的边界」） |
+
+两条派生纪律（写新规则前必读，防止逐例打补丁回潮）：
+
+- **catch-all 优于枚举**：判定规则写成"通则 + 兜底行"（"此外一切动作一律……"），
+  新场景自动落入通则；禁止为个案加豁免 / 许可句
+- **fixture 只承载骨架契约**：跨文件触发判定与成长内容不进 fixture 头部——
+  头部写"触发判定见 AGENTS.md …"的指针即可
 
 ## 用法
 
@@ -33,7 +54,7 @@ CLI 把 fixtures 视为**带占位符的字节模板**：用用户传入的 mapp
 | fixture | CLI 何时生成 | 后续谁维护 |
 |---|---|---|
 | `index.md.txt` | init 时刻 | **LLM agent**（每次 ingest / 重写 / 归档同步） |
-| `log.md.txt` | init 时刻（首条 setup 条目） | **LLM agent**（追加 ingest/query/lint 条目 + 滚动窗口截断） |
+| `log.md.txt` | init 时刻（首条 setup 条目） | **LLM agent**（追加三种 op 痕迹条目 + 滚动窗口截断） |
 | `tags.md.txt` | init 时刻 | **LLM agent**（按需追加 tag bullet；用户可删误判 bullet 触发 lint `tag-not-in-taxonomy` 审计循环） |
 | `memory-index.txt` | init 时刻 | **LLM agent**（追加经验条目到 MEMORY/ 下 + 同步 MEMORY.md 索引） |
 | `scripts.md.txt` | init 时刻 | **用户 + LLM agent**（添加 / 修改脚本与同步 SCRIPTS.md 段是原子动作；与 MEMORY/tags.md 同形态——无 frontmatter） |
@@ -93,7 +114,7 @@ fixtures 只承载 **CLI init 时刻的骨架字节**；内容在 init 之后由
 | 文件 | fixture 覆盖（骨架） | 成长内容（fixture 外） |
 |---|---|---|
 | `wiki/index.md` | frontmatter + H1 + 说明块 + 5 类别 H2 标题 | 类别下每篇 ingest 产出的 page bullet / 链接 |
-| `wiki/log.md` | frontmatter + 说明块 + 第一条 setup 条目 | 之后每次 ingest / query / lint 追加的条目 |
+| `wiki/log.md` | frontmatter + 说明块 + 第一条 setup 条目 | 之后由三种 op 痕迹追加的条目 |
 | `wiki/tags.md` | H1 + 说明块（空 bullet 列表） | agent 按需追加的 tag bullet |
 | `MEMORY/MEMORY.md` | H1 + 说明块 + `## 索引` 段标题 | 索引下每条经验条目 |
 | `scripts/SCRIPTS.md` | H1 + 说明块 + `## 索引` 段标题 | 用户 / agent 追加的脚本条目 |

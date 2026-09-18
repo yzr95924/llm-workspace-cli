@@ -1,7 +1,7 @@
 # Fixtures
 
-workspace CLI init 时落盘的 `<workspace>/MEMORY/MEMORY.md` 的**字节金标准**——与
-wiki management 侧的 fixtures 机制同构（同仓兄弟包，同一套字节金标准约定）。
+workspace CLI init 时落盘的 `<workspace>/MEMORY/MEMORY.md` 的**字节金标准**——与 wiki management 侧
+fixtures 同构（同仓兄弟包）。
 
 ## 范围
 

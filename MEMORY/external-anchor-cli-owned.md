@@ -7,12 +7,7 @@ metadata:
 
 # raw/external/ anchor 写路径归 CLI
 
-仓根红线修订为带一个例外的版本：`llmw/` 不写 `raw/` / `wiki/` 下任何文件，
-**唯一例外** = `raw/external/` 下的 `.symlink-anchor.toml` + 对应 symlink，
-且**仅经** `llmw wiki external` 子命令（`add`/`remove`/`list`/`rebuild`）的注册表
-变换落盘。`notes` 字节由 agent 输入，机械 scribe。
-
-**Why:** anchor 写路径是仓内**唯一**一处"注册表但非 CLI 持有"的残留——schema SSOT
+**Why:** anchor 写路径曾是仓内**唯一**一处"注册表但非 CLI 持有"的残留——schema SSOT
 原来在两处散文（`AGENTS.md` raw/external 节 + skill `external-repo.md` 接入段），LLM 手写
 TOML，事后靠 `external-anchor-corrupt` finding 兜底。这违反本仓其他所有注册表遵循的
 "写入时代码强制 + schema SSOT 在码"模式（`workspace_models.toml` /
@@ -48,4 +43,3 @@ TOML，事后靠 `external-anchor-corrupt` finding 兜底。这违反本仓其�
 - 模板 `agents-md-template.md` raw/external 节：「LLM 可写」→「走 CLI 子命令」
 - skill `external-repo.md`：接入 / 重建 shell 流程收编为 `llmw wiki external` 命令；
   §一 承接字段语义 SSOT（agent 排查损坏场景用）+ §三 保留跨主机重建原理
-- [[external-anchor-cli-owned]] 自指

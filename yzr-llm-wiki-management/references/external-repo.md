@@ -53,8 +53,6 @@ anchor 文件**进 git** 是这一机制的根：
   （home-relative 仅指同 home 布局的逻辑路径，跟机器绑定的文件系统不是一回事）
 - anchor 的 `remote_url` / `branch` 身份字段是**跨主机稳定**的——
   任何机器上读 anchor 都可还原"接入意图"（远端 + 分支）
-- **anchor 描述意图、symlink 描述当前主机绑定**——这是 `.symlink-anchor.toml`
-  与 symlink 解耦的价值
 - anchor 是单文件 `[[entry]]` 数组——多仓共用一份，跨主机重建也是扫这一个文件
 
 ### 触发场景

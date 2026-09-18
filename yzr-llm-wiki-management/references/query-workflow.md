@@ -51,8 +51,8 @@ Query 跨页综合，暴露单篇看不到的**联系**（A 和 B 都涉及 self
 跨页矛盾（contested: true）—— 候选页里有未裁定冲突，参考其 contradictions 字段
 ```
 
-**为什么需要这一步**：wiki 的复利价值依赖"已沉淀主张可被信任"——人工审过的页面
-（`reviewed: true`）应作为优先引用源，未审页面作为补充并显式标注。`llmw wiki lint` §二.13
+**为什么需要这一步**：人工审过的页面（`reviewed: true`）应作为优先引用源，未审页面作为
+补充并显式标注。`llmw wiki lint` §二.13
 会把未审页面标 `pending-review`（info），但 query 时是否优先采信是 agent 决策，不在 lint 范围内。
 
 ### Step 2.6：综合答案时优先采信 reviewed
@@ -94,7 +94,7 @@ Query 跨页综合，暴露单篇看不到的**联系**（A 和 B 都涉及 self
 > `wiki/comparisons/<slug>.md`（或 `wiki/syntheses/<slug>.md`）？建议标题：
 > `<title>`。
 
-用户拒绝 → 尊重，不强求；用户同意 → 走 Step 5。
+用户拒绝 → 尊重，不强求，亦不追加 log（无 wiki 痕迹）；用户同意 → 走 Step 5。
 
 ### Step 5：归档 query 答案
 

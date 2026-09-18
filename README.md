@@ -18,7 +18,7 @@ cd llm-workspace-cli
 ./scripts/uninstall.sh
 ```
 
-> `pip install -e .` 只服务开发 / CI；功能完整安装只用 `install.sh`（注册 `~/.local/bin/llmw` wrapper + PATH + completion + 两 skill symlink）。运行期资源全部内建于 `llmw/content/templates/`，wheel 声明 `package-data` 后独立可用。
+> `pip install -e .` 只服务开发 / CI；功能完整安装只用 `install.sh`。运行期资源全部内建于 `llmw/content/templates/`，wheel 声明 `package-data` 后独立可用。
 
 ## 快速上手
 

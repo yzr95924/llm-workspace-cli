@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-本仓库 wiki-workspace-cli 涉及 model 的配置**不以环境变量为真相源**——model_id / base_url / api_key 一律来自 `workspace_models.toml`，CLI **绝不**从 `os.environ` 读取 model 配置。
+本仓涉及 model 的配置**不以环境变量为真相源**——model_id / base_url / api_key 一律来自 `workspace_models.toml`，CLI **绝不**从 `os.environ` 读取 model 配置。
 
 但「不依赖环境变量」**不等于**「不向 AI coding agent 交付 env」：Phase 2 起 `wiki enter` 通过
 `overlay.apply` 把 resolved model 渲染进 `<wiki>/.claude/settings.local.json` 的 `env` 块
@@ -23,9 +23,8 @@ metadata:
 - **绝不**在任何代码路径读取 `os.environ.get("ANTHROPIC_MODEL")` 或类似 pattern（读取 = 把 env 当
   真相源，禁止）
 - `wiki enter` 通过 `overlay.apply` 写 `<wiki>/.claude/settings.local.json` 的 `env` 块交付
-  `ANTHROPIC_MODEL`/`ANTHROPIC_BASE_URL`/`ANTHROPIC_AUTH_TOKEN`——值来自 registry，非从父进程 env 读出
-- 交付的 `ANTHROPIC_MODEL` 用 `model.name`（网关模型名），不是 `model_id`；Local 层 env 块优先级 > User
-  层（详见 [[agent-settings-env-precedence]]）
+  `ANTHROPIC_MODEL`/`ANTHROPIC_BASE_URL`/`ANTHROPIC_AUTH_TOKEN`
+- 交付的 `ANTHROPIC_MODEL` 用 `model.name`（网关模型名），不是 `model_id`（详见 [[agent-settings-env-precedence]]）
 - subprocess 透传 `os.environ`、不传 `--setting-sources`，恢复 user 配置
 
 关联 [[memory-entry-conventions]] [[agent-settings-env-precedence]]。

@@ -91,8 +91,6 @@
   - **用户 + LLM 双方可写**——创建 / 编辑 / 删除都行；这是 `raw/` 总纪律的**第二处写权限
     例外**（第一处是 `raw/external/` 的 symlink + anchor）
   - **不**要求 frontmatter（草稿不是内容页）
-  - **不**进 `wiki/index.md`；写 discussions/ **不**追加 `log.md` 条目（非 wiki 操作，
-    显式豁免"每次写入必更 log"）
   - **`llmw wiki ingest-diff` 跳过** discussions/ 子树——草稿不会被当 untracked 素材列出
     （避免 LLM 把自己写的草稿当 raw 真相 ingest 回 wiki = provenance 后门）
   - **`raw-modified` lint 排除** discussions/——草稿的未提交 git 改动**不**触发"raw 被违规改"
@@ -125,15 +123,20 @@
 ### `wiki/log.md` —— 近期活动速览（滚动窗口）
 
 - 路径：`<wiki-root>/wiki/log.md`
-- 纪律：每次 ingest / query / lint 后**必须**追加一条——正路走 `llmw wiki write log`
-  （格式 + 滚动窗口截断自动保证）；条目格式与 retention 细则见
-  [`wiki/log.md`](wiki/log.md) 头部说明块，带外手改前先读它
+- 纪律：追加触发判定见「写入纪律」「写后必同步」条；正路命令、条目格式与 retention
+  细则见 [`wiki/log.md`](wiki/log.md) 头部说明块，带外手改前先读它
 
 ### `wiki/index.md` —— wiki 单一入口
 
 - 路径：`<wiki-root>/wiki/index.md`
-- 纪律：任何 wiki 页面必须在 index.md 有对应条目；每次 wiki 内容变更后**必须**同步
-  （宁可多改）。分组 / 条目格式 / 扩容护栏见 [`wiki/index.md`](wiki/index.md) 头部说明块
+- 纪律：同步触发判定见「写入纪律」「写后必同步」条；页面覆盖不变量见「wiki/」节；
+  分组 / 条目格式 / 扩容护栏见 [`wiki/index.md`](wiki/index.md) 头部说明块
+
+### `wiki/tags.md` —— tag 白名单字典
+
+- 路径：`<wiki-root>/wiki/tags.md`
+- 纪律：追加时机 / 取值规则 / lint 解析约束 / 用户审计循环见
+  [`wiki/tags.md`](wiki/tags.md) 头部说明块
 
 ### `MEMORY/` —— LLM agent 的持久化记忆
 
@@ -159,10 +162,17 @@
 ## 二、写入纪律
 
 1. **写前必搜**——创建新页面前先 grep / search `wiki/` 确认是否已有同名或近义页
-2. **写后必同步**——新增 / 改 / 删页面后必须同步：
-   - `index.md`（条目增减）
-   - 相关的 entity / concept 页（追加"参考来源"段，**不重写**）
-   - `log.md`（追加操作条目）
+2. **写后必同步（wiki 痕迹是同步义务的唯一判定）**——判据是"动作在 wiki 留下什么
+   痕迹"，与动作叫什么、写入落在哪个路径无关：
+   - `index.md` + 相关页交叉引用：`wiki/` 页面新增 / 删 / 改后必同步（宁可多改；
+     条目增减；相关 entity / concept 页按需追加"参考来源"段，**不重写**）
+   - `log.md`：仅三种 op 痕迹各记一条——**ingest**＝raw 消化落盘；**query**＝结论
+     归档（未归档的纯问答不记）；**lint**＝执行 `llmw wiki lint`（干净运行也记，
+     兼任"上次巡检时间"信号）。条目写法细则见 `wiki/log.md` 头部说明块
+   - **此外一切动作一律不动 `index.md` / `log.md`**——纯读取、不属于上述 op 的独立
+     微小编辑（git 承载）、`wiki/` 之外的任何写入（raw/ 各子树含 discussions/ 草稿与
+     external target 仓、scripts/、MEMORY/、仓外路径）。新场景自动落入本行，
+     无需逐例豁免；「本 wiki 的边界」各节指针均指向这里
 3. **改写而非新建**——若已有同类页，**编辑它**而不是建新的副本
 4. **重写时保留 frontmatter**——不要因为改写丢失 `type` / `tags` / `sources` 字段
 5. **交叉引用走相对路径**——`[link](../concepts/transformer.md)`，**不要**用 wikilink

@@ -15,8 +15,6 @@ Project > User；`env` 块属于 settings 层，会重新应用到 session。**L
 > 路径以 `~/.claude/settings.json` 为事实样例；其它 AI coding agent 命名空间可能不同（不读 `.claude/`），
 > 但 settings 层优先级语义通用（Local > User）。
 
-**Why:** agent 的 settings 链优先级 Managed > CLI args > Local > Project > User，`env` 块随 settings 层；Local 层优先级 > User 层——这是 `llmw wiki enter` 能赢 user env 块覆盖的关键。`subprocess.run(env=...)` 注入的 OS 级 env 会被 agent 内部的 settings env 块盖回去。
-
 **How to apply:**
 
 - `llmw wiki enter` 把 resolved model 渲染进 `<wiki>/.claude/settings.local.json` 的 `env` 块

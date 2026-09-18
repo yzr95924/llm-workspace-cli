@@ -287,8 +287,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ## 八、lint 的边界
 
-- **不**自动修——只报告；修由用户 / agent 决定（机械字节操作的"正路"是
-  `llmw wiki write`，lint 不兼任 writer）
+- **不**自动修——只报告；修由用户 / agent 决定
 - **不**评估内容质量（不是 fact-checker）——只看结构和纪律
 - **不**评估 frontmatter 的语义是否合理（只检查字段存在性 + 类型合法）
 - **不**取代 schema（`AGENTS.md`）——schema 是源头，lint 是脚本化检查

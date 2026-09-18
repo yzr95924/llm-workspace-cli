@@ -8,7 +8,8 @@ updated: {{SETUP_DATE}}
 
 > 近期活动速览（滚动窗口）——完整操作历史靠 git（`git log -p -- wiki/log.md`）。
 >
-> **追加纪律**：每次 ingest / query / lint 后**必须**追加一条；正路走
+> **追加纪律**：仅三种 wiki 痕迹入列（ingest 落盘 / query 归档 / lint 执行），触发判定
+> 见 [`../AGENTS.md`](../AGENTS.md)「写入纪律」「写后必同步」条。正路走
 > `llmw wiki write log`（格式 + 滚动窗口截断自动保证），带外手改按下列格式并手工截断。
 >
 > **格式**：`## [YYYY-MM-DD HH:MM] <op> | <title>`（op ∈ `ingest` / `query` / `lint` /

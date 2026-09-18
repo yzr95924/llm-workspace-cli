@@ -40,8 +40,7 @@ fire-and-forget（窗口建成返回 0，退出码不来自 agent）。
   `ctrl+p commands` 输入行=waiting；claude/qodercli 占位 unknown）→ `?`。**内部值 ASCII**
   （dead/shell/working/waiting/unknown——`--json` 可判等；显示值 `✗/⚠/⚙/⏳/?` 只活在表格层）；
   表格 actionable first 排序（waiting/⚠ 最前、dead 最后）。模式随 CLI 版本漂移 → 优雅降级 unknown。
-- **backend 单一真源 = `llmw/backends.py`**（`KNOWN_BACKENDS` 白名单 + `STATE_PATTERNS` 注册表——
-  enter_cli 校验 / 打标 / STATE 路由都从它 import，加新 agent 只改一处）。
+- **backend 注册表 = `llmw/backends.py`**（结构与判据见 AGENTS.md 模块边界「`llmw.backends`」行）。
 - **R8 孤儿清理**：workspace 目录被删后 status 降级孤儿清理模式——仅默认路径触发，warning + 列表 +
   TTY 确认后逐窗 kill；`--json`/`--tmux`/非 TTY 只打 hint（tmux server 生命周期独立于文件系统，
   agent 可能还在烧 token）。

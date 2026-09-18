@@ -11,7 +11,7 @@ This file provides guidance to AI coding agents when working with code in this r
 - 一个 workspace = 一个目录 + `workspace.toml` + 多个 wiki 子目录
 - 每个 wiki = 一个子目录，含 `raw/` + `wiki/` + `CLAUDE.md` + `wiki_metadata.toml`
 - CLI **只**管元数据 + 启动 session；wiki 内部内容（ingest / lint / query）由
-  [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm_workspace_cli/tree/master/yzr-llm-wiki-management)
+  [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm-workspace-cli/tree/master/yzr-llm-wiki-management)
   skill 在 session 内负责（skill 与 CLI 同仓）
 - CLI 包 `llmw/` 不写 `raw/` 与 `wiki/` 下任何文件，**唯一例外**：`raw/external/`
   下的 `.symlink-anchor.toml` 与对应 symlink，且仅经 `llmw wiki external` 子命令的
@@ -40,9 +40,8 @@ bash scripts/test/test_install_uninstall.sh
                             # install/uninstall 集成测试（用临时 HOME 隔离）
 ```
 
-> **当前阶段测试优先级低**（短条目，详见 `MEMORY/MEMORY.md` 短条目区）：测试以手动 smoke + CI 冒烟为主；
-> 代码层面遵守可测性约束（业务与入口分离、Path 显式参数、subprocess 包装、异常类化），但**不**
-> 为"便于测试"而重构。agent 不要主动加测试代码。
+> 当前阶段测试优先级低（详见 `MEMORY/MEMORY.md` 短条目区「测试优先级低」条）：
+> 以手动 smoke + CI 冒烟为主，agent 不主动加测试代码。
 > `llmw/models/` 子包已列入 `pyproject.toml` 的 `setuptools.packages`，editable 安装
 > （`pip install -e .`，CI test job 用）含完整 4 子包。**功能完整安装只用 `./scripts/install.sh`**
 > （PYTHONPATH 指向本仓）——运行期资源全部内建于 `llmw/content/templates/`，wheel 声明
@@ -100,7 +99,7 @@ llmw.cli (argparse + 分派)
 
 ### 关键不变量（核心 3 条）
 
-此处列核心 3 条 + 指向 MEMORY 详述；完整 7 条的其余部分已在本文档各处承载：
+此处列核心 3 条 + 指向 MEMORY 详述；其余不变量已在本文档各处承载：
 
 1. **代码永不创作内容语义**——CLI 写路径仅限三类字节：① 骨架渲染（字节来自包内
    `llmw/content/templates/` 模板 + metadata 变量，单一入口 `llmw.content.render`）；② 注册表
@@ -122,7 +121,7 @@ llmw.cli (argparse + 分派)
    model 进 Local 层 `settings.local.json` 的 `env` 块（Local 层优先级 > User 层），lazy on
    enter。opencode 路径（默认）与 qodercli 跳过 model resolve，模型由 agent
    内部自由切换；opencode 另写 instructions overlay（见下）。`ANTHROPIC_MODEL` 用 `model.name`（网关模型名，如 `MiniMax-M3[1m]`），
-   不是 `model_id` slug；启动时透传 `os.environ`、依赖 Local 层 `env` 块优先级稳赢
+   不是 `model_id` slug；子进程 env 透传与优先级机制见「`wiki enter` 的 model 解析」节
    （[[agent-settings-env-precedence]]）。
     - 详细见 [[overlay-habit-template]]（习惯级 env key 常量）
      - opencode 路径额外写 `<wiki>/opencode.json`（整文件 CLI 拥有，wiki 模板 @import
@@ -145,7 +144,7 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 | `llmw.errors` | 自定义异常（按 exit_code 1/2/3 分层） | — |
 | `llmw.fsutil` | 原子写（tmp + fsync + rename）、ISO8601 时间 | — |
 | `llmw._compat` | tomllib (3.11+) / tomli (<3.11) 兼容层 + 手写 toml dump | — |
-| `llmw.workspace.store` | workspace.toml 读写 + schema 校验 (v2) + v1→v2 自愈迁移 | 不做 wiki 操作、不做 init 业务 |
+| `llmw.workspace.store` | workspace.toml 读写 + schema 校验 (v2)；v1 已退役，load 直接拒（见「数据模型」） | 不做 wiki 操作、不做 init 业务 |
 | `llmw.workspace.local_store` | workspace_local.toml 读写（主机相关运行时：enter_cli） | 无 secret 不 chmod；不读 workspace.toml 结构数据 |
 | `llmw.workspace.manager` | init/config/list 业务；init 写 workspace `.gitignore`；config 路由 runtime key→local_store | 不写 wiki 文件；读 wiki_metadata.toml 仅限 list 聚合展示（走 wiki.store 唯一真源） |
 | `llmw.wiki.store` | wiki_metadata.toml 读写 + schema v2 + 模板填充 | 不写 workspace.toml、不调 init_wiki |
@@ -223,7 +222,7 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 `overlay.apply` 写 wiki 启动配置 `env` 块（Local 层，优先级 > User）：
 
 ```text
-ANTHROPIC_MODEL      = <model.name>    # 网关模型名（如 MiniMax-M3[1m]），非 model_id slug
+ANTHROPIC_MODEL      = <model.name>    # 网关模型名（口径见不变量 3）
 ANTHROPIC_BASE_URL   = <base_url>
 ANTHROPIC_AUTH_TOKEN = <api_key>
 ```
@@ -238,24 +237,14 @@ agent CLI 子进程透传 `os.environ`、依赖 Local 层 `env` 块优先级稳�
 `@MEMORY/MEMORY.md` 自动加载；每条规则一份独立 markdown，带 frontmatter。提交进代码仓以便协作方看见
 并跟随代码历史回溯。
 
-**`@MEMORY/MEMORY.md` 是项目级规则的唯一真源**——agent 会话级 memory（具体路径因 agent 而异）只放
-指向本仓 `MEMORY/MEMORY.md` 的指针，不再持有内容副本，避免随代码仓迁移 / 协作时失同步。
-
-**两类条目形式（按颗粒度选，写新条目前必读 [[memory-entry-conventions]]）**：
-
-- **完整 memory**——含设计决策 / 工作流约束 / 跨文件关系，需要展开"为什么"或"将来怎么用" →
-  建 `MEMORY/<slug>.md`（含 frontmatter + 正文），索引里以 `[Title](<slug>.md) — 一句话`
-  指针指向
-- **短 memory**——一句话能讲清的纯事实 / 单一偏好 / 无需 why+how 的 reminder → 直接在
-  `MEMORY/MEMORY.md` 索引区以 `- **<短名>** — <一句事实>` 承载，不单独建 `.md`
-
-**判别尺度**：能否在 30 字内独立表达"为什么"或"将来怎么用"——能 → 短条目；不能 → 完整条目。
-纪律（追加末尾 / 不删既有 / frontmatter 三项必填 / `[[slug]]` 互链）见 [[memory-entry-conventions]]。
+**`@MEMORY/MEMORY.md` 是项目级规则的唯一真源（SSOT）**——agent 会话级 memory 只放指向
+本仓 `MEMORY/MEMORY.md` 的指针。条目两类形态（完整 / 短）与写入纪律以
+[[memory-entry-conventions]] 为 canonical，索引头部说明块有速览，此处不重抄。
 
 ## 开发注意事项
 
-- **不要写 wiki 内容**：除 `raw/external/` 的 anchor + symlink（红线唯一例外，仅经
-  `llmw wiki external` 命令）外，任何对 `raw/` 或 `wiki/` 的写入都是违反不变量 I-1 的。
+- **不要写 wiki 内容**：除「项目定位」声明的红线例外（`raw/external/` anchor + symlink，
+  仅经 `llmw wiki external` 命令）外，任何对 `raw/` 或 `wiki/` 的写入都违反不变量 I-1。
 - **不要复活 setup_wiki.py**：已删除（skill 侧明确），wiki 骨架由 CLI 内联生成
   （读包内 `llmw/content/templates/`）；不要"为了模块化"把渲染拆回脚本。
 - **不要在 `llmw.content` 之外做骨架渲染**：所有确定性操作（render / checker
@@ -267,6 +256,10 @@ agent CLI 子进程透传 `os.environ`、依赖 Local 层 `env` 块优先级稳�
   （写启动配置）。详 [[model-ops-no-env-vars]]。
 - **api_key 走 redact 出口**：所有 list / show / dry-run 打印前必须过 `redact_api_key`；
   不要自己写 `key[:3] + "..." + key[-4:]`。
+- **编辑模板 / fixtures 先读其「规则分层」**：每条纪律恰有一个 canonical 家（跨文件同步
+  触发判定 → wiki AGENTS.md「写入纪律」；单文件格式契约 → 该 fixture 头部；工作流步骤 →
+  skill references），其余位置只写裸指针、不夹带规则正文；判定规则用 catch-all 兜底行，
+  **禁止逐例豁免句**——细则见 `llmw/content/templates/wiki/fixtures/README.md`「规则分层」。
 - **schema 校验全在 store 层**：manager / resolve 不重新校验字段；想加新字段就改对应 store
   的 dataclass + validate 函数。
 - **NFS 不安全**：原子写走 POSIX `rename`，本地 ext4 / APFS 安全；**不要在 NFS 挂载的 workspace

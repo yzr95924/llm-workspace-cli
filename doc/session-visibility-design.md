@@ -222,7 +222,7 @@ kill-window 收尸后按无窗口处理(新开 + 打标,R2)。收尸杀的是 de
   理由:关是低频高危动作,显式确认 + 消歧报错比交互选择器简单且脚本友好。
 - **R7 感知模型**:无轮询、无账本、无 hook;每次 `status` 实时枚举。
   理由:tmux daemon 维护的窗口表是免费且永远正确的注册表——agent 退出由 daemon 收尸,
-  免疫 PID 复用 / SSH 断线 / llmw 进程死亡;拉取精确对"看一眼哪些在跑"的场景是满分答案。
+  免疫 PID 复用 / SSH 断线 / llmw 进程死亡;拉取精确,匹配"看一眼哪些在跑"的场景。
   推送式通知(pane-exited hook)需注入用户 tmux server,违反"不写用户配置"边界,入 §2.7。
 - **R8 status 孤儿清理**:workspace 解析失败
   (WorkspaceNotFound)时,`llmw status` 不直接报错退出——若 tmux 里枚举到带标窗口

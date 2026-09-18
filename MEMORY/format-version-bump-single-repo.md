@@ -16,7 +16,7 @@ CI fixtures-smoke job（`scripts/test/smoke_fixtures.py` 的 `_check_format_vers
 
 **何时 bump**：版本号 = 实例契约版本。bump 仅当**现有实例需要 reconcile**：
 
-**应该 bump（实例需要 reconcile 的变化）：
+**应该 bump**（实例需要 reconcile 的变化）：
 1. byte-owned 模板字节变化（AGENTS.md / CLAUDE.md 模板）
 2. header-owned fixture 头部字节变化（index / log / tags / MEMORY / SCRIPTS 头部说明块）
 3. block-owned `.gitignore` managed 块规则变化
@@ -24,7 +24,7 @@ CI fixtures-smoke job（`scripts/test/smoke_fixtures.py` 的 `_check_format_vers
    anchor schema / log 格式）——注意内容页规则的 canonical 在 skill 的 page-templates.md
 5. 新增会让旧实例 fail 的 check
 
-**不应该 bump（实例无需任何动作）：
+**不应该 bump**（实例无需任何动作）：
 - skill 工作流 prose（ingest / query / upgrade 流程、examples.md）
 - page-templates.md 的 rationale / 示例 / 措辞（不动字段契约时）
 - format 结构 / 指针 / canonical 声明调整

@@ -90,7 +90,7 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 
 #### 生命周期规则（LLM 必读）
 
-**生命周期纪律（LLM 必读）**：`reviewed: true` 是"我对这一刻的内容背书"的快照，
+`reviewed: true` 是"我对这一刻的内容背书"的快照，
 **不是永久标签**——任何对页面正文的 LLM 修改都让戳失效，必须**删除** `reviewed` +
 `reviewed_at` 回到默认未审核状态，由人重新审。`llmw wiki lint` 用 `reviewed-stale`
 兜底（`reviewed: true` 存在且 `updated > reviewed_at` 时给 warn）。判定表 + lint 语义如下：
@@ -398,8 +398,7 @@ updated: YYYY-MM-DD HH:MM
 
 正文骨架（字节金标准在 fixture `index.md.txt`；条目纪律在 fixture 头部说明块 canonical）：
 H1 `<Topic> Wiki` + 说明块 + 5 类别 H2（Entities / Concepts / Sources / Comparisons
-/ Syntheses，字母序）；每条 `- [<title>](<path>) — <description>`；**摘要应取自被链页
-frontmatter `description`**，不在 index 手抄第二份（避免漂移；lint 抓不到这种不一致）。
+/ Syntheses，字母序）；每条 `- [<title>](<path>) — <description>`。
 
 **lint 口径**见 [`lint-checklist.md` §二.5](lint-checklist.md)（`index-missing` /
 `orphan-page`）。

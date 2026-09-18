@@ -4,8 +4,8 @@
 > 必须在每次跨 wiki 操作前先读这份文件；任何对 workspace 根级文件的写入都必须符合
 > 这里规定的边界。
 >
-> **本文件（`AGENTS.md`）是本 workspace 纪律的单一真源（SSOT）**——工具无关。由 workspace CLI 在初始化时按
-> 本 skill 的官方模板拷贝生成（模板与配套工具随 skill 分发，不在本 workspace 内）；后续可由用户编辑，**但**
+> **本文件（`AGENTS.md`）是本 workspace 纪律的单一真源（SSOT）**——工具无关。由 llmw CLI 在初始化时按
+> 包内官方模板拷贝生成（模板随 CLI 分发，不在本 workspace 内）；后续可由用户编辑，**但**
 > 任何与本 skill 的核心原则冲突的修改都视为"非标准配置"，skill 行为不再保证一致。
 >
 > **关键**：本文件里凡 `@path/to/file` 形式的引用（如 `@MEMORY/MEMORY.md`），都用 Read 工具
@@ -13,7 +13,7 @@
 >
 > **读取机制（agent 中立）**：维护本 workspace 的 agent 应在每次跨 wiki 操作前读本文件。在 workspace
 > 根目录内工作时——经同目录薄壳 `CLAUDE.md`（`@AGENTS.md` 递归展开）自动加载，或被原生读 `AGENTS.md`
-> 的 agent 直读。在别处工作时由 skill 经 `$LLMW_WORKSPACE` 按需读取。（薄壳 `CLAUDE.md` 仅服务于经薄壳加载的 agent，无独立纪律。）
+> 的 agent 直读。在别处工作时由 skill 经 `$LLMW_WORKSPACE` 按需读取。
 >
 > **作用域（scope）声明**：本文件（`AGENTS.md` + 同目录 `CLAUDE.md` 薄壳）**仅约束跨 wiki
 > 工作**——即 agent cwd 在 workspace 根目录或外部 cwd 下调用本 skill（跨 wiki 维护工作流）
@@ -44,14 +44,6 @@
 | `cross_queries/` | 跨 wiki 维护 agent（本 skill） | 跨 wiki 综合答案归档 |
 | `MEMORY/` | CLI init 建骨架 + 跨 wiki 维护 agent（本 skill） | 跨 wiki agent 私有记忆 |
 | `<wiki-name>/` | workspace CLI + 单 wiki 维护（纪律见各 `<wiki>/AGENTS.md`） | wiki 是 workspace 仓内子目录（CLI 不碰 git，不独立成仓） |
-
-### 三层职责切分（与各 wiki 的 AGENTS.md 区分）
-
-- **workspace CLI**：管 `workspace.toml` + CLI 内部配置（模型注册表等 `*.toml`）/ `.gitignore` + 每个 wiki 子仓元数据；
-  不写 INDEX/STATS/LINT/MEMORY/cross_queries
-- **跨 wiki 维护（本 skill）**：管 INDEX/STATS/LINT/MEMORY/cross_queries + 跨 wiki 编排；
-  不写 workspace.toml / CLI 内部配置 / .gitignore / AGENTS.md / CLAUDE.md（升级由 `llmw upgrade` 接管，见「骨架所有权四分表」）
-- **单 wiki 维护**：管各 wiki 的 ingest / query / lint + `<wiki>/MEMORY/`（纪律见各 `<wiki>/AGENTS.md`）
 
 ## 二、跨 wiki 约定
 
@@ -123,7 +115,7 @@
 **条目形式按事实颗粒度选**：
 
 - **完整条目**——需要解释"为什么这么做"或"将来怎么用"（含上下文 / 解决步骤 / 未来如何避免）→
-  建 `MEMORY/<slug>.md`（frontmatter 5 必填 + 推荐 `wikis` 数组 + 推荐 `description`）+ 索引行
+  建 `MEMORY/<slug>.md`（frontmatter 口径见下方）+ 索引行
   `- <slug> — 一句话摘要 → [正文](<slug>.md)`
 - **短条目**——纯 reminder / 单一偏好 / 无需 why + how → 索引行直接 `- 一句话事实`，
   不单独建 `.md` 文件
@@ -137,13 +129,13 @@ frontmatter **仅 `title` 必填**（`type` 若写固定 `workspace-memory`；`c
 
 ## 六、本文件本身的纪律
 
-- **本文件由 llmw CLI 渲染拥有（byte-owned）——禁手改**。自定义纪律沉淀去 `MEMORY/`
-  （由顶部第 30 行 `@MEMORY/MEMORY.md` 自动加载，会话常驻）；手改会被
+- **本文件由 llmw CLI 渲染拥有（byte-owned）——agent 禁手改**（用户可编辑但自担非标准配置后果，见顶部）。自定义纪律沉淀去 `MEMORY/`
+  （由顶部 `@MEMORY/MEMORY.md` 自动加载，会话常驻）；手改会被
   `agents-md-template-sync` check 判 drift、`llmw upgrade --apply` 重渲染覆盖
   （「当前配置」表里 4 个 per-workspace 字段由 upgrade 自动保留现值）。
 - 本文件是 schema，**不是 workspace 内容**——不要往里塞具体 wiki 主题的笔记
 - 改本文件 = 改 skill 行为 = 大事；先和用户确认
-- **模板升级时本文件按 skill 最新模板全量重渲染**（本 workspace 的健康检查强制这一条；本地定制先沉淀 `MEMORY/`）
+- **模板升级时本文件按 CLI 最新模板全量重渲染**（本 workspace 的健康检查强制这一条；本地定制先沉淀 `MEMORY/`）
 
 ### 骨架所有权四分表（workspace 侧文件归属）
 

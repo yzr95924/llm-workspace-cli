@@ -1,13 +1,7 @@
 # Upgrade（升级 wiki format）详细流程
 
-> 升级按两个真源分工：
-> - **CLI `llmw [wiki] upgrade`**——修复骨架（byte-owned 全量重渲染 / block-owned .gitignore
->   managed 块 / header-owned 换头保 growth / legacy paths 移动 / self-verify / blocked_drift
->   3 终态契约）
-> - **lint plan `actions[]`**（内容页 frontmatter legacy，agent 走 Edit/Write）——由
->   `llmw wiki lint --check-version [--apply --json]` 输出；`actions[]` 自含 to_action
->
-> 任何 breaking 变更的语义合并规则必须落 §六，不再另设历史档案；版本演进叙事看 git log。
+> 三方分工见下文「职责切分」。任何 breaking 变更的语义合并规则必须落 §六，不再另设历史
+> 档案；版本演进叙事看 git log。
 
 ## 触发
 
@@ -23,7 +17,8 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 - **CLI `llmw [wiki] upgrade`**（**骨架修复者**）：处理 byte-owned 全量重渲染
   （AGENTS.md / CLAUDE.md）+ header-owned 换头保 growth + `.gitignore` managed 块 + legacy
   paths 移动 + self_verify + blocked_drift 门禁（本地定制 diff 需 `--yes` 确认）。退出 3 终态
-  JSON：`dry_run` / `blocked_drift` / `done` / `done_with_residue` / `verify_failed`
+  JSON（agent 判定依据）：`done` / `done_with_residue` / `blocked_drift`；失败态
+  `error` / `verify_failed` 与 `dry_run` 模式输出按退出码处理
 - **lint plan `actions[]`**（**内容页 frontmatter legacy**，目前仅注册 `type-memory-value`）：
   由 `llmw wiki lint --check-version --apply --json` stdout 输出；`actions[]` 自含 `to_action`，agent 直接用 Edit/Write 落
 - **agent 职责**：① drift 裁定（blocked_drift 时与用户决定本地定制搬 MEMORY/ 还是丢弃）
@@ -67,7 +62,7 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
    - `needs_upgrade == false` 且无残留 legacy + upgrade 退出 `done` → 告知用户完成
    - 仍有残留 → 报告残留 + 转人工
 
-**不**追加 log 条目 / **不**调用 ingest / query（保持职责单一）。
+**不**调用 ingest / query（保持职责单一）；log 纪律见「职责切分」。
 
 ## 边界
 

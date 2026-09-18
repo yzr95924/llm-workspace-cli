@@ -1,9 +1,9 @@
 # MEMORY 索引
 
-跨会话需要持久化的"为什么 + 边界"规则。本目录每个文件承载一条独立记忆。
+跨会话需要持久化的"为什么 + 边界"规则。完整条目各建一个 `<slug>.md`，短条目直接放本索引。
 
-> **本文件是项目级规则的唯一真源。** Claude 会话级 memory（`~/.claude/projects/.../memory/`）
-> 只放指向本文件的指针，不再持有内容副本——避免随代码仓迁移 / 协作时失同步。
+> **本文件是项目级规则的唯一真源（SSOT）。** agent 会话级 memory 只放指向本文件的指针，
+> 禁止内容副本。
 
 > **新建条目先读 [memory-entry-conventions](memory-entry-conventions.md)。** 索引区按"完整条目
 > （带 `.md` 正文） / 短条目（裸行 reminder）"两类分区：建条目时先按颗粒度判别形式，再决定是否
@@ -41,8 +41,6 @@
 
 ### 短条目（reminder，无需 why+how 展开）
 
-无需独立文件：
-
 **协作偏好与节奏**
 
 - **用中文交流** — 全程中文，含回答里的小标题；别英文标题配中文正文的混排（术语/命令保留英文，如 `pre-push`）
@@ -63,7 +61,7 @@
 
 **workspace / wiki 结构**
 
-- **运行时配置拆出 workspace_local.toml（schema v2）** — 主机相关字段（`enter_cli`）放 gitignored `workspace_local.toml`（动机：跨主机共用 git 仓不互相覆盖 churn；无 secret 不 chmod）；workspace.toml 只剩结构数据，`store.load()` v1→v2 自愈迁移幂等，config 据 `LOCAL_KEYS` 路由 runtime key→local_store。**勿复活 `default_model`**（resolve 从不读它，"默认 model" 只由 registry `is_default` 单一表达）与 `enter_byobu`（删除理由见 AGENTS.md 数据模型节）。延续 [[model-ops-no-env-vars]]「配置走 toml 不走 env」纪律
+- **运行时配置拆出 workspace_local.toml（schema v2）** — 主机相关字段（`enter_cli`）放 gitignored `workspace_local.toml`（动机：跨主机共用 git 仓不互相覆盖 churn；无 secret 不 chmod）；workspace.toml 只剩结构数据，config 据 `LOCAL_KEYS` 路由 runtime key→local_store。**勿复活 `default_model`**（resolve 从不读它，"默认 model" 只由 registry `is_default` 单一表达）与 `enter_byobu`（删除理由见 AGENTS.md 数据模型节）。延续 [[model-ops-no-env-vars]]「配置走 toml 不走 env」纪律
 - **CLI 有意比格式契约字面严** — `init` 对非空目录一律 `WorkspaceExists`（超集覆盖契约要求）；`wiki add` 走 `check_not_initialized` 校验 6 文件（契约字面仅 3，主动加严）
 - **raw/ 默认子目录 + 格式契约↔CLI 解耦** — CLI fresh init 预建 `raw/{articles,assets,discussions}/`（用户要求，协作草稿层高频用），`raw/external/` 不预建（.gitignore 的 `raw/external/*` 吃掉 external/.gitkeep，`git check-ignore` 实测 IGNORED，预建对 clone 不可见）。判别尺度：格式契约定语义层（目录含义/纪律/provenance），不管实现层（预建哪些/怎么进 git）
 - **external target 仓 agent 可读写（0.43.0 起）** — `raw/external/` symlink 指向的外部仓不受 raw/ 只读约束：agent 有读写权限，语料消费（ingest/query/lint/upgrade）以读为主、写需明确语境（用户要求 / 具体修改任务）；代码改动后走既有同步通道（用户确认 → 受影响 source 页重 ingest）。CLI 侧"永不触碰 target"边界不变（仅指 `llmw wiki external` 命令自身行为）
@@ -85,13 +83,8 @@
 
 ## 维护规则
 
-- **追加末尾**——新条目按 git 时间序追加
-- **定期收敛**——驳正链合并到最终结论（删"原条目说 X 实际 Y"中间叙事）；过程细节（curl 实测 / 调试二分 / 逐行行号）压缩到结论 + 判别尺度；短条目回归"一句话 reminder"，超长的抽完整 `.md` 或精简
-- **不删既有**——踩坑沉淀；内容有误用追加驳正方式（定期收敛时可合并驳正链，与"不删"的张力由收敛规则调和）；**例外**：已被代码/文档吸收或过时的事实条目可删（git 可恢复）
-- **frontmatter 三项必填**：`name` / `description` / `metadata.type`（值 ∈ `project | feedback | reference | user`）
-- **条目之间用 `[[slug]]` 互链**——读一条可跟随关联链接定位相关记忆
-
-完整约定见 [memory-entry-conventions](memory-entry-conventions.md)。
+追加末尾 / 定期收敛 / 不删既有（被代码吸收可删，git 可恢复）/ frontmatter 必填 / `[[slug]]`
+互链——canonical 见 [memory-entry-conventions](memory-entry-conventions.md)。
 
 ---
 

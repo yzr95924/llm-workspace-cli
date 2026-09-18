@@ -71,8 +71,7 @@ metadata:
 
 **本图不复制归属矩阵**——权威表在本位：
 
-- workspace 根文件归属 + 骨架所有权四分表：`AGENTS.md`（本仓）「顶层数据流」+「四分表」
-- 本仓模块边界 + 四分表：`AGENTS.md`
+- workspace 根文件归属 / 骨架所有权四分表 / 本仓模块边界：`AGENTS.md`（本仓）
 
 图只承载**跨方写入原则**：CLI 绝不写 INDEX / STATS / LINT / cross_queries / `MEMORY/*.md`（skill 领地）；CLI 绝不写 `raw/` / `wiki/` 语义内容（用户 + agent 领地）；skill 绝不写 `workspace.toml` / `.gitignore` / `AGENTS.md` / `CLAUDE.md`（前三 CLI / CLI 引擎升级；后两用户宪法）。
 
