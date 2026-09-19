@@ -1,6 +1,6 @@
 # Upgrade（升级 wiki format）详细流程
 
-> 三方分工见下文「职责切分」。任何 breaking 变更的语义合并规则必须落 §六，不再另设历史
+> 三方分工见下文「职责切分」。任何 breaking 变更的语义合并规则必须落「语义合并规则」，不再另设历史
 > 档案；版本演进叙事看 git log。
 
 ## 触发
@@ -24,9 +24,9 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 - **lint plan `actions[]`**（**内容页 frontmatter legacy**，目前仅注册 `type-memory-value`）：
   由 `llmw wiki lint --check-version --apply --json` stdout 输出；`actions[]` 自含 `to_action`，agent 直接用 Edit/Write 落
 - **agent 职责**：① drift 裁定（blocked_drift 时与用户决定本地定制搬 MEMORY/ 还是丢弃）
-  ② 内容页 legacy 修复（按 plan `actions[]` 自含 `to_action` 落） ③ §六 语义合并（index 重复 / MEMORY 归并）
+  ② 内容页 legacy 修复（按 plan `actions[]` 自含 `to_action` 落） ③「语义合并规则」语义合并（index 重复 / MEMORY 归并）
 - **迁移期不走 `llmw wiki write`**——机械写命令只认识当前形态
-- **迁移依据 SSOT**：CLI `plan_resync`（骨架）+ lint plan `actions[]`（内容页）+ §六（语义）
+- **迁移依据 SSOT**：CLI `plan_resync`（骨架）+ lint plan `actions[]`（内容页）+「语义合并规则」（语义）
 - **不**追加 log 条目——迁移不是 wiki 操作事件
 
 ## 流程（agent 驱动，5 步）
@@ -83,13 +83,13 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 
 ---
 
-## 六、语义合并规则
+## 语义合并规则
 
 > lint plan `actions[]` 自含 `to_action`（内容页 legacy 修复直接用 Edit/Write 落）；
-> 本文件 §六 定义**跨 entry 的语义合并**（index 重复条目 / 多 MEMORY 条目归并）——agent 按本节规则走。
+> 「语义合并规则」定义**跨 entry 的语义合并**（index 重复条目 / 多 MEMORY 条目归并）——agent 按本节规则走。
 > CLI 不替代语义判断。
 
-### 6.1 wiki/index.md 条目合并
+### wiki/index.md 条目合并
 
 - **同 `<relative-path>` link 但多条目出现** → 留信息最完整的那一条（按以下优先级）：
   1. 含 `✓ reviewed <date>` badge（最新 reviewed_at）
@@ -101,7 +101,7 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 - **新分类引入（如第六类 `Comparisons`）→ 老 wiki 无该类时**，在 wiki/index.md 末尾
   按 fixture 头部模板加新类别 H2 + 一行 `<!-- agent: TODO 归类旧页 -->` 占位，提醒人工归类
 
-### 6.2 MEMORY 经验条目合并
+### MEMORY 经验条目合并
 
 - **两条 MEMORY entries 描述同一 case**（`grep` / 关键词检索可判定）→ 留更新日期晚者，
   旧 entry 文末追加一行 `# superseded by <new-slug>`，**不**删除（踩坑记录沉淀价值大）
@@ -110,19 +110,19 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 - **索引同步**——无论是 supersede 还是合并，**必须**同步更新 `MEMORY/MEMORY.md` 索引
   一行（合并后删旧 slug 行，加合并后的新行；supersede 后旧 slug 行保留但加 supersede 提示）
 
-### 6.3 wiki/log.md 迁移期不改（不合并 / 不截断）
+### wiki/log.md 迁移期不改（不合并 / 不截断）
 
 - 迁移期 log **不**合并 / **不**截断 / **不**改格式——保持现状原样搬过来（即使条目数 >
   `LOG_RETENTION_LIMIT` 也不在迁移期截断；截断是日常运行期行为，`llmw wiki write log` 自动生效）
 - `fixtures-fix-log-format` action 仅当 **新增** 行不合规时落，迁移期**不变更 history**
 
-### 6.4 决策树（CLI 骨架 / agent 语义的判断边界）
+### 决策树（CLI 骨架 / agent 语义的判断边界）
 
 | 场景 | 路径 |
 |---|---|
 | 骨架一致性（AGENTS.md 模板漂移 / growth 头部 / .gitignore 块 / legacy paths） | CLI `upgrade --apply --yes` 直接落 |
 | 内容页 frontmatter legacy（`type-memory-value`） | lint `--check-version --apply --json` 拿 `actions[]`，按 `to_action` 用 Edit 落 |
-| 跨多 entry 语义归并（重复 index 条目 / 多 MEMORY 归并） | lint plan / fixtures_checks 报现状，agent 走 §6.1 / §6.2 落 |
+| 跨多 entry 语义归并（重复 index 条目 / 多 MEMORY 归并） | lint plan / fixtures_checks 报现状，agent 走「wiki/index.md 条目合并」/「MEMORY 经验条目合并」落 |
 | log 类（历史 log 修订） | **不**动 — lint 永远不报 log 字段 |
 
 **判定经验**：`llmw wiki upgrade` 退出 `blocked_drift` 时先裁定本地定制；`done_with_residue`

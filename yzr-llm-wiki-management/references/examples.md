@@ -1,6 +1,6 @@
 # 5 个完整样例
 
-> 本文件是参考样例的"按需 Read"指针——SKILL.md §参考样例 段仅留一行引用到此，
+> 本文件是参考样例的"按需 Read"指针——SKILL.md「参考样例」段仅留一行引用到此，
 > 完整样例一律写在本文件。
 
 ## 样例一：setup 一个 LLM Systems 主题的 wiki
@@ -58,7 +58,7 @@
 4. 询问用户："这段对比适合归档为 wiki/comparisons/<concept-a>-vs-<concept-b>.md 吗？"
 5. 用户同意后：
    - `llmw wiki write new --type=comparison --slug=<concept-a>-vs-<concept-b> --title=...`
-     脚手架 + 按 references/page-templates.md §二 comparison 模板写正文
+     脚手架 + 按 references/page-templates.md「comparison（对比页）」模板写正文
    - `llmw wiki write index add wiki/comparisons/<concept-a>-vs-<concept-b>.md`
    - `llmw wiki write log --op=query --title="<Concept A> vs <Concept B>"`
 ```
@@ -75,7 +75,7 @@
    - raw/ 干净（启用 git 时 git status clean；未启用时此项自动跳过 + 输出顶部 `[NOTES]` 提示跳过原因）
    - 3 个页面缺 updated 字段
    - 1 个失效引用：concepts/transformer.md 链到 sources/bigtable.md 但后者不存在
-   - 5 个 source 页 updated 超过 stale 阈值（阈值见 [lint-checklist.md §二.7](lint-checklist.md)），建议复查
+   - 5 个 source 页 updated 超过 stale 阈值（阈值见 [`lint-checklist.md「过期摘要」`](lint-checklist.md)），建议复查
    - 1 个孤儿页：concepts/<orphan-concept>.md 没有任何 inbound link
    - 1 个 `contested-page`：sources/<entity-v2>.md 与 sources/<entity-v1>.md 对某核心属性
      说法冲突、已双向标注 `contested: true`——需与用户裁定后移除标记

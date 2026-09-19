@@ -2,19 +2,19 @@
 
 Query 是 wiki 的"消费侧"——把多份资料综合成答案，**好答案归档回 wiki**让复利继续。
 
-## 一、为什么 query 比"读 source"多一道
+## 为什么 query 比"读 source"多一道
 
 Query 跨页综合，暴露单篇看不到的**联系**（A 和 B 都涉及 self-attention，角度不同）、
 **矛盾**（A 说 context window 200K，B 说 128K）、**趋势**（多份资料汇聚出的领域方向）——
 这是 wiki 比 RAG 多的"复利结构"。
 
-## 二、入口与触发
+## 入口与触发
 
 - 用户问"wiki 里有 X 吗" / "wiki 里关于 Y 有什么"
 - 用户问"对比 A 和 B" / "总结一下 X" / "为什么 A 比 B 好"
 - 隐式触发：ingest 完成后 agent 主动建议"要不要查一下新内容和已有内容的联系？"
 
-## 三、流程详解
+## 流程详解
 
 ### Step 1：定位候选页
 
@@ -59,7 +59,7 @@ Query 跨页综合，暴露单篇看不到的**联系**（A 和 B 都涉及 self
 | 同一问题两种页都有，结论一致 | 引用 reviewed 页为主，un-reviewed 作为补充 |
 | 同一问题两种页都有，结论冲突 | 标注「存在两种说法：X（来源 A，已审核）/ Y（来源 B，未审核），以 X 为准」+ 建议人复审 B |
 
-> `llmw wiki lint` §二.13 对未审页面报 `pending-review`（info）；query 时是否优先采信是
+> `llmw wiki lint`「可信度与认知质量信号」对未审页面报 `pending-review`（info）；query 时是否优先采信是
 > agent 决策，不在 lint 范围内。`contradictions` 冲突对端链接沿用既有约定，不另设。
 
 ### Step 3：综合答案
@@ -94,30 +94,30 @@ Query 跨页综合，暴露单篇看不到的**联系**（A 和 B 都涉及 self
 
 ### Step 5：归档 query 答案
 
-使用 [`page-templates.md`](page-templates.md) §二 的 comparison / synthesis 模板。
+使用 [`page-templates.md「各类型模板」`](page-templates.md)的 comparison / synthesis 模板。
 
 - `comparison` 页：focus 在 "A vs B"，frontmatter `compared: [<path-a>, <path-b>]`
 - `synthesis` 页：focus 在 "跨多个 source 的综合洞察"，frontmatter `threads: [<主题>...]`
 - 正文：把对话里的答案整理成可独立阅读的页面；**synthesis 页对来源可分的断言用标准脚注
-  `[^n]` 逐段溯源**（写法见 [page-templates.md §二.5](page-templates.md)），
+  `[^n]` 逐段溯源**（写法见 [`page-templates.md「synthesis（综合页）」`](page-templates.md)），
   让每个论点都能不重读 raw 就回溯到具体 source——这是 synthesis 区别于 source 摘要的关键
-- 正文含交互流 / 架构关系时优先配图——判定与选型见 [`page-templates.md §四`](page-templates.md)
+- 正文含交互流 / 架构关系时优先配图——判定与选型见 [`page-templates.md「图示使用指引」`](page-templates.md)
 - 正文引用上游易变事实时同样过感知测试——见
-  [ingest-workflow.md §七](ingest-workflow.md) 漂移点规避
+  [`ingest-workflow.md「正文引用的稳定性」`](ingest-workflow.md) 漂移点规避
 - 脚手架：`llmw wiki write new --type=comparison|synthesis --slug=... --title=...`
 - 同步 index：`llmw wiki write index add <page>`
 - 追加 log：`llmw wiki write log --op=query --title="<title>"`
 
 ### Step 6：若启用 git，建议 commit（同 ingest）；裸目录树 wiki 跳过此步
 
-## 四、Query 的边界
+## Query 的边界
 
 - **不**引用未存在于 wiki 的来源——只引用 wiki 内的页面
 - **不**绕过 source 页直接读 raw（冲突时才回 raw 复核，见 Step 2）
 
 > 其余边界以 wiki 根 `AGENTS.md` Query 纪律节为准。
 
-## 六、Query 失败的常见原因
+## Query 失败的常见原因
 
 - **index.md 没维护**——所有路径都找不到；先修 index
 - **source 页过期**——读到的信息已经过时；建议先 lint

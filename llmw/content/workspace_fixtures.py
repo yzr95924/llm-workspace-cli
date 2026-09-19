@@ -107,7 +107,7 @@ CHECK_REGISTRY = [
         "id": "workspace-toml-templates-version-sync",
         "severity": "warn",
         "file": "workspace.toml",
-        "rule_ref": "repo AGENTS.md §当前配置",
+        "rule_ref": "repo AGENTS.md「当前配置」",
         "desc": "workspace.toml templates_version 的 workspace_format 分量与 target 一致（不阻断；wiki_format 分量只展示不比对）",
     },
     {
@@ -505,8 +505,9 @@ def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) ->
     的 skip 语义，不重复报）。minimal TOML 风格：只认 key = 行 + [section] 头，不引入 tomli。
 
     读取契约 co-location：本 check 校验的字段 = SKILL scan/upgrade 实际读取的字段。若 SKILL
-    将来新读 workspace.toml 某字段，必须同步加到这里 + yzr-llm-workspace-management SKILL.md 附录 A1「读取契约」
-    表——两处（本 check / SKILL.md 附录 A1）一致，gate 才有效（清单漂移 = check 不报警 = gate 失效）。
+    将来新读 workspace.toml 某字段，必须同步加到这里 + yzr-llm-workspace-management
+    SKILL.md「workspace.toml 读取契约」表（附录 A1）——两处（本 check / SKILL.md）一致，
+    gate 才有效（清单漂移 = check 不报警 = gate 失效）。
     """
     out = {"passed": True, "severity": "error", "file": "workspace.toml"}  # type: Dict[str, object]
     text = _read_text(ws_root / "workspace.toml")

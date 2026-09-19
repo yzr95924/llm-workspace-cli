@@ -2,8 +2,8 @@
 """
 wiki_lint — deterministic 健康检查（llmw wiki lint）
 
-跑 references/lint-checklist.md 的 §二（deterministic 全部项）+ external symlink 检查。
-半定性检查（§三，矛盾主张 / 缺失交叉引用等需理解语义的）由 agent 现场做。
+跑 references/lint-checklist.md「Deterministic 检查清单」（全部项）+ external symlink 检查。
+半定性检查（「半定性检查（agent 执行）」段，矛盾主张 / 缺失交叉引用等需理解语义的）由 agent 现场做。
 
 用法：
   llmw wiki lint --name=X | --path=DIR [--severity <LEVEL>] [--no-git]
@@ -55,7 +55,7 @@ VALID_TYPES = {
     "source",
     "comparison",
     "synthesis",
-    # MEMORY 扩展类型（page-templates.md §一：`或新的 memory 类型按需扩展`）：
+    # MEMORY 扩展类型（page-templates.md「共有 frontmatter 段」：`或新的 memory 类型按需扩展`）：
     # - `memory`：MEMORY/*.md 自用语义，与 wiki 5 类内容页区分
     # - `memory-entry`：MEMORY 经验条目标识（与 `memory` 同属 MEMORY 桶）
     "memory",
@@ -147,13 +147,13 @@ CURRENT_WIKI_FORMAT = WIKI_FORMAT_VERSION
 
 # 已知 legacy pattern 的"pattern key"——为后续扩展预留，每个 key 是一类迁移动作。
 # rule_ref 是迁移依据的溯源指针；修复语义自含于 plan actions 的 remove/add_or_modify/to_action
-# 字段 + references/upgrade-workflow.md §六（语义合并规则）——不另设历史档案。
+# 字段 + references/upgrade-workflow.md「语义合并规则」——不另设历史档案。
 LEGACY_PATTERN_KEYS = {
     # 历史迁移 pattern（confidence-field / claudemd-tag-section / claudemd-not-thinshell）
     # 已于 2026-08 随"场景清零"退役删除；未来退役字段时按需注册新 key。
     # 拦 wiki 5 类内容页误用 reserved `type: memory`（MEMORY/*.md 上 type: memory /
     # memory-entry 合法，仅内容页误用才触发本规则）。
-    "type-memory-value": "page-templates.md §一",
+    "type-memory-value": "page-templates.md「共有 frontmatter 段」",
 }
 
 # 严重性等级
@@ -266,11 +266,11 @@ def check_raw_immutable(wiki_root: Path, use_git: bool) -> List[str]:
         return ([], "raw-immutable-skipped: raw/ 未纳入 git 跟踪，跳过 raw/ 不可变性检查")
     lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
     # raw/discussions/ 是用户 + LLM 协作的草稿层，双方可写——
-    # 其未提交改动不属于"raw 被违规改"，从 raw-modified 信号中排除（与 §13 raw/external/
+    # 其未提交改动不属于"raw 被违规改"，从 raw-modified 信号中排除（与 `raw/external/` 的 symlink 接入
     # 并列为本 skill 的两处 raw/ 写权限例外）。external/ 的 symlink 本身被 .gitignore
     # 排除，不会出现在 git status 里，故此处只需过滤 discussions/。
     discussions_prefix = "raw/" + DISCUSSIONS_SUBDIR + "/"
-    # rename 两侧都可能涉及 discussions/（§15.3 archive mv 跨边界：discussions/ → articles/），
+    # rename 两侧都可能涉及 discussions/（归档 mv 跨边界：discussions/ → articles/），
     # 任一路径命中即排除，避免合法归档误报 raw-modified
     lines = [ln for ln in lines if not any(p.startswith(discussions_prefix) for p in _git_porcelain_paths(ln))]
     if not lines:
@@ -412,7 +412,7 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
 def check_frontmatter(wiki_root: Path) -> List[str]:
     """2. frontmatter 完整性 + 3. source/synthesis 的 sources 字段
 
-    校验口径分两类（vs §9）：
+    校验口径分两类（口径 canonical = lint-checklist.md「frontmatter 完整性」）：
     - wiki 5 类内容页（entities/concepts/sources/comparisons/syntheses）：
       5 必填（title/type/created/updated/tags）+ 推荐 description
     - MEMORY/*.md：仅 `title` 必填，其余 5 字段全 optional（frontmatter 是
@@ -458,7 +458,7 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
                                 findings.append(
                                     f"sources-absolute-path: {rel} sources 含绝对路径 '{s}'；"
                                     f"必须用相对 wiki 根的路径（如 raw/articles/... 或 "
-                                    f"raw/external/<source-name>/...），与 lint-checklist.md §二.3 一致"
+                                    f"raw/external/<source-name>/...），与 lint-checklist.md「frontmatter 来源」一致"
                                 )
                                 continue
                             # raw/discussions/ 禁止作 source——
@@ -731,7 +731,7 @@ def check_log_format(wiki_root: Path) -> List[str]:
 # log.md 滚动窗口上限——超过则建议截断保最近 N 条
 LOG_RETENTION_LIMIT = 50
 
-# source 页 stale 摘要阈值（days）——`updated` 距今超过此值报 stale-summary（详见 lint-checklist.md §二.7）
+# source 页 stale 摘要阈值（days）——`updated` 距今超过此值报 stale-summary（详见 lint-checklist.md「过期摘要」）
 STALE_SUMMARY_DAYS = 90
 
 
@@ -856,7 +856,7 @@ def check_tag_taxonomy(wiki_root: Path) -> List[str]:
     target_pages = []  # type: List[Path]
     for sub in WIKI_SUBDIRS:
         target_pages.extend(pages[sub])
-    # MEMORY/*.md 不进 tag 白名单校验——MEMORY 是 agent 私有记忆（AGENTS.md 模板 §五）：
+    # MEMORY/*.md 不进 tag 白名单校验——MEMORY 是 agent 私有记忆（AGENTS.md 模板「MEMORY/」节）：
     # MEMORY 私有 tag（lint / external-repo / symlink 等）是 LLM 工作上下文分类，
     # 不应跟 wiki 用户面共享 taxonomy（tag 白名单是防 wiki 索引/过滤漂移）。
     for p in target_pages:
@@ -982,12 +982,12 @@ def check_quality_signals(wiki_root):
     - contested-page（warn）：contested: true 的页——含未解决矛盾
     - contradiction-target-missing（warn）：contradictions 指向不存在的页
     - contradiction-asymmetric（warn）：A 把 B 列入 contradictions 但 B 未反向标注 A
-      （字段语义要求双向标注，见 page-templates.md §一）
+      （字段语义要求双向标注，见 page-templates.md「共有 frontmatter 段」）
 
     C. index.md 标识漂移：
     - index-review-badge-drift（warn）：wiki/index.md 上的 ✓/✗ 标识与被链页 frontmatter 不一致
 
-    字段语义见 page-templates.md §一「可选：可信度与认知质量信号」。
+    字段语义见 page-templates.md「可选：可信度与认知质量信号」。
     只把作者已写 / 已渲染的信号拎出来；判定"某页是否真的经过认真审核"是半定性工作。
     """
     findings = []  # type: List[str]
@@ -1088,7 +1088,7 @@ _INDEX_ENTRY_RE = re.compile(
     r"^\s*-\s*\[[^\]]+\]\(([^)]+)\)(.*)$",
     re.MULTILINE,
 )
-# 标识正则：`✓ reviewed YYYY-MM-DD` 或 `✗ pending review`（无外层方括号，与 page-templates.md §一设计一致）
+# 标识正则：`✓ reviewed YYYY-MM-DD` 或 `✗ pending review`（无外层方括号，与 page-templates.md「共有 frontmatter 段」设计一致）
 _REVIEWED_BADGE_RE = re.compile(r"✓\s+reviewed\s+(\d{4}-\d{2}-\d{2})\b|✗\s+pending\s+review\b")
 
 
@@ -1201,7 +1201,7 @@ def check_memory_index(wiki_root: Path) -> List[str]:
     MEMORY.md 不存在时静默跳过（不报错）。
     severity = info（轻量索引非强制入口，类比 tag-not-in-taxonomy）。
 
-    短条目（与 wiki skill SKILL.md §4 Memory 同步）：MEMORY.md 索引行可无对应 .md 文件
+    短条目（与 wiki skill SKILL.md「Memory」同步）：MEMORY.md 索引行可无对应 .md 文件
     （`- 一句话事实` 格式），不进本检查范围——只兜底"有 .md 但未索引"。
 
     路径变更：MEMORY/ 从 wiki/ 下移到 <wiki-root>/MEMORY/（与 wiki/ 平级）。
@@ -1256,7 +1256,7 @@ def check_related_links(wiki_root: Path) -> List[str]:
     """15. related / compared 路径引用完整性
 
     校验 wiki 内容页 frontmatter 的 `related`（concept 页）与 `compared`
-    （comparison 页）字段——按 page-templates.md §一「路径格式约定」解析为**内容根 `wiki/`
+    （comparison 页）字段——按 page-templates.md「共有 frontmatter 段」约定解析为**内容根 `wiki/`
     相对**（`concepts/X.md` → `<wiki>/wiki/concepts/X.md`），文件不存在则报
     `related-broken-link` warn。注意基准陷阱：`wiki_root` 是最外层 `<wiki>/`
     （其下才是 `wiki/` 内容根），故解析须补 `wiki/` 段——与 source 页 `sources`
@@ -1270,8 +1270,8 @@ def check_related_links(wiki_root: Path) -> List[str]:
     综合），不是人直接阅读内容；与正文 `broken-link`（error）严重性区分开，
     让 LLM 在批量 ingest 时不被元数据小毛病阻断。
 
-    与 §二.4 `broken-link` 的区别：本检查覆盖 frontmatter 字段（`related` /
-    `compared`），§二.4 覆盖正文 markdown 链接。两者都用 wiki 根或文件相对解析，
+    与「路径引用完整性」的 `broken-link` 的区别：本检查覆盖 frontmatter 字段（`related` /
+    `compared`），「路径引用完整性」覆盖正文 markdown 链接。两者都用 wiki 根或文件相对解析，
     路径校验，但作用域正交。
     """
     findings = []  # type: List[str]
@@ -1286,7 +1286,7 @@ def check_related_links(wiki_root: Path) -> List[str]:
         fm = parse_frontmatter_simple(text)
         rel = p.relative_to(wiki_root).as_posix()
         # related / compared 字段——两字段同语义（按 wiki 根相对路径引用 wiki
-        # 内其它页），合并扫描。`contradictions` 走文件相对（§二.13 既有逻辑），
+        # 内其它页），合并扫描。`contradictions` 走文件相对（「可信度与认知质量信号」既有逻辑），
         # 不在本检查范围——约定有意保留两层区分
         for field_name in ("related", "compared"):
             items = fm.get(field_name, [])
@@ -1298,7 +1298,7 @@ def check_related_links(wiki_root: Path) -> List[str]:
                 # 防御：若元素是外部 URL（语义上不该出现但防御性兜底）→ 跳过
                 if is_external_url(item):
                     continue
-                # related / compared 是内容根 wiki/ 相对（按 page-templates.md §一）（concepts/X.md），
+                # related / compared 是内容根 wiki/ 相对（按 page-templates.md「共有 frontmatter 段」）（concepts/X.md），
                 # 不是最外层根相对——wiki_root 是 <wiki>/，真实内容页在 <wiki>/wiki/<sub>/，
                 # 故补 wiki/ 段。不 .resolve() 避免跟随实际不存在的目录/文件时静默吞错
                 # （is_file() 已能准确判定）
@@ -1387,14 +1387,14 @@ CLAUDE_FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\
 
 
 def parse_format_version(wiki_root: Path) -> Optional[str]:
-    """从 wiki 纪律 SSOT §七 表里抽 "Wiki Format 版本"。
+    """从 wiki 纪律 SSOT（AGENTS.md「当前配置」表）抽 "Wiki Format 版本"。
 
     SSOT 是 <wiki-root>/AGENTS.md（薄壳 CLAUDE.md 不持版本）。系统只理解当前格式——
-    AGENTS.md 缺失或 §七 行无法解析 = 版本未知，由 wiki-format-version-unparsed 报。
+    AGENTS.md 缺失或「当前配置」表行无法解析 = 版本未知，由 wiki-format-version-unparsed 报。
 
     返回 semver 字符串（如 "0.11.0"）；找不到或解析失败返回 None。
 
-    设计权衡：仅解析 §七 表的"Wiki Format 版本"行，不扫描全文（避免误抓正文里出现的
+    设计权衡：仅解析「当前配置」表的"Wiki Format 版本"行，不扫描全文（避免误抓正文里出现的
     版本号）。用户编辑表格时若格式被破坏（例如把"Wiki Format 版本"改成"Wiki 版本"），
     解析失败——提示用户人工填回，而不是猜。
     """
@@ -1467,7 +1467,7 @@ def _run_fixtures_check(wiki_root: Path) -> Dict[str, object]:
 def _has_type_memory(page_rel: str, text: str) -> bool:
     """检查 wiki 内容页是否误用保留的 `type: memory`。
 
-    `type: memory` / `type: memory-entry` 仅 MEMORY 桶合法（page-templates.md §一——
+    `type: memory` / `type: memory-entry` 仅 MEMORY 桶合法（page-templates.md「共有 frontmatter 段」——
     MEMORY frontmatter 解耦 + 扩展 `memory` / `memory-entry` 两类），wiki 内容页
     （entities/concepts/sources/comparisons/syntheses）出现 `type: memory` 是误用。
 
@@ -1564,8 +1564,8 @@ def build_upgrade_plan(
 
     # fixtures 一致性 → fixtures_actions[]
     # 每条 fixtures-check 失败项生成一条对应 fixtures-fix-* 动作；action 字段含
-    # expected / actual 让 agent 一眼看清"该改成什么"；rule_ref 指向 lint-checklist.md
-    # §三 anchor / §三.5 MEMORY / §三.6 log 等具体段落。
+    # expected / actual 让 agent 一眼看清"该改成什么"；rule_ref 指向对应 skill 文档
+    # 的具体段落。
     if fixtures_check and not fixtures_check.get("skipped"):
         for fc in fixtures_check.get("checks", []) or []:  # type: ignore
             if fc.get("passed") is not False:  # type: ignore
@@ -1602,8 +1602,8 @@ def build_upgrade_plan(
                         **base,
                         "type": "fixtures-fix-agents-version",
                         "to_action": (
-                            f"Edit {fpath} §七 Wiki Format 版本行单元格改为 `{expected}`（实际为 `{actual}`）——"
-                            "参考 lint-checklist.md §一（--check-version 子命令段）"
+                            f"Edit {fpath}「当前配置」表 Wiki Format 版本行单元格改为 `{expected}`（实际为 `{actual}`）——"
+                            "参考 lint-checklist.md「调用方式」（--check-version 子命令段）"
                         ),
                     }
                 )
@@ -1623,7 +1623,7 @@ def build_upgrade_plan(
                             "(3) diff 旧文件 vs 渲染稿：旧文件**多出的行/段** = 本地定制，逐条列给用户裁定——"
                             "搬 MEMORY/（一行事实写 MEMORY/MEMORY.md 索引短条目；含 why 的建 "
                             "MEMORY/<slug>.md 完整条目 + 索引行）或丢弃；"
-                            "(4) Write 渲染稿覆盖 AGENTS.md——成长内容仅 §七 四行变量，其余以模板为准"
+                            "(4) Write 渲染稿覆盖 AGENTS.md——成长内容仅「当前配置」表四行变量，其余以模板为准"
                         ),
                     }
                 )
@@ -1636,7 +1636,7 @@ def build_upgrade_plan(
                             "raw/external/.symlink-anchor.toml 损坏：CLI add 拒绝覆盖损坏文件"
                             "（保护手工修复现场）——备份后删除，或手工改对 TOML，再用"
                             " `llmw wiki external add <target> --name=<n>` 重建 entries。"
-                            "字段语义见 external-repo.md §一；schema SSOT = CLI `external_anchor._REQUIRED_FIELDS`。"
+                            "字段语义见 external-repo.md「首次接入」；schema SSOT = CLI `external_anchor._REQUIRED_FIELDS`。"
                         ),
                     }
                 )
@@ -1731,7 +1731,7 @@ def build_upgrade_plan(
             "按 actions[] 顺序逐项修；每个 action 前打印依据 rule_ref",
             "frontmatter-rename：用 Edit 改 frontmatter（删老字段、加新字段；不动 updated）",
             "file-move：先读源 → 写目标 → 删源",
-            "frontmatter-retype：按 action.note 与 page-templates.md §一决定具体改法",
+            "frontmatter-retype：按 action.note 与 page-templates.md「共有 frontmatter 段」决定具体改法",
             "skipped_conflicts[] 永远不自动覆盖——转人工",
             "改完后用 Edit 把 AGENTS.md 末尾「当前配置」表 `Wiki Format 版本` 行改为 to_version",
             "不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）",
@@ -1743,7 +1743,7 @@ def build_upgrade_plan(
             "fixtures-fix-strip-frontmatter 仅删首部 frontmatter 块，保留全文正文一字不动",
             "fixtures-fix-skeleton：按 expected 补缺失骨架字段（frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段），单 Edit 可落；成长型内容（index 类别 / log 历史 / MEMORY 经验 / tag bullet）不动",
             "fixtures-fix-agents-md-resync：AGENTS.md 全量重渲染——「当前配置」表变量保留旧值（Wiki Format 版本行用 to_version），旧文件多出的定制行/段逐条与用户裁定搬 MEMORY/ 或丢弃；其余以模板渲染稿为准，不做局部 Edit",
-            "fixtures 改造与 upgrade-workflow.md §六『语义合并规则』配合读——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按该节判断",
+            "fixtures 改造与 upgrade-workflow.md「语义合并规则」配合读——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按该节判断",
         ],
     }  # type: Dict[str, object]
     return plan

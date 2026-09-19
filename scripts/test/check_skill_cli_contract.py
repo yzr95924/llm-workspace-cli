@@ -19,13 +19,12 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
      finding 前缀 → 必须在 skill 文本有文档（allowlist 收编有意不文档化的
      例外）
   3. rule_ref（CLI → skill，skill 域）：llmw/content/*.py + CONTRACT_MDS（skill
-     文档 / 模板 / 仓根文档）里的 `<file>.md §X` 指针（覆盖两种形式：纯文本
-     `baz.md §N` + 链接关闭后的 `][`baz.md`](url) §N`）→ 对应 skill 文件与小节
-     标题必须都存在。**小节存在性校验**：对 §A 接受任意层级整数编号 A 的标题；
-     对 §A.B 要求 dotted 精确标题（`### A.B` 字面风格，external-repo/upgrade-workflow
-     用）或 h2 A 作用域下 h3 B（lint-checklist/page-templates 的父-子风格）
-     ——不允许全局 fallback（旧实现让 §三.1 靠 §二 下的 ```### 1.``` 假通过，
-     是此闸要堵的洞）
+     文档 / 模板 / 仓根文档）里的 `<file>.md「节名」` 指针 → 对应 skill 文件与
+     标题必须都存在。**名称锚点校验**：引用名须唯一命中一个标题（子串匹配，
+     剥 backtick / 跳过 fenced code）——命中 0 = 死指针，命中 >1 = 歧义（改引用名
+     或标题消歧）。标题编号已退役（节号随插入整体漂移）；引用侧禁回退由 7c 兜底。
+     支持形式：链接内（``[`baz.md「名」`](url)``）/ 链接后（``[`baz.md`](url)「名」``）
+     / 裸文本（``baz.md「名」``）
   4. 终态词 / JSON 字段（skill → CLI）：upgrade-workflow 提到的终态词与 plan
      字段必须在 upgrade.py / wiki_lint.py 字面量存在
     5. 裸 semver（skill + 模板 + 仓根文档）：prose 内不得出现裸版本号
@@ -42,14 +41,15 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
       - 7b landmark 存在性：skill 依赖的 AGENTS.md 模板锚点字符串（节名 / 字段名 /
         @import 链）必须在对应模板中出现；模板改了某 landmark → CI 红，同 commit
         更新 skill 引用 + LANDMARKS 列表
+      - 7c skill 域节号禁令（防迁移回潮）：CONTRACT_MDS + llmw/**/*.py 中 skill
+        文档字面量（8 个 basename）后 ~60 字符内出现 `§<数字|中文数字>` 即红；
+        SKILL_MDS 自身出现裸 `§N` 同样红。外部规范引用豁免（`OKF §N`）。
+        引用一律 `<file>.md「节名」`，标题不再编号
    7. 布局 token（skill↔目录结构解耦）：skill markdown 里所有 `wiki/<dir>/` 形式的
       目录路径 token，`<dir>` 必须在 llmw.content.wiki_lint.WIKI_SUBDIRS
       （CLI SSOT）集合内。改目录名时残留旧路径被当场点名，零人工维护
-   8. rule_ref 格式闸：llmw/**/*.py 中 rule_ref 值指向 skill 文档（lint-checklist /
-      page-templates / upgrade-workflow / ingest-workflow / query-workflow /
-      external-repo / examples / SKILL.md）必须带 `.md` 扩展名——否则 gate 3 扫
-      不到等于死指针（上 commit wiki_fixtures.py:70/77/154 的 3 条 rule_ref 都缺
-      .md + 节号都错；本 commit 一并修后此闸门兜底）
+   8. rule_ref 格式闸：llmw/**/*.py 中 rule_ref 值指向 skill 文档必须带 `.md`
+      扩展名（`lint-checklist「名」` 这类缺 .md = gate 3 扫不到的死指针）
 
 命令表面 SSOT = llmw.cli.build_parser() 单一 argparse 树（write 子树经
 llmw.content.wiki_write.build_subparsers 组合；无模块 standalone 入口）。
@@ -115,12 +115,12 @@ TEMPLATE_BARE_SHORTHAND_RE = re.compile(
     r"(?:^|[\s<>/`])(?:wiki|workspace)\s+§[0-9一二三四五六七八九十]+"
 )
 # 面 8 rule_ref 格式闸：.py rule_ref 字段 / to_action / finding 消息指向 skill 文档必须
-# 带 .md 扩展名——否则 gate 3 RULE_REF_RE 匹配不到等于死指针。regex 抓
-# "<basename> §<节>" 形式且 token 后没有 `.md`→即裸 basename；负向先行 `(?!\.md)` 排除
-# 已带 .md 的正确形式。不抓散文 "SKILL 目录" / "SKILL scan"（后面不跟 §）。
+# 带 .md 扩展名——否则 gate 3 RULE_REF_RE 匹配不到等于死指针。regex 抓裸 basename
+# 后跟旧式 `§` 或新式 `「` 两种形态（token 后无 `.md`）；负向先行 `(?!\.md)` 排除
+# 已带 .md 的正确形式。不抓散文 "SKILL 目录" / "SKILL scan"（后不跟 § / 「）。
 RULE_REF_BARE_RE = re.compile(
     r"\b(SKILL|lint-checklist|page-templates|upgrade-workflow|ingest-workflow"
-    r"|query-workflow|external-repo|examples)(?!\.md) §[一二三四五六七八九十0-9]"
+    r"|query-workflow|external-repo|examples)(?!\.md)(?: §[一二三四五六七八九十0-9]|[^\w\n]{0,3}「)"
 )
 
 # 面 7a 的 .py 扫描域——只扫 llmw/**/*.py（排除 tests/）。tests/ 有 §N 形式的 test 输入
@@ -335,129 +335,79 @@ _BASENAMES = (
     "SKILL|upgrade-workflow|page-templates|lint-checklist|ingest-workflow"
     "|query-workflow|external-repo|examples"
 )
+# 名称锚点引用（规范邻接形式）：`basename.md「节名」` / `` `basename.md`](url)「节名」 ``
+# / `` [`basename.md「节名」`](url) ``——basename 与「」之间只允许 backtick / 空白 /
+# 链接闭合，不允许夹带散文（否则「」可能属于同行的另一个文件）。
 RULE_REF_RE = re.compile(
-    r"(?P<base>(?:"
-    + _BASENAMES
-    + r")\.md)(?:\s*§(?P<section>[一二三四五六七八九十0-9][0-9.]*)?)?"
+    r"(?P<base>(?:" + _BASENAMES + r")\.md)`?\s*(?:\]\([^)]*\)\s*)?「(?P<name>[^」]+)」"
 )
-# 下面两类 §N 与 .md 之间隔着链接 / 反引号，RULE_REF_RE 抓不到，单独扫：
-# - §N 落在链接关闭之后：`[`baz.md`](url) §N`
-# - §N 落在反引号关闭之后、链接关闭之前：`[`baz.md` §N](url)`
-# 注意 base 分组必须带 (?:...) 包裹——否则 `\.md` 只绑定到交替的最后一项。
-RULE_REF_LINK_SECTION_RE = re.compile(
-    r"\[`?(?P<base>(?:"
-    + _BASENAMES
-    + r")\.md)`?\]\([^)]*\)\s*§(?P<section>[一二三四五六七八九十0-9][0-9.]*)"
+# 面 7c 节号禁令：skill 文档字面量后 ~60 字符内出现 §N（外部规范引用 OKF 豁免）。
+SKILL_REF_SECTION_RE = re.compile(
+    r"(?:" + _BASENAMES + r")\.md[^\n]{0,60}(?<!OKF )§[0-9一二三四五六七八九十]+"
 )
-RULE_REF_QUOTED_SECTION_RE = re.compile(
-    r"\[`(?P<base>(?:"
-    + _BASENAMES
-    + r")\.md)`\s*§(?P<section>[一二三四五六七八九十0-9][0-9.]*)\]"
-)
-CN2ARABIC = {
-    "一": 1,
-    "二": 2,
-    "三": 3,
-    "四": 4,
-    "五": 5,
-    "六": 6,
-    "七": 7,
-    "八": 8,
-    "九": 9,
-    "十": 10,
-}
-_HEADING_NUM_RE = re.compile(
-    r"^#{2,3}\s+§?(?P<dotted>[0-9]+\.[0-9]+)[、.\s]"
-    r"|^#{2,3}\s+§?(?P<arab>[0-9]+)[、.]"
-    r"|^#{2,3}\s+§?(?P<cn>[一二三四五六七八九十]+)[、.\s]"
-)
+# 面 7c 裸节号：SKILL_MDS 内出现 §N（同样豁免 OKF）。
+BARE_SECTION_RE = re.compile(r"(?<!OKF )§[0-9一二三四五六七八九十]")
 
 
-def _heading_numbers(md_text):
-    """从 md 文本抽取带编号的 h2/h3。
+_HEADING_RE = re.compile(r"^#{2,6}\s+(?P<title>.+?)\s*$")
 
-    返回 [(level, arabic_token_or_dotted)]。三种编号风格均覆盖：
-      - ``## 一、调用方式`` → (2, "1")
-      - ``## 6. Upgrade``  → (2, "6")
-      - ``### 6.4 决策树`` → (3, "6.4")
-      - ``### §1.1 schema``→ (3, "1.1")
 
-    阿拉伯单数字必须跟 `、` 或 `.` 才注册，排除 `### 5 步流程` 这类"5 步"误识别。
-    """
-    out = []
-    for line in md_text.splitlines():
-        m = _HEADING_NUM_RE.match(line)
-        if not m:
+def _heading_hits(md_text, name):
+    """「名称」在标题里的命中列表（子串匹配；剥 backtick；跳过 fenced code）。"""
+    wanted = name.replace("`", "").strip()
+    hits = []
+    in_code = False
+    for lineno, line in enumerate(md_text.splitlines(), 1):
+        if line.startswith("```"):
+            in_code = not in_code
             continue
-        level = len(line.split(None, 1)[0])
-        if m.group("dotted"):
-            out.append((level, m.group("dotted")))
-        elif m.group("arab"):
-            out.append((level, m.group("arab")))
-        elif m.group("cn"):
-            out.append((level, str(CN2ARABIC[m.group("cn")])))
-    return out
+        if in_code:
+            continue
+        m = _HEADING_RE.match(line)
+        if m and wanted in m.group("title").replace("`", ""):
+            hits.append((lineno, m.group("title")))
+    return hits
 
 
-def _normalize_num(s: str) -> str:
-    """中文数字 → 阿拉伯串；已是阿拉伯则原样返回。"""
-    return str(CN2ARABIC[s]) if s in CN2ARABIC else s
-
-
-def _section_exists(md_text, section):
-    """检查 §<section> 在 md_text 标题索引中存在。
-
-    - §A：任意层级编号为 A 的标题存在即可（覆盖 §11 → h3 / §6 → h3 / §十 → h2）。
-    - §A.B：(a) 存在编号恰为 "A.B" 的标题（覆盖 `### 6.4 决策树` 字面编号风格），或
-      (b) h2 编号 A 且其**作用域下** h3 编号 B 存在（覆盖 `lint-checklist §二.3` 这类父-子
-      引用）。(b) 不再允许"任意 h3 N" 全局 fallback——那会让 §三.1 靠 §二 下的
-      `### 1.` 通过，正是此闸要堵的洞。
-    """
-    if section is None or section == "":
-        return True
-    parts = section.split(".", 1)
-    first = _normalize_num(parts[0])
-    second = parts[1] if len(parts) > 1 else None
-    heads = _heading_numbers(md_text)
-    if second is None:
-        return any(tok.split(".")[0] == first for (_lvl, tok) in heads)
-    dotted = "{}.{}".format(first, second)
-    if any(tok == dotted for (_lvl, tok) in heads):
-        return True
-    in_scope = False
-    for level, tok in heads:
-        if level == 2:
-            in_scope = tok == first
-        elif level == 3 and in_scope and tok == second:
-            return True
-    return False
-
-
-def _resolve_target(fname):
+def _resolve_targets(fname):
+    """引用目标候选列表。SKILL.md 两 skill 同名——两候选都查（任一满足即过）。"""
     if fname == "SKILL.md":
-        for d in (
-            REPO / "yzr-llm-wiki-management",
-            REPO / "yzr-llm-workspace-management",
-        ):
-            cand = d / fname
-            if cand.is_file():
-                return cand
-        return None
-    return WIKI_SKILL / "references" / fname
+        return [
+            d / fname
+            for d in (
+                REPO / "yzr-llm-wiki-management",
+                REPO / "yzr-llm-workspace-management",
+            )
+        ]
+    return [WIKI_SKILL / "references" / fname]
 
 
-def _check_rule_ref(fname, section, src_label, stats, errors):
+def _check_rule_ref(fname, name, src_label, stats, errors):
     stats["rule_refs"] += 1
-    target = _resolve_target(fname)
-    if target is None or not target.is_file():
+    targets = [t for t in _resolve_targets(fname) if t.is_file()]
+    if not targets:
         errors.append("[rule_ref] {} 指向不存在的 {}".format(src_label, fname))
         return
-    if not _section_exists(_read(target), section):
+    per_target = [(t, _heading_hits(_read(t), name)) for t in targets]
+    if any(len(hits) == 1 for _t, hits in per_target):
+        return
+    multi = [(t, hits) for t, hits in per_target if len(hits) > 1]
+    if multi:
         errors.append(
-            "[rule_ref-section] {} → {} §{} 小节不存在".format(
-                src_label, fname, section
+            "[rule_ref-ambiguous] {} → {}「{}」命中多个标题（{}）——改引用名或标题消歧".format(
+                src_label,
+                fname,
+                name,
+                " / ".join(
+                    "{}: {}".format(t.name, " ".join("L{}".format(h[0]) for h in hits))
+                    for t, hits in multi
+                ),
             )
         )
+        return
+    errors.append(
+        "[rule_ref-title] {} → {}「{}」标题不存在".format(src_label, fname, name)
+    )
 
 
 # ---------- 主流程 ----------
@@ -554,41 +504,25 @@ def main():  # pylint: disable=too-many-branches
                 "[finding bwd] CLI finding `{}` 未在 skill 文本文档化".format(name)
             )
 
-    # --- 3. rule_ref（CLI → skill）+ §N 目标节存在性 ---
+    # --- 3. rule_ref（CLI → skill）+ 「节名」目标标题存在性 ---
     # 3a. llmw/content/*.py：CLI 输出字符串 / docstring / 注释 / rule_ref 字段（纯文本形式）
     for py in sorted(CONTENT.glob("*.py")):
-        for fname, section in RULE_REF_RE.findall(_read(py)):
-            _check_rule_ref(fname, section, _rel(py), stats, errors)
-    # 3b. CONTRACT_MDS（skill 文档 / 模板 / 仓根文档）：三种形式都扫
-    #   - 纯文本 `basename.md §N`（RULE_REF_RE）
-    #   - 链接关闭后的 §N：`[`baz.md`](url) §N`（RULE_REF_LINK_SECTION_RE）
-    #   - 反引号关闭后的 §N：`[`baz.md` §N](url)`（RULE_REF_QUOTED_SECTION_RE）
+        for fname, name in RULE_REF_RE.findall(_read(py)):
+            _check_rule_ref(fname, name, _rel(py), stats, errors)
+    # 3b. CONTRACT_MDS（skill 文档 / 模板 / 仓根文档）：
+    #     `basename.md「节名」`（链接内 / 链接后 / 裸文本三种形式同一 regex 覆盖）
     for md in CONTRACT_MDS:
         rel = _rel(md)
         text = _read(md)
         seen = set()
-        for fname, section in RULE_REF_RE.findall(text):
-            key = (fname, section)
-            if key in seen:
-                continue
-            seen.add(key)
-            _check_rule_ref(fname, section, rel, stats, errors)
-        for m in RULE_REF_LINK_SECTION_RE.finditer(text):
+        for m in RULE_REF_RE.finditer(text):
             fname = m.group("base")
-            section = m.group("section")
-            key = (fname, section)
+            name = m.group("name")
+            key = (fname, name)
             if key in seen:
                 continue
             seen.add(key)
-            _check_rule_ref(fname, section, rel, stats, errors)
-        for m in RULE_REF_QUOTED_SECTION_RE.finditer(text):
-            fname = m.group("base")
-            section = m.group("section")
-            key = (fname, section)
-            if key in seen:
-                continue
-            seen.add(key)
-            _check_rule_ref(fname, section, rel, stats, errors)
+            _check_rule_ref(fname, name, rel, stats, errors)
 
     # --- 4. 终态词 / JSON 字段 ---
     upgrade_py = _py_src("upgrade.py")
@@ -638,6 +572,29 @@ def main():  # pylint: disable=too-many-branches
         for lineno, line in enumerate(_read(py).splitlines(), start=1):
             _check_7a(rel, line, lineno)
 
+    # 7c skill 域节号禁令（防迁移回潮）：标题已不编号 → 引用一律「节名」。
+    # basename.md 后 ~60 字符内出现 §N、或 SKILL_MDS 内出现裸 §N → 红（OKF 规范豁免）。
+    def _check_7c(rel, line, lineno, bare=False):
+        pat = BARE_SECTION_RE if bare else SKILL_REF_SECTION_RE
+        if pat.search(line):
+            errors.append(
+                "[skill-section] {}:{} :: skill 域禁用节号（标题已不编号，插入即整体漂移）"
+                "→ 改用 `<file>.md「节名」`：{}".format(rel, lineno, line.strip()[:80])
+            )
+
+    for md in CONTRACT_MDS:
+        rel = _rel(md)
+        for lineno, line in enumerate(_read(md).splitlines(), start=1):
+            _check_7c(rel, line, lineno)
+    for py in PY_CONTRACT:
+        rel = _rel(py)
+        for lineno, line in enumerate(_read(py).splitlines(), start=1):
+            _check_7c(rel, line, lineno)
+    for md in SKILL_MDS:
+        rel = _rel(md)
+        for lineno, line in enumerate(_read(md).splitlines(), start=1):
+            _check_7c(rel, line, lineno, bare=True)
+
     # 6b 模板 landmark 存在性（按 skill 实际引用的 AGENTS.md 分桶）
     for landmark in WIKI_TEMPLATE_LANDMARKS:
         stats["landmarks"] += 1
@@ -672,9 +629,9 @@ def main():  # pylint: disable=too-many-branches
                         )
                     )
 
-    # --- 8. rule_ref 格式闸（裸 basename § 无 .md → gate 3 扫不到 = 死指针） ---
-    # 在 .py 中匹配 "SKILL §N" / "lint-checklist §N" 等形式；负向先行排除带 .md 的。
-    # prose "SKILL 目录" / "SKILL scan" 后不跟 §，自然不匹配。
+    # --- 8. rule_ref 格式闸（裸 basename 无 .md → gate 3 扫不到 = 死指针） ---
+    # 在 .py 中匹配 "SKILL §N" / "lint-checklist「名」" 等形式；负向先行排除带 .md 的。
+    # prose "SKILL 目录" / "SKILL scan" 后不跟 § / 「，自然不匹配。
     for py in PY_CONTRACT:
         rel = _rel(py)
         for lineno, line in enumerate(_read(py).splitlines(), start=1):
@@ -683,7 +640,7 @@ def main():  # pylint: disable=too-many-branches
                 basename = m.group(1)
                 errors.append(
                     "[rule_ref-format] {}:{} :: rule_ref 指向 skill 文档 "
-                    "`{}` 后跟 § 但缺 .md 扩展名（gate 3 扫不到 = 死指针）".format(
+                    "`{}` 但引用缺 .md 扩展名（gate 3 扫不到 = 死指针）".format(
                         rel, lineno, basename
                     )
                 )

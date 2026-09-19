@@ -5,7 +5,7 @@
 > **agent** 对 target 的读写权限以 wiki 根 `AGENTS.md` `raw/external/` 节为准）。命令面细节在
 > `AGENTS.md` `raw/external/` 节（会话常驻）；字段语义与失败兜底在本文件。
 
-## 一、首次接入
+## 首次接入
 
 agent 主导两项判断（CLI 帮不上）：
 
@@ -30,7 +30,7 @@ agent 主导两项判断（CLI 帮不上）：
 （schema SSOT = CLI `llmw.content.external_anchor._REQUIRED_FIELDS`；本文件仅列
 agent 判断侧所需的语义要点。）
 
-## 二、`sources:` 元素类型（external 特化）
+## `sources:` 元素类型（external 特化）
 
 `raw/external/<symlink>/...` 形式的 sources 可指向**文件或目录**：symlink 目标本身
 是 git 仓（即目录），可用作整仓语料（`raw/external/<symlink>`）；也可指向仓内子路径
@@ -38,7 +38,7 @@ agent 判断侧所需的语义要点。）
 普通 raw 路径（非 `raw/external/`）的 sources 仍要求指向**文件**（lint 用
 `is_file()` 校验）——raw 子树语义是"已 ingest 的文档"，目录型 raw 来源暂无用例。
 
-## 三、跨主机重建
+## 跨主机重建
 
 ### 原理：为什么 anchor 进 git、symlink 不进 git
 
@@ -82,15 +82,15 @@ checkout branch + 建 symlink；target 不在且无 remote_url → 报 `unrebuil
 llmw wiki lint                     # external-* findings 应为 0
 ```
 
-## 四、漂移刷新
+## 漂移刷新
 
 用户日常 `git pull` target 仓**不**触发任何自动检测——`remote_url` / `branch` 身份字段
 极少变化，无需刷新；"摘要是否过期"由用户判断，需要时重 ingest 对应 source 页
 （`target` 字段不动）。
 
-## 五、反模式
+## 反模式
 
-> 通用外部仓反模式见 SKILL.md §反模式段；本节只收**本流程特有**的：
+> 通用外部仓反模式见 SKILL.md「反模式」段；本节只收**本流程特有**的：
 
 - **不要用 `llmw wiki external remove` 删"孤儿 symlink"**（anchor 无对应 entry 的
   symlink）——CLI 只删注册表声明的东西；孤儿请手工 `rm` + 排查漏录原因

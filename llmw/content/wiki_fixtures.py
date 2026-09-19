@@ -6,7 +6,7 @@
 MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
 wiki_metadata.toml）是否满足当前 wiki format 的结构要求。本模块只校验**结构性字节合规**；
 语义合并（frontmatter 字段升级 / index 重复条目 / 多 MEMORY 条目归并等）由
-upgrade-workflow.md §六 + LLM agent 走 upgrade plan 时处理——本模块不替代。
+upgrade-workflow.md「语义合并规则」+ LLM agent 走 upgrade plan 时处理——本模块不替代。
 
 用法:
   llmw wiki check-fixtures --path=<WIKI_ROOT> [--json] [--target-format <semver>]
@@ -82,14 +82,14 @@ CHECK_REGISTRY = [
         "id": "agents-version-is-current",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "lint-checklist.md §一（--check-version wiki-format-version）",
+        "rule_ref": "lint-checklist.md「调用方式」（--check-version wiki-format-version）",
         "desc": "AGENTS.md 末尾「当前配置」表 Wiki Format 版本行需与 --target-format 一致",
     },
     {
         "id": "agents-md-template-sync",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "lint-checklist.md §二（agents-md-template-sync）",
+        "rule_ref": "lint-checklist.md「Deterministic 检查清单」（agents-md-template-sync）",
         "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（「当前配置」四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
@@ -103,21 +103,21 @@ CHECK_REGISTRY = [
         "id": "gitignore-external-track-toml",
         "severity": "error",
         "file": ".gitignore",
-        "rule_ref": "external-repo.md §三（gitignore 增强见 .gitignore fixture 与 llmw/content/templates/wiki/fixtures/gitignore.txt）",
+        "rule_ref": "external-repo.md「跨主机重建」（gitignore 增强见 .gitignore fixture 与 llmw/content/templates/wiki/fixtures/gitignore.txt）",
         "desc": ".gitignore 含 `raw/external/*` 排除 + `!raw/external/.symlink-anchor.toml` 跟踪",
     },
     {
         "id": "symlink-anchor-toml-schema",
         "severity": "error",
         "file": "raw/external/.symlink-anchor.toml",
-        "rule_ref": "external-repo.md §一（agent 排查损坏时需读懂的字段语义 + 字段 SSOT = CLI `external_anchor._REQUIRED_FIELDS`）",
+        "rule_ref": "external-repo.md「首次接入」（agent 排查损坏时需读懂的字段语义 + 字段 SSOT = CLI `external_anchor._REQUIRED_FIELDS`）",
         "desc": "raw/external/.symlink-anchor.toml（若存在）：合法 TOML + [[entry]] 数组 + 必填字段齐 + git 身份字段可选（schema SSOT = CLI `external_anchor` 模块）",
     },
     {
         "id": "symlink-anchor-toml-symlink-matches",
         "severity": "error",
         "file": "raw/external/",
-        "rule_ref": "external-repo.md §三（anchor 进 git 的 rationale + 扁平布局不变量）",
+        "rule_ref": "external-repo.md「跨主机重建」（anchor 进 git 的 rationale + 扁平布局不变量）",
         "desc": "anchor 每个 [[entry]].symlink 对应 external/ 顶层同名 symlink；anchor 无对应 symlink / orphan symlink 一并检查",
     },
     {
@@ -166,7 +166,7 @@ CHECK_REGISTRY = [
         "id": "wiki-metadata-reads-satisfied",
         "severity": "error",
         "file": "wiki_metadata.toml",
-        "rule_ref": "lint-checklist.md §七（fixtures 边界，check 清单由 CLI 注册表承载）",
+        "rule_ref": "lint-checklist.md「lint 的边界」（fixtures 边界，check 清单由 CLI 注册表承载）",
         "desc": "wiki_metadata.toml 含 SKILL scan 读取的 6 字段：name / topic / display_name / description / tags / created_at",
     },
     {

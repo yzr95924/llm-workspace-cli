@@ -99,7 +99,7 @@ def parse_frontmatter_simple(text: str) -> Dict:
 # 文本素材（md / txt / markdown）走 raw/{articles,clippings,papers,...}/
 # 等任意子目录，rglob 递归扫；raw/assets/ 整棵子树跳过（用户放图片 / 二进制附件的地方，
 # LLM 不该管它们是否"已摄取"——它们本身就是 raw 终态，不应被 source 页引用）；
-# raw/discussions/ 整棵子树跳过（用户 + LLM 协作草稿层，参照 ingest-workflow.md §十——不是待摄取的
+# raw/discussions/ 整棵子树跳过（用户 + LLM 协作草稿层，参照 ingest-workflow.md「raw/discussions/ 草稿消化」——不是待摄取的
 # 用户真相源，LLM 可写，不应被 ingest_diff 当 untracked 素材列出）。
 INGEST_GLOBS = ("*.md", "*.markdown", "*.txt")
 

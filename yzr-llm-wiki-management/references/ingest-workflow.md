@@ -4,11 +4,11 @@ Ingest 把 `raw/` 里的原始资料变成 wiki 内的**摘要页** + 同步相�
 页 + 更新 index + 追加 log。一份资料通常涉及 **1 source 页 + 0~N entity / concept
 页 + 1 index 更新 + 1 log 条目**。
 
-## 一、为什么 ingest 重要
+## 为什么 ingest 重要
 
 Ingest 是 wiki **复利积累**的主循环——同一份资料消化一次永久可查；后续 query 自动受益（vs RAG 每次重新抽片段）。
 
-## 二、入口与触发
+## 入口与触发
 
 **主动触发**：用户说"摄取 X 到 wiki" / "把 raw/articles/foo.md ingest" /
 "raw/articles/ 里这批都摄取一下"。
@@ -17,7 +17,7 @@ Ingest 是 wiki **复利积累**的主循环——同一份资料消化一次永
 
 **定期触发**：用户设 cron / 习惯——每周一次把 `raw/articles/` 新增的全部 ingest。
 
-## 三、流程详解
+## 流程详解
 
 ### Step 1：识别需要摄取的文件
 
@@ -52,12 +52,12 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 覆盖、不要重建 entity / concept 的"参考来源"段（只追加新来源）：
 
 > **若重摄发现新内容与已有 entity / concept 页主张矛盾**——不要静默覆盖旧说法，走
-> [`page-templates.md` §一「矛盾处理 Update Policy」](page-templates.md)
+> [`page-templates.md「矛盾处理 Update Policy」`](page-templates.md)
 > （双方设 `contested: true` + `contradictions` 互指、正文显式记录两种说法）。这是 `contested` 信号最常见的产生时机。
 >
 > **生命周期纪律（stale-raw / 重摄取）**：被更新的 source 页如果原来 `reviewed: true`，
 > 编辑完跑 `llmw wiki write touch`（自动 `updated`=现在 + 删 `reviewed`/`reviewed_at`）。
-> 事件表与"两道闸门"细节见 [page-templates.md §一「生命周期规则」](page-templates.md)。
+> 事件表与"两道闸门"细节见 [page-templates.md「生命周期规则」](page-templates.md)。
 
 1. **完整读取 raw 资料**——若是 PDF / 图片，先做 OCR / 视觉识别
 2. **提取元数据**：标题、作者 / 来源、发布时间、URL（若有）、关键标签
@@ -65,15 +65,15 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
    `<slug>.md`
 4. **脚手架走 `llmw wiki write new --type=source --slug=... --title=... --sources=raw/...`**
    （自动生成 5 必填 frontmatter + H1，slug 校验 + 拒覆盖）——然后 Edit 写正文，
-   使用 source 模板（见 [`page-templates.md`](page-templates.md) §二.3，字段定义不重抄）：
+   使用 source 模板（见 [`page-templates.md「source（资料页）」`](page-templates.md)，字段定义不重抄）：
    - 摘要（200-500 字）——核心论点 / 关键数据 / 与本 wiki 其他资料的关系
    - 关键引用——可独立成段的引文 / 数字 / 结论
    - 链接出去的 cross-refs——相关 entity / concept / source 页
-   - 正文含交互流 / 架构关系时优先配图——判定与选型见 [`page-templates.md §四`](page-templates.md)
+   - 正文含交互流 / 架构关系时优先配图——判定与选型见 [`page-templates.md「图示使用指引」`](page-templates.md)
    - `created`：全新文件设 today；stale-raw 重摄取保留原值
    - **认知质量信号（可选）**：fast-moving / 争议 / 单一弱来源的 source 页，建议在 frontmatter
      标 `contested: true`（仅当**确属矛盾未裁定**时）——`confidence` 字段已退役，
-     可信度由"是否人工审核过"承载（详见 [page-templates.md §一](page-templates.md)）
+     可信度由"是否人工审核过"承载（详见 [`page-templates.md「共有 frontmatter 段」`](page-templates.md)）
 5. **决策点：是否需要新建 entity / concept 页**
    - 例：raw 资料里反复提到"self-attention"，但 `concepts/self-attention.md` 不存在
    - → 新建 `concepts/self-attention.md`（首次出现 + 值得沉淀的概念）
@@ -90,7 +90,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 **若新建 entity / concept 页**：
 
-- 走 [`page-templates.md`](page-templates.md) §二.1 / §二.2 的 entity / concept 模板
+- 走 [`page-templates.md`](page-templates.md)「entity（实体页）」/「concept（概念页）」 的 entity / concept 模板
 - frontmatter 含 `created=updated=today`
 - 正文含：定义 / 关键属性 / 已知出现于（指向 source 页列表）
 
@@ -108,7 +108,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 - `llmw wiki write log --op=ingest --title="<source 页 title>"`——严格格式 + 超过
   `LOG_RETENTION_LIMIT` 自动截断保最近 N 条（frontmatter 不动），CLI 保证
 - 一次 ingest 多个文件 → **重复 `--title`**（每条对应一个 source 页）；
-  批处理走 `--bulk --topic ... --count ...`（见 §五）
+  批处理走 `--bulk --topic ... --count ...`（见「批处理摄取」）
 
 ### Step 7：建议 commit（启用 git 时）
 
@@ -120,21 +120,21 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 - agent 应提示用户："wiki 已更新，建议 commit。message 草稿：`<msg>`，要我帮你
   commit 吗？"
 
-## 四、frontmatter 字段参考（source 页）
+## frontmatter 字段参考（source 页）
 
-> 字段全集 + 语义定义见 [`page-templates.md §一`](page-templates.md) +
-> [`§二.3`](page-templates.md)；骨架由 `llmw wiki write new` 生成。
+> 字段全集 + 语义定义见 [`page-templates.md「共有 frontmatter 段」`](page-templates.md) +
+> [`page-templates.md「source（资料页）」`](page-templates.md)；骨架由 `llmw wiki write new` 生成。
 
-本节只列 source 页**特化**注意事项（page-templates.md §二.3 已有的字段定义不重抄）：
+本节只列 source 页**特化**注意事项（page-templates.md「source（资料页）」已有的字段定义不重抄）：
 
 - `sources` 必填——`raw/` 下相对路径数组，至少 1 条（`raw/discussions/` 路径 lint 报
   `source-in-discussions`，需先归档到 `raw/articles/` 或重摄取）
 - 推荐 `description`
 - 推荐 `authors` / `published` / `url` / `venue`——便于 index 摘要 + 反向溯源
 
-## 五、批处理摄取（≥ 3 份 raw 同时摄入）
+## 批处理摄取（≥ 3 份 raw 同时摄入）
 
-> 主 SKILL.md §1 Ingest 只留 pointer；批处理的详细 5 步 + 为什么批处理 +
+> 主 SKILL.md「Ingest」只留 pointer；批处理的详细 5 步 + 为什么批处理 +
 > log 标题前缀约定一律写在本节。
 
 当 `llmw wiki ingest-diff` 返回 ≥ 3 个待摄取文件，或用户明确说"把这堆一起 ingest / 整批过稿"，
@@ -160,14 +160,14 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 > log，既慢又容易因中间步骤失败导致不一致；批处理把主流程收敛成一次写入，副作用面最小。
 > `Bulk:` 标题前缀保留后续按需 grep 出"批量事件"的能力（无需新增 `bulk-ingest` op）。
 
-## 六、判定"是否新建 entity / concept 页"
+## 判定"是否新建 entity / concept 页"
 
-阈值 canonical 见 [`page-templates.md §三「建页 / 追加 / 归档阈值」`](page-templates.md)：
+阈值 canonical 见 [`page-templates.md「建页 / 追加 / 归档阈值」`](page-templates.md)：
 ≥ 2 个 source 页提及 **或** 本页中心主题 → 建；路过提及 / 粒度过细 / 已有同名近义页 → 不建。
 
 **单篇 ingest 视角的套用**：本 raw 的中心主题 / 反复出现的核心概念 → 建；路过 / 类比 / 背景提及 → 不建；已有同名 / 近义页 → 先 search 再定（写前必搜）。
 
-## 七、正文引用的稳定性（漂移点规避）
+## 正文引用的稳定性（漂移点规避）
 
 写 wiki 页正文、或对话作答中引用上游事实时，先做**感知测试**：
 
@@ -184,21 +184,21 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 | 完整枚举 | 全参数清单 | 代表性例子 + "完整清单见来源"；清单属来源不属 wiki |
 | 归属信息 | "由张三维护" | 引角色不引人名 |
 
-## 八、Ingest 失败的常见原因
+## Ingest 失败的常见原因
 
 - **已存在同名 source 页**——用 Edit 更新而不是 Write 覆盖（`llmw wiki write new` 也会拒覆盖）
-- **wiki/index.md 缺类别段**——`llmw wiki write index add` 报错并指路 page-templates §6 骨架
+- **wiki/index.md 缺类别段**——`llmw wiki write index add` 报错并指路 page-templates.md「index（index.md）」骨架
   手动补类别段（或走 upgrade fixtures 修复，CLI 拒绝覆盖已有 wiki）
 
 > raw 不可读 / log/index 参数缺失等场景，CLI 报错信息自明——按提示修即可。
 
-## 九、反模式
+## 反模式
 
 - 一份资料写 5 个 source 页（粒度过细）——按"主题"分，不是按"raw 文件 1:1"
 - source 页只复制 raw 内容——必须消化、提炼、加 cross-refs
 - 跨主题的 entity 混在一起——本 skill 假设一个 wiki 一个主题；跨主题用不同的 wiki
 
-## 十、raw/discussions/ 草稿消化（可选入口）
+## raw/discussions/ 草稿消化（可选入口）
 
 > **完整纪律**（路径 / 谁可写 / CLI 契约三道 / 归档路径两条 / 滑坡防线）由
 > wiki 根 `AGENTS.md` 的 `raw/discussions/` 节承载——agent 自动加载必读。

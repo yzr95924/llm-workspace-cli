@@ -15,18 +15,18 @@
 > `|`、YAML 锚点 `&` / `*`、嵌套 map——该解析器会静默失败、返回空 dict，后续 ingest 与 lint
 > 行为未定义。
 
-## 一、共有 frontmatter 段
+## 共有 frontmatter 段
 
 > **适用范围**：本节模板适用于 wiki 5 类内容页（entities / concepts / sources /
 > comparisons / syntheses）。**MEMORY/*.md 的 frontmatter 规则不同**——仅 `title`
-> 必填，其余 5 字段全 optional；详见 [`lint-checklist.md` §二.2](lint-checklist.md)
+> 必填，其余 5 字段全 optional；详见 [`lint-checklist.md「frontmatter 完整性」`](lint-checklist.md)
 > 末尾（或 `<wiki-root>/MEMORY/MEMORY.md` fixture 头部说明块）。
 
 ```yaml
 ---
 title: <string, 必填>
 description: <一句话摘要, 推荐>  # 推荐（OKF v0.1 推荐字段）；index.md 条目摘要从它来，避免漂移
-type: <entity|concept|source|comparison|synthesis, 必填>  # 5 类内容页；index/log 是 reserved（见 §6 / §7）
+type: <entity|concept|source|comparison|synthesis, 必填>  # 5 类内容页；index/log 是 reserved（见「index（index.md）」/「log.md（log）」）
 tags: [<string array>, 必填但可空数组>]
 created: <YYYY-MM-DD HH:MM, 必填>  # lint 也接受 YYYY-MM-DD
 updated: <YYYY-MM-DD HH:MM, 必填>  # lint 也接受 YYYY-MM-DD
@@ -44,7 +44,7 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 > `tags`（taxonomy 过滤）。少于 5 字段会让"抓腐烂"判定失效；多于 5 字段 OK 但不强制。
 > **为什么 5 类内容页**：`entity` / `concept` / `source` / `comparison` / `synthesis`
 > 覆盖 wiki 复利的 5 种认知角色（实体 / 概念 / 资料 / 对比 / 综合），与 lint 校验路径、
-> index 分组、OKF §4.1 字段要求一致；`index` / `log` 是 reserved（见 §6 / §7），
+> index 分组、OKF §4.1 字段要求一致；`index` / `log` 是 reserved（见「index（index.md）」/「log.md（log）」），
 > 仅标记用途、lint 跳过它们。
 
 **字段说明**：
@@ -53,11 +53,11 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 - `description`——**推荐**（OKF v0.1 推荐字段）。一句话总结本页；`index.md` 条目摘要从它来，
   避免在 index 里手写第二份、与正文漂移（lint 抓不到这种不一致）
 - `type`——驱动 lint 校验 + index 分组；合法值仅上述 5 种（`llmw wiki lint` 强制）。`index.md` /
-  `log.md` 是 **reserved 文件**（结构见 §6 / §7），自带 frontmatter，其中 `type: index` /
+  `log.md` 是 **reserved 文件**（结构见「index（index.md）」/「log.md（log）」），自带 frontmatter，其中 `type: index` /
   `type: log` 仅作标记、lint 跳过它们——不算概念页 type
 - `tags`——用于跨页搜索 + 未来可能的 dataview 查询。**取值必须严格在 `wiki/tags.md` 白名单内**
   （取值 / 解析 / 审计循环 canonical 在 fixture 头部说明块；lint 语义见
-  [`lint-checklist.md` §11](lint-checklist.md)）
+  [`lint-checklist.md「Tag Taxonomy 校验」`](lint-checklist.md)）
 - `created` / `updated`——写入用 `YYYY-MM-DD HH:MM`；lint 按精度宽容解析三种格式：
   date-only / HH:MM / HH:MM:SS
 - 类型特定字段（`sources` / `compared` / `threads`）见各模板
@@ -117,8 +117,9 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
   应先裁定冲突再标
 - 已审过的页被 LLM 修改后，回到默认未审核状态，等人再次复审
 
-**矛盾处理 Update Policy**（ingest 时遇到"新资料与已有页冲突"时，**不要静默覆盖**，
-按以下顺序处理）：
+#### 矛盾处理 Update Policy
+
+ingest 时遇到"新资料与已有页冲突"时，**不要静默覆盖**，按以下顺序处理：
 
 1. **先看日期**——更新的来源一般覆盖旧的；但若旧来源更权威（如官方技术报告 vs 博客），
    保留两者并进入第 2 步
@@ -129,13 +130,13 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 4. **等 lint 复审**——下次 lint 会把 `contested` 页拎出来；与用户一起裁定后，
    移除 `contested`（如该页已审核，按生命周期规则判断是否需重新审）
 
-## 二、各类型模板
+## 各类型模板
 
 > **本节约定**：每类模板只列**路径 + 必填 frontmatter + 极简正文骨架**（节名 + 一句
 > "..."占位）；骨架即正文节名契约，写入时按它落。操作全流程 trace（ingest / query 实跑）
 > 见 [`examples.md`](examples.md)——按需 Read，避免本文件膨胀。
 
-### 1. `entity`（实体页）
+### `entity`（实体页）
 
 路径：`wiki/entities/<slug>.md`
 
@@ -174,7 +175,7 @@ aliases: [<可选>, <可选>]  # 别名数组，方便搜索（自由文本，�
 * [<source page>](<relative-path>) — <简短说明>
 ```
 
-### 2. `concept`（概念页）
+### `concept`（概念页）
 
 路径：`wiki/concepts/<slug>.md`
 
@@ -222,7 +223,7 @@ related: [<concepts/x.md>, <concepts/y.md>]  # 相关概念路径数组，wiki �
 * [<source page>](<relative-path>) — <说明>
 ```
 
-### 3. `source`（资料页）
+### `source`（资料页）
 
 路径：`wiki/sources/<slug>.md`
 
@@ -234,7 +235,7 @@ type: source
 tags: [<必填但可空>]
 created: YYYY-MM-DD HH:MM
 updated: YYYY-MM-DD HH:MM
-sources:  # 必填——指向 raw/ 现存路径（不得指向 raw/discussions/——草稿非真相源，详见 ingest-workflow.md §十）
+sources:  # 必填——指向 raw/ 现存路径（不得指向 raw/discussions/——草稿非真相源，详见 ingest-workflow.md「raw/discussions/ 草稿消化」）
   - raw/articles/<slug>.md
 authors: [<name1>, <name2>]  # 可选
 published: YYYY-MM-DD          # 可选
@@ -275,7 +276,7 @@ venue: <会议名 / 期刊>          # 可选
 > "<原文 quote>" —— <出处>
 ```
 
-### 4. `comparison`（对比页）
+### `comparison`（对比页）
 
 路径：`wiki/comparisons/<slug>.md`
 
@@ -320,7 +321,7 @@ compared:  # 必填——被对比对象路径数组，wiki 根相对
 * [<source page>](<relative-path>)
 ```
 
-### 5. `synthesis`（综合页）
+### `synthesis`（综合页）
 
 路径：`wiki/syntheses/<slug>.md`
 
@@ -382,7 +383,7 @@ sources:  # 必填——wiki 内其它页路径（不是 raw/）；详见各类�
 > 且不依赖 Obsidian / 特定渲染器）。单段纯推论 / 综合判断无需脚注；只对**可追溯到具体来源**
 > 的断言标。comparison 页若同样综合多源、断言来源可分，也照此办理。
 
-### 6. `index`（index.md）
+### `index`（index.md）
 
 路径：`wiki/index.md`（**唯一一份**，`type: index` 是 reserved）
 
@@ -401,10 +402,10 @@ updated: YYYY-MM-DD HH:MM
 H1 `<Topic> Wiki` + 说明块 + 5 类别 H2（Entities / Concepts / Sources / Comparisons
 / Syntheses，字母序）；每条 `- [<title>](<path>) — <description>`。
 
-**lint 口径**见 [`lint-checklist.md` §二.5](lint-checklist.md)（`index-missing` /
+**lint 口径**见 [`lint-checklist.md「index.md 覆盖」`](lint-checklist.md)（`index-missing` /
 `orphan-page`）。
 
-### 7. `log.md`（log）
+### `log.md`（log）
 
 路径：`wiki/log.md`（**唯一一份**，`type: log` 是 reserved）
 
@@ -428,10 +429,10 @@ op ∈ `ingest`/`query`/`lint`/`setup`；日期也接受 `YYYY-MM-DD`（lint 按
 正路走 `llmw wiki write log`（格式 + `LOG_RETENTION_LIMIT` 滚动窗口截断自动保证）；带外
 手改按上式 + 手工截断。完整纪律 + 条目示例见 fixture `log.md.txt` 头部说明块。
 
-**lint 口径**见 [`lint-checklist.md` §二.6 / §二.10](lint-checklist.md)
+**lint 口径**见 [`lint-checklist.md`「log.md 格式」/「log.md 条目数」](lint-checklist.md)
 （`log-format` / `log-truncation-recommended`）。
 
-## 三、模板使用规则
+## 模板使用规则
 
 1. **首次创建**——用对应模板填充 frontmatter
 2. **修改时**——保留 frontmatter 全部字段；`updated` 改当天日期
@@ -455,7 +456,7 @@ entity，lint 报告会被噪声淹没。
 | **拆分页** | 单页正文超过阈值（SSOT = `llmw wiki lint` 的 `PAGE_SIZE_THRESHOLD` 常量）——拆成子主题 + cross-link |
 | **归档页** | 内容被完全取代 / 主题域变化——加 `archived: true`、从 `index.md` 移除（log 走 `ingest` 或 `lint` op，记一条说明性条目） |
 
-## 四、图示使用指引
+## 图示使用指引
 
 > **本节为 advisory（建议式）**——图用于压缩过程性 / 结构性内容，不强制；密度优先，
 > 图是正文的压缩，不是装饰。
@@ -465,7 +466,7 @@ entity，lint 报告会被噪声淹没。
 - **优先配图**——交互流程 / pipeline / 状态机 / 组件-模块关系 / 层级结构；散文写这类
   内容超过 2-3 句仍绕不清时，换一张图
 - **不配图**——静态定义、简单枚举、单点结论；一页一般 ≤ 2 图（超了先自问是否该拆页，
-  阈值见 §三「建页 / 追加 / 归档阈值」）
+  阈值见「建页 / 追加 / 归档阈值」）
 
 **选型规则**：
 
@@ -474,7 +475,7 @@ entity，lint 报告会被噪声淹没。
   节点 ≤ ~12，超了就拆图或退回文字
 - **ASCII 图仅限**目录树 / 纯英文短标签结构（围栏用 `text`）——**禁止中文标签进
   ASCII 框**：LLM 数中英混排显示宽度几乎必错，对齐必崩
-- **表格仍是对比类内容首选**（见 §二.4）；LaTeX 公式照旧
+- **表格仍是对比类内容首选**（见「comparison（对比页）」）；LaTeX 公式照旧
 - **不用二进制图片**——检索 / diff / 可移植性三损（wiki 的文本性是一等约束）
 
 **维护规则**：

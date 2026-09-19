@@ -102,7 +102,7 @@ def run_lint(root):
 
 class RelatedLinksResolutionTest(unittest.TestCase):
     def test_wiki_root_relative_form_concepts_not_reported(self):
-        """page-templates.md §一约定的 wiki 根相对形式 concepts/beta.md（基准 = 内容根 wiki/）
+        """page-templates.md「共有 frontmatter 段」约定的 wiki 根相对形式 concepts/beta.md（基准 = 内容根 wiki/）
         命中真实文件 wiki/concepts/beta.md 时，不应报 related-broken-link。"""
         with tempfile.TemporaryDirectory() as tmp:
             root = build_minimal_wiki(tmp)
@@ -130,7 +130,7 @@ class RelatedLinksResolutionTest(unittest.TestCase):
         self.assertIn("related-broken-link", stdout, "真坏链接应被报出：\n" + stdout)
 
     def test_compared_field_same_semantics(self):
-        """compared 字段与 related 同语义（page-templates.md §一同基准）——wiki 根相对形式同样不应误报。"""
+        """compared 字段与 related 同语义（page-templates.md「共有 frontmatter 段」同基准）——wiki 根相对形式同样不应误报。"""
         with tempfile.TemporaryDirectory() as tmp:
             root = build_minimal_wiki(tmp)
             (root / "wiki" / "comparisons").mkdir(parents=True, exist_ok=True)
