@@ -54,8 +54,8 @@
    - raw/ 干净（启用 git 时 git status clean；未启用时此项自动跳过 + 输出顶部 `[NOTES]` 提示跳过原因）
    - 3 个页面缺 updated 字段
    - 1 个失效引用：concepts/transformer.md 链到 sources/bigtable.md 但后者不存在
-   - 5 个 source 页 updated 超过 stale 阈值（阈值见 [`lint-checklist.md「过期摘要」`](lint-checklist.md)），建议复查
-   - 1 个孤儿页：concepts/<orphan-concept>.md 没有任何 inbound link
+   - 5 个 source 页 updated 超过 stale 阈值（阈值随 finding 文本输出），建议复查
+   - 1 个孤儿页：concepts/<orphan-concept>.md 未被 wiki/index.md 列出（orphan-page）
    - 1 个 `contested-page`：sources/<entity-v2>.md 与 sources/<entity-v1>.md 对某核心属性
      说法冲突、已双向标注 `contested: true`——需与用户裁定后移除标记
    - 7 个 `pending-review`：默认未审核页面（新常态，info）
@@ -77,8 +77,9 @@
    （老 wiki 会落后于当前版本）+ wiki/index.md + wiki/log.md
 2. 跑升级 dry-run 看骨架计划：
     llmw wiki --path=~/wiki/llm-systems upgrade
-    CLI 输出 plan（每个文件一个 action + diff 行数）
-3. 若 plan 含 `render` / `gitignore-block` 的 diff → 触发 blocked_drift，与用户裁定本地定制：
+    CLI 输出 dry-run plan
+3. 若 plan 含 `render` / `gitignore-block` 的 diff：直接 `--apply` 会被 `blocked_drift`
+   拦住（需 `--yes`）——先与用户裁定本地定制：
    - AGENTS.md / CLAUDE.md 中多出模板渲染稿的行/段 = 用户本地定制
    - 逐条决定搬到 MEMORY/ 还是丢弃
    - 裁定完 → 重跑 `llmw wiki --path=... upgrade --apply --yes` 落地
@@ -86,6 +87,6 @@
     llmw wiki --path=~/wiki/llm-systems lint --check-version --apply --json
     → needs_upgrade: true；legacy 组（如有）：
           - N 处老格式 → agent 按 plan 自带规则（`agent_rules[]` + 各 action 说明）用 Edit 落
-5. 验证：重跑 `llmw wiki --path=... upgrade` + `lint --check-version`
-    → needs_upgrade: false ✓ 完成；upgrade 终态 done；无残留冲突
+5. 验证：重跑第 2 步 → plan 为空（dry-run 即骨架已对齐）；重跑第 4 步 → needs_upgrade: false ✓；
+    终态 `done` 由第 3 步 `--apply` 运行给出
 ```

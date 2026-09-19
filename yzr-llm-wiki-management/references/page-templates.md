@@ -77,7 +77,7 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 
 - `reviewed: true`——**仅**在为 `true` 时写。人工**已审核该页**的可信度背书。
   - 缺省 = 未审核（lint 报 `pending-review` info，新常态，不算腐烂）
-  - lint 校验：`reviewed` 取值必须严格为 `true`（裸 token，不是 `"true"` 字符串、`yes`、`1`、`false`）
+  - lint 校验：`reviewed` 取值必须严格为 `true`（裸 token，不是 `"true"` 字符串、`yes`、`1`、`false`）——非严格值 lint 报 `invalid-reviewed-value`
   - 与 `reviewed_at` 必须成对出现，单独写任一字段给 `reviewed-at-missing` / `reviewed-at-orphan` warn
 - `reviewed_at: <YYYY-MM-DD>`——审核日期。与 `reviewed: true` 配套。
   - lint 校验：`updated > reviewed_at` 时给 `reviewed-stale` warn（LLM 修改后未清 reviewed，戳过期）
@@ -99,7 +99,7 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 | --- | --- |
 | LLM 创建新页 | 不写（默认未审核） |
 | 人标记已审核 | 写 `reviewed: true` + `reviewed_at: <今天>` |
-| LLM 修改页（含 ingest 重摄取、query 归档、refine、任何 Edit/Write） | **必须删除这两个字段**（回到默认未审核） |
+| LLM 修改页（含 ingest 重摄取、query 归档、任何 Edit/Write） | **必须删除这两个字段**（回到默认未审核） |
 | LLM 仅改 `updated` 字段（无正文变化） | 不动（meta 操作，不算内容变更） |
 
 **两道闸门**：
@@ -249,7 +249,7 @@ venue: <会议名 / 期刊>          # 可选
 # <Title>
 
 **作者**：<authors>
-**来源**：[<raw path>](../../raw/<...>)（必填项；缺失时 lint 报 `sources-missing`）
+**来源**：[<raw path>](../../raw/<...>)（必填项）
 
 ## 摘要
 
@@ -418,17 +418,11 @@ updated: YYYY-MM-DD HH:MM
 ---
 ```
 
-每行匹配：
+每行格式 / op 取值 / 滚动窗口截断（>50 删最旧）：canonical 见 fixture `log.md.txt`
+头部说明块。正路走 `llmw wiki write log`（格式 + 截断自动保证）；带外手改按 fixture
+格式 + 手工截断。
 
-```text
-^## \[\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?\] (ingest|query|lint|setup) \| .+$
-```
-
-op ∈ `ingest`/`query`/`lint`/`setup`；日期也接受 `YYYY-MM-DD`（lint 按精度宽容解析）。
-正路走 `llmw wiki write log`（格式 + `LOG_RETENTION_LIMIT` 滚动窗口截断自动保证）；带外
-手改按上式 + 手工截断。完整纪律 + 条目示例见 fixture `log.md.txt` 头部说明块。
-
-**lint 口径**见 [`lint-checklist.md`「log.md 格式」/「log.md 条目数」](lint-checklist.md)
+**lint 口径**见 [`lint-checklist.md`「log.md 格式」/「log.md 条目数（log-truncation）」](lint-checklist.md)
 （`log-format` / `log-truncation-recommended`）。
 
 ## 模板使用规则
@@ -452,8 +446,8 @@ entity，lint 报告会被噪声淹没。
 | **新建 entity / concept 页** | 该 entity / concept 在 ≥ 2 个 source 页中被提到 **或** 是某 source 页的中心主题 |
 | **追加到已有页** | source 页提到一个已被覆盖的 entity / concept——追加"参考来源"段即可（不重写） |
 | **不创建页** | 路过提及（脚注 / 一次出现的名字）、领域外的细节、与本 wiki 主题无关 |
-| **拆分页** | 单页正文超过阈值（SSOT = `llmw wiki lint` 的 `PAGE_SIZE_THRESHOLD` 常量）——拆成子主题 + cross-link |
-| **归档页** | 内容被完全取代 / 主题域变化——加 `archived: true`、从 `index.md` 移除（log 走 `ingest` 或 `lint` op，记一条说明性条目） |
+| **拆分页** | 单页正文超过阈值——阈值与拆分建议见 lint `oversized-page` finding（触发时输出自带）；拆成子主题 + cross-link |
+| **归档页** | 内容被完全取代 / 主题域变化——加 `archived: true`、从 `index.md` 移除 |
 
 ## 图示使用指引
 

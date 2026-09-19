@@ -249,6 +249,8 @@ class SeverityOfTest(unittest.TestCase):
             )
 
     def test_representative_others(self):
+        self.assertEqual(self.severity_of("missing-sources: x"), "error")
+        self.assertEqual(self.severity_of("invalid-tags: x"), "error")
         self.assertEqual(self.severity_of("memory-not-indexed: x"), "info")
         self.assertEqual(self.severity_of("memory-index-dangling: x"), "warn")
         self.assertEqual(self.severity_of("external-anchor-orphan: x"), "warn")

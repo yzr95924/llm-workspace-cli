@@ -26,21 +26,22 @@ Ingest 是 wiki **复利积累**的主循环——同一份资料消化一次永
 llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ```
 
-- 扫 `raw/` 递归，对照所有 `wiki/sources/*.md` 的 `frontmatter.sources` 建立 raw 路径 → source 页映射
+- 扫 `raw/` 递归（`assets/` 与 `discussions/` 子树除外），对照所有 `wiki/sources/*.md` 的
+  `frontmatter.sources` 建立 raw 路径 → source 页映射
 - 输出需要关注的文件清单（plain text 或 `--json`），按 reason 分三类：
   - `untracked`——从未摄取的全新文件
   - `stale-raw`（仅 `--check-stale`）——已有 source 页，但 raw 文件 mtime 晚于 source
     页 `updated`，说明 raw 被用户更新过，需**重新摄取**
   - `log-only-no-source-page`——log 有 ingest 记录但 source 页缺失，需重建
-- 退出码：0 = 无需关注；1 = 有需要处理的项
+- 退出码：0 = 无需关注；1 = 有需要处理的项；2 = 运行错误（stderr 自明）
 
 **注意**：判定"已摄取"的依据是**对应 source 页存在且 frontmatter.sources 含此路径**。
 仅在 log.md 里有引用但 source 页被删的视为**未摄取**——这种情况需要重建 source 页。
 
 ### Step 2：评估规模
 
-如果未摄取文件 < 3 → 一次性处理；3~20 → 建议分批但可接受；> 20 → 强烈建议
-分批 + 询问用户"是否先处理这 5 个"。
+待摄取文件 < 3 → 一次性处理；≥ 3 → 走「批处理摄取」路径。
+> 20 → 先询问用户"是否先处理这 5 个"，分多批推进。
 
 **分批策略**：按主题聚类（同一议题 / 同一作者 / 同一时间段优先），不要按文件
 名随机排序。
@@ -56,7 +57,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 > （双方设 `contested: true` + `contradictions` 互指、正文显式记录两种说法）。这是 `contested` 信号最常见的产生时机。
 >
 > **生命周期纪律（stale-raw / 重摄取）**：被更新的 source 页如果原来 `reviewed: true`，
-> 编辑完跑 `llmw wiki write touch`（自动 `updated`=现在 + 删 `reviewed`/`reviewed_at`）。
+> 编辑完跑 `llmw wiki write touch <page>`（自动 `updated`=现在 + 删 `reviewed`/`reviewed_at`）。
 > 事件表与"两道闸门"细节见 [page-templates.md「生命周期规则」](page-templates.md)。
 
 1. **完整读取 raw 资料**——若是 PDF / 图片，先做 OCR / 视觉识别
@@ -86,7 +87,6 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 - **不重写**——只追加"## 参考来源 / Sources"段
 - 每条新 source 写一行：`* [Source Title](../sources/<slug>.md) — 一句话关联点`
 - **保持顺序**：新追加的放最前面或最后面，整个文件**只追加**不重排
-- 同时把对应 raw 路径加到该 entity / concept 页 frontmatter 的 `sources` 数组
 
 **若新建 entity / concept 页**：
 
@@ -105,8 +105,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ### Step 6：追加 `log.md`
 
-- `llmw wiki write log --op=ingest --title="<source 页 title>"`——严格格式 + 超过
-  `LOG_RETENTION_LIMIT` 自动截断保最近 N 条（frontmatter 不动），CLI 保证
+- `llmw wiki write log --op=ingest --title="<source 页 title>"`——严格格式 + 滚动窗口
+  截断自动保证（上限见 `wiki/log.md` 头部；超限时 lint finding 自带数值）
 - 一次 ingest 多个文件 → **重复 `--title`**（每条对应一个 source 页）；
   批处理走 `--bulk --topic ... --count ...`（见「批处理摄取」）
 
@@ -120,6 +120,9 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 - agent 应提示用户："wiki 已更新，建议 commit。message 草稿：`<msg>`，要我帮你
   commit 吗？"
 
+**收尾建议**：无论是否 commit，主动问用户"要不要查一下新内容与已有内容的
+联系？"（query 触发约定见 [`query-workflow.md「入口与触发」`](query-workflow.md)）。
+
 ## frontmatter 字段参考（source 页）
 
 > 字段全集 + 语义定义见 [`page-templates.md「共有 frontmatter 段」`](page-templates.md) +
@@ -130,7 +133,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 - `sources` 必填——`raw/` 下相对路径数组，至少 1 条（`raw/discussions/` 路径 lint 报
   `source-in-discussions`，需先归档到 `raw/articles/` 或重摄取）
 - 推荐 `description`
-- 推荐 `authors` / `published` / `url` / `venue`——便于 index 摘要 + 反向溯源
+- 可选 `authors` / `published` / `url` / `venue`——便于反向溯源（index 摘要只取 `description`）
 
 ## 批处理摄取（≥ 3 份 raw 同时摄入）
 
@@ -151,7 +154,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
    - source 页（`llmw wiki write new` 脚手架 + Edit 正文，按主题聚类而非 raw 文件名
      顺序——主题相近的先写，便于交叉引用）
    - entity / concept 页（先建新的，再更新已有的——追加"参考来源"段，不重写）
-   - `wiki/index.md`（所有改动落定后**一次** `llmw wiki write index add`；不要每写一页更一次 index）
+   - `wiki/index.md`（所有改动落定后集中补：**每页一次** `llmw wiki write index add <page>`；
+     不要每写一页更一次 index）
    - `wiki/log.md`（`llmw wiki write log --op=ingest --bulk --topic="<主题概览>" --count=<N>`，
      标题里把本批主题说清；不再逐文件分别追加 ingest 条目——避免 log 被一次 ingest 撑爆）
 5. **报告**——告诉用户哪些是新建页、哪些是更新页、哪些 entity / concept 因聚合而合并
@@ -185,9 +189,9 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## Ingest 失败的常见原因
 
-- **已存在同名 source 页**——用 Edit 更新而不是 Write 覆盖（`llmw wiki write new` 也会拒覆盖）
-- **wiki/index.md 缺类别段**——`llmw wiki write index add` 报错并指路 page-templates.md「index（index.md）」骨架
-  手动补类别段（或走 upgrade fixtures 修复，CLI 拒绝覆盖已有 wiki）
+- **已存在同名 source 页**——用 Edit 更新而不是 Write 覆盖（`llmw wiki write new` 拒覆盖）
+- **wiki/index.md 缺类别段**——补类别段（骨架见 page-templates.md「index（index.md）」）或走
+  upgrade fixtures 修复
 
 > raw 不可读 / log/index 参数缺失等场景，CLI 报错信息自明——按提示修即可。
 

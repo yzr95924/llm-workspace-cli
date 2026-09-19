@@ -34,9 +34,9 @@ agent 判断侧所需的语义要点。）
 
 `raw/external/<symlink>/...` 形式的 sources 可指向**文件或目录**：symlink 目标本身
 是 git 仓（即目录），可用作整仓语料（`raw/external/<symlink>`）；也可指向仓内子路径
-（文件或子目录）。lint 仅校验可访问性（`sp.exists()`），不做 file-only 约束。
-普通 raw 路径（非 `raw/external/`）的 sources 仍要求指向**文件**（lint 用
-`is_file()` 校验）——raw 子树语义是"已 ingest 的文档"，目录型 raw 来源暂无用例。
+（文件或子目录）。lint 仅校验可访问性（存在即可），不做 file-only 约束。
+普通 raw 路径（非 `raw/external/`）的 sources 仍要求指向**文件**（lint 校验为普通文件）
+——raw 子树语义是"已 ingest 的文档"，目录型 raw 来源暂无用例。
 
 ## 跨主机重建
 
@@ -46,6 +46,8 @@ agent 判断侧所需的语义要点。）
 raw/external/*                    # symlink 不进 git（跨主机无意义：target 在新机器不存在）
 !raw/external/.symlink-anchor.toml  # anchor 进 git（记录接入意图，TOML 单文件）
 ```
+
+（块字节 canonical = 实例 `.gitignore`；此处仅示意机制）
 
 anchor 文件**进 git** 是这一机制的根：
 
@@ -59,9 +61,9 @@ anchor 文件**进 git** 是这一机制的根：
 
 | 触发场景 | 用户感知 |
 | --- | --- |
-| 在新机器 `git clone` wiki 仓后，symlink 不存在 | `ls raw/external/` 看到 `.symlink-anchor.toml` 但没 symlink |
-| 跑 `llmw wiki lint` 时大量 `external-target-dead` | target 路径在新机器不存在 |
-| 用户主动在新机器重建（"我换了电脑 / 加了一台机器"） | 同上 |
+| 在新机器 `git clone` wiki 仓后，symlink 不存在 | `ls raw/external/` 看到 `.symlink-anchor.toml` 但没 symlink；lint 报 `external-symlink-missing` |
+| 本机 target 路径不存在（如未做 `--target` 覆盖） | lint 报 `external-target-dead`；symlink 解析与 anchor 记录不一致时报 `external-target-drift` |
+| 用户主动在新机器重建（"我换了电脑 / 加了一台机器"） | 跑 `llmw wiki external rebuild`（下节） |
 
 ### 命令 + 验证
 
@@ -90,12 +92,12 @@ llmw wiki lint                     # external-* findings 应为 0
 
 ## 反模式
 
-> 通用外部仓反模式见 SKILL.md「反模式」段；本节只收**本流程特有**的：
+> 本节只收**本流程特有**的反模式；通用纪律见 wiki 根 `AGENTS.md`。
 
 - **不要用 `llmw wiki external remove` 删"孤儿 symlink"**（anchor 无对应 entry 的
-  symlink）——CLI 只删注册表声明的东西；孤儿请手工 `rm` + 排查漏录原因
-- **损坏的 anchor 不要手改**——CLI add 遇到"文件存在但解析失败"会拒绝覆盖
-  （保护修复现场）；正确流程：备份 → 手工修或删除，再用 `external add` 重建
+  symlink）——remove 只处理注册表声明；按报错提示手工 `rm` + 排查漏录原因
+- **损坏的 anchor 不要手改**——CLI 拒绝覆盖（保护修复现场）；按 stderr 提示备份 /
+  修复 / 重建
 
 ---
 

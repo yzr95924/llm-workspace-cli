@@ -515,7 +515,7 @@ class MemoryTests(unittest.TestCase):
         self.assertIn("\nupdated: ", text)
         self.assertNotIn("\ntype:", text)
         index_text = (self.root / "MEMORY" / "MEMORY.md").read_text(encoding="utf-8")
-        self.assertIn("- [OCR Tips](ocr-tips.md) — PDF 先转格式", index_text)
+        self.assertIn("- ocr-tips — PDF 先转格式 → [正文](ocr-tips.md)", index_text)
         findings = check_memory_index(self.root)
         self.assertFalse(
             any("ocr-tips" in f for f in findings),

@@ -30,9 +30,9 @@ metadata:
 
 - **SKILL.md（本文）**——工作流 + 纪律的"宪法"
 - **确定性执行（归 llmw CLI）**——本 skill **零代码**。deterministic 工具
-  （lint / fixtures 检查 / ingest 探测 / 机械写）全部收敛为
-  `llmw` 子命令：`llmw wiki lint / check-fixtures / ingest-diff / write`（详见
-  「工作流 / 步骤」各节）。高频确定性任务固化在 CLI，agent 只负责需要判断的部分。
+  （lint / fixtures 检查 / ingest 探测 / 机械写 / 骨架升级 / external 注册表）全部收敛为
+  `llmw` 子命令（`llmw wiki lint / check-fixtures / ingest-diff / write / upgrade / external`，
+  详见「工作流 / 步骤」各节）。高频确定性任务固化在 CLI，agent 只负责需要判断的部分。
 - **references/**——按需加载：各操作详细流程（ingest / query / lint / upgrade）、页面模板
   page-templates.md、lint-checklist、external-repo（接入 + 跨主机重建）；upgrade-workflow.md「语义合并规则」是 agent 走 upgrade plan
   时的合并依据。骨架模板 + fixtures（CLI 字节级比对金标准）
@@ -42,6 +42,7 @@ metadata:
 
 本 skill 全部文档中 `xxx.md「节名」` 是导航指针：`canonical 见` / `按` / `遵循` 前缀 = 操作前
 必读目标节；单独 `见` / `细节见` = 背景参考，按需读。目标节按节名 Grep 定位（标题不含编号）。
+工作流节尾的整文件指针（「详细 N 步 / 完整流程」类）= 执行该工作流前必读；样例类指针按需读。
 
 ## 输入 / 输出
 
@@ -57,16 +58,17 @@ metadata:
 ### 操作产物
 
 - **setup** → 由 workspace CLI 完成（按 CLI 包内模板落盘），
-  本 skill 不实现创建逻辑；产物形态为目录结构 + AGENTS.md（SSOT）+ CLAUDE.md（薄壳）+
-  wiki/index.md + wiki/log.md + MEMORY/MEMORY.md + .gitignore
+  本 skill 不实现创建逻辑；产物 = 目录结构 + 8 件文件（AGENTS.md（SSOT）/
+  CLAUDE.md（薄壳）/ .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
+  MEMORY/MEMORY.md / scripts/SCRIPTS.md）
 - **ingest** → 新增 / 更新 `wiki/sources/<slug>.md` + 同步实体 / 概念页 + 追加
   `log.md` 条目 + 更新 `index.md`
 - **query** → 对话中给出答案（带引用），**可选**把答案归档为 `wiki/comparisons/`
   或 `wiki/syntheses/<slug>.md`
-- **lint** → `log` 中报告：raw/ 是否被改、孤儿页、断裂交叉引用、过期摘要、缺
-  frontmatter、log.md 格式
-- **upgrade** → `llmw wiki upgrade` 修骨架 + `lint --check-version --apply` 修内容页 legacy；
-  详见「Upgrade」节
+- **lint** → 对话中报告 findings（stdout，按严重性分组）；`log.md` 追加一条 `lint` op
+  条目（干净运行也记，兼任"上次巡检时间"信号）
+- **upgrade** → `llmw wiki upgrade` 修骨架 + `lint --check-version --apply` 输出升级
+  plan（agent 按 plan 修内容页 / 约定文件）；详见「Upgrade」节
 
 ## 执行原则 / 边界
 
@@ -94,8 +96,8 @@ metadata:
    [`references/ingest-workflow.md「raw/discussions/ 草稿消化」`](references/ingest-workflow.md)
 2. **写操作正路 = `llmw wiki write` 系列**——log 追加走 `write log`、新建页走 `write new`、
    编辑已审页后清 `reviewed` 戳走 `write touch`、MEMORY 新条目走 `write memory add`、
-   index 条目走 `write index add`；格式 + `LOG_RETENTION_LIMIT` 截断由 `write` 命令保证，
-   lint 只兜底带外手改。**逃生舱**：命令不支持的形态手写 Edit/Write 合法、lint 兜底
+   index 条目走 `write index add`；格式 + 滚动窗口截断由 `write` 命令保证（上限见
+   `wiki/log.md` 头部），lint 只兜底带外手改。**逃生舱**：命令不支持的形态手写 Edit/Write 合法、lint 兜底
    ——`llmw wiki write` 是默认路径不是闸门
 3. **每页必带 YAML frontmatter——新建页走 `llmw wiki write new`**（5 必填 + 推荐
    `description`）。权威定义（`type` 取值 / reserved / `sources` 特化 / 可信度信号）见
@@ -118,7 +120,7 @@ metadata:
 
 ### 反模式（绝对禁止）
 
-- 跨 wiki 互引但不更新对端 index（同步是用户责任）
+- 跨 wiki 互引但不更新对端 index（对端同步经 workspace 层 link 工作流、用户确认后执行）
 
 > 其余反模式以 wiki 根 `AGENTS.md` + [`references/external-repo.md「反模式」`](references/external-repo.md)为准。
 
@@ -196,7 +198,7 @@ metadata:
 **触发**："把这篇摄取到 wiki" / `raw/` 有新文件 / 跑 `llmw wiki ingest-diff` 发现未摄取项。
 
 **流程摘要**（agent 驱动；详细 7 步 + 批处理见
-[`references/ingest-workflow.md`](references/ingest-workflow.md)；外部代码仓 5 步接入 /
+[`references/ingest-workflow.md`](references/ingest-workflow.md)；外部代码仓接入 /
 漂移刷新 / 跨主机重建见 [`references/external-repo.md`](references/external-repo.md)）：
 
 1. 跑 `llmw wiki ingest-diff`（日常加 `--check-stale`）找出未摄取/待重摄文件清单
@@ -246,7 +248,8 @@ metadata:
 2. lint 覆盖面（大类如下，权威清单见 [`references/lint-checklist.md`](references/lint-checklist.md)）：
    raw 不可变性 / frontmatter 字段 / 孤儿页 / 断链 / log.md 格式 / 过期摘要 / 页面体量
    / 可信度与认知质量信号（`reviewed` / `contested` / `contradictions`）/ `raw/external/`
-   symlink ↔ anchor 关联（external-repo.md）/ fixtures 一致性
+   symlink ↔ anchor 关联（external-repo.md）；fixtures 一致性归 `llmw wiki check-fixtures`
+   （常规 lint 只在 `--check-version` 时附带）
 3. lint 输出后 **agent 还要做半定性检查**：矛盾主张 / 缺失交叉引用 / 建议新摄取方向
 4. 报告 + 询问用户哪些修
 
@@ -276,7 +279,7 @@ wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明
 **纪律**：
 
 - 不删除任何 MEMORY 文件——踩坑记录沉淀下来
-- 写新文件时保留原 `created` 字段；只更新 `updated`
+- 编辑既有条目时保留 `created`、只更新 `updated`（新条目两字段由 `write memory add` 落当天）
 - 用户**不**直接编辑 MEMORY/——若用户想补充，先转告 agent 由 agent 写入
 
 ### Upgrade（升级 wiki format）
@@ -284,10 +287,11 @@ wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明
 **触发**：用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / format 升级 / 是否需要
 reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy warn。
 
-**职责**：三方分工——CLI `llmw [wiki] upgrade` 修骨架（byte/block/header-owned + legacy
-paths + 自检 + blocked_drift 门禁）；lint plan `actions[]` 修内容页 frontmatter legacy；
-agent 负责 drift 裁定（本地定制搬 MEMORY 或丢弃）+「语义合并规则」（index 重复 /
-MEMORY 归并）。迁移期不走 `llmw wiki write`；**不**追加 log 条目。
+**职责**：三方分工——CLI `llmw wiki upgrade` 修骨架（byte/block/header-owned + legacy
+paths + 自检 + blocked_drift 门禁）；`lint --check-version --apply --json` 输出升级 plan
+（`actions[]` / `fixtures_actions[]` + `agent_rules[]`），agent 按 plan 落内容页 legacy /
+约定文件修复；agent 另负责 drift 裁定（本地定制搬 MEMORY 或丢弃）+「语义合并规则」
+（index 重复 / MEMORY 归并）。迁移期不走 `llmw wiki write`；**不**追加 log 条目。
 
 **完整步骤**（5 步流程 / drift 裁定 / 语义合并细则）见 [`references/upgrade-workflow.md`](references/upgrade-workflow.md)。
 

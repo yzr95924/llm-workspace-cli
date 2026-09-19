@@ -563,6 +563,7 @@ def cmd_rebuild(wiki_root: Path, args) -> Tuple[Optional[str], int]:
                 except subprocess.CalledProcessError as ex:
                     clone_failed.append(f"{name}: checkout '{branch}' 失败 ({ex})")
                     continue
+        if act in ("relink", "clone_relink"):
             stored = _target_for_anchor(target)
             for ent in entries:
                 if ent.get("symlink") == name:

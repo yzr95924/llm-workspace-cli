@@ -21,13 +21,15 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint
 llmw wiki --path="$LLM_WIKI_ROOT" lint --severity=error
 ```
 
-退出码：0 = 干净；1 = 有问题（看输出）；2 = 运行错误。
+退出码（常规）：0 = 干净；1 = 有问题（看输出）；2 = 运行错误；未捕获异常 = 3。
+`--check-version` 模式恒 0——是否需迁移看报告字段 `needs_upgrade`。
 
 ### 子命令 `--check-version`
 
 扫当前 wiki 的 format 版本（解析 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 行）
 与本 skill `metadata.wiki_format_version`（CLI 常量 `CURRENT_WIKI_FORMAT`）比对 + 扫当前格式
-frontmatter 误用（`type-memory-value`）+ 自动调 fixtures 检查：
+frontmatter 误用（`type-memory-value`——内容页误用 reserved `type: memory`，常规 lint 不报，
+后续修法由 `--apply` 输出的 plan 给出）+ 自动调 fixtures 检查：
 
 ```bash
 llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version --json
@@ -62,8 +64,8 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 - `raw-modified`（**error**）——git 仓内 + raw/ tracked 文件有未提交改动 = 违反纪律。
   修法：问用户，还原或确认后提交
-- 跳过（不报错不提示）：无 `.git/`（默认状态，CLI 不自动 git init）/ raw/ 未纳入
-  git 跟踪 / 传 `--no-git` 静默跳过
+- 跳过（不报错）：无 `.git/`（默认状态，CLI 不自动 git init）/ raw/ 未纳入
+  git 跟踪——自动跳过时输出顶部 `[NOTES]` 提示原因；传 `--no-git` 则完全静默
 - `raw/discussions/` 未提交改动属预期（详见 ingest-workflow.md「raw/discussions/ 草稿消化」），从 `git status` 结果中排除
 
 ### frontmatter 完整性
@@ -74,11 +76,9 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
   **MEMORY/*.md** 仅 `title` 必填（字段契约 canonical 见 `MEMORY/MEMORY.md` fixture 头部）
 - `type` 取值：内容页 5 类 + MEMORY 桶 `memory` / `memory-entry`（后两者仅为兼容既有页——
   MEMORY 桶约定不写 `type`，契约 canonical 见 `MEMORY/MEMORY.md` fixture 头部）
-- `type-memory-value`（error）：wiki 内容页误用 reserved `type: memory`
-  （仅 MEMORY 桶合法，内容页非法）
 - findings：`missing-frontmatter`（error）/ `invalid-type`（error）/ `invalid-tags`（error，
-  `tags` 非 list 类型）/ `missing-sources`（error，source/synthesis 页缺 `sources` 字段或为空——
-  与「frontmatter 来源」的 `sources-missing`（值不可访问）不同名不同因，均保留）
+  `tags` 非 list 类型；内容页与 MEMORY/*.md 均查）/ `missing-sources`（error，source/synthesis 页
+  缺 `sources` 字段或为空——与「frontmatter 来源」的 `sources-missing`（值不可访问）不同名不同因，均保留）
 - **frontmatter 定界符结构**：
   - `frontmatter-delimiter-glued`（**error**）：闭合 `---` 与正文粘连（如 `---# 标题`）——
     前置块定界符失效、整页不渲染，而宽松 frontmatter 正则仍"剥得掉"（历史 bug：
@@ -119,13 +119,13 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### log.md 格式
 
 - `log-missing`（error）：`wiki/log.md` 不存在
-- `log-format`（warn）：行不匹配正则（见 [`page-templates.md「log.md（log）」`](page-templates.md)）——
+- `log-format`（warn）：行不匹配格式约定（canonical 见 fixture `log.md.txt` 头部说明块——即 wiki 实例 `wiki/log.md` 头部）——
   破坏 `grep "^## \[" log.md` 可用性。正路：`llmw wiki write log`；修法：改行
 
 ### 过期摘要
 
-- `stale-summary`（warn）：`type: source` 且 `updated` 距今 > `STALE_SUMMARY_DAYS`
-  （lint 内部常量）。修法：复查源文件是否有更新，重摄取
+- `stale-summary`（warn）：`type: source` 且 `updated` 距今超过阈值（数值随 finding
+  文本输出）。修法：复查源文件是否有更新，重摄取
 
 ### 文件名规范
 
@@ -133,12 +133,12 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ### 重复标题
 
-- 同一 `title` 出现在多个 wiki 页 → warn。修法：合并候选
+- `duplicate-title`（warn）：同一 `title` 出现在多个 wiki 页。修法：合并候选
 
 ### log.md 条目数（log-truncation）
 
-- `log-truncation-recommended`（warn）：条目数 > `LOG_RETENTION_LIMIT`
-  （lint 内部常量）——完整历史靠 git（`git log -p -- wiki/log.md`）。正路：
+- `log-truncation-recommended`（warn）：条目数超过滚动窗口上限（数值随 finding 文本
+  输出）——完整历史靠 git（`git log -p -- wiki/log.md`）。正路：
   `llmw wiki write log` 写入时自动截断；带外手改超限才由 agent Edit 删最旧保最近 N
 
 ### Tag Taxonomy 校验
@@ -149,13 +149,13 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 - 仅对 5 类内容页做包含校验；**MEMORY agent 私有**不共享 taxonomy；tags.md 自身不参与
 - 找不到任何 tag 源 → 静默跳过（新 setup 不报错）
 - `tag-not-in-taxonomy`（**info**）——审计循环：用户删 tags.md bullet → 下次 lint 报
-  所有残留引用页，由用户裁定二选一（重新加回 / 从页面删 tag）
-- 严格 tag 名 = 小写 kebab-case（`^[a-z0-9][a-z0-9-]*$`）
+  所有残留引用页，由用户裁定二选一（重新加回 / 从页面删 tag；取值规则 canonical 见
+  fixture 头部说明块）
 
 ### 页面体量
 
-- `oversized-page`（warn）：5 类内容页正文**非空行数** > `PAGE_SIZE_THRESHOLD`
-  （lint 内部常量，与 [page-templates.md「建页 / 追加 / 归档阈值」](page-templates.md) 对齐；MEMORY 无上限）
+- `oversized-page`（warn）：5 类内容页正文**非空行数**超过阈值（数值随 finding 文本
+  输出；与 [page-templates.md「建页 / 追加 / 归档阈值」](page-templates.md) 对齐；MEMORY 无上限）
 - 修法：拆成子主题页 + cross-link
 
 ### 可信度与认知质量信号（reviewed / contested / contradictions）
@@ -180,19 +180,19 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 - `memory-not-indexed`（info）：`MEMORY/*.md`（非 `MEMORY.md`）未在 MEMORY.md
   `## 索引` 段列出——下次加载后该条目不可见。正路：
-  `llmw wiki write memory add`（原子追加索引行）；修法：追加一行 `- [Title](<slug>.md) — 一句话`
+  `llmw wiki write memory add`（原子追加索引行）；修法：追加一行索引
+  （格式 canonical 见 `MEMORY/MEMORY.md` fixture 头部说明块）
 - `memory-index-dangling`（warn）：索引指向的 `<slug>.md` 不存在（索引与磁盘脱节；
   短条目 `- 一句话事实` 无链接、不算）
-- MEMORY.md 不存在 → 静默跳过（fixture check 已覆盖存在性检测）
-- `agents-md-template-sync`（error，fixtures）：AGENTS.md 与模板渲染字节不一致 →
-  全量重渲染 + 本地定制逐条搬 MEMORY/ 或丢弃（plan action `fixtures-fix-agents-md-resync`）
+- MEMORY.md 不存在 → 本检查静默跳过（fixtures 侧以 skip 行显形）
 
 ### related / compared 路径引用完整性
 
 - `related-broken-link`（warn）：frontmatter `related`（concept 页）/ `compared`
   （comparison 页）每条元素按**内容根 `wiki/` 相对**解析（`concepts/X.md`，不带
   `./` / `../` / `wiki/` 前缀）不存在
-- 两层路径约定（page-templates.md「共有 frontmatter 段」）：frontmatter 路径字段（机器消费为主）→ wiki 根相对；
+- 两层路径约定（路径写法见 page-templates.md「concept（概念页）」/「comparison（对比页）」注释）：
+  frontmatter 路径字段（机器消费为主）→ wiki 根相对；
   正文 markdown 链接（人读为主）→ 文件相对。`contradictions` 字段按既有约定走文件
   相对（「可信度与认知质量信号」处理），不在本检查范围
 
@@ -246,18 +246,20 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ## 报告格式
 
-CLI + agent 一起输出统一格式，每条带：**严重性** + **类别** + **文件:行** + **描述**。
+CLI stdout 按严重性分组（组头 `[ERROR] (N)` / 缩进行为 finding 文本原文 / 末尾
+`Total: N finding(s)`）。agent 整理给用户时沿用 finding 文本原文，每条给：
+**严重性** + **类别** + **文件** + **描述**（下为整理稿示例，文本取自 CLI 输出）：
 
 ```text
-[ERROR] raw-modified: raw/articles/foo.md has uncommitted changes
-[ERROR] orphan-page: wiki/concepts/qux.md is not listed in wiki/index.md
+[ERROR] raw-modified: raw/ 有 2 处未提交改动： M raw/articles/foo.md
+[ERROR] orphan-page: wiki/concepts/qux.md 未在 wiki/index.md 中列出
 [WARN] reviewed-stale: wiki/concepts/<concept>.md reviewed=true reviewed_at=2026-06-15 但 updated=2026-07-01 — LLM 修改后未清 reviewed，建议重新审核
-[INFO] memory-not-indexed: MEMORY/ocr-tips.md 未在 MEMORY.md 索引中列出
+[INFO] memory-not-indexed: MEMORY/ocr-tips.md 未在 MEMORY/MEMORY.md 索引中列出；该条目下次会话读不到（追加一行：…）
 ```
 
 （external symlink ↔ anchor 关联的 finding 全家：`external-anchor-missing` /
 `external-anchor-corrupt` / `external-source-name-invalid` / `external-symlink-missing` /
-`external-anchor-orphan` / `external-target-drift`——
+`external-target-dead` / `external-anchor-orphan` / `external-target-drift`——
 详见 CLI lint 实现里 external 检查的 docstring。）
 
 ## lint 之后
@@ -295,4 +297,5 @@ CLI + agent 一起输出统一格式，每条带：**严重性** + **类别** + 
      check 清单以 `llmw wiki check-fixtures --json` 输出为准（CLI 内部注册表唯一真源；
      结构探测 + 骨架字段比对两类，后者读 llmw 包内字节金标准作 SSOT）；语义合并由 LLM 按
      [`upgrade-workflow.md「语义合并规则」`](upgrade-workflow.md) 判断——CLI 不替代人。常规 lint 按
-     「前置：wiki 版本一致性」报版本漂移 warn
+     「前置：wiki 版本一致性」报版本漂移 warn。骨架漂移（如 `agents-md-template-sync`）
+     的修复走 `llmw wiki upgrade --apply`（本地定制先按 `blocked_drift` 裁定）

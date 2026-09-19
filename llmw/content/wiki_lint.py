@@ -437,6 +437,9 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
             t = fm.get("type")
             if t is not None and t not in VALID_TYPES:
                 findings.append(f"invalid-type: {rel} type='{t}' 非法；应为 {sorted(VALID_TYPES)} 之一")
+            # tags 若取则必须是 list（否则 tag taxonomy 静默跳过该页解析）
+            if "tags" in fm and not isinstance(fm["tags"], list):
+                findings.append(f"invalid-tags: {rel} tags 应为 list，当前类型不符")
             # source / synthesis 的 sources 必填且非空
             if t in ("source", "synthesis"):
                 srcs = fm.get("sources", [])
@@ -1316,7 +1319,9 @@ def severity_of(finding: str) -> str:
         (
             "raw-modified",
             "missing-frontmatter",
+            "missing-sources",
             "invalid-type",
+            "invalid-tags",
             "frontmatter-delimiter-glued",
             "sources-missing",
             "sources-malformed",

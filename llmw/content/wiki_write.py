@@ -365,10 +365,10 @@ def cmd_memory(wiki_root, args):
     entry_path.write_text("\n".join(fm_lines) + "\n\n", encoding="utf-8")
     if not index_text.endswith("\n"):
         index_text += "\n"
-    index_line = "- [{}]({}.md){}".format(
-        args.title,
+    index_line = "- {}{} → [正文]({}.md)".format(
         args.slug,
         (" — " + args.index_line) if args.index_line else "",
+        args.slug,
     )
     index_path.write_text(index_text + index_line + "\n", encoding="utf-8")
     print(f"已创建 MEMORY/{args.slug}.md + 追加 MEMORY.md 索引行（正文待 agent 写）", file=sys.stderr)

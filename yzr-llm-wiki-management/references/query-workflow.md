@@ -59,9 +59,6 @@ Query 跨页综合，暴露单篇看不到的**联系**（A 和 B 都涉及 self
 | 同一问题两种页都有，结论一致 | 引用 reviewed 页为主，un-reviewed 作为补充 |
 | 同一问题两种页都有，结论冲突 | 标注「存在两种说法：X（来源 A，已审核）/ Y（来源 B，未审核），以 X 为准」+ 建议人复审 B |
 
-> `llmw wiki lint`「可信度与认知质量信号」对未审页面报 `pending-review`（info）；query 时是否优先采信是
-> agent 决策，不在 lint 范围内。`contradictions` 冲突对端链接沿用既有约定，不另设。
-
 ### Step 3：综合答案
 
 答案结构（按需组合）：
@@ -96,17 +93,26 @@ Query 跨页综合，暴露单篇看不到的**联系**（A 和 B 都涉及 self
 
 使用 [`page-templates.md「各类型模板」`](page-templates.md)的 comparison / synthesis 模板。
 
-- `comparison` 页：focus 在 "A vs B"，frontmatter `compared: [<path-a>, <path-b>]`
-- `synthesis` 页：focus 在 "跨多个 source 的综合洞察"，frontmatter `threads: [<主题>...]`
+- `comparison` 页：focus 在 "A vs B"，frontmatter `compared: [<path-a>, <path-b>]`（必填）
+- `synthesis` 页：focus 在 "跨多个 source 的综合洞察"，frontmatter `threads: [<主题>...]` +
+  `sources: [<wiki 内页路径>]`（均必填；缺 `sources` 触发 lint `missing-sources` error）
+- 脚手架只生成基础字段（title / type / tags / created / updated）——上列字段照模板用 Edit
+  补；`--sources` flag 是 source 页专属（raw/ 路径），synthesis 不走它
+- 归档页若记录跨页矛盾：加 `contested: true` + `contradictions: [对端页]`，且对端页同步互指
+  （单向触发 lint `contradiction-asymmetric` warn；字段语义 canonical 见
+  [`page-templates.md「可选：可信度与认知质量信号」`](page-templates.md)）
 - 正文：把对话里的答案整理成可独立阅读的页面；**synthesis 页对来源可分的断言用标准脚注
   `[^n]` 逐段溯源**（写法见 [`page-templates.md「synthesis（综合页）」`](page-templates.md)），
   让每个论点都能不重读 raw 就回溯到具体 source——这是 synthesis 区别于 source 摘要的关键
 - 正文含交互流 / 架构关系时优先配图——判定与选型见 [`page-templates.md「图示使用指引」`](page-templates.md)
 - 正文引用上游易变事实时同样过感知测试——见
   [`ingest-workflow.md「正文引用的稳定性」`](ingest-workflow.md) 漂移点规避
-- 脚手架：`llmw wiki write new --type=comparison|synthesis --slug=... --title=...`
+- 脚手架：`llmw wiki write new --type=comparison --slug=... --title=...`（或 `--type=synthesis`）
 - 同步 index：`llmw wiki write index add <page>`
 - 追加 log：`llmw wiki write log --op=query --title="<title>"`
+- 交叉引用同步：相关 entity / concept 页按需追加"参考来源"段（纪律 canonical 见 wiki 根
+  AGENTS.md「写入纪律」的「写后必同步」条）；凡 Edit 过既有页正文 →
+  `llmw wiki write touch <page>`（更新 updated + 清 reviewed 戳）
 
 ### Step 6：若启用 git，建议 commit（同 ingest）；裸目录树 wiki 跳过此步
 

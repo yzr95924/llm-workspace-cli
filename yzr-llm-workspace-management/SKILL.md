@@ -233,14 +233,18 @@ agent 留退路。
 **流程**：
 
 1. `llmw upgrade` 默认 dry-run → 输出 workspace + 各 wiki 的处理计划 + 终态 JSON（加 `--json` 机器可读）
-2. **解读终态**（3 终态：`done` / `done_with_residue` / `blocked_drift`；dry-run 与 `verify_failed` 按退出码处理）：
+2. **解读终态**（workspace 段：`done` / `done_with_residue` / `blocked_drift`；`dry_run` 是
+   默认 dry-run 模式的正常输出，`verify_failed` 按退出码处理）：
    - `done` → 收尾，提示用户"workspace 升级完成，X 个 wiki 已升"
    - `done_with_residue` → 按 `residue[]` 明细逐项处理（旧自定义段被丢弃项）
    - `blocked_drift` → 按 `hint` 字段把自定义内容搬 `MEMORY/`，再 `llmw upgrade --apply --yes` 重跑
-   - `verify_failed` → 报告用户，转人工
+   - `verify_failed` → 按 `verified.failures[]` 修完重跑（幂等）
+   - 逐 wiki 聚合段：各 wiki 状态按段内输出处理；`not_found` / `load_failed` / `error`
+     条目按段内 hint 转人工，不阻断其它 wiki
 3. 各 wiki 的后续内容迁移走 `yzr-llm-wiki-management` 工作流——本 skill 不代跑
 
-**不**写 `INDEX.md` / `STATS.md` / `LINT.md`（升级不是 scan / lint 事件）。升级只动 byte/block/header-owned 类文件，不碰含密配置。
+**不**写 `INDEX.md` / `STATS.md` / `LINT.md`（升级不是 scan / lint 事件）。升级只动
+byte/block/header-owned 骨架 + `workspace.toml` 的 `templates_version` 分量；不碰含密配置。
 
 ## 参考样例
 
