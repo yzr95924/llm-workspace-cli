@@ -1,10 +1,6 @@
 # Lint 详细 Checklist
 
-Lint 让 wiki **不腐烂**。Karpathy 原话："The tedious part of maintaining a knowledge
-base is not the reading or the thinking — it's the bookkeeping." Lint 把 bookkeeping
-的一部分自动化。
-
-Lint 分**两层**：
+Lint 让 wiki **不腐烂**——把 bookkeeping 自动化。Lint 分**两层**：
 
 1. **Deterministic**（CLI 检查，可程序化）——`llmw wiki lint` 内部实现
 2. **Semi-qualitative**（agent 检查，需理解语义）——本文件"半定性检查"段
@@ -203,45 +199,37 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ### 矛盾主张
 
-- 同一概念 / 实体在 ≥ 2 个页里被以**矛盾方式**描述（**内容层**矛盾，区别于「可信度与认知质量信号」的
-  frontmatter `contested` 信号——后者是作者已标注、本项是 agent 主动发现未标注的）
-- 例：`concepts/<attribute>.md` 说 "`<value A>`"，`sources/<other>.md` 说 "`<value B>`"
-  （可能是不同版本，但未注明）
-- 检查方法：grep 概念关键词 + 读周围上下文；发现后建议双方补 `contested: true` +
-  `contradictions` 互指（让「可信度与认知质量信号」后续能持续追踪）
-- **严重性：warning**——可能需要更深入调研
+- 同一概念 / 实体在 ≥ 2 个页里被**矛盾方式**描述（**内容层**矛盾——区别于 frontmatter
+  `contested` 信号：后者是作者已标注、本项是 agent 主动发现未标注的）
+- 检查方法：grep 概念关键词 + 读上下文；发现后建议双方补 `contested: true` + `contradictions` 互指
+- **严重性：warning**
 
 ### 缺失交叉引用
 
-- 概念 X 出现在页面 A 的正文里，但 A 没有链接到 `concepts/x.md`
-- 例：`sources/foo.md` 提到 "self-attention" 但没链到 `concepts/self-attention.md`
-- 检查方法：grep 概念名 + 看是否生成了 link
+- 概念 X 出现在页面 A 正文，但 A 没链接到 `concepts/x.md`；检查方法：grep 概念名 + 看是否生成了 link
 - **严重性：info**——是 lint 的最高频 finding
 
 ### 缺失 entity / concept 页
 
-- 重要概念（出现在 ≥ 3 个 source 页）但没有独立 entity / concept 页
-- 检查方法：grep 候选关键词 + 统计出现次数
+- 重要概念（出现在 ≥ 3 个 source 页）但没有独立 entity / concept 页；检查方法：grep 候选关键词 + 统计出现次数
 - **严重性：info**
 
 ### 调查方向建议
 
-- 哪些主题"很热门"（多个 source 涉及）但 wiki 内的综合 / 对比页没有
-- 例：5 篇 source 提到 RAG，但 `syntheses/rag-evolution.md` 不存在
-- **严重性：info**——这是"建议新摄取 / 新合成"的机会
+- 热门主题（多个 source 涉及）但没有对应综合 / 对比页——"建议新摄取 / 新合成"的机会
+- **严重性：info**
 
 ### 资料投放口是否堆积
 
-- `raw/articles/` 是否有大量未摄取文件（跑 `llmw wiki ingest-diff` 即可知）
-- **严重性：info**——堆积太久会让 ingest 时信息过载
+- `raw/articles/` 有大量未摄取文件（跑 `llmw wiki ingest-diff` 即可知）——堆积太久会让 ingest 时信息过载
+- **严重性：info**
 
 ### 漂移点引用
 
 - 正文引用上游可变、且无机制能感知其变化的事实——按
   [`ingest-workflow.md「正文引用的稳定性」`](ingest-workflow.md)
-  五类扫描（位置引用 / 瞬态数值 / 版本绑定 / 完整枚举 / 归属信息）
-- 典型命中：`foo.py:812` 式行号、裸"最新 / 目前"、无"截至"日期的数值快照
-- 命中 → 建议按该节改写规则修（锚点 / 快照 / 退到 `sources:` 字段），不回退 schema
+  五类扫描（位置引用 / 瞬态数值 / 版本绑定 / 完整枚举 / 归属信息）；命中 → 按该节改写规则修，
+  不回退 schema
 - **严重性：info**——写作质量项，agent 判断，不阻断
 
 ## 报告格式
@@ -251,7 +239,6 @@ CLI stdout 按严重性分组（组头 `[ERROR] (N)` / 缩进行为 finding 文�
 **严重性** + **类别** + **文件** + **描述**（下为整理稿示例，文本取自 CLI 输出）：
 
 ```text
-[ERROR] raw-modified: raw/ 有 2 处未提交改动： M raw/articles/foo.md
 [ERROR] orphan-page: wiki/concepts/qux.md 未在 wiki/index.md 中列出
 [WARN] reviewed-stale: wiki/concepts/<concept>.md reviewed=true reviewed_at=2026-06-15 但 updated=2026-07-01 — LLM 修改后未清 reviewed，建议重新审核
 [INFO] memory-not-indexed: MEMORY/ocr-tips.md 未在 MEMORY/MEMORY.md 索引中列出；该条目下次会话读不到（追加一行：…）
@@ -290,12 +277,8 @@ CLI stdout 按严重性分组（组头 `[ERROR] (N)` / 缩进行为 finding 文�
 - **不**评估内容质量（不是 fact-checker）——只看结构和纪律
 - **不**评估 frontmatter 的语义是否合理（只检查字段存在性 + 类型合法）
 - **不**取代 schema（`AGENTS.md`）——schema 是源头，lint 是 CLI 实现的检查
-- **fixtures 边界**——`llmw wiki check-fixtures` 扫「约定文件」
-  （AGENTS.md 末尾「当前配置」表 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
-  MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
-  wiki_metadata.toml）的合规性：
-     check 清单以 `llmw wiki check-fixtures --json` 输出为准（CLI 内部注册表唯一真源；
-     结构探测 + 骨架字段比对两类，后者读 llmw 包内字节金标准作 SSOT）；语义合并由 LLM 按
-     [`upgrade-workflow.md「语义合并规则」`](upgrade-workflow.md) 判断——CLI 不替代人。常规 lint 按
-     「前置：wiki 版本一致性」报版本漂移 warn。骨架漂移（如 `agents-md-template-sync`）
-     的修复走 `llmw wiki upgrade --apply`（本地定制先按 `blocked_drift` 裁定）
+- **fixtures 边界**——`llmw wiki check-fixtures` 扫「约定文件」合规性；check 清单以
+  `llmw wiki check-fixtures --json` 输出为准（CLI 注册表唯一真源；结构探测 + 骨架字段比对
+  两类，后者读 llmw 包内字节金标准作 SSOT）。语义合并由 LLM 按
+  [`upgrade-workflow.md「语义合并规则」`](upgrade-workflow.md) 判断——CLI 不替代人；骨架漂移
+  修复走 `llmw wiki upgrade --apply`（本地定制先按 `blocked_drift` 裁定）

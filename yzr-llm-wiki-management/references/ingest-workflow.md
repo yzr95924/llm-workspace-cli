@@ -4,10 +4,6 @@ Ingest 把 `raw/` 里的原始资料变成 wiki 内的**摘要页** + 同步相�
 页 + 更新 index + 追加 log。一份资料通常涉及 **1 source 页 + 0~N entity / concept
 页 + 1 index 更新 + 1 log 条目**。
 
-## 为什么 ingest 重要
-
-Ingest 是 wiki **复利积累**的主循环——同一份资料消化一次永久可查；后续 query 自动受益（vs RAG 每次重新抽片段）。
-
 ## 入口与触发
 
 **主动触发**：用户说"摄取 X 到 wiki" / "把 raw/articles/foo.md ingest" /
@@ -75,10 +71,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
    - **认知质量信号（可选）**：fast-moving / 争议 / 单一弱来源的 source 页，建议在 frontmatter
      标 `contested: true`（仅当**确属矛盾未裁定**时）——信号语义详见
      [`page-templates.md「可选：可信度与认知质量信号」`](page-templates.md)
-5. **决策点：是否需要新建 entity / concept 页**
-   - 例：raw 资料里反复提到"self-attention"，但 `concepts/self-attention.md` 不存在
-   - → 新建 `concepts/self-attention.md`（首次出现 + 值得沉淀的概念）
-   - → 反例：raw 资料里偶然提到一次"GPU" → 不必新建（看主题粒度）
+5. **决策点：是否需要新建 entity / concept 页**——判定阈值与例见
+   「判定"是否新建 entity / concept 页"」节
 
 ### Step 4：同步 entity / concept 页
 
@@ -168,7 +162,9 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 阈值 canonical 见 [`page-templates.md「建页 / 追加 / 归档阈值」`](page-templates.md)。
 
-**单篇 ingest 视角的套用**：本 raw 的中心主题 / 反复出现的核心概念 → 建；路过 / 类比 / 背景提及 → 不建；已有同名 / 近义页 → 先 search 再定（写前必搜）。
+**单篇 ingest 视角的套用**：本 raw 的中心主题 / 反复出现的核心概念 → 建；路过 / 类比 /
+背景提及 → 不建；已有同名 / 近义页 → 先 search 再定（写前必搜）。例：反复提到
+"self-attention" 且无页 → 建 `concepts/self-attention.md`；偶然提到一次 "GPU" → 不建。
 
 ## 正文引用的稳定性（漂移点规避）
 

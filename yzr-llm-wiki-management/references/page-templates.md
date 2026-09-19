@@ -37,14 +37,10 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 ---
 ```
 
-> **为什么必填 5 字段**：`title` / `type` / `tags` / `created` / `updated` 是 OKF §9
-> 「Conformance」与 lint 校验一致性的最小交集——`title`（人/grep 找页）、`type`
-> （决定子目录 + lint 校验路径）、`created` / `updated`（stale / orphan 判定）、
-> `tags`（taxonomy 过滤）。少于 5 字段会让"抓腐烂"判定失效；多于 5 字段 OK 但不强制。
-> **为什么 5 类内容页**：`entity` / `concept` / `source` / `comparison` / `synthesis`
-> 覆盖 wiki 复利的 5 种认知角色（实体 / 概念 / 资料 / 对比 / 综合），与 lint 校验路径、
-> index 分组、OKF §4.1 字段要求一致；`index` / `log` 是 reserved（见「index（index.md）」/「log.md（log）」），
-> 仅标记用途、lint 跳过它们。
+> **为什么必填 5 字段、5 类内容页**：5 字段是 OKF §9「Conformance」与 lint 校验的最小交集
+> （`title` 找页、`type` 定子目录 + lint 路径、`created` / `updated` 供 stale / orphan 判定、
+> `tags` 供 taxonomy；多了不强制）。5 类覆盖 wiki 复利的 5 种认知角色（实体 / 概念 / 资料 /
+> 对比 / 综合）；`index` / `log` 是 reserved（见对应节），仅标记用途、lint 跳过。
 
 **字段说明**：
 
@@ -64,14 +60,10 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 
 ### 可选：可信度与认知质量信号
 
-> **为什么需要**：wiki 的复利价值依赖"已沉淀的主张可被信任"。但 LLM 自动写入的页面——
-> 尤其是凭单篇弱来源的断言——一旦写进 wiki 不再标注，时间一长会被当成"既成事实"，这是**认知腐烂**，
-> 比断链 / 孤儿更隐蔽。本段两类信号把腐烂显性化：
->
-> - **`reviewed` / `reviewed_at`** —— 人工**审核背书**："我读过了，愿意为它背书"。
->   query 阶段 agent 据此优先采信；lint 报告 `pending-review` 清单；`index.md` 上以 ✓ / ✗ 标记。
-> - **`contested` / `contradictions`** —— **认知冲突未裁定**的告警："这里有两个说法打架，等人复审"。
->   与可信度正交：一个页面可以既 `reviewed: true` 又 `contested: true`（"我审核过，确实有矛盾待裁定"）。
+> **为什么需要**：LLM 写入的页一旦不再标注，时间一长会被当成"既成事实"——**认知腐烂**，
+> 比断链 / 孤儿更隐蔽。两类信号把腐烂显性化：**`reviewed` 系** = 人工审核背书（query 优先
+> 采信、lint 报 `pending-review`、index ✓ / ✗）；**`contested` 系** = 矛盾未裁定告警
+> （与可信度正交：可既 reviewed 又 contested）。
 
 四个字段（**全部可选**；`reviewed` 与 `reviewed_at` 应成对出现，`contested` 与 `contradictions` 同）：
 
@@ -92,8 +84,8 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 
 `reviewed: true` 是"我对这一刻的内容背书"的快照，
 **不是永久标签**——任何对页面正文的 LLM 修改都让戳失效，必须**删除** `reviewed` +
-`reviewed_at` 回到默认未审核状态，由人重新审。`llmw wiki lint` 用 `reviewed-stale`
-兜底（`reviewed: true` 存在且 `updated > reviewed_at` 时给 warn）。判定表 + lint 语义如下：
+`reviewed_at` 回到默认未审核状态，由人重新审（漏清戳由 lint `reviewed-stale` 兜底）。
+判定表：
 
 | 事件 | 对 `reviewed` / `reviewed_at` 的操作 |
 | --- | --- |
@@ -105,9 +97,9 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 **两道闸门**：
 
 1. **纪律闸门**——生命周期纪律 canonical = 本节（AGENTS.md 模板声明"内容页写页规则不在本文件"，
-   指向 skill 页面模板文档）
-2. **lint 兜底**——`reviewed-stale` 触发条件：`reviewed: true` 存在 **且** `updated > reviewed_at`，
-   把 LLM 漏清戳的页面拎出来提示人复审
+   指向本 skill）
+2. **lint 兜底**——`reviewed-stale` 拎出漏清戳的页提示复审
+   （触发条件与语义见 [`lint-checklist.md`](lint-checklist.md)）
 
 **何时设 `reviewed: true`**：
 
@@ -374,13 +366,10 @@ sources:  # 必填——wiki 内其它页路径（不是 raw/）；详见各类�
 * 列在 frontmatter `sources` 字段
 ```
 
-> **逐段溯源（synthesis 专属）**：synthesis 页通常综合 ≥ 3 个 source，主张散落在不同段落、
-> 各自从不同来源得出。仅靠 frontmatter `sources` 只能定位"本页引用了哪些来源"，**无法**
-> 追溯"某句具体主张来自哪篇"。因此 synthesis 正文对**来源可分的断言**用标准 Markdown 脚注
-> `[^n]` 标注，文末给出 `[^n]: ...` 指向 source 页——让每个可被引用的论点都能不重读 raw 就回溯。
-> 用标准脚注 `[^n]`（**不要**用 pandoc 的行内 `^[...]`，与本 skill "通用 Markdown" 立场一致，
-> 且不依赖 Obsidian / 特定渲染器）。单段纯推论 / 综合判断无需脚注；只对**可追溯到具体来源**
-> 的断言标。comparison 页若同样综合多源、断言来源可分，也照此办理。
+> **逐段溯源（synthesis 专属）**：frontmatter `sources` 只能定位"本页引了哪些来源"，**无法**
+> 追溯"某句主张来自哪篇"。因此对**来源可分的断言**用标准 Markdown 脚注 `[^n]`（文末
+> `[^n]: ...` 指向 source 页；**不要**用 pandoc 行内 `^[...]`），让每个论点不重读 raw 就能
+> 回溯。纯推论 / 综合判断无需脚注。comparison 页多源且断言可分时照此办理。
 
 ### index（index.md）
 
@@ -486,13 +475,4 @@ flowchart LR
   A[raw 资料] --> B[ingest-diff]
   B --> C[source 页]
   C --> D[index / log 同步]
-```
-
-目录树类用 ASCII（纯英文短标签）：
-
-```text
-wiki/
-├── entities/
-├── concepts/
-└── sources/
 ```

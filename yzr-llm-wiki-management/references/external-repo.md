@@ -49,13 +49,9 @@ raw/external/*                    # symlink 不进 git（跨主机无意义：ta
 
 （块字节 canonical = 实例 `.gitignore`；此处仅示意机制）
 
-anchor 文件**进 git** 是这一机制的根：
-
-- symlink 本身是机器相关的——即使是 `~/src/linux-kernel` 在新机器也要重建
-  （home-relative 仅指同 home 布局的逻辑路径，跟机器绑定的文件系统不是一回事）
-- anchor 的 `remote_url` / `branch` 身份字段是**跨主机稳定**的——
-  任何机器上读 anchor 都可还原"接入意图"（远端 + 分支）
-- anchor 是单文件 `[[entry]]` 数组——多仓共用一份，跨主机重建也是扫这一个文件
+anchor 文件**进 git** 是机制的根：symlink 机器相关（新机器必重建——home-relative 只是
+同布局的逻辑路径）；anchor 的 `remote_url` / `branch` 跨主机稳定，任何机器可还原接入意图；
+单文件 `[[entry]]` 数组多仓共用，重建只扫这一个文件。
 
 ### 触发场景
 

@@ -55,11 +55,6 @@ bash scripts/test/test_install_uninstall.sh
 > （PYTHONPATH 指向本仓）——运行期资源全部内建于 `llmw/content/templates/`，wheel 声明
 > `package-data` 后独立可用（不再依赖同仓 `yzr-llm-*/references/` 或 repo 根文件）。
 
-### 手动 smoke 验收
-
-无固定脚本——按需对改动命令跑 happy path；session-visibility 相关自测点见
-`doc/session-visibility-design.md` §5（正常 1-7 / 异常 8-16）。
-
 ## 架构
 
 ### 顶层数据流
