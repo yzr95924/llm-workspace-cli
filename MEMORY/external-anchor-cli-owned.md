@@ -34,7 +34,8 @@ TOML，事后靠 `external-anchor-corrupt` finding 兜底。这违反本仓其�
   或 `--yes`；非 TTY 无 `--yes` 只打计划 + exit 2 不动手（同 status 孤儿清理的确认模式）。跨 home
   布局用 `--target NAME=PATH` 覆盖，anchor 自动回写 `~/...` 形式。
 - **wiki_lint 的 anchor parser** 已 1:1 平移至本模块的 `load()`；lint 用别名
-  `load_anchor` 引用，**finding 名/文案零改变**（gate 面 2/3 + fixtures 守护）。
+  `load_anchor` 引用，**finding 名/文案零改变**（gate 面 3 + fixtures 守护；面 2 已改
+  prose 镜像禁令，不再对账 finding 名）。
   改 parser 时只在本模块单点修改，lint 自动同步。
 
 **关联**：
