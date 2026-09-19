@@ -126,7 +126,13 @@ class TestBashCompletionBehavior:
 
     def test_wiki_lint_offers_expected_flags(self):
         cands = _bash_complete("llmw wiki lint ")
-        for fl in ["--severity=", "--no-git", "--check-version", "--apply"]:
+        for fl in [
+            "--severity=",
+            "--explain=",
+            "--no-git",
+            "--check-version",
+            "--apply",
+        ]:
             assert fl in cands, f"wiki lint 缺 flag: {fl} (实际: {cands})"
 
     def test_workspace_config_set_no_dead_default_model(self):

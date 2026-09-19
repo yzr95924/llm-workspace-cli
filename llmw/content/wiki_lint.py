@@ -40,6 +40,7 @@ from llmw.content._check_common import (
 from llmw.content._check_common import (
     compare_semver as _compare_semver,
 )
+from llmw.content.findings import severity_of as _severity_of
 from llmw.content.ingest_diff import parse_frontmatter_simple
 from llmw.content.log_format import (
     LOG_LINE_RE,
@@ -1314,69 +1315,8 @@ def check_related_links(wiki_root: Path) -> List[str]:
 
 
 def severity_of(finding: str) -> str:
-    """从 finding 的类别前缀推断严重性"""
-    if finding.startswith(
-        (
-            "raw-modified",
-            "missing-frontmatter",
-            "missing-sources",
-            "invalid-type",
-            "invalid-tags",
-            "frontmatter-delimiter-glued",
-            "sources-missing",
-            "sources-malformed",
-            "sources-out-of-root",
-            "sources-absolute-path",
-            "sources-external-anchor-missing",
-            "sources-external-symlink-missing",
-            "source-in-discussions",
-            "broken-link",
-            "orphan-page",
-            "index-missing",
-            "index-entry-wrong-section",
-            "log-missing",
-            "external-anchor-missing",
-            "external-anchor-corrupt",
-            "external-target-dead",
-            "external-source-name-invalid",
-            "external-symlink-missing",
-        )
-    ):
-        return "error"
-    if finding.startswith(("external-anchor-orphan", "external-target-drift")):
-        return "warn"
-    if finding.startswith(
-        (
-            "stale-summary",
-            "log-format",
-            "filename-not-kebab",
-            "duplicate-title",
-            "log-truncation-recommended",
-            "frontmatter-no-blank-line",
-        )
-    ):
-        return "warn"
-    if finding.startswith(
-        (
-            "contested-page",
-            "reviewed-stale",
-            "invalid-reviewed-value",
-            "reviewed-at-missing",
-            "reviewed-at-orphan",
-            "index-review-badge-drift",
-            "contradiction-target-missing",
-            "contradiction-asymmetric",
-            "oversized-page",
-            "related-broken-link",
-            "memory-index-dangling",
-        )
-    ):
-        return "warn"
-    if finding.startswith(("tag-not-in-taxonomy", "pending-review", "memory-not-indexed")):
-        return "info"
-    if finding.startswith(("wiki-format-version-stale", "wiki-format-version-ahead", "wiki-format-version-unparsed")):
-        return "warn"
-    return "info"
+    """从 finding 文本取严重性——注册表 SSOT 见 llmw.content.findings。"""
+    return _severity_of(finding)
 
 
 # ---------------------------------------------------------------------------

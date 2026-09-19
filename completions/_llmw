@@ -368,6 +368,7 @@ _llmw_wiki() {
                 lint)
                     _arguments \
                         '--severity=[严重性过滤]:severity:(error warn info all)' \
+                        '--explain=[解释 finding（名或 all；自包含，不跑检查）]:name:' \
                         '--no-git[跳过 raw/ 的 git status 检查]' \
                         '--check-version[扫 format 版本 + legacy 现场（互斥模式）]' \
                         '--apply[与 --check-version 联用：stdout JSON 输出 upgrade plan]' \

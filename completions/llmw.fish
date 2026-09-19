@@ -196,6 +196,7 @@ complete -c llmw -n "__llmw_subact wiki lint" -a "--severity=error" -f -d '仅 e
 complete -c llmw -n "__llmw_subact wiki lint" -a "--severity=warn"  -f -d '仅 warn'
 complete -c llmw -n "__llmw_subact wiki lint" -a "--severity=info"  -f -d '仅 info'
 complete -c llmw -n "__llmw_subact wiki lint" -a "--severity=all"   -f -d '全部（默认）'
+complete -c llmw -n "__llmw_subact wiki lint" -a "--explain="       -f -d '解释 finding（名或 all；自包含，不跑检查）'
 complete -c llmw -n "__llmw_subact wiki lint" -l no-git              -d '跳过 raw/ 的 git status 检查'
 complete -c llmw -n "__llmw_subact wiki lint" -l check-version       -d '扫 format 版本 + legacy 现场（互斥模式）'
 complete -c llmw -n "__llmw_subact wiki lint" -l apply               -d '与 --check-version 联用：stdout JSON 输出 upgrade plan'

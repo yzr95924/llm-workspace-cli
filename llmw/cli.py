@@ -353,6 +353,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="与 --check-version 联用：把 upgrade plan 以 JSON 输出到 stdout",
     )
+    pw_lint.add_argument(
+        "--explain",
+        metavar="NAME",
+        help="解释 finding（含义 / 严重性 / 修法）；NAME 为 finding 名或 all（自包含，不跑检查）",
+    )
 
     pw_cf = wiki_sub.add_parser(
         "check-fixtures",
@@ -503,9 +508,14 @@ def _cmd_wiki_content(args) -> int:
     """
     from llmw.content import ingest_diff, wiki_fixtures, wiki_lint, wiki_write
 
-    # --list-rules 自包含：不扫描文件，不需要 root
+    # --list-rules / --explain 自包含：不扫描文件，不需要 root
     if args.wiki_action == "check-fixtures" and _flag(args, "list_rules"):
         return wiki_fixtures.list_rules(as_json=_flag(args, "json"))
+
+    if args.wiki_action == "lint" and args.explain is not None:
+        from llmw.content import findings
+
+        return findings.explain(args.explain, as_json=_flag(args, "json"))
 
     root = _resolve_content_root(args)
     wa = args.wiki_action
