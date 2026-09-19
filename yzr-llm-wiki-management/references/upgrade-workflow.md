@@ -33,8 +33,8 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` /
   **执行顺序与每条动作的具体改法由 plan 自带的 `agent_rules[]` + 各 action 说明给出**。
   lint 的 `--apply` 只输出 plan、**不落盘**（与 `upgrade --apply` 相反，后者写盘）——
   改动由 agent 用 Edit/Write 落
-- **agent 职责**：① drift 裁定（blocked_drift 时与用户决定本地定制搬 MEMORY/ 还是丢弃）
-  ② 按 plan 落 legacy / fixtures 修复 ③「语义合并规则」语义合并（index 重复 / MEMORY 归并）
+- **agent 职责**：(1) drift 裁定（blocked_drift 时与用户决定本地定制搬 MEMORY/ 还是丢弃）
+  (2) 按 plan 落 legacy / fixtures 修复 (3)「语义合并规则」语义合并（index 重复 / MEMORY 归并）
 - **迁移期不走 `llmw wiki write`**——机械写命令只认识当前形态
 - **不**追加 log 条目——迁移不是 wiki 操作事件
 

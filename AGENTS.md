@@ -109,11 +109,11 @@ llmw.cli (argparse + 分派)
 
 此处列核心 3 条 + 指向 MEMORY 详述；其余不变量已在本文档各处承载：
 
-1. **代码永不创作内容语义**——CLI 写路径仅限三类字节：① 骨架渲染（字节来自包内
-   `llmw/content/templates/` 模板 + metadata 变量，单一入口 `llmw.content.render`）；② 注册表
+1. **代码永不创作内容语义**——CLI 写路径仅限三类字节：(1) 骨架渲染（字节来自包内
+   `llmw/content/templates/` 模板 + metadata 变量，单一入口 `llmw.content.render`）；(2) 注册表
    声明的纯函数变换（`workspace_models.toml` CRUD、`raw/external/.symlink-anchor.toml`
    + 对应 symlink CRUD（`llmw.content.external_anchor` 单入口）、overlay 启动配置、legacy 路径表
-   移动）；③ 机械 scribe（字节来自 agent `ingest-diff` / `write` / `external add --notes` 输入，
+   移动）；(3) 机械 scribe（字节来自 agent `ingest-diff` / `write` / `external add --notes` 输入，
    agent 决定内容，CLI 只负责 `log` 行追加 / `index` 条目挂载 / anchor entry 追加等无语义变换操作）。
    `raw/` / `wiki/` 内**任何**需要 LLM 判断的写入都由 skill 在 session 内执行，CLI 绝不创作
    ——这条红线由 `llmw.content` 包封装所有确定性操作（见模块边界表 `llmw.content` 一行）。

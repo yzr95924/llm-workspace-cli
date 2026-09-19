@@ -28,7 +28,7 @@ TOML，事后靠 `external-anchor-corrupt` finding 兜底。这违反本仓其�
 - **target 仓本体永不触碰**：`cmd_add` 只 read `git -C target`，`cmd_remove` 只 unlink
   wiki 侧 symlink；CLI 绝不 `git pull`/`git commit`/`rm` target。路径是普通文件/目录
   时 `cmd_remove` 拒绝（用户资产保护）。
-- **notes 走机械 scribe**（不变量 I-1 ③类）：字节从 `--notes=...` 入参进来，与
+- **notes 走机械 scribe**（不变量 I-1 第 3 类）：字节从 `--notes=...` 入参进来，与
   `ingest-diff`/`write` 同款。
 - **`rebuild` 网络操作**：target 缺失 + 有 remote_url 时按 URL clone。TTY 单次确认
   或 `--yes`；非 TTY 无 `--yes` 只打计划 + exit 2 不动手（R8 同款模式）。跨 home
@@ -39,7 +39,7 @@ TOML，事后靠 `external-anchor-corrupt` finding 兜底。这违反本仓其�
 
 **关联**：
 
-- AGENTS.md：开篇红线 + I-1 ②/③ 类 + 模块边界表 `llmw.content` 行 + 数据流图 external 分支
+- AGENTS.md：开篇红线 + I-1 第 2/3 类 + 模块边界表 `llmw.content` 行 + 数据流图 external 分支
 - 模板 `agents-md-template.md` raw/external 节：「LLM 可写」→「走 CLI 子命令」
 - skill `external-repo.md`：接入 / 重建 shell 流程收编为 `llmw wiki external` 命令；
   §一 承接字段语义 SSOT（agent 排查损坏场景用）+ §三 保留跨主机重建原理

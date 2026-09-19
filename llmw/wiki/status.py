@@ -46,7 +46,7 @@ _STATE_DISPLAY = {
 }
 
 # 假活判定集合（唯一消费方是本模块 STATE 判定——故归此处，不占 byobu 的 tmux IO 边界）：
-# 带标窗口但前台进程是 shell = agent 已退出/崩溃但窗口残留（R5 STATE ②）
+# 带标窗口但前台进程是 shell = agent 已退出/崩溃但窗口残留（R5 STATE 第 2 项）
 _SHELL_CMDS = frozenset({"fish", "bash", "zsh", "sh", "dash", "ash"})
 
 # 表格排序：actionable first（waiting/假活最前 → working/unknown → dead 最后）

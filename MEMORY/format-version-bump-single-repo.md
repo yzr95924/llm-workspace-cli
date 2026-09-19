@@ -33,8 +33,8 @@ CI fixtures-smoke job（`scripts/test/smoke_fixtures.py` 的 `_check_format_vers
 **判别式**：`llmw upgrade --apply` 会不会对现有实例产生超出版本行的 diff，或 lint
 会不会对旧实例产生新的 error/warn？会 → bump；不会 → 不 bump。
 
-**How to apply:** bump 流程——① 改 `llmw/__init__.py` 常量 + ② 改对应 `SKILL.md`
-frontmatter 的 `*_format_version`（同 commit，顺序任意）；③ 演进叙事写进 commit message。
+**How to apply:** bump 流程——(1) 改 `llmw/__init__.py` 常量 + (2) 改对应 `SKILL.md`
+frontmatter 的 `*_format_version`（同 commit，顺序任意）；(3) 演进叙事写进 commit message。
 单仓 CI 的 fixtures-smoke 直接挂。patch/minor 选型：reconcile 必需但向后相容
 （模板字节增行但字段集稳定）→ patch；实例出生形态变化或新增会让旧实例 fail 的 check
 → minor/breaking（迁移指令落 `references/upgrade-workflow.md` §六）。
