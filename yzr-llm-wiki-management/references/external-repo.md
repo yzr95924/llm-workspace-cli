@@ -2,89 +2,49 @@
 
 > **维护方**：接入决策归用户 + agent；**symlink + anchor 写路径**统一走
 > `llmw wiki external` 子命令；target 仓本体永不触碰（此处仅指 **CLI 命令**自身行为——
-> **agent** 对 target 的读写权限以 wiki 根 `AGENTS.md` `raw/external/` 节为准）。命令面细节在
-> `AGENTS.md` `raw/external/` 节（会话常驻）；字段语义与失败兜底在本文件。
+> **agent** 对 target 的读写权限以 wiki 根 `AGENTS.md` `raw/external/` 节为准）。命令面
+> 细节在 `AGENTS.md`（会话常驻）；anchor 字段 schema 归 CLI 持有——本文件只留 agent
+> 判断与不宜从命令输出直接得知的语义。
 
 ## 首次接入
 
-agent 主导两项判断（CLI 帮不上）：
+agent 主导三项判断（CLI 帮不上）：
 
-- **命名协商**：symlink `--name` 必须 kebab-case（`^[a-z0-9][a-z0-9-]*$`），
-  由 agent 与用户共同决定（如 `linux-kernel` / `ray`）；CLI 校验
-- **target 路径**：推荐 `~/src/<name>` home-relative 形式（跨主机重建友好；CLI
-  rebuild 自动回写此形式）
+- **命名协商**：`--name` 必须 kebab-case（`^[a-z0-9][a-z0-9-]*$`），由 agent 与用户共同
+  决定（如 `linux-kernel` / `ray`）；CLI 校验
+- **target 路径**：推荐 `~/src/<name>` home-relative 形式（跨主机重建友好；CLI rebuild
+  自动回写此形式）
 - **notes 文本**：可选，agent 自由写（机械 scribe 入 anchor）
 
 命令：`llmw wiki external add <target> --name=<n> [--notes=...]`（CLI 自动建 symlink +
 读 git 身份字段 + 原子写 anchor；target 必须已存在）。
-命令面细节（4 个子命令 + flag 用法）见 AGENTS.md `raw/external/` 节；本文件不再列举。
-
-### 字段语义（agent 只在排查损坏时需要读；写入全由 CLI 完成）
-
-- **必填 4 字段**：`symlink`（kebab-case）/ `target`（见上）/ `captured_at`（YYYY-MM-DD）/
-  `kind: "external-repo"`（未来可加新 kind，当前唯一）
-- **git 身份字段（可选）**：`remote_url` + `branch`——跨主机 clone 重建时用；**不**
-  记 commit（anchor 记录"接入意图"，commit 是机器快照会腐坏）
-- **`notes`（可选）**：agent 自由文本
-
-（schema SSOT = CLI 的 `llmw wiki external` 子命令——anchor 归 CLI 持有；本文件仅列
-agent 判断侧所需的语义要点。）
 
 ## sources: 元素类型（external 特化）
 
-`raw/external/<symlink>/...` 形式的 sources 可指向**文件或目录**：symlink 目标本身
-是 git 仓（即目录），可用作整仓语料（`raw/external/<symlink>`）；也可指向仓内子路径
-（文件或子目录）。lint 仅校验可访问性（存在即可），不做 file-only 约束。
-普通 raw 路径（非 `raw/external/`）的 sources 仍要求指向**文件**（lint 校验为普通文件）
-——raw 子树语义是"已 ingest 的文档"，目录型 raw 来源暂无用例。
+`raw/external/<symlink>/...` 可指向**文件或目录**：symlink 目标本身是 git 仓（即目录），
+可用作整仓语料；普通 raw 路径（非 `raw/external/`）的 sources 仍要求指向**文件**。
+lint 只校验可访问性——细则见 `llmw wiki lint --explain=external-target-dead` 等
+external-* 条目。
 
 ## 跨主机重建
 
-### 原理：为什么 anchor 进 git、symlink 不进 git
-
-```gitignore
-raw/external/*                    # symlink 不进 git（跨主机无意义：target 在新机器不存在）
-!raw/external/.symlink-anchor.toml  # anchor 进 git（记录接入意图，TOML 单文件）
-```
-
-（块字节 canonical = 实例 `.gitignore`；此处仅示意机制）
-
-anchor 文件**进 git** 是机制的根：symlink 机器相关（新机器必重建——home-relative 只是
-同布局的逻辑路径）；anchor 的 `remote_url` / `branch` 跨主机稳定，任何机器可还原接入意图；
-单文件 `[[entry]]` 数组多仓共用，重建只扫这一个文件。
-
-### 触发场景
-
-| 触发场景 | 用户感知 |
-| --- | --- |
-| 在新机器 `git clone` wiki 仓后，symlink 不存在 | `ls raw/external/` 看到 `.symlink-anchor.toml` 但没 symlink；lint 报 `external-symlink-missing` |
-| 本机 target 路径不存在（如未做 `--target` 覆盖） | lint 报 `external-target-dead`；symlink 解析与 anchor 记录不一致时报 `external-target-drift` |
-| 用户主动在新机器重建（"我换了电脑 / 加了一台机器"） | 跑 `llmw wiki external rebuild`（下节） |
-
-### 命令 + 验证
+**原理**：symlink 机器相关**不进 git**；anchor（`.symlink-anchor.toml`）**进 git**，记录
+接入意图——`remote_url` / `branch` 跨主机稳定，任何机器可还原；**不**记 commit（anchor
+记录意图，commit 是机器快照会腐坏）。gitignore 块字节 canonical = 实例 `.gitignore`。
 
 ```bash
-# 同 home 布局直接重建；TTY 单次确认，--yes 跳过
-llmw wiki external rebuild --yes
-
-# 跨 home 布局（新主机路径与 anchor target 不一致）：
-# --target=NAME=PATH 覆盖（可重复），anchor 自动回写 ~/... 形式
-llmw wiki external rebuild --target=linux=/home/new/src/linux --yes
+llmw wiki external rebuild --yes                                  # 同 home 布局直接重建
+llmw wiki external rebuild --target=linux=/home/new/src/linux --yes  # 跨 home 布局（可重复）
 ```
 
-rebuild 自动处理：ok → skip；target 在 → relink；target 不在 + 有 remote_url → clone +
-checkout branch + 建 symlink；target 不在且无 remote_url → 报 `unrebuildable`（用
-`--target=NAME=PATH` 覆盖或 remove 后重新 add）。验证：
-
-```bash
-llmw wiki lint                     # external-* findings 应为 0
-```
+rebuild 自动处理 skip / relink / clone + checkout + 建 symlink / `unrebuildable`（无
+remote_url 时用 `--target=NAME=PATH` 覆盖，或 remove 后重新 add）——按输出行动。
+验证：`llmw wiki lint` 的 external-* findings 应为 0。
 
 ## 漂移刷新
 
-用户日常 `git pull` target 仓**不**触发任何自动检测——`remote_url` / `branch` 身份字段
-极少变化，无需刷新；"摘要是否过期"由用户判断，需要时重 ingest 对应 source 页
-（`target` 字段不动）。
+用户日常 `git pull` target 仓**不**触发任何自动检测——身份字段极少变化，无需刷新；
+"摘要是否过期"由用户判断，需要时重 ingest 对应 source 页（`target` 字段不动）。
 
 ## 反模式
 

@@ -2,23 +2,17 @@
 
 > 本文件只写 **agent 必须感知的升级契约**（触发 / 分工 / drift 裁定 / 语义合并 / 边界）。
 > plan 的 **per-action 字段词汇与执行顺序**由 CLI 输出自带（`agent_rules[]` + 各 action
-> 说明），本文档**不重述**——重述必漂移；下文只钉 agent 必须据以**分支 / 定位**的名字：
-> 终态 `status` / `needs_upgrade` / `residue[]` / `dropped_sections` / `skipped_conflicts[]` /
-> drift 判据 / plan 两数组 + `agent_rules[]`。
-> **冲突时的优先级**：边界与纪律以本文档 + wiki 根 AGENTS.md 为准；每条动作的具体改法以
-> plan 自带的 `agent_rules[]` 为准。三方分工见下文「职责切分」。任何 breaking 变更的
-> 语义合并规则必须落「语义合并规则」，不再另设历史档案；版本演进叙事看 git log。
+> 说明），本文档**不重述**——重述必漂移；下文只钉 agent 据以**分支 / 定位**的名字。
+> **优先级**：边界与纪律以本文档 + wiki 根 AGENTS.md 为准；每条动作的具体改法以 plan
+> 自带的 `agent_rules[]` 为准。breaking 变更的语义合并规则落「语义合并规则」；版本演进
+> 叙事看 git log。
 
 ## 触发
 
-用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / format 升级 / 是否需要
-reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` /
-`wiki-format-version-unparsed` / legacy 或 fixtures 不合规报告。
-
-## 为什么需要这一步
-
-每个 wiki 在 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 字段钉一份
-版本；本 workflow 处理 format 演进后的**检测 + 修复**。
+用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / format 升级 / 是否需要 reformat"；
+或 `llmw wiki lint` 报告 `wiki-format-version-stale` / `wiki-format-version-unparsed` /
+legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的
+`Wiki Format 版本` 字段；本 workflow 处理 format 演进后的**检测 + 修复**。
 
 ## 职责切分（**关键**——三方分工）
 

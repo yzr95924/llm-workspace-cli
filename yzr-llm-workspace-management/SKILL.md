@@ -41,16 +41,6 @@ metadata:
 | 操作类型 | 用户自然语言 | scan / query / link / lint / upgrade |
 | Query 范围（仅 query） | 用户自然语言或显式指定 wiki 名 | 不指定走全局 INDEX 路由 |
 
-### 操作产物
-
-- **scan** → 写 `<workspace>/INDEX.md` + `<workspace>/STATS.md`（格式 A2/A3）
-- **query** → 对话给出答案（带每 wiki 引用）；可选归档 `<workspace>/cross_queries/<slug>.md`
-  （格式 A4）
-- **link** → 通过 `yzr-llm-wiki-management` ingest 流程在涉及 wiki 加跨 wiki 链接
-- **lint** → 写 `<workspace>/LINT.md`（格式 A5）+ 对话总结
-- **upgrade** → 跑 `llmw upgrade`（默认 dry-run，加 `--apply [--yes]` 落盘）；
-  终态 JSON 由 CLI 输出；详见「Upgrade」
-
 ## 执行原则 / 边界
 
 ### 与 workspace CLI 的边界
@@ -137,14 +127,9 @@ agent 留退路。
 **流程**：
 
 1. 读 `<workspace>/workspace.toml` 拿 `[wikis]` 注册表
-2. 对每个 wiki：
-   - 读 `<wiki>/wiki_metadata.toml`（CLI 维护）
-   - 读 `<wiki>/AGENTS.md` 的「本 wiki 的边界」节（拿边界）
-   - 读 `<wiki>/wiki/index.md`（已有内容 + 段落骨架）
-   - 扫 `<wiki>/wiki/{entities,concepts,sources,comparisons,syntheses}/` 拿 page counts
-   - 扫 `<wiki>/raw/` 递归拿原始资料数（仅计数，不读内容）
-   - 读 `<wiki>/wiki/log.md` 末条拿 last activity
-   - 读 `<wiki>/MEMORY/` 拿 memory files 数（仅文件名）
+2. 对每个 wiki 收集：`wiki_metadata.toml`（CLI 维护）+ `AGENTS.md`「本 wiki 的边界」节 +
+   `wiki/index.md` + 5 类内容子目录 page counts + `raw/` 递归计数（不读内容）+
+   `wiki/log.md` 末条（last activity）+ `MEMORY/` 文件数（仅文件名）
 3. 读 `<workspace>/MEMORY/MEMORY.md` 索引，按 A2 排序规则聚合，写 INDEX.md + STATS.md（格式 A2/A3）
 4. 对话中报告："已刷新 INDEX.md / STATS.md，X 个 wiki，Y 个 page，Z 个原始资料"
 
@@ -201,9 +186,8 @@ agent 留退路。
 3. **本 skill 不做的**：单 wiki 内部 lint——转交 `yzr-llm-wiki-management`
 4. **输出**：写 `<workspace>/LINT.md`（格式 A5）+ 对话中报告
 
-> **为什么这些检查 agent 内联**：机械操作脚本化准入针对写路径（消除"md 规则 → 手工执行
-> → lint 兜底"三层成本）；本节为只读诊断，无写路径。这些文件 CLI 不读写（A8），检查随
-> skill 格式契约同侧演进。
+> **为什么这些检查 agent 内联**：脚本化准入针对写路径；本节为只读诊断，无写路径，
+> 且这些文件 CLI 不读写（A8）——检查随 skill 格式契约同侧演进。
 
 **何时不做 lint**：用户只问 query → 不 lint；用户说"扫一下" → scan 而非 lint。
 
