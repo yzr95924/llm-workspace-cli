@@ -5,11 +5,8 @@
 workspace.toml (git 跟踪的结构数据) 拆出，落本文件，gitignored (workspace .gitignore
 managed block)。无 secret (api_key 在 workspace_models.toml)，不 chmod 600。
 
-(原 v1 的 ``default_model`` 字段在 schema v2 迁移时**静默丢弃**——它本就不在
-``resolve_for_wiki`` 解析路径里、仅 wiki show 兜底显示，是误导性死配置面；"默认 model"
-概念由 registry 的 ``is_default`` 单一表达。原 ``enter_byobu`` 字段在设计
-doc/session-visibility-design.md 起同样删除——窗口路径已全环境成立，直启模式无存在
-场景；老文件残留该键时 load 静默忽略，下次 save 自然抹除，不做主动迁移。)
+老文件兼容：v1 的 ``default_model`` / ``enter_byobu`` 键 load 静默忽略（不在
+``resolve_for_wiki`` 解析路径里），下次 save 自然抹除。
 
 与 workspace/store.py 风格对齐：dataclass + load/save/create_skeleton，原子写。
 load 文件缺失返回空骨架（不写盘）——与"运行时配置未设"同态，调用点免判空文件。
@@ -67,8 +64,8 @@ def load(workspace_root: Path) -> WorkspaceLocal:
             hint="升级 CLI 或手动迁移 schema_version",
         )
 
-    # 注：老 local 文件可能残留 enter_byobu 行（随 doc/session-visibility-design.md §2.5 删除）——TOML 对未知 key
-    # 宽容，这里不读即静默忽略，不 bump schema_version；下次 save 自然抹除。
+    # 注：老 local 文件可能残留 enter_byobu 行——TOML 对未知 key 宽容，这里不读即
+    # 静默忽略，不 bump schema_version；下次 save 自然抹除。
     return WorkspaceLocal(
         schema_version=sv,
         created_at=raw.get("created_at", now_iso8601()),

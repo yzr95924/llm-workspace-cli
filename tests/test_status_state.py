@@ -1,4 +1,4 @@
-"""llmw status STATE 判定纯函数测试（T13，巡检收尾 #11）。
+"""llmw status STATE 判定纯函数测试。
 
 覆盖 llmw/backends.match_working/match_waiting（模式注册表，单一真源）、
 llmw/wiki/status._classify_state（判定短路优先级）、_state_sorted（actionable-first）。

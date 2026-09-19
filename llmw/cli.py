@@ -430,17 +430,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _cmd_status(args) -> int:
-    """status 分派：不内在依赖 workspace（真相源是 tmux server）——提到
-    resolve_workspace_root 之前分派；R8：默认路径解析失败且有带标窗口时降级孤儿清理
-    模式（显式 --workspace/$LLMW_WORKSPACE 失败保持硬报错，防 typo 路径 + 习惯性回 y
-    误杀活窗口）。
+    """status 分派：提到 resolve_workspace_root 之前——默认路径解析失败且有带标窗口时
+    降级孤儿清理；显式 --workspace/$LLMW_WORKSPACE 失败保持硬报错（防 typo 路径 +
+    习惯性回 y 误杀活窗口）。
     """
     from llmw.config import DEFAULT_WORKSPACE, resolve_workspace_root
     from llmw.errors import WorkspaceNotFound
     from llmw.wiki.status import status as wiki_status, status_orphan
 
     try:
-        resolve_workspace_root(_flag(args, "workspace"))  # 存在性检查：失败才进 R8 分支
+        resolve_workspace_root(
+            _flag(args, "workspace")
+        )  # 存在性检查：失败才进孤儿清理分支
     except WorkspaceNotFound as e:
         explicit = _flag(args, "workspace") or os.environ.get("LLMW_WORKSPACE")
         if explicit:

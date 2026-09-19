@@ -88,7 +88,7 @@ llmw.cli (argparse + 分派)
   │           └─▶ llmw.wiki.byobu.spawn_window（当前 tmux session 开窗/复用 + 打标；
   │               dead 残留自动收尸后新开；不在 tmux 内 → 恰一个可见 session 直接开入其中，否则兜底 llm_workspace + attach）──▶ tmux 窗口表
   │
-  ├──▶ llmw.wiki.status        ──▶ llmw.wiki.byobu.list_windows（实时枚举带标窗口；workspace 缺失默认路径 → R8 孤儿清理模式）
+  ├──▶ llmw.wiki.status        ──▶ llmw.wiki.byobu.list_windows（实时枚举带标窗口；workspace 缺失默认路径 → 孤儿清理模式）
   ├──▶ llmw.wiki.stop          ──▶ llmw.wiki.byobu.list_windows + kill_window
   │
   ├──▶ llmw.content.external_anchor（`llmw wiki external add/remove/list/rebuild`）
@@ -151,10 +151,10 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 | `llmw.workspace.manager` | init/config/list 业务；init 写 workspace `.gitignore`；config 路由 runtime key→local_store | 不写 wiki 文件；读 wiki_metadata.toml 仅限 list 聚合展示（走 wiki.store 唯一真源） |
 | `llmw.wiki.store` | wiki_metadata.toml 读写 + schema v2 + 模板填充 | 不写 workspace.toml、不调 init_wiki |
 | `llmw.wiki.init_wiki` | 渲染骨架（读 templates + .gitkeep 占位）；读 `llmw/content/templates/wiki/` → atomic_write；.gitkeep 无条件落盘（红线：不碰 git） | 不写 wiki_metadata.toml、不进 wiki 业务流 |
-| `llmw.wiki.manager` | add/remove/show/config/stop 业务；add 调 init_wiki + 打印手动 git hint；校验 model_id；stop 枚举带标窗口 + kill-window（R6） | 不进 wiki 内部、不读 wiki/ 内容 |
+| `llmw.wiki.manager` | add/remove/show/config/stop 业务；add 调 init_wiki + 打印手动 git hint；校验 model_id；stop 枚举带标窗口 + kill-window | 不进 wiki 内部、不读 wiki/ 内容 |
 | `llmw.wiki.enter` | 启动 session：resolve model → `overlay.apply` 写启动配置 → `byobu.spawn_window` 收口（当前 session 开窗/复用 + 打标；dead 残留自动收尸后新开；不在 tmux 内 → 兜底 session + attach） | 不写元数据 |
 | `llmw.wiki.byobu` | byobu/tmux 薄封装 + 开窗编排原语：spawn/复用/打标/枚举 + `visible_sessions` 可见性查询（tmux 外 enter 的选路口径）；`spawn_window` 四条件复用（窗口名 + 打标 + backend + 非 dead，dead 命中收尸后新开）、`list_windows` 返回 `WindowRow`；enter/status/stop 共用 | 不写元数据、不读配置 |
-| `llmw.wiki.status` | `llmw status`：枚举带标窗口 → WIKI/WINDOW/SESSION/BACKEND/STATE/UPTIME/IDLE 表 + `--json`（`state` 为 ASCII 稳定值 `dead/shell/working/waiting/unknown`）+ `--tmux`（`●N [✗M]`）；STATE 判定走 capture-pane 模式匹配；R8：workspace 缺失（默认路径）时降级孤儿清理模式——warning + 列表 + TTY 确认后逐窗 kill（`--json`/`--tmux`/非 TTY 只打 hint 不动手） | 主路径不写盘、不 kill 窗口（看归看，关归 stop；R8 孤儿清理是唯一经确认的破例） |
+| `llmw.wiki.status` | `llmw status`：枚举带标窗口 → WIKI/WINDOW/SESSION/BACKEND/STATE/UPTIME/IDLE 表 + `--json`（`state` 为 ASCII 稳定值 `dead/shell/working/waiting/unknown`）+ `--tmux`（`●N [✗M]`）；STATE 判定走 capture-pane 模式匹配；孤儿清理：workspace 缺失（默认路径）时降级——warning + 列表 + TTY 确认后逐窗 kill（`--json`/`--tmux`/非 TTY 只打 hint 不动手） | 主路径不写盘、不 kill 窗口（看归看，关归 stop；孤儿清理是唯一经确认的破例） |
 | `llmw.models.overlay` | `render`/`inspect`/`apply`：resolved ModelEntry → 启动配置 `env` 块；幂等合并 + chmod 600。仅 claude 路径使用（opencode 走 `overlay_opencode` 写 `instructions` 键） | — |
 | `llmw.models.overlay_opencode` | `render`/`inspect`/`apply`：wiki 模板顶层 @import ∩ 实际存在文件 → `<wiki>/opencode.json` 整文件覆盖写（CLI 拥有；非 CLI 管理 key 覆盖前 stderr 逐名警告；遗留 `provider.llmw` 明文 apiKey 自动剥除；gitignore 保留，每次 enter 幂等渲染）。仅 opencode 路径使用 | — |
 | `llmw.models.store` | workspace_models.toml 读写 + schema v2 + 字段校验 + chmod 600 | 不做 CRUD 业务、不做 resolve |

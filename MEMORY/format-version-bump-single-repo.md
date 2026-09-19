@@ -37,6 +37,6 @@ CI fixtures-smoke job（`scripts/test/smoke_fixtures.py` 的 `_check_format_vers
 frontmatter 的 `*_format_version`（同 commit，顺序任意）；(3) 演进叙事写进 commit message。
 单仓 CI 的 fixtures-smoke 直接挂。patch/minor 选型：reconcile 必需但向后相容
 （模板字节增行但字段集稳定）→ patch；实例出生形态变化或新增会让旧实例 fail 的 check
-→ minor/breaking（迁移指令落 `references/upgrade-workflow.md` §六）。
+→ minor/breaking（迁移指令落 `references/upgrade-workflow.md`「语义合并规则」）。
 
 关联 [[boundary-map]] 单向约束（包内资源内建原则）。

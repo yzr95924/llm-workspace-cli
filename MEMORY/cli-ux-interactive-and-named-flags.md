@@ -20,6 +20,6 @@ metadata:
 - **新增带值 flag 时**：直接 `add_argument("--flag", metavar="VALUE")`——`_enforce_equals_form` 自动纳入 `=` 强制，无需手动注册
 - 历史遗留的位置参数传值（如 `config set <key> <value>` 的 value）暂保留，改造时优先转交互式或命名 flag
 - `get` / `unset` 等只需 KEY、不需要用户填自由值的操作不受此约束
-- **新增带值 flag 时必须同步 `completions/`**：新 flag 自动被 CLI 校验纳入，但 `completions/{llmw.bash, llmw.fish, _llmw}` 是**手写静态脚本**——要手动加到三处：bash 的 `§5` VALUE_FLAGS 列表（裸→补 `=`）+ `§4` 值补全分支；fish 的 for 循环 VALUE_FLAGS + 对应子命令 `-l flag` 补全（带值加 `-f`，动态值加 `-r -f -a`）；zsh 的 optspec `'--flag=[desc]:msg:action'`（带 `=`）。漏改 completion 不影响 CLI 校验，但 Tab 不会补 `=`
+- **新增带值 flag 时必须同步 `completions/`**：新 flag 自动被 CLI 校验纳入，但 `completions/{llmw.bash, llmw.fish, _llmw}` 是**手写静态脚本**——要手动加到三处：bash 的带值 flag 规范化列表（`case "$prev"`，裸 flag 补 `=`）+ `--flag=*` 值补全分支；fish 的 for 循环 VALUE_FLAGS + 对应子命令 `-l flag` 补全（带值加 `-f`，动态值加 `-r -f -a`）；zsh 的 optspec `'--flag=[desc]:msg:action'`（带 `=`）。漏改 completion 不影响 CLI 校验，但 Tab 不会补 `=`
 
 关联 [[memory-entry-conventions]]。

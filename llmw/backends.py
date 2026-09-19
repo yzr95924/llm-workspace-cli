@@ -1,16 +1,10 @@
 """backend 单一真源：agent CLI 名集合 + status STATE 模式注册表。
 
-项目内所有"backend 知识"收敛于此：
-enter_cli 白名单（enter.py / workspace.manager._check_enter_cli）、spawn 打标
-（byobu.tag_window）、status 的 BACKEND 列与 STATE 模式路由（status.py）——
-新增 agent 只改本文件一处。
+项目内所有"backend 知识"收敛于此：enter_cli 白名单、spawn 打标、status 的 BACKEND 列与
+STATE 模式路由——新增 agent 只改本文件一处。
 
-STATE_PATTERNS：backend → 屏幕尾部文本的判据。模式随 CLI 版本漂移 → 匹配不上
-优雅降级 unknown，status 表不坏（设计 §2.4 R5）。claude / qodercli 暂缺
-（扩展点，占位未配置）；opencode 模式基于 1.18.18 屏幕实测：
-工作态——底部状态行含 "esc interrupt" + braille spinner 段；空闲态——底部输入
-行含 "ctrl+p" 且无工作标志（TUI hint "ctrl+p commands" 长期稳定，判据取其稳定
-前缀）。
+STATE_PATTERNS：backend → 屏幕尾部文本判据（opencode 基于 1.18.18 实测；claude /
+qodercli 暂缺，占位未配置）。模式随 CLI 版本漂移 → 匹配不上优雅降级 unknown。
 """
 
 from typing import Dict, NamedTuple, Optional, Tuple

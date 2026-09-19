@@ -370,16 +370,11 @@ def stop(
     window_suffix: Optional[str] = None,
     yes: bool = False,
 ) -> int:
-    """R6 stop：kill 指定 wiki 的带标 agent 窗口（`llmw wiki --name=X stop`）。
+    """stop：kill 指定 wiki 的带标 agent 窗口（`llmw wiki --name=X stop`）。
 
-    候选 = `@llmw_wiki == X` 的带标窗口（再按拼接后窗口名 `<X>-<S>` 过滤）：
-
-    - 0 候选 → NoRunningSession（exit 1）
-    - N 候选且未给 --window-suffix → MultipleRunningSessions（exit 1，列出候选 + hint，
-      不做交互选择器——关是低频高危动作，显式消歧比选择器简单且脚本友好）
-    - 恰 1 候选 → TTY 确认 [y/N]（--yes 跳过，沿用 remove 惯例）→ kill-window
-
-    不查 workspace 注册表——窗口枚举是现实（wiki 目录已删但窗口还在跑，stop 也应能收尸）。
+    候选 = `@llmw_wiki == X`（再按窗口名过滤）：0 → NoRunningSession；N 且未给
+    --window-suffix → MultipleRunningSessions（关是低频高危动作，显式消歧比选择器
+    简单）；恰 1 → TTY 确认后 kill。不查 workspace 注册表——窗口枚举即现实。
     """
     if not byobu.byobu_available():
         raise ByobuNotFound(
@@ -431,7 +426,6 @@ def stop(
 
 
 def _confirm_stop(name: str, wname: str, dead: bool) -> bool:
-    """R6 确认块（T12 拆分）：非 TTY → StopRequiresConfirmation；TTY → [y/N]。"""
     if not sys.stdin.isatty():
         raise StopRequiresConfirmation(
             "非 TTY 下 stop 需要 --yes 确认",
@@ -604,10 +598,6 @@ def rename(
 
 
 def _show_collect(workspace_root: Path, name: str) -> Dict:
-    """show 的数据收集（T12 拆分）：metadata / 文件存在性 / 计数 / resolve model。
-
-    纯收集不渲染；resolve 失败 → 退化只用 wiki_metadata.model 推断来源。
-    """
     wiki_path = resolve_wiki_path(workspace_root, name)
     meta = None
     if (wiki_path / "wiki_metadata.toml").is_file():

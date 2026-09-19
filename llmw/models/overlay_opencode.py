@@ -26,7 +26,7 @@ wiki 内实际存在的文件取交集——缺文件（破坏的 wiki）自动�
 instruction 文件的容忍行为未验证）。
 
 **额外 key 警告（不静默）**：现有文件含 ``{$schema, instructions}`` 之外的 key 时，
-apply 会 stderr 逐名点名"将被覆盖"——巡检 #7 卖点是可见性，自己不该静默吞用户内容。
+apply 会 stderr 逐名点名"将被覆盖"——本工具卖点即可见性，自己不该静默吞用户内容。
 覆盖仍然执行（CLI 整文件拥有），只是不静默。
 
 **JSON 损坏绝不 clobber**：现有文件非法 JSON → ``OverlayFileUnparseable``，调用方

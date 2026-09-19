@@ -1,17 +1,8 @@
-"""llmw status — 一屏回答"哪些 wiki 的 agent 在跑、跑了多久、是否已退出"
+"""llmw status — 一屏回答"哪些 wiki 的 agent 在跑、跑了多久、是否已退出"。
 
-设计 (doc/session-visibility-design.md §2.4 R5 / R7)：tmux 窗口表即注册表——实时枚举
-（逐 session：``list-sessions`` + 每 session ``list-windows -t``，兼容 tmux ≥2.7），
-过滤 ``@llmw_wiki`` 非空行，无轮询、无账本、无 hook。
-agent 进程退出 → pane 销毁 → 窗口消亡 → 标记随之消亡，拉取精确对"看一眼哪些在跑"
-是满分答案；remain-on-exit=on 时窗口残留为 dead pane，status 显式 ``✗ exited``
-（尸体可见才会被 stop 收掉，隐藏会让用户积累不可见僵尸；dead 行停表数据源
-``pane_dead_time``，缺失时回退 ``window_activity``——见 ``_row_to_dict``）。
-
-本模块主路径只做"看"（枚举 + 展示），窗口开关归 enter / stop。唯一例外是 R8
-孤儿清理模式（设计 §2.4 R8）：workspace 缺失时 status 经显式确认收尸体/残留窗口——
-stop 此时被 cli 入口的 workspace 解析阻断，孤儿清理是该场景唯一的 llmw 内收尸通道。
-被 llmw/cli.py 接线。
+tmux 窗口表即注册表（实时枚举带标窗口，无轮询无账本）。主路径只读；唯一例外是
+workspace 缺失时的孤儿清理（显式确认后收残留窗口——该场景 stop 已被 cli 的
+workspace 解析阻断）。被 llmw/cli.py 接线。
 """
 
 import json
@@ -25,18 +16,15 @@ from llmw.backends import match_waiting, match_working
 from llmw.errors import ByobuNotFound, LlmwError
 from llmw.wiki import byobu
 
-# R8 孤儿模式的清理指引（非 TTY / --json / --tmux 只指不动手）
+# 孤儿清理模式的指引（非 TTY / --json / --tmux 只指不动手）
 _ORPHAN_CLEAN_HINT = (
     "[llmw] hint: TTY 下运行 `llmw status` 可交互清理以上残留窗口，"
     "或手动 `byobu-tmux kill-window -t @N`"
 )
 
-# ===== STATE 判定（R5） =====
-# 内部值是 ASCII 稳定值（--json 输出此值，脚本可判等）：dead / shell / working /
-# waiting / unknown。显示值（✗ / ⚠ shell / ⚙ working / ⏳ waiting / ?）只存在于
-# 表格层——显示值与机器契约分离（巡检 #3）。
-# 判定短路优先级：dead → 假活 shell → capture-pane 尾部按 backend 模式匹配 → unknown。
-# 模式注册表在 llmw/backends.py（单一真源）；模式随 CLI 版本漂移 → 优雅降级 unknown。
+# ===== STATE 判定 =====
+# 内部值 ASCII 稳定（--json 契约）；显示值只入表格层。判定短路：dead → 假活 shell
+# → capture-pane 模式匹配（注册表见 backends.py）→ unknown。
 _STATE_DISPLAY = {
     "dead": "✗",
     "shell": "⚠ shell",
@@ -45,16 +33,13 @@ _STATE_DISPLAY = {
     "unknown": "?",
 }
 
-# 假活判定集合（唯一消费方是本模块 STATE 判定——故归此处，不占 byobu 的 tmux IO 边界）：
-# 带标窗口但前台进程是 shell = agent 已退出/崩溃但窗口残留（R5 STATE 第 2 项）
+# 假活：带标窗口但前台进程是 shell = agent 已退出/崩溃但窗口残留
 _SHELL_CMDS = frozenset({"fish", "bash", "zsh", "sh", "dash", "ash"})
 
-# 表格排序：actionable first（waiting/假活最前 → working/unknown → dead 最后）
 _STATE_ORDER = {"shell": 0, "waiting": 0, "working": 1, "unknown": 1, "dead": 2}
 
 
 def _classify_state(d: Dict) -> str:
-    """STATE 判定（R5 优先级短路）：只对非 dead 非 shell 的窗口做 capture。"""
     if d["dead"]:
         return "dead"
     pcmd = (d.get("pcmd") or "").lower()
@@ -69,7 +54,6 @@ def _classify_state(d: Dict) -> str:
 
 
 def _fmt_dur(seconds: float) -> str:
-    """R5 时间格式：<60s → 'now'；<60min → 'Nm'；<24h → 'Nh'；否则 'Nd'。"""
     if seconds < 60:
         return "now"
     minutes = int(seconds // 60)
@@ -82,12 +66,10 @@ def _fmt_dur(seconds: float) -> str:
 
 
 def _fmt_dur_ago(seconds: float) -> str:
-    """dead 行 IDLE 用：``✗ exited <Nd> ago``。"""
     return f"✗ exited {_fmt_dur(seconds)} ago"
 
 
 def _to_int(s: str) -> Optional[int]:
-    """空串 / 非数字 → None（未打标或手改窗口）。"""
     try:
         return int(s) if s else None
     except ValueError:
@@ -95,16 +77,12 @@ def _to_int(s: str) -> Optional[int]:
 
 
 def _pcmd_basename(s: str) -> str:
-    """pane_current_command 可能是完整路径（如 /usr/bin/opencode）→ 取 basename。"""
     s = s.strip()
     return os.path.basename(s) if s else ""
 
 
 def _row_to_dict(row: byobu.WindowRow, now: float) -> Optional[Dict]:
-    """原始枚举行 → 展示 dict；@llmw_wiki 为空的行（非 llmw 窗口）→ None。
-
-    纯函数（不做 tmux IO）；STATE 判定在 _enumerate 中填充（需 capture）。
-    """
+    """行 → 展示 dict；@llmw_wiki 为空（非 llmw 窗口）→ None。"""
     wiki = row.wiki
     if not wiki:
         return None
@@ -127,8 +105,7 @@ def _row_to_dict(row: byobu.WindowRow, now: float) -> Optional[Dict]:
         "pcmd": pcmd,
     }
     if dead:
-        # 停表数据源：pane_dead_time；缺失（tmux <2.9 疑无此格式变量）时回退
-        # window_activity——agent 死后无输出 → activity 冻结 ≈ 死亡时刻（设计 §2.4 R5）
+        # 停表源 pane_dead_time；老 tmux 缺失 → 回退 activity（死后无输出即冻结 ≈ 死亡时刻）
         died_at = dead_time if dead_time is not None else activity
         if died_at is not None:
             out["dead_at"] = died_at  # 回退时为近似值（无 pane_dead_time 的版本）
@@ -144,10 +121,6 @@ def _row_to_dict(row: byobu.WindowRow, now: float) -> Optional[Dict]:
 
 
 def _render_table(rows: List[Dict]) -> None:
-    """R5 文本表：WIKI / WINDOW / SESSION / BACKEND / STATE / UPTIME / IDLE。
-
-    入参已按 state 优先级排好（actionable first，见 _state_sorted）。
-    """
     if not rows:
         print("# (no running sessions)", file=sys.stdout)
         return
@@ -203,11 +176,7 @@ def _render_table(rows: List[Dict]) -> None:
 
 
 def _enumerate(now: float) -> List[Dict]:
-    """实时枚举全部 llmw 带标窗口 → 展示 dict 列表。
-
-    按 wiki → 窗口名稳定排序（--json 用此序）；state 判定在排序后逐个填充
-    （capture-pane 短路：dead / 假活 shell 不捕获）。表格用另行按 state 排序的副本。
-    """
+    """枚举带标窗口 → 展示 dict 列表（wiki/窗口名稳定序；state 逐个填充）。"""
     rows = [r for r in byobu.list_windows() if r.wiki]
     rows.sort(key=lambda r: (r.wiki, r.window_name))
     dicts = [d for d in (_row_to_dict(r, now) for r in rows) if d is not None]
@@ -217,7 +186,6 @@ def _enumerate(now: float) -> List[Dict]:
 
 
 def _state_sorted(dicts: List[Dict]) -> List[Dict]:
-    """表格排序：actionable first（waiting/⚠ shell 最前 → working/unknown → dead 最后）。"""
     return sorted(
         dicts,
         key=lambda d: (_STATE_ORDER.get(d.get("state"), 1), d["wiki"], d["window"]),
@@ -225,7 +193,6 @@ def _state_sorted(dicts: List[Dict]) -> List[Dict]:
 
 
 def _render_tmux_line(dicts: List[Dict]) -> None:
-    """``●N``（仅计运行中窗口）；存在 dead 窗口时后缀 `` ✗M``。"""
     running = sum(1 for d in dicts if not d["dead"])
     dead = sum(1 for d in dicts if d["dead"])
     line = f"●{running}"
@@ -238,11 +205,6 @@ def status(
     as_json: bool = False,
     tmux_line: bool = False,
 ) -> int:
-    """R5 status：实时枚举全部 llmw 带标窗口并展示。返回 0。
-
-    --json: 结构化列表（含原始时间戳秒数）；--tmux: 单行 ``●N [✗M]``
-    （仅计运行中窗口；供 byobu 状态条集成）。
-    """
     if not byobu.byobu_available():
         raise ByobuNotFound(
             "byobu-tmux 不在 PATH",
@@ -268,16 +230,9 @@ def status_orphan(
     as_json: bool = False,
     tmux_line: bool = False,
 ) -> int:
-    """R8 孤儿清理模式（设计 §2.4 R8）：workspace 缺失时的 status 降级路径。
-
-    仅 cli.py 在**隐式默认路径**解析失败时调用（显式 --workspace / $LLMW_WORKSPACE
-    失败保持硬报错——typo 路径 + 习惯性回 y = 误杀活窗口，护栏见 R8）。
-
-    - byobu 不可用 / 无带标窗口 → 抛回原 WorkspaceNotFound（新机器 / 路径写错，
-      没有什么可清）
-    - 有带标窗口 → stderr warning + 照常渲染（表 / JSON / tmux 行）；仅纯文本表 +
-      TTY 时追加交互确认（先列表、区分运行中/已退出，与 R6 同级显式），确认后逐窗
-      kill-window。非 TTY / --json / --tmux 只打 hint 不交互（脚本场景零副作用）。
+    """孤儿清理：workspace 缺失时的 status 降级路径（仅 cli.py 隐式默认路径解析
+    失败时调用；显式路径失败保持硬报错）。非 TTY / --json / --tmux 只打 hint；
+    TTY 纯文本表下确认后逐窗 kill。
     """
     if not byobu.byobu_available():
         raise err

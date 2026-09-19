@@ -38,14 +38,14 @@ CONFIG_KEYS = {
 
 # 路由到 workspace_local.toml 的运行时配置 key (主机相关)。schema v2 起这些字段
 # 不再存于 workspace.toml (结构数据)；config get/set/unset 据 LOCAL_KEYS 决定落点。
-# (设计 doc/session-visibility-design.md §2.5 起 enter_byobu 已删除——窗口路径全环境成立。)
+# (enter_byobu 已删除——窗口路径全环境成立。)
 LOCAL_KEYS = frozenset({"enter_cli"})
 
 
 def _check_enter_cli(value: str) -> None:
     """enter_cli 白名单校验；非白名单值抛 InvalidConfigKey。
 
-    白名单真源是 llmw/backends.py 的 KNOWN_BACKENDS（单一真源，巡检 #8）。
+    白名单真源是 llmw/backends.py 的 KNOWN_BACKENDS（单一真源）。
     """
     if value not in KNOWN_BACKENDS:
         raise InvalidConfigKey(

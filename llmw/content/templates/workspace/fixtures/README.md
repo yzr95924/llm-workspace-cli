@@ -22,4 +22,4 @@ fixtures 同构（同仓兄弟包）。
 CLI init 时把 `memory-index.txt` **逐字拷贝**为 `<workspace>/MEMORY/MEMORY.md`（无占位符）。
 完整 gate 走 `llmw check-fixtures` 探测器断言（CLI 仓 CI 跑 real `llmw init` 后执行）。
 
-workspace 级文件契约（INDEX/STATS/LINT/cross_queries/MEMORY 格式）见 yzr-llm-workspace-management SKILL.md 附录 A2-A6。
+workspace 级文件契约（INDEX/STATS/LINT/cross_queries/MEMORY 格式）见 yzr-llm-workspace-management references/formats.md A2-A6。

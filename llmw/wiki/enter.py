@@ -1,29 +1,14 @@
-"""wiki enter — 启动 AI agent session (默认 opencode；workspace_local.toml#enter_cli 切换 claude/qodercli)
+"""wiki enter — 启动 AI agent session（默认 opencode；workspace_local.toml#enter_cli 切换）。
 
-opencode 路径（默认）：不解析 model（opencode 支持 session 内自由切换模型），
-但通过 `overlay_opencode.apply` 写 `<wiki>/opencode.json` 的 `instructions` 键——
-opencode 不解析 AGENTS.md 的 `@path` 引用（官方推荐用 config `instructions` 字段替代），
-本路径把 wiki 骨架模板的顶层 `@import` 同步到 instructions 数组，使 opencode 与
-claude 路径上下文对齐。cmd 用位置参数传 wiki 目录（opencode 自读 AGENTS.md）。
+- claude：resolved model 经 `<wiki>/.claude/settings.local.json` env 块（Local 层）交付；
+  cmd 只 `--add-dir`（claude 自读 CLAUDE.md）；不注入 subprocess env / --setting-sources。
+- opencode（默认）：不解析 model，写 `<wiki>/opencode.json` instructions 键（同步模板
+  顶层 @import——opencode 不解析 AGENTS.md 的 @path 引用）。
+- qodercli：裸启动，只传目录。
 
-claude 路径（enter_cli = "claude"）：resolved model 通过 <wiki>/.claude/settings.local.json
-的 env 块（Local 层，优先级 > User）交付，lazy on enter。不注入 subprocess env、不传
---setting-sources——user 配置（~/.claude/settings.json）正常加载，overlay 在 Local 层稳赢。
-只传 `--add-dir` 让 claude 自读 `<wiki>/CLAUDE.md`，不显式注入 --system-prompt（避免双计入）。
-
-qodercli 路径（enter_cli = "qodercli"）：裸启动——跳过 resolve / overlay，只把 wiki
-目录传给 qodercli（qodercli 自读 AGENTS.md）。
-
-窗口模型（设计 doc/session-visibility-design.md §2.2，byobu 为 enter 硬依赖）：
-enter 把 agent 开成"当前 tmux session 的一个窗口"（W' 模型）——tmux 内发起 → 自动聚焦；
-不在 tmux 内 → 按可见 session 数选路（byobu.visible_sessions 口径）：恰 1 个 → 直接在
-其中开窗（保持单 session 结构，用户敲裸 byobu 恒直达 agent）；0 或 ≥2 → 兜底 session
-`llm_workspace` + TTY attach（≥2 有歧义不猜）。窗口名 = `<wiki>-<suffix>`
-（缺省 `-main`，经 `--window-suffix` 只传后缀；R1），复用判定 = 窗口名 + `@llmw_wiki`
-+ `@llmw_backend` + pane 非 dead 四条件（R2；命中 dead 尸体 → kill-window 收尸后按
-无窗口新开；backend 不符 → 拒绝 + hint，防"切换 agent"意图被吞），
-新开时打标 `@llmw_wiki` / `@llmw_started`（R3）。fire-and-forget：窗口建成
-即返回 0，不等 agent 退出、退出码不来自 agent。最终 spawn 统一收口在 _spawn()。
+窗口模型：agent 开成当前 tmux session 的窗口；tmux 外按可见 session 数选路（恰 1 个
+直接开入，0/≥2 兜底 llm_workspace + TTY attach）。fire-and-forget：建成返回 0。
+spawn 收口在 _spawn()；窗口原语见 llmw/wiki/byobu.py。
 """
 
 import shlex
@@ -52,39 +37,22 @@ from llmw.workspace import local_store
 
 
 def _build_cmd(wiki_path: Path) -> List[str]:
-    """构造 claude 子进程 argv：仅 --add-dir，让 claude 自读 <wiki>/CLAUDE.md。
-
-    不传 --setting-sources：claude 默认加载 user+project+local。cwd=wiki 子目录 → 读到
-    <wiki>/.claude/settings.local.json（Local，优先级 > User）→ overlay 稳赢，user 配置同时
-    加载。早期版本传 --setting-sources project,local 排除 user，是为防其 env 块盖掉优先级
-    更低的 subprocess env overlay；现 overlay 已在 Local 层文件里，无需排除 user。
-
-    不传 --system-prompt：claude 会从 cwd + --add-dir 自动聚合 CLAUDE.md；显式注入会双计入
-    并让两 backend 行为分叉（qodercli 路径就不传）。
+    """claude argv：只 `--add-dir`（自读 CLAUDE.md）；不传 --setting-sources（overlay 在
+    Local 层已稳赢 user 配置）/ 不传 --system-prompt（自动聚合，显式注入会双计入）。
     """
     return ["claude", "--add-dir", str(wiki_path)]
 
 
 def _build_cmd_qodercli(wiki_path: Path) -> List[str]:
-    """构造 qodercli 子进程 argv：--add-dir。
-
-    qodercli 不读 .claude/settings.local.json，不依赖 model env 注入（qodercli 自读 AGENTS.md）。
-    """
     return ["qodercli", "--add-dir", str(wiki_path)]
 
 
 def _build_cmd_opencode(wiki_path: Path) -> List[str]:
-    """构造 opencode 子进程 argv：位置参数 project dir（等价 claude --add-dir 的角色）。
-
-    opencode 启动后从 cwd 向上自读 AGENTS.md（wiki 骨架含 AGENTS.md，opencode 优先读它、
-    CLAUDE.md 兜底）。模型由 opencode session 内自由切换，CLI 不注入。
-    """
+    """opencode argv：位置参数 project dir（启动后自读 AGENTS.md；模型 session 内切换）。"""
     return ["opencode", str(wiki_path)]
 
 
 class _TargetSession(NamedTuple):
-    """_select_target_session 的选路结果。"""
-
     session: str
     ensure: bool
     outside: bool  # llmw 进程不在 tmux 内（attach 决策）
@@ -92,17 +60,12 @@ class _TargetSession(NamedTuple):
 
 
 def _select_target_session() -> _TargetSession:
-    """W' 模型作用域选路：tmux 内 = 当前 session；tmux 外按可见 session 数分路。"""
     cur = byobu.current_session()
     if cur is not None:
         return _TargetSession(cur, False, False, False)
     visible = byobu.visible_sessions()
     if len(visible) == 1:
-        # tmux 外且恰一个可见 session：直接在其中开窗——单 session 结构保持，
-        # 用户敲裸 byobu（唯一可见 → byobu-select-session 自动选中）恒落在
-        # agent 窗口上；不建第二个 session（第二个 session 会把 byobu 的直达
-        # 路径变成菜单，2026-09-05）。ensure=False：session 刚枚举到，存在；
-        # 竞态死亡走 spawn_window 既有 ≤3 步线性降级
+        # 恰一个可见 session：直接开入（不建第二个——第二个会把裸 byobu 直达变成菜单）
         return _TargetSession(visible[0], False, True, True)
     # 0 → 总得建一个；≥2 → 有歧义不猜（选哪个都是替用户做主）
     return _TargetSession(byobu.BYOBU_SESSION, True, True, False)
@@ -115,11 +78,6 @@ def _print_dry_run_spawn(
     cmd: List[str],
     backend: str,
 ) -> None:
-    """_spawn 的 dry-run 打印块（T12 同款拆分）：cmd / env / 窗口选路与将执行命令。
-
-    只打印不探测 byobu/session 状态（与"dry-run 跳过 PATH 检查"同一约定：
-    dry-run 零外部副作用）。
-    """
     print("[llmw] cmd:", file=sys.stdout)
     print(f"  {' '.join(cmd)}", file=sys.stdout)
     print(
@@ -160,7 +118,6 @@ def _report_spawn_result(
     collected: bool,
     overlay_refreshed: bool = False,
 ) -> None:
-    """spawn 结果的用户可见确认（新建/复用 + 唯一可见复用与收尸透明文案）。"""
     if created:
         print(
             f"[llmw] ✓ 已在 tmux session '{target.session}' 新建窗口 '{window_name}'",
@@ -198,12 +155,12 @@ def _spawn(
     dry_run: bool,
     overlay_refreshed: bool = False,
 ) -> int:
-    """最终 spawn 收口（三 backend 共用）：当前 tmux session 开窗/复用（W' 模型）；
+    """最终 spawn 收口（三 backend 共用）：当前 tmux session 开窗/复用；
     不在 tmux 内 → _select_target_session 按可见 session 数选路：恰 1 个直接在
     其中开窗（reuse_sole），0 / ≥2 兜底 session llm_workspace + TTY attach / 非
     TTY hint。
 
-    backend 随 R3 打标（@llmw_backend），供 status 的 BACKEND 列与 STATE 模式路由。
+    backend 随窗口打标（@llmw_backend），供 status 的 BACKEND 列与 STATE 模式路由。
     overlay_refreshed：复用窗口时是否已写过 overlay（claude/opencode=True；qodercli=False）。
     """
     if dry_run:
@@ -238,9 +195,6 @@ def _spawn(
 
 
 class _EnterPlan(NamedTuple):
-    """claude 路径的决策簇：enter → _enter_dry_run → 打印块的共用参数
-    （T12 同款收参数对象，消 9-11 参数两层透传）。"""
-
     workspace_root: Path
     name: str
     wiki_path: Path
@@ -254,7 +208,6 @@ class _EnterPlan(NamedTuple):
 
 
 def _warn_missing_context(name: str, claude_md: Path, meta_p: Path) -> None:
-    """骨架文件缺失软警告（不阻断 enter）。"""
     if not claude_md.is_file():
         print(
             f"[llmw] warning: wiki '{name}' 缺少 CLAUDE.md，session 启动后将没有 schema 上下文",
@@ -265,11 +218,7 @@ def _warn_missing_context(name: str, claude_md: Path, meta_p: Path) -> None:
 
 
 def _resolve_backend(workspace_root: Path) -> str:
-    """选 backend：workspace_local.toml#enter_cli；未设 → DEFAULT_BACKEND（backends.py 真源）。
-
-    手改出非法值（config set 有白名单挡着，兜手改文件）→ warning + 回退默认——
-    静默降级会吞掉用户意图（巡检 #7：本项目卖点是可见性，自己不该静默）。
-    """
+    """选 backend：非法值 warning + 回退默认（不静默吞用户意图）。"""
     local = local_store.load(workspace_root)
     backend = local.enter_cli or DEFAULT_BACKEND
     if backend not in KNOWN_BACKENDS:
@@ -283,11 +232,6 @@ def _resolve_backend(workspace_root: Path) -> str:
 
 
 def _check_enter_env(agent_bin: str, dry_run: bool) -> None:
-    """环境检查（设计 §2.2 步 5）：byobu-tmux + agent CLI 都必须在 PATH——byobu 从
-    可选增强变为 enter 硬依赖（设计 §2.5，窗口路径全环境成立）。
-
-    dry-run 跳过（与"dry-run 零外部副作用"同一约定）。
-    """
     if dry_run:
         return
     if not byobu.byobu_available():
@@ -311,7 +255,6 @@ def _build_enter_plan(
     backend: str,
     model: ModelEntry,
 ) -> _EnterPlan:
-    """claude 路径专属装配：overlay 模块 / cmd / 展示文案 / 上下文文件。"""
     ov, cmd = overlay, _build_cmd(wiki_path)
     suffix = (
         "（默认）" if backend == DEFAULT_BACKEND else "(workspace_local.toml#enter_cli)"
@@ -337,10 +280,6 @@ def enter(
     dry_run: bool = False,
     window_suffix: Optional[str] = None,
 ) -> int:
-    """wiki enter 主流程（三 backend 编排）：解析 wiki → 骨架软警告 → 选 backend →
-    环境检查 → 三分支：qodercli（裸启动）/ opencode（instructions overlay）/
-    claude（resolve + model overlay → _spawn）。
-    """
     wiki_path = resolve_wiki_path(workspace_root, name)
 
     if not wiki_path.is_dir():
@@ -394,9 +333,6 @@ def enter(
 
 
 def _execute_plan(plan: _EnterPlan, window_suffix: Optional[str]) -> int:
-    """步骤 6b 执行（与 _enter_dry_run 对称）：lazy 写 overlay（claude=Local 层
-    settings.local.json）→ _spawn 收口（当前 session 开窗/兜底 attach）。
-    """
     plan.ov.apply(plan.wiki_path, plan.model)
     return _spawn(
         plan.wiki_path,
@@ -410,7 +346,6 @@ def _execute_plan(plan: _EnterPlan, window_suffix: Optional[str]) -> int:
 
 
 def _enter_dry_run(plan: _EnterPlan, window_suffix: Optional[str]) -> int:
-    """claude 路径的 dry-run 分支：打印决策树后由 _spawn 统一收尾。"""
     meta = None
     if plan.meta_p.is_file():
         try:
@@ -443,11 +378,6 @@ def _enter_bare(
     dry_run: bool,
     window_suffix: Optional[str],
 ) -> int:
-    """裸启动（qodercli 专用）：跳过 resolve / overlay；只传目录。
-
-    dry-run 打印专属决策；cmd/env/spawn 方式/未执行 由 _spawn 统一打印（dry-run）
-    或执行（real）。
-    """
     if dry_run:
         suffix = (
             "（默认）"
@@ -487,12 +417,6 @@ def _enter_opencode(
     dry_run: bool,
     window_suffix: Optional[str],
 ) -> int:
-    """opencode 路径（默认）：不解析 model，但写 instructions overlay。
-
-    opencode 不解析 AGENTS.md 的 @path 引用，用 opencode.json 的 instructions 字段替代。
-    本函数调 overlay_opencode.apply（real）或 inspect（dry-run）交付 instructions 文件列表，
-    然后 spawn opencode。
-    """
     cmd = _build_cmd_opencode(wiki_path)
     suffix = (
         "（默认）"
@@ -555,13 +479,8 @@ def _enter_opencode(
 
 
 def _print_dry_run_model_backends(plan: _EnterPlan, meta) -> None:
-    """claude 路径的 dry-run 打印块（T12 拆分）。
-
-    内容：workspace/wiki/backend/resolved model/source/overlay 文件（含 will-write
-    判定）+ ANTHROPIC_* env 行（api_key 过 redact）+ habit template + context 文件存在性。
-
-    **展示字段一律取自 ov.render(model) 输出**——render 改字段 dry-run 自动跟随，
-    不手抄 overlay 内部逻辑（避免"展示与实现耦合"漂移）。
+    """claude 路径 dry-run 打印：字段一律取自 ov.render(model) 输出（不手抄 overlay
+    内部逻辑，避免展示与实现漂移；api_key 过 redact）。
     """
     overlay_path, would_write = plan.ov.inspect(plan.wiki_path, plan.model)
     print(f"[llmw] workspace: {plan.workspace_root}", file=sys.stdout)
@@ -606,10 +525,4 @@ def _print_dry_run_model_backends(plan: _EnterPlan, meta) -> None:
 
 
 def _window_name(wiki: str, window_suffix: Optional[str]) -> str:
-    """R1 定窗口名：`--window-suffix` 拼接为 `<wiki>-<suffix>`，缺省 `<wiki>-main`。
-
-    校验在 byobu.window_name_for 内（suffix `^[a-z0-9_-]{1,16}$` + 总长 ≤40）；
-    非法 → InvalidWindowSuffix（exit 1）。dry-run 与 real 都走本函数——窗口名是
-    spawn 决策的一部分。
-    """
     return byobu.window_name_for(wiki, window_suffix or "main")

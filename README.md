@@ -89,7 +89,7 @@ llmw config set enter_cli claude   # 切换；llmw config unset enter_cli 回退
 
 ### 窗口模式（enter / status / stop）
 
-`wiki enter` 把 agent 开成**当前 tmux session 的一个窗口**。不在 tmux 内时：恰有一个可见 session 就直接开入其中，否则兜底 `llm_workspace` session + attach。窗口名 `<wiki>-<suffix>`（suffix 默认 `main`）；**不传 `--window-suffix` 恒为复用跳转，传了才是新开并行窗口**。enter 是 fire-and-forget（窗口建成即返回 0）。设计细节（复用四条件 / 打标 / remain-on-exit / 孤儿模式 / STATE 判定）见 `doc/session-visibility-design.md`。
+`wiki enter` 把 agent 开成**当前 tmux session 的一个窗口**。不在 tmux 内时：恰有一个可见 session 就直接开入其中，否则兜底 `llm_workspace` session + attach。窗口名 `<wiki>-<suffix>`（suffix 默认 `main`）；**不传 `--window-suffix` 恒为复用跳转，传了才是新开并行窗口**。enter 是 fire-and-forget（窗口建成即返回 0）。
 
 ## 退出码
 

@@ -31,7 +31,7 @@ TOML，事后靠 `external-anchor-corrupt` finding 兜底。这违反本仓其�
 - **notes 走机械 scribe**（不变量 I-1 第 3 类）：字节从 `--notes=...` 入参进来，与
   `ingest-diff`/`write` 同款。
 - **`rebuild` 网络操作**：target 缺失 + 有 remote_url 时按 URL clone。TTY 单次确认
-  或 `--yes`；非 TTY 无 `--yes` 只打计划 + exit 2 不动手（R8 同款模式）。跨 home
+  或 `--yes`；非 TTY 无 `--yes` 只打计划 + exit 2 不动手（同 status 孤儿清理的确认模式）。跨 home
   布局用 `--target NAME=PATH` 覆盖，anchor 自动回写 `~/...` 形式。
 - **wiki_lint 的 anchor parser** 已 1:1 平移至本模块的 `load()`；lint 用别名
   `load_anchor` 引用，**finding 名/文案零改变**（gate 面 2/3 + fixtures 守护）。
