@@ -227,6 +227,8 @@ metadata:
 
 - **必读**：`<workspace>/AGENTS.md`（= `workspace-agents-md-template.md` 模板渲染稿，byte-owned）——workspace 级契约的 canonical
 - **单 wiki 契约**：`yzr-llm-wiki-management` SKILL.md + references/（本 skill 读 wiki 文件时按其契约理解，不直接写）
+- **引用约定**：`xxx.md「节名」` 指针用法 canonical 见 `yzr-llm-wiki-management`
+  SKILL.md「文档引用约定」
 - **CLI 文档**：workspace CLI（命令 `llmw`，与本 skill 同仓维护）——命令面参考 `llmw --help`
 
 ## 附录：产物格式契约与读取契约

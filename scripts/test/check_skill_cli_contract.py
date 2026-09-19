@@ -45,6 +45,9 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
         文档字面量（8 个 basename）后 ~60 字符内出现 `§<数字|中文数字>` 即红；
         SKILL_MDS 自身出现裸 `§N` 同样红。外部规范引用豁免（`OKF §N`）。
         引用一律 `<file>.md「节名」`，标题不再编号
+      - 7d 裸「」残留节号兜底：SKILL_MDS 内引号内容以旧节号开头（`「5. x」` /
+        `「四、x」`）即红——无 basename 前缀，RULE_REF_RE 与 7a/7c 均扫不到
+        （2026-09 迁移曾漏网 2 处）。模板域标题仍带编号，不在此扫描
    7. 布局 token（skill↔目录结构解耦）：skill markdown 里所有 `wiki/<dir>/` 形式的
       目录路径 token，`<dir>` 必须在 llmw.content.wiki_lint.WIKI_SUBDIRS
       （CLI SSOT）集合内。改目录名时残留旧路径被当场点名，零人工维护
@@ -347,6 +350,13 @@ SKILL_REF_SECTION_RE = re.compile(
 )
 # 面 7c 裸节号：SKILL_MDS 内出现 §N（同样豁免 OKF）。
 BARE_SECTION_RE = re.compile(r"(?<!OKF )§[0-9一二三四五六七八九十]")
+# 面 7d 裸「」残留节号兜底：引号内容以旧节号开头（`「5. Upgrade」` / `「四、x」`）。
+# 无 basename 前缀 → RULE_REF_RE（需 basename.md）与 7a/7c 均覆盖不到。锚定引号
+# 内**开头**，避免误伤散文引号（`「Python 3.11」` 类）。仅扫 SKILL_MDS——模板域
+# 标题仍带编号，引用其节名（如 `「一、本 wiki 的边界」`）属合法。
+BARE_NUMBERED_QUOTE_RE = re.compile(
+    r"「(?:[0-9]+[.、]|[一二三四五六七八九十]+[、.])[^」]*」"
+)
 
 
 _HEADING_RE = re.compile(r"^#{2,6}\s+(?P<title>.+?)\s*$")
@@ -594,6 +604,18 @@ def main():  # pylint: disable=too-many-branches
         rel = _rel(md)
         for lineno, line in enumerate(_read(md).splitlines(), start=1):
             _check_7c(rel, line, lineno, bare=True)
+
+    # 7d 兜底：SKILL_MDS 内裸「」引号以旧节号开头 → 红（迁移漏网的 2 处即此形态）
+    for md in SKILL_MDS:
+        rel = _rel(md)
+        for lineno, line in enumerate(_read(md).splitlines(), start=1):
+            if BARE_NUMBERED_QUOTE_RE.search(line):
+                errors.append(
+                    "[stale-quote-number] {}:{} :: 引号内残留旧节号（标题已去编号，"
+                    "该引用已失效）→ 改用节名：{}".format(
+                        rel, lineno, line.strip()[:80]
+                    )
+                )
 
     # 6b 模板 landmark 存在性（按 skill 实际引用的 AGENTS.md 分桶）
     for landmark in WIKI_TEMPLATE_LANDMARKS:

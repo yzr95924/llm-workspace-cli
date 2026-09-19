@@ -38,6 +38,11 @@ metadata:
   时的合并依据。骨架模板 + fixtures（CLI 字节级比对金标准）
   内建于 CLI 包资产（`llmw wiki check-fixtures` 探测）
 
+## 文档引用约定
+
+本 skill 全部文档中 `xxx.md「节名」` 是导航指针：`canonical 见` / `按` / `遵循` 前缀 = 操作前
+必读目标节；单独 `见` / `细节见` = 背景参考，按需读。目标节按节名 Grep 定位（标题不含编号）。
+
 ## 输入 / 输出
 
 ### 启动时需具备的信息
@@ -61,7 +66,7 @@ metadata:
 - **lint** → `log` 中报告：raw/ 是否被改、孤儿页、断裂交叉引用、过期摘要、缺
   frontmatter、log.md 格式
 - **upgrade** → `llmw wiki upgrade` 修骨架 + `lint --check-version --apply` 修内容页 legacy；
-  详见「5. Upgrade」节
+  详见「Upgrade」节
 
 ## 执行原则 / 边界
 
@@ -97,11 +102,11 @@ metadata:
    [`references/page-templates.md「共有 frontmatter 段」`](references/page-templates.md)；例外清单
    （index / log / MEMORY / MEMORY*）同节
 4. **LLM 修改已审核页必须清 `reviewed` 戳**——每次编辑后跑 `llmw wiki write touch`；
-   生命周期规则 canonical 见 [`page-templates.md`](references/page-templates.md)
-   「可信度与认知质量信号」段；lint 用 `reviewed-stale` 兜底
+   生命周期规则 canonical 见 [`page-templates.md「生命周期规则」`](references/page-templates.md)；
+   lint 用 `reviewed-stale` 兜底
 5. **MEMORY/ 是 LLM agent 的私有记忆**——新条目走 `llmw wiki write memory add`；MEMORY 只存在
    `<wiki-root>/` 这一份（无副本漂移），物理位置在 `wiki/` 外 = publish 时自然留作私有层不外传。
-   写入流程见「4. Memory」节
+   写入流程见「Memory」节
 6. **tag 白名单在 `wiki/tags.md`**——取值 / 解析 / 审计循环 canonical 在 fixture
    头部说明块（落盘即读）；lint 语义见 [`lint-checklist.md「Tag Taxonomy 校验」`](references/lint-checklist.md)
 
