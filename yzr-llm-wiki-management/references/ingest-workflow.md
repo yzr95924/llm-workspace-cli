@@ -46,7 +46,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 2. **提取元数据**：标题、作者 / 来源、发布时间、URL、关键标签
 3. **生成 slug**——kebab-case 短标题（例 `attention-is-all-you-need`）
 4. **脚手架**：`llmw wiki write new --type=source --slug=... --title=... --sources=raw/...`
-   （自动 5 必填 frontmatter + H1，slug 校验 + 拒覆盖）→ Edit 写正文，骨架见
+   （自动落必填 frontmatter + H1，slug 校验 + 拒覆盖）→ Edit 写正文，骨架见
    [`page-templates.md「source（资料页）」`](page-templates.md)：
    - 摘要（200-500 字）——核心论点 / 关键数据 / 与本 wiki 其他资料的关系
    - 关键引用（可独立成段的引文 / 数字 / 结论）

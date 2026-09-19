@@ -110,8 +110,8 @@ legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末�
   余删
 - **同 `<title>` 词但不同 `<relative-path>`** → lint 报 `duplicate-title`，转人工裁定——
   是 entity 重命名（保留新路径、合并到老路径）还是概念拆页（重命名其中之一）由人决定
-- **老 wiki 缺标准类别**（现行 5 类：Entities / Concepts / Sources / Comparisons / Syntheses）→
-  缺失 H2 由 fixtures plan（`fixtures-fix-skeleton`）补齐；agent 在新 H2 下加一行
+- **老 wiki 缺标准类别** →
+  缺失 H2 由 fixtures plan（`fixtures-fix-skeleton`）补齐（缺哪些类别见 plan `expected`）；agent 在新 H2 下加一行
   `<!-- agent: TODO 归类旧页 -->` 占位，提醒人工归类
 
 ### MEMORY 经验条目合并

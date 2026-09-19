@@ -128,7 +128,7 @@ agent 留退路。
 
 1. 读 `<workspace>/workspace.toml` 拿 `[wikis]` 注册表
 2. 对每个 wiki 收集：`wiki_metadata.toml`（CLI 维护）+ `AGENTS.md`「本 wiki 的边界」节 +
-   `wiki/index.md` + 5 类内容子目录 page counts + `raw/` 递归计数（不读内容）+
+   `wiki/index.md` + 内容页子目录 page counts + `raw/` 递归计数（不读内容）+
    `wiki/log.md` 末条（last activity）+ `MEMORY/` 文件数（仅文件名）
 3. 读 `<workspace>/MEMORY/MEMORY.md` 索引，按 A2 排序规则聚合，写 INDEX.md + STATS.md（格式 A2/A3）
 4. 对话中报告："已刷新 INDEX.md / STATS.md，X 个 wiki，Y 个 page，Z 个原始资料"

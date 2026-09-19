@@ -91,8 +91,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 - 正文引用上游可变、且无机制能感知其变化的事实——按
   [`ingest-workflow.md「正文引用的稳定性」`](ingest-workflow.md)
-  五类扫描（位置引用 / 瞬态数值 / 版本绑定 / 完整枚举 / 归属信息）；命中 → 按该节改写规则修，
-  不回退 schema
+  列出的漂移点逐类扫描；命中 → 按该节改写规则修，不回退 schema
 - **严重性：info**——写作质量项，agent 判断，不阻断
 
 ## 报告格式

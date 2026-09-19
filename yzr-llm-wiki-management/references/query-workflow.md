@@ -90,11 +90,11 @@ Query 是 wiki 的"消费侧"——把多份资料综合成答案，**好答案�
 
 - `comparison` 页：focus 在 "A vs B"，frontmatter `compared: [<path-a>, <path-b>]`（必填）
 - `synthesis` 页：focus 在 "跨多个 source 的综合洞察"，frontmatter `threads: [<主题>...]` +
-  `sources: [<wiki 内页路径>]`（均必填；缺 `sources` 触发 lint `missing-sources` error）
+  `sources: [<wiki 内页路径>]`（均必填；缺 `sources` 触发 lint `missing-sources`）
 - 脚手架只生成基础字段（title / type / tags / created / updated）——上列字段照模板用 Edit
   补；`--sources` flag 是 source 页专属（raw/ 路径），synthesis 不走它
 - 归档页若记录跨页矛盾：加 `contested: true` + `contradictions: [对端页]`，且对端页同步互指
-  （单向触发 lint `contradiction-asymmetric` warn；字段语义 canonical 见
+  （单向触发 lint `contradiction-asymmetric`；字段语义 canonical 见
   [`page-templates.md「可选：可信度与认知质量信号」`](page-templates.md)）
 - 正文：把对话里的答案整理成可独立阅读的页面；**synthesis 页对来源可分的断言用标准脚注
   `[^n]` 逐段溯源**（写法见 [`page-templates.md「synthesis（综合页）」`](page-templates.md)），

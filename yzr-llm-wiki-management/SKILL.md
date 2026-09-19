@@ -48,9 +48,8 @@ metadata:
 
 **操作产物**：ingest → `wiki/sources/<slug>.md` + 同步实体 / 概念页 + index/log 同步；
 query → 对话答案（可选归档 `wiki/comparisons/` 或 `wiki/syntheses/<slug>.md`）；
-lint → stdout findings 报告 + `log.md` 追加一条 `lint` op 条目（干净也记，兼任
-"上次巡检时间"信号）；upgrade → 骨架修复 + 内容页 plan 修复（见「Upgrade」节）；
-setup 由 workspace CLI 完成（见「工作流 / 步骤」）。
+lint → stdout findings 报告 + `log.md` 一条 `lint` op 条目；upgrade → 骨架修复 + 内容页
+plan 修复（见「Upgrade」节）；setup 由 workspace CLI 完成（见「工作流 / 步骤」）。
 
 ## 执行原则 / 边界
 
@@ -69,14 +68,14 @@ setup 由 workspace CLI 完成（见「工作流 / 步骤」）。
 > 四件套任一未读完不写任何 wiki 内容。100+ 页的 wiki 还应在 `wiki/` 全域
 > `Grep "<topic>"` 补一次——单看 index.md 可能漏掉 entity/concept 页之间的引用关系。
 
-1. **raw/ 由用户掌控，LLM 只读**——例外仅 `raw/external/` 接入与 `raw/discussions/` 草稿，
-   不得外推；细节见 [`references/external-repo.md`](references/external-repo.md) /
-   [`references/ingest-workflow.md「raw/discussions/ 草稿消化」`](references/ingest-workflow.md)
+1. **raw/ 由用户掌控，LLM 只读**——例外以 wiki 根 `AGENTS.md`「本 wiki 的边界」为准
+   （自动加载，不得外推）；接入外部仓见 [`references/external-repo.md`](references/external-repo.md)，
+   草稿消化见 [`references/ingest-workflow.md「raw/discussions/ 草稿消化」`](references/ingest-workflow.md)
 2. **写操作正路 = `llmw wiki write` 系列**——log 追加走 `write log`、新建页走 `write new`、
    清 `reviewed` 戳走 `write touch`、MEMORY 新条目走 `write memory add`、index 条目走
    `write index add`；格式 + 滚动窗口截断由 `write` 保证（上限见 `wiki/log.md` 头部），lint
    只兜底带外手改。**逃生舱**：命令不支持的形态手写 Edit/Write 合法——write 是默认路径不是闸门
-3. **每页必带 YAML frontmatter——新建页走 `llmw wiki write new`**（5 必填 + 推荐
+3. **每页必带 YAML frontmatter——新建页走 `llmw wiki write new`**（必填字段 + 推荐
    `description`）；权威定义与例外清单见
    [`references/page-templates.md「共有 frontmatter 段」`](references/page-templates.md)
 4. **LLM 修改已审核页必须清 `reviewed` 戳**——每次编辑后跑 `llmw wiki write touch`；
@@ -112,7 +111,7 @@ setup 由 workspace CLI 完成（见「工作流 / 步骤」）。
 
 | 常见借口 | 为什么是错的 | 应改做什么 |
 | --- | --- | --- |
-| "剪藏只有一句话，按'克制建页'原则和你说的小事轻办，一个资料页够了"（实跑 transcript） | 用户的"随便 / 赶时间"是态度不是豁免——写 wiki 页即触发 5 必填 / 建页阈值 / log 纪律；"轻办"是拿用户情绪当省略纪律的挡箭牌（同轮还静默漏了必填 `tags` 字段） | 流程不缩水；"克制建页"判断如实执行但**向用户说明**（"本文只有一个中心主题，暂不建概念页，出现第二篇同主题再补"），字段与 log 纪律照走 |
+| "剪藏只有一句话，按'克制建页'原则和你说的小事轻办，一个资料页够了"（实跑 transcript） | 用户的"随便 / 赶时间"是态度不是豁免——写 wiki 页即触发必填字段 / 建页阈值 / log 纪律；"轻办"是拿用户情绪当省略纪律的挡箭牌（同轮还静默漏了必填 `tags` 字段） | 流程不缩水；"克制建页"判断如实执行但**向用户说明**（"本文只有一个中心主题，暂不建概念页，出现第二篇同主题再补"），字段与 log 纪律照走 |
 
 > **收录纪律**：条目**只**从实跑 transcript 收录（预写借口 = 噪声）；实跑出现新借口
 > 才补入，未出现不新增。
