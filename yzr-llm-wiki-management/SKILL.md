@@ -10,9 +10,9 @@ description: |
   "升级 wiki / 检查 wiki 版本" / "把 X 仓库纳入 wiki"。只要用户要消化资料 / 查 wiki 沉淀 /
   归档新结论——即使没提 skill 名，也务必使用本 skill。
   不适用：云端 / 团队 wiki（Notion / Confluence / Outline 等）；wiki 元数据配置、增删
-  wiki、session 启停（单条 llmw 命令，直接跑即可）。
-  **仅当 cwd 是 wiki 根（含 `wiki_metadata.toml` + AGENTS.md 骨架）时触发**；跨 wiki /
-  workspace 层走 `yzr-llm-workspace-management`；其它目录不适用。
+  wiki、session 启停（单条 llmw 命令，直接跑即可）；跨 wiki / workspace 层操作（归
+  workspace 层 skill）。
+  **仅当 cwd 是 wiki 根（含 `wiki_metadata.toml` + AGENTS.md 骨架）时触发**；其它目录不适用。
 metadata:
   author: Zuoru YANG
   category: knowledge-base
@@ -157,6 +157,7 @@ metadata:
 #### Red Flags（念头清单 — 出现即停）
 
 念头出现 ≠ 已违反；念头 = 警告 = 重读「核心原则 / 边界 / 反模式」三段。
+条目来源：标「实跑观察」者为 RED transcript 实录；未标注者为通用合理化模式（红旗是低成本预警网、广撒无害；实跑捕获新借口时追加并标注）。
 
 - "用户说'随便记一下 / 赶时间 / 别太正式'——纪律可以打折了"（实跑观察）
 - "我觉得这一步对当前 case 不必要"
@@ -181,7 +182,7 @@ metadata:
 > wiki 仓的**创建与删除**由 workspace CLI 负责——命令是 `llmw`（**与本 skill 同仓维护**，
 > 命令名与参数见其自带文档）；
 > wiki 仓的"出生形态"由 CLI 包内模板渲染决定——`llmw wiki check-fixtures` 探测。
-> 产物形态见「输入 / 输出 → 操作产物」。
+> 产物形态见「操作产物」。
 
 **LLM agent 接管后做什么**：
 
@@ -292,4 +293,4 @@ legacy（当前仅 `type-memory-value`）；agent 负责 drift 裁定（本地�
 
 ## 参考样例
 
-5 个完整样例（setup / ingest / query / lint / upgrade）见 [`references/examples.md`](references/examples.md)——按需 Read。
+完整样例（ingest / query / lint / upgrade）见 [`references/examples.md`](references/examples.md)——按需 Read。

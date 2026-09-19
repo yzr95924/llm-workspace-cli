@@ -31,8 +31,7 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 
 ## 流程（agent 驱动，5 步）
 
-1. **操作前置**：跑 orient ritual（AGENTS.md 已自动加载；`wiki/index.md` + `wiki/log.md`
-   最近 ~30 行）
+1. **操作前置**：跑 orient ritual（见 [`SKILL.md「执行原则 / 边界」`](../SKILL.md) 顶部引用块）
 
 2. **跑 dry-run 看骨架计划**：
 
@@ -79,7 +78,7 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 
 ## 样例
 
-见 [`examples.md`](examples.md)（升级场景样例五）。
+见 [`examples.md`](examples.md)（升级场景样例四）。
 
 ---
 

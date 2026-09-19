@@ -136,7 +136,7 @@ ingest 时遇到"新资料与已有页冲突"时，**不要静默覆盖**，按�
 > "..."占位）；骨架即正文节名契约，写入时按它落。操作全流程 trace（ingest / query 实跑）
 > 见 [`examples.md`](examples.md)——按需 Read，避免本文件膨胀。
 
-### `entity`（实体页）
+### entity（实体页）
 
 路径：`wiki/entities/<slug>.md`
 
@@ -175,7 +175,7 @@ aliases: [<可选>, <可选>]  # 别名数组，方便搜索（自由文本，�
 * [<source page>](<relative-path>) — <简短说明>
 ```
 
-### `concept`（概念页）
+### concept（概念页）
 
 路径：`wiki/concepts/<slug>.md`
 
@@ -223,7 +223,7 @@ related: [<concepts/x.md>, <concepts/y.md>]  # 相关概念路径数组，wiki �
 * [<source page>](<relative-path>) — <说明>
 ```
 
-### `source`（资料页）
+### source（资料页）
 
 路径：`wiki/sources/<slug>.md`
 
@@ -276,7 +276,7 @@ venue: <会议名 / 期刊>          # 可选
 > "<原文 quote>" —— <出处>
 ```
 
-### `comparison`（对比页）
+### comparison（对比页）
 
 路径：`wiki/comparisons/<slug>.md`
 
@@ -321,7 +321,7 @@ compared:  # 必填——被对比对象路径数组，wiki 根相对
 * [<source page>](<relative-path>)
 ```
 
-### `synthesis`（综合页）
+### synthesis（综合页）
 
 路径：`wiki/syntheses/<slug>.md`
 
@@ -383,7 +383,7 @@ sources:  # 必填——wiki 内其它页路径（不是 raw/）；详见各类�
 > 且不依赖 Obsidian / 特定渲染器）。单段纯推论 / 综合判断无需脚注；只对**可追溯到具体来源**
 > 的断言标。comparison 页若同样综合多源、断言来源可分，也照此办理。
 
-### `index`（index.md）
+### index（index.md）
 
 路径：`wiki/index.md`（**唯一一份**，`type: index` 是 reserved）
 
@@ -405,7 +405,7 @@ H1 `<Topic> Wiki` + 说明块 + 5 类别 H2（Entities / Concepts / Sources / Co
 **lint 口径**见 [`lint-checklist.md「index.md 覆盖」`](lint-checklist.md)（`index-missing` /
 `orphan-page`）。
 
-### `log.md`（log）
+### log.md（log）
 
 路径：`wiki/log.md`（**唯一一份**，`type: log` 是 reserved）
 
@@ -439,7 +439,7 @@ op ∈ `ingest`/`query`/`lint`/`setup`；日期也接受 `YYYY-MM-DD`（lint 按
 3. **重写时**——若 `type` / `sources` 等关键字段需要变，**先和用户确认**
 4. **归档 query 答案**——根据答案性质选 `comparison`（对比）或 `synthesis`（综合）
 5. **完整操作示例**——本文件只留 frontmatter SSOT + 极简骨架（节名 + `...` 占位）；
-   ingest / query 的实跑流程 trace 见 [`examples.md`](examples.md) 样例二 / 样例三
+   ingest / query 的实跑流程 trace 见 [`examples.md`](examples.md) 样例一 / 样例二
    ——按需 Read，无需把详细实例塞进本文件
 
 ### 建页 / 追加 / 归档阈值（Page Thresholds）

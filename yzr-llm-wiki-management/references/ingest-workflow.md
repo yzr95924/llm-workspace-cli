@@ -72,8 +72,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
    - 正文含交互流 / 架构关系时优先配图——判定与选型见 [`page-templates.md「图示使用指引」`](page-templates.md)
    - `created`：全新文件设 today；stale-raw 重摄取保留原值
    - **认知质量信号（可选）**：fast-moving / 争议 / 单一弱来源的 source 页，建议在 frontmatter
-     标 `contested: true`（仅当**确属矛盾未裁定**时）——`confidence` 字段已退役，
-     可信度由"是否人工审核过"承载（详见 [`page-templates.md「共有 frontmatter 段」`](page-templates.md)）
+     标 `contested: true`（仅当**确属矛盾未裁定**时）——信号语义详见
+     [`page-templates.md「可选：可信度与认知质量信号」`](page-templates.md)
 5. **决策点：是否需要新建 entity / concept 页**
    - 例：raw 资料里反复提到"self-attention"，但 `concepts/self-attention.md` 不存在
    - → 新建 `concepts/self-attention.md`（首次出现 + 值得沉淀的概念）
@@ -162,8 +162,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## 判定"是否新建 entity / concept 页"
 
-阈值 canonical 见 [`page-templates.md「建页 / 追加 / 归档阈值」`](page-templates.md)：
-≥ 2 个 source 页提及 **或** 本页中心主题 → 建；路过提及 / 粒度过细 / 已有同名近义页 → 不建。
+阈值 canonical 见 [`page-templates.md「建页 / 追加 / 归档阈值」`](page-templates.md)。
 
 **单篇 ingest 视角的套用**：本 raw 的中心主题 / 反复出现的核心概念 → 建；路过 / 类比 / 背景提及 → 不建；已有同名 / 近义页 → 先 search 再定（写前必搜）。
 

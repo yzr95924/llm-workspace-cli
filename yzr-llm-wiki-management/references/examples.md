@@ -1,30 +1,9 @@
-# 5 个完整样例
+# 完整样例
 
 > 本文件是参考样例的"按需 Read"指针——SKILL.md「参考样例」段仅留一行引用到此，
 > 完整样例一律写在本文件。
 
-## 样例一：setup 一个 LLM Systems 主题的 wiki
-
-**用户指令**："我想搭一个 wiki 用来跟踪 LLM Systems 主题的研究资料"
-
-**执行**：
-
-```text
-1. 告知用户：本 skill 不直接创建 wiki 仓；wiki 创建由 workspace CLI（`llmw`）负责
-   → 推荐路径：~/wiki/llm-systems
-2. 用户调 workspace CLI（具体命令以 `llmw wiki add --help` 为准）：
-    llmw wiki --name=llm-systems add --topic="LLM Systems"
-     → CLI 按包内模板落盘目录 + AGENTS.md（SSOT）+ CLAUDE.md（薄壳）+ index.md + log.md + .gitignore
-    → CLI 不碰 git（git 由用户自行 init）
-3. LLM agent 接管后：
-    → 读 ~/wiki/llm-systems/AGENTS.md 确认主题名替换正确（CLAUDE.md 是 `@AGENTS.md` 薄壳）
-    → 验证 wiki/index.md / wiki/log.md 存在且 frontmatter 完整
-    → 提示用户：raw/articles/ 作为"资料投放口"，可放剪藏 / PDF / 笔记
-4. 提示用户：wiki 根内 AGENTS.md 由 agent 自动加载（CLAUDE.md 薄壳引入或原生直读）；
-    在别处工作时 skill 按 $LLM_WIKI_ROOT 按需读取，无需 symlink
-```
-
-## 样例二：ingest 一份原始资料
+## 样例一：ingest 一份原始资料
 
 **用户指令**："raw/articles/ 里有一份 'distributed-systems-overview.md'，把它摄取到 wiki"
 
@@ -43,7 +22,7 @@
 7. 若启用 git，建议 commit；裸目录树 wiki 跳过此步
 ```
 
-## 样例三：query 一个跨实体问题
+## 样例二：query 一个跨实体问题
 
 **用户指令**："wiki 里 `<Concept A>` 和 `<Concept B>` 的对比是什么样的？"
 
@@ -63,7 +42,7 @@
    - `llmw wiki write log --op=query --title="<Concept A> vs <Concept B>"`
 ```
 
-## 样例四：lint 发现腐烂迹象
+## 样例三：lint 发现腐烂迹象
 
 **用户指令**："lint 一下这个 wiki"
 
@@ -87,16 +66,15 @@
 4. 整理成结构化报告，问用户先修哪些
 ```
 
-## 样例五：检查 wiki 是否需要升级到最新 format
+## 样例四：检查 wiki 是否需要升级到最新 format
 
 **用户指令**："我这个 wiki 是去年搭的，老格式了，能不能升级到最新 format"
 
 **执行**：
 
 ```text
-1. 跑操作前置：读 ~/wiki/llm-systems/AGENTS.md 末尾「当前配置」表的 `Wiki Format 版本`（CLI init
-   时从包内 `WIKI_FORMAT_VERSION` 常量渲染；老 wiki 会落后于当前版本）+
-   wiki/index.md + wiki/log.md 最近 30 行
+1. 跑操作前置：读 ~/wiki/llm-systems/AGENTS.md 末尾「当前配置」表的 `Wiki Format 版本` 行
+   （老 wiki 会落后于当前版本）+ wiki/index.md + wiki/log.md
 2. 跑升级 dry-run 看骨架计划：
     llmw wiki --path=~/wiki/llm-systems upgrade
     CLI 输出 plan（每个文件 action：render / growth-graft / gitignore-block）

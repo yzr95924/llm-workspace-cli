@@ -30,7 +30,7 @@ agent 主导两项判断（CLI 帮不上）：
 （schema SSOT = CLI `llmw.content.external_anchor._REQUIRED_FIELDS`；本文件仅列
 agent 判断侧所需的语义要点。）
 
-## `sources:` 元素类型（external 特化）
+## sources: 元素类型（external 特化）
 
 `raw/external/<symlink>/...` 形式的 sources 可指向**文件或目录**：symlink 目标本身
 是 git 仓（即目录），可用作整仓语料（`raw/external/<symlink>`）；也可指向仓内子路径
