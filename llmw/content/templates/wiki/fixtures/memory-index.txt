@@ -4,9 +4,10 @@
 >
 > **条目形式按事实颗粒度选**：
 > - **完整条目**——需要解释"为什么这么做"或"将来怎么用"（上下文 / 解决步骤 / 未来
->   如何避免）→ 建 `MEMORY/<slug>.md`（frontmatter **仅 `title` 必填**，`type` /
->   `created` / `updated` / `tags` / `description` 全 optional——与 wiki 内容页
->   5 必填规则解耦）+ 本索引加一行 `- <slug> — 一句话 → [正文](<slug>.md)`
+>   如何避免）→ 建 `MEMORY/<slug>.md`（frontmatter **仅 `title` 必填**，`created` /
+>   `updated` / `tags` / `description` optional——与 wiki 内容页 5 必填规则解耦；
+>   **不写 `type`**：MEMORY 桶按路径识别，内容页那套 type 取值不适用）+ 本索引
+>   加一行 `- <slug> — 一句话 → [正文](<slug>.md)`
 > - **短条目**——纯 reminder / 单一偏好 / 无需 why + how → 索引行直接
 >   `- 一句话事实`，不单独建 `.md` 文件
 > - 两种格式可在本文件共存；lint `memory-not-indexed` 兜底"有 .md 但未索引"

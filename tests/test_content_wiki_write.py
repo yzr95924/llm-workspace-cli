@@ -511,7 +511,9 @@ class MemoryTests(unittest.TestCase):
         entry = self.root / "MEMORY" / "ocr-tips.md"
         self.assertTrue(entry.is_file())
         text = entry.read_text(encoding="utf-8")
-        self.assertTrue(text.startswith('---\ntitle: "OCR Tips"\n---\n'))
+        self.assertTrue(text.startswith('---\ntitle: "OCR Tips"\ncreated: '))
+        self.assertIn("\nupdated: ", text)
+        self.assertNotIn("\ntype:", text)
         index_text = (self.root / "MEMORY" / "MEMORY.md").read_text(encoding="utf-8")
         self.assertIn("- [OCR Tips](ocr-tips.md) — PDF 先转格式", index_text)
         findings = check_memory_index(self.root)

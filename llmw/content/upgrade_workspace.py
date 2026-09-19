@@ -400,21 +400,24 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
             print(f"\n[llmw] hint: {result['hint']}", file=sys.stderr)
         return 1
 
-    # 3. dry-run：输出 plan
+    # 3. dry-run：输出 plan（dropped_sections 前置可见——唯一数据丢失路径）
     if dry_run:
+        plan_out = []  # type: List[Dict[str, object]]
+        for item in plan:
+            entry = {
+                "file": str(item["rel_path"]),
+                "action": str(item["action"]),
+                "diff": item.get("diff") or None,
+                "newly_created": bool(item.get("newly_created")),
+            }
+            if item.get("dropped_sections"):
+                entry["dropped_sections"] = item["dropped_sections"]
+            plan_out.append(entry)
         result = {
             "status": "dry_run",
             "current_format": WORKSPACE_FORMAT_VERSION,
             "target_format": WORKSPACE_FORMAT_VERSION,
-            "plan": [
-                {
-                    "file": str(item["rel_path"]),
-                    "action": str(item["action"]),
-                    "diff": item.get("diff") or None,
-                    "newly_created": bool(item.get("newly_created")),
-                }
-                for item in plan
-            ],
+            "plan": plan_out,
         }
         if as_json:
             print(json.dumps(result, indent=2, ensure_ascii=False))
@@ -428,6 +431,9 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
                     line += "  (newly created)"
                 if diff_lines:
                     line += f"  ({diff_lines} diff lines)"
+                dropped = item.get("dropped_sections") or []
+                if dropped:
+                    line += "  ⚠ 丢弃自定义段: " + " / ".join(f"## {s}" for s in dropped)
                 print(line)
         return 0
 

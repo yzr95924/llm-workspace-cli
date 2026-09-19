@@ -5,7 +5,7 @@
 finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 gate 红。
 语义面（行为描述如"只扫不修"）gate 管不到，靠纪律人工保证。
 
-检查面（8 类）：
+检查面（10 类）：
   1. 命令调用（skill + 模板 + 仓根文档 → CLI）：skill markdown / byte-owned
      模板（llmw/content/templates 全 md + fixtures *.txt）/ 仓根 AGENTS.md +
      CLAUDE.md + README.md 里的 `llmw ...` 调用，子命令路径 + flag 必须存在于
@@ -53,6 +53,22 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
       （CLI SSOT）集合内。改目录名时残留旧路径被当场点名，零人工维护
    8. rule_ref 格式闸：llmw/**/*.py 中 rule_ref 值指向 skill 文档必须带 `.md`
       扩展名（`lint-checklist「名」` 这类缺 .md = gate 3 扫不到的死指针）
+   9. module 限定符号禁令（skill↔CLI 解耦）：SKILL_MDS 内 backtick span 命中两形态
+      之一即红——(a) `llmw.` 前缀（含多点包内路径，如 `llmw.content` /
+      `llmw.content.external_anchor._REQUIRED_FIELDS`）；(b) 单点 `模块.符号`
+      （第二段含大写，如 `wiki_lint.VALID_TYPES`）。skill 文本引 CLI 资产只用命令名 /
+      finding 名 / 裸常量名（裸常量名合规：指标类按 skill 纪律引名不引字面量），包内
+      路径写进 skill = "skill 读 CLI 代码"（boundary-map「单向约束」）。只扫 SKILL_MDS：
+      模板 / 仓根文档是 CLI 自身文档，引用自身常量合法。零误报——`MEMORY/MEMORY.md`
+      （斜杠）/ `page-templates.md`（第二段无大写且无 llmw. 前缀）/ `llmw wiki lint`
+      （空格命令形态）/ `LOG_RETENTION_LIMIT`（无点）均不匹配
+  10. agent 可见指令文本禁内部引用（CLI → agent 文本）：llmw/**/*.py 内 ast 键值配对 +
+      关键字实参取 `to_action` / `agent_rules` / `note` / `rule_ref` 的值，命中包路径
+      （`llmw.` / `llmw/*`）/ `module.SYMBOL`（第二段含大写）/ `包内 <路径>` /
+      `fixtures/*.txt` 即红。这 4 个键是 agent 实际执行的指令 / 溯源的指针，只能引
+      命令名 / 输出自带字段 / 实例内可读路径——引包内实现 = agent 读不到 = 不可执行
+      （面 9 管 skill→CLI 方向，本面管 CLI→agent 文本方向）。desc / argparse help
+      是 CLI 自述自身、hint 是用户排障诊断，均不在扫描范围
 
 命令表面 SSOT = llmw.cli.build_parser() 单一 argparse 树（write 子树经
 llmw.content.wiki_write.build_subparsers 组合；无模块 standalone 入口）。
@@ -64,6 +80,7 @@ standalone，Python 3.7+（与项目最低支持版本对齐），stdlib only。
 # pylint: disable=missing-docstring
 
 import argparse
+import ast
 import re
 import sys
 from pathlib import Path
@@ -152,20 +169,129 @@ WORKSPACE_TEMPLATE_LANDMARKS = [
 # 前接 word char，不匹配）；`[a-z][a-z0-9]*` 排除 wiki 名（如 `~/wiki/llm-systems/`
 # 含 hyphen，不匹配）——WIKI_SUBDIRS 全小写无分隔符。
 LAYOUT_TOKEN_RE = re.compile(r"(?:^|[\s<>/])wiki/([a-z][a-z0-9]*)/")
+# 面 9 module 限定符号禁令：抓两种"包内路径 / 符号"形态——
+#   (a) `llmw.` 前缀（含多点：llmw.content / llmw.content.external_anchor._REQUIRED_FIELDS）
+#   (b) 单点 ident.IDENT（第二段含大写：wiki_lint.VALID_TYPES）
+# boundary-map「单向约束」：skill 文本不读 CLI 代码，只用命令名 / finding 名 / 裸常量名。
+# 只扫 SKILL_MDS；模板 / 仓根文档是 CLI 自身文档，引用自身常量合法（如 fixtures/README.md
+# 的 llmw.WIKI_FORMAT_VERSION）。零误报：MEMORY/MEMORY.md（斜杠）/
+# page-templates.md（第二段无大写）llmw wiki lint（空格命令形态）均不匹配。
+MODULE_SYMBOL_RE = re.compile(
+    r"`(llmw\.[^`\n]*|[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z0-9_]*[A-Z][A-Za-z0-9_]*)`"
+)
+
+# 面 10 agent 可见指令文本禁内部引用：CLI 输出的执行指令（to_action / agent_rules /
+# note / rule_ref）只能引 (a) 命令名 (b) 输出自带字段 (c) 实例内可读路径——
+# agent 读不到 CLI 代码（boundary-map「单向约束」），引包内实现 = 不可执行指令。
+# ast 键值配对 + 关键字实参精确取这 4 个键的值（递归 List / f-string），不用行窗口启发式。
+# 不扫 desc / argparse help（CLI 自述自身合法）；不扫 hint（错误诊断文本，安装完整性
+# 路径对用户排障合法；真执行指令应落 to_action / agent_rules）。
+AGENT_TEXT_KEYS = ("to_action", "agent_rules", "note", "rule_ref", "expected", "actual")
+AGENT_TEXT_BAN_RE = re.compile(
+    r"llmw\.[A-Za-z_][A-Za-z0-9_.]*"  # 包路径（llmw.content / llmw.content.render.x）
+    r"|llmw/[A-Za-z0-9_./-]+"  # 包内路径（文件或目录）
+    r"|[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z0-9_]*[A-Z][A-Za-z0-9_]*"  # module.SYMBOL（第二段含大写）
+    r"|包内\s+[A-Za-z0-9_.{}/-]+"  # "包内 <路径 / 文件名>" 俗称（"包内常量"等中文不匹配）
+    r"|fixtures/[A-Za-z0-9_.-]+\.(?:txt|md)"  # fixture 相对路径
+)
+
+
+def _str_const(node):
+    """取字符串字面量；3.7（ast.Str）与 3.8+（ast.Constant）双兼容，非字符串返 None。"""
+    if isinstance(node, ast.Constant):
+        return node.value if isinstance(node.value, str) else None
+    s = getattr(node, "s", None)  # Python 3.7 的 ast.Str（3.8+ 已并入 Constant）
+    return s if isinstance(s, str) else None
+
+
+def _subscript_key(node):
+    """取 `x["key"] = ...` 的字符串键；兼容 py<=3.8 的 ast.Index 包装。"""
+    sl = node.slice
+    if sl.__class__.__name__ == "Index":  # pragma: no cover - Python <= 3.8
+        sl = sl.value
+    return _str_const(sl)
+
+
+def _iter_agent_texts(tree):
+    """产出 agent 可见指令文本的 (lineno, key, text)——ast.Dict 里键 ∈ AGENT_TEXT_KEYS 的值。
+
+    递归进 List / Tuple / Set / BinOp（拼接）/ JoinedStr（f-string）/ IfExp；不递归嵌套
+    Dict（其自身会被 ast.walk 另行访问，避免同一文本按外层键重复归属）。
+    """
+
+    def _walk(node):
+        if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+            for e in node.elts:
+                for item in _walk(e):
+                    yield item
+        elif isinstance(node, ast.BinOp):
+            for side in (node.left, node.right):
+                for item in _walk(side):
+                    yield item
+        elif isinstance(node, ast.JoinedStr):
+            for v in node.values:
+                for item in _walk(v):
+                    yield item
+        elif isinstance(node, ast.FormattedValue):
+            for item in _walk(node.value):
+                yield item
+        elif isinstance(node, ast.IfExp):
+            for side in (node.body, node.orelse):
+                for item in _walk(side):
+                    yield item
+        else:
+            s = _str_const(node)
+            if s is not None:
+                yield node.lineno, s
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Dict):
+            for k, v in zip(node.keys, node.values):
+                key = _str_const(k)
+                if key in AGENT_TEXT_KEYS:
+                    for lineno, text in _walk(v):
+                        yield lineno, key, text
+        elif isinstance(node, ast.Call):  # 关键字实参形式（hint="…" / note="…"）
+            for kw in node.keywords:
+                if kw.arg in AGENT_TEXT_KEYS:
+                    for lineno, text in _walk(kw.value):
+                        yield lineno, kw.arg, text
+        elif isinstance(node, ast.Assign):  # out["to_action"] = … 形式
+            for target in node.targets:
+                if isinstance(target, ast.Subscript):
+                    key = _subscript_key(target)
+                    if key in AGENT_TEXT_KEYS:
+                        for lineno, text in _walk(node.value):
+                            yield lineno, key, text
+
 
 # CLI→skill 反向检查的有意例外（在 skill 侧只按 family 提及 / NOTES 级提示，不逐名文档化）
 BACKWARD_ALLOWLIST = set()
 
 TERMINAL_TOKENS = {
-    "dry_run": ("upgrade-workflow.md",),
-    "blocked_drift": ("upgrade-workflow.md",),
+    "blocked_drift": ("upgrade-workflow.md", "examples.md"),
     "done_with_residue": ("upgrade-workflow.md",),
     "verify_failed": ("upgrade-workflow.md",),
-    "needs_upgrade": ("upgrade-workflow.md", "lint-checklist.md", "examples.md"),
-    "upgrade_plan": ("upgrade-workflow.md", "lint-checklist.md", "examples.md"),
-    "skipped_conflicts": ("upgrade-workflow.md",),
-    "fixtures_actions": ("upgrade-workflow.md",),
-    "agent_rules": ("upgrade-workflow.md",),
+    "needs_upgrade": ("upgrade-workflow.md", "examples.md"),
+    "upgrade_plan": ("upgrade-workflow.md",),
+    "skipped_conflicts": ("upgrade-workflow.md", "lint-checklist.md"),
+    "fixtures_actions": ("upgrade-workflow.md", "lint-checklist.md"),
+    "agent_rules": ("upgrade-workflow.md", "lint-checklist.md", "examples.md"),
+    # plan 自述的语义字段：本文档只指路，字段词汇归 CLI（agent 按 plan 自带规则落）
+    # 注：本表方向是**文档 → CLI**（文档提到才查 CLI 有无该字面量）；CLI 新增枚举值而
+    # 文档未跟随时本表查不出（如 upgrade.py 的 `growth-graft-error`），该类漂移靠人工审计
+    "to_action": ("lint-checklist.md", "external-repo.md"),
+    # 注：子串匹配——`actions` 会被 `fixtures_actions` 掩盖，只能抓字段整体消失，
+    # 抓不住孤立重命名；且面 4 只覆盖 references/*.md（SKILL.md 的提及扫不到）
+    "actions": ("upgrade-workflow.md", "lint-checklist.md"),
+    # drift 判定的唯一判据（CLI 只对 render / gitignore-block 的 diff 设门禁）
+    "gitignore-block": ("upgrade-workflow.md", "examples.md"),
+    # finding 名（doc 侧分支依据）：升级触发（版本三态）/ 语义合并判定
+    "wiki-format-version-stale": ("upgrade-workflow.md", "lint-checklist.md"),
+    "wiki-format-version-unparsed": ("upgrade-workflow.md", "lint-checklist.md"),
+    "duplicate-title": ("upgrade-workflow.md",),
+    # 唯一数据丢失路径的前置可见字段（dry-run plan / residue）
+    "dropped_sections": ("upgrade-workflow.md",),
 }
 
 
@@ -447,6 +573,8 @@ def main():  # pylint: disable=too-many-branches
         "landmarks": 0,
         "layout_tokens": 0,
         "rule_ref_checks": 0,
+        "module_symbols": 0,
+        "agent_text_refs": 0,
     }
 
     # --- 1. 命令调用（含风格检查：带值 flag 必须等号形式；含跨行断命令检查）---
@@ -673,11 +801,44 @@ def main():  # pylint: disable=too-many-branches
                     )
                 )
 
+    # --- 9. module 限定符号禁令（skill 文本不读 CLI 代码） ---
+    for md in SKILL_MDS:
+        rel = _rel(md)
+        for lineno, line in enumerate(_read(md).splitlines(), start=1):
+            for m in MODULE_SYMBOL_RE.finditer(line):
+                stats["module_symbols"] += 1
+                errors.append(
+                    "[module-symbol] {}:{} :: skill prose 引 CLI 包内符号 `{}`——"
+                    "skill 文本不读 CLI 代码，只用命令名 / finding 名 / 裸常量名"
+                    "（boundary-map「单向约束」：CLI 重构不能让 skill 失效）".format(
+                        rel, lineno, m.group(1)
+                    )
+                )
+
+    # --- 10. agent 可见指令文本禁内部引用（CLI → agent 文本） ---
+    for py in PY_CONTRACT:
+        rel = _rel(py)
+        try:
+            tree = ast.parse(_read(py))
+        except SyntaxError:
+            continue
+        for lineno, key, text in _iter_agent_texts(tree):
+            for m in AGENT_TEXT_BAN_RE.finditer(text):
+                stats["agent_text_refs"] += 1
+                errors.append(
+                    "[agent-text-ref] {}:{} :: agent 可见指令 `{}` 引 CLI 内部资产 `{}`——"
+                    "只能引命令名 / 输出自带字段 / 实例内可读路径"
+                    "（boundary-map「单向约束」：agent 读不到包内实现）".format(
+                        rel, lineno, key, m.group(0)
+                    )
+                )
+
     # --- 报告 ---
     print(
         "contract (skill+templates+repo-docs → CLI): {} cmd, {} fwd findings, "
         "{} bwd findings, {} rule_refs, {} tokens, {} semver, {} landmarks, "
-        "{} layout_tokens, {} rule_ref_fmt_checks".format(
+        "{} layout_tokens, {} rule_ref_fmt_checks, {} module_symbols, "
+        "{} agent_text_refs".format(
             stats["cmds"],
             stats["fwd_findings"],
             stats["bwd_findings"],
@@ -687,6 +848,8 @@ def main():  # pylint: disable=too-many-branches
             stats["landmarks"],
             stats["layout_tokens"],
             stats["rule_ref_checks"],
+            stats["module_symbols"],
+            stats["agent_text_refs"],
         )
     )
     if errors:

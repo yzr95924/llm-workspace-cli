@@ -79,8 +79,8 @@ CHECK_REGISTRY = [
         "id": "agents-md-template-sync",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "llmw/content/upgrade.py 升级引擎",
-        "desc": "AGENTS.md 与包内 workspace-agents-md-template.md 渲染稿字节一致（「当前配置」四变量替换后）；定制纪律应沉淀到 MEMORY/",
+        "rule_ref": "SKILL.md「Upgrade」",
+        "desc": "AGENTS.md 与 CLI 渲染稿字节一致（「当前配置」四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
         "id": "claude-md-template-sync",
@@ -93,7 +93,7 @@ CHECK_REGISTRY = [
         "id": "gitignore-skeleton",
         "severity": "error",
         "file": ".gitignore",
-        "rule_ref": ".gitignore fixture + llmw/workspace/gitignore.py",
+        "rule_ref": "SKILL.md「Upgrade」",
         "desc": ".gitignore 段结构齐全：llmw 托管块（标记 + 3 规则）+ OS/编辑器 + Obsidian + 临时文件段各 ≥1 规则（容忍段内删规则）",
     },
     {
@@ -182,7 +182,10 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
         out["expected"] = target or "(未指定 target)"
         out["fix"] = {
             "type": "workspace-fix-agents-md-resync",
-            "to_action": "按 SKILL.md「Upgrade」节全量重渲染 AGENTS.md（agent 人工提取 4 变量；版本行解析失败时单字段 Edit 不可信）",
+            "to_action": (
+                "跑 `llmw upgrade --apply`（CLI 按 workspace.toml + 版本常量重渲染 AGENTS.md，"
+                "版本行随渲染恢复）。**不要**手改——手改过不了 agents-md-template-sync 的整文件字节比对"
+            ),
         }
         return out
     cmp = _compare_semver(found, target)
@@ -191,14 +194,18 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
         out["comparison"] = cmp
         out["actual"] = found
         out["expected"] = target
-        note = (
-            "更新本 skill 安装后再迁移"
-            if cmp == "newer"
-            else "若 agents-md-template-sync 同报 drift，改走 resync 全量重渲染一并覆盖"
-        )
+        if cmp == "newer":
+            to_action = (
+                "workspace 比本 skill 新：先更新本 skill / CLI 安装再迁移；**不**跑 upgrade、**不**手改 AGENTS.md"
+            )
+        else:
+            to_action = (
+                f"跑 `llmw upgrade --apply`（CLI 重渲染 AGENTS.md，版本行随渲染落地 {found} → {target}）；"
+                "**不要**手改——手改过不了 agents-md-template-sync 的整文件字节比对"
+            )
         out["fix"] = {
             "type": "workspace-fix-agents-version",
-            "to_action": f"Edit AGENTS.md「当前配置」表：`Workspace Format 版本` 行改为 {target}（{note}）",
+            "to_action": to_action,
         }
     return out
 
@@ -238,8 +245,8 @@ def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
         out["fix"] = {
             "type": "workspace-fix-agents-md-resync",
             "to_action": (
-                "人工确认 display_name 后按 llmw.content.render 全量重渲染 AGENTS.md；"
-                "本地定制逐条与用户裁定搬 MEMORY/ 或丢弃"
+                "跑 `llmw upgrade --apply`（CLI 全量重渲染 AGENTS.md）；"
+                "本地定制 diff 进 blocked_drift 时逐条与用户裁定搬 MEMORY/ 或丢弃，裁定完加 `--yes` 重跑"
             ),
         }
         return out
@@ -270,13 +277,13 @@ def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
         changed = [ln for ln in diff if ln.startswith(("+", "-")) and not ln.startswith(("+++", "---"))]
         preview = "; ".join(ln[:60] for ln in changed[:4])
         out["passed"] = False  # type: ignore
-        out["expected"] = "AGENTS.md 与 llmw.content.render 渲染稿字节一致（定制纪律沉淀到 MEMORY/，不进本文件）"
+        out["expected"] = "AGENTS.md 与 CLI 渲染稿字节一致（定制纪律沉淀到 MEMORY/，不进本文件）"
         out["actual"] = f"{len(changed)} 行与渲染稿不一致（首处: {preview}）" if preview else "与渲染稿不一致"
         out["fix"] = {
             "type": "workspace-fix-agents-md-resync",
             "to_action": (
-                f"按 llmw.content.render.render_workspace_agents_md 全量重渲染 AGENTS.md（display_name={display_name}）→ "
-                "diff 旧文件，多出的本地定制逐条与用户裁定搬 MEMORY/ 或丢弃 → Write 覆盖"
+                f"跑 `llmw upgrade --apply`：CLI 全量重渲染 AGENTS.md（display_name={display_name}）→ "
+                "本地定制 diff 进 blocked_drift 时逐条与用户裁定搬 MEMORY/ 或丢弃 → 加 `--yes` 重跑"
             ),
         }
     return out
@@ -317,18 +324,16 @@ def check_claude_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
         out["actual"] = "CLAUDE.md 不存在"
         out["fix"] = {
             "type": "workspace-fix-claude-md-create",
-            "to_action": f"按 llmw.content.render.render_workspace_claude_md(display_name={display_name}) 渲染创建 CLAUDE.md",
+            "to_action": f"跑 `llmw upgrade --apply`（CLI 渲染创建 CLAUDE.md，display_name={display_name}）",
         }
         return out
     if rendered != ws_text:
         out["passed"] = False  # type: ignore
-        out["expected"] = (
-            "CLAUDE.md 与 llmw.content.render 渲染稿字节一致（不含纪律正文；版本在 AGENTS.md 末尾「当前配置」表）"
-        )
+        out["expected"] = "CLAUDE.md 与 CLI 渲染稿字节一致（不含纪律正文；版本在 AGENTS.md 末尾「当前配置」表）"
         out["actual"] = "与薄壳模板渲染稿不一致"
         out["fix"] = {
             "type": "workspace-fix-claude-md-resync",
-            "to_action": f"按 llmw.content.render.render_workspace_claude_md(display_name={display_name}) 渲染 Write 覆盖 CLAUDE.md",
+            "to_action": f"跑 `llmw upgrade --apply`（CLI 重渲染 CLAUDE.md 薄壳，display_name={display_name}）",
         }
     return out
 
@@ -354,7 +359,7 @@ def check_gitignore_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str, o
         out["actual"] = ".gitignore 不存在"
         out["fix"] = {
             "type": "workspace-fix-gitignore-skeleton",
-            "to_action": "按 llmw/workspace/gitignore.py 的 GITIGNORE_MANAGED_BLOCK 常量逐字创建",
+            "to_action": "跑 `llmw upgrade --apply`（CLI 重渲染 .gitignore 托管块；用户自定义规则不动）",
         }
         return out
 
@@ -397,7 +402,7 @@ def check_gitignore_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str, o
         out["actual"] = "缺：" + "；".join(missing)
         out["fix"] = {
             "type": "workspace-fix-gitignore-skeleton",
-            "to_action": "按 llmw/workspace/gitignore.py 的 GITIGNORE_MANAGED_BLOCK 常量单 Edit 补 .gitignore 缺失段 / 规则（不动用户自定义规则）",
+            "to_action": "跑 `llmw upgrade --apply`（CLI 重渲染 .gitignore 托管块，补缺失段 / 规则）；不动用户自定义规则",
         }
     return out
 
@@ -415,7 +420,7 @@ def check_memory_index_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str
         out["actual"] = "MEMORY/MEMORY.md 不存在"
         out["fix"] = {
             "type": "workspace-fix-memory-index-init",
-            "to_action": "按包内 fixtures/memory-index.txt 逐字创建 MEMORY/MEMORY.md",
+            "to_action": "跑 `llmw upgrade --apply`（CLI 创建 MEMORY/MEMORY.md 骨架：H1 / 说明块 / ## 索引；经验条目不动）",
         }
         return out
 

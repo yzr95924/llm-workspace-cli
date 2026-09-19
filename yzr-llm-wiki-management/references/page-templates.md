@@ -18,9 +18,8 @@
 ## 共有 frontmatter 段
 
 > **适用范围**：本节模板适用于 wiki 5 类内容页（entities / concepts / sources /
-> comparisons / syntheses）。**MEMORY/*.md 的 frontmatter 规则不同**——仅 `title`
-> 必填，其余 5 字段全 optional；详见 [`lint-checklist.md「frontmatter 完整性」`](lint-checklist.md)
-> 末尾（或 `<wiki-root>/MEMORY/MEMORY.md` fixture 头部说明块）。
+> comparisons / syntheses）。**MEMORY/*.md 的 frontmatter 规则不同**——canonical 见
+> `<wiki-root>/MEMORY/MEMORY.md` fixture 头部说明块（本节 5 必填不适用）。
 
 ```yaml
 ---

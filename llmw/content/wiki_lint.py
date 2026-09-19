@@ -55,7 +55,8 @@ VALID_TYPES = {
     "source",
     "comparison",
     "synthesis",
-    # MEMORY 扩展类型（page-templates.md「共有 frontmatter 段」：`或新的 memory 类型按需扩展`）：
+    # MEMORY 扩展类型——契约 canonical 见 MEMORY/MEMORY.md fixture 头部（MEMORY 桶约定不写
+    # `type`，分桶按路径）；这两值仅为兼容既有页，无逻辑消费：
     # - `memory`：MEMORY/*.md 自用语义，与 wiki 5 类内容页区分
     # - `memory-entry`：MEMORY 经验条目标识（与 `memory` 同属 MEMORY 桶）
     "memory",
@@ -145,8 +146,8 @@ from llmw import WIKI_FORMAT_VERSION  # noqa: E402
 CURRENT_WIKI_FORMAT = WIKI_FORMAT_VERSION
 
 # 已知 legacy pattern 的"pattern key"——为后续扩展预留，每个 key 是一类迁移动作。
-# rule_ref 是迁移依据的溯源指针；修复语义自含于 plan actions 的 remove/add_or_modify/to_action
-# 字段 + references/upgrade-workflow.md「语义合并规则」——不另设历史档案。
+# rule_ref 是迁移依据的溯源指针；修复语义自含于 plan actions 的 to_action 字段 +
+# references/upgrade-workflow.md「语义合并规则」——不另设历史档案。
 LEGACY_PATTERN_KEYS = {
     # 历史迁移 pattern（confidence-field / claudemd-tag-section / claudemd-not-thinshell）
     # 已于 2026-08 随"场景清零"退役删除；未来退役字段时按需注册新 key。
@@ -1465,9 +1466,9 @@ def _run_fixtures_check(wiki_root: Path) -> Dict[str, object]:
 def _has_type_memory(page_rel: str, text: str) -> bool:
     """检查 wiki 内容页是否误用保留的 `type: memory`。
 
-    `type: memory` / `type: memory-entry` 仅 MEMORY 桶合法（page-templates.md「共有 frontmatter 段」——
-    MEMORY frontmatter 解耦 + 扩展 `memory` / `memory-entry` 两类），wiki 内容页
-    （entities/concepts/sources/comparisons/syntheses）出现 `type: memory` 是误用。
+    `type: memory` / `type: memory-entry` 仅 MEMORY 桶合法（契约 canonical 见
+    MEMORY/MEMORY.md fixture 头部），wiki 内容页（entities / concepts / sources /
+    comparisons / syntheses）出现 `type: memory` 是误用。
 
     Args:
         page_rel: 页面相对 wiki 根的 POSIX 路径（如 `wiki/sources/x.md` / `MEMORY/foo.md`）
@@ -1535,7 +1536,7 @@ def build_upgrade_plan(
 ) -> Dict[str, object]:
     """把 detect_legacy_patterns 的发现 + fixtures-check 的发现组织成 agent 可执行的 plan。
 
-    每个 action 含 file / type / rule_ref / 具体 remove & add_or_modify；
+    每个 action 含 file / type / rule_ref / to_action（agent 照 to_action 用 Edit/Write 落）；
     agent 按 references/upgrade-workflow.md 引用 rule_ref 走 Edit/Write。
     fixtures-fix-* 类动作落进 `fixtures_actions[]`，与 legacy pattern 的 actions[] 平行——
     agent 走 plan 时两套都得跑（fixtures 修复优先于内容页 frontmatter 修复）。
@@ -1552,10 +1553,11 @@ def build_upgrade_plan(
                 "file": fpath,
                 "type": "frontmatter-retype",
                 "rule_ref": LEGACY_PATTERN_KEYS["type-memory-value"],
-                "remove": ["type"],
-                # `memory-entry` 是 MEMORY 桶扩展值；内容页误用 `type: memory` 应改为对应 5 类之一（agent 按页面真实语义裁定）
-                "add_or_modify": {"type": "memory-entry"},  # 占位默认——agent 改 plan 时按页面语义替换
-                "note": "wiki 内容页误用 reserved `type: memory`（MEMORY 桶合法）。Agent 应按页面真实语义决定：改为对应 5 类（entity/concept/source/comparison/synthesis）之一；不要把 wiki 内容页改成 `memory-entry`（那是 MEMORY 桶的扩展值）。",
+                "to_action": (
+                    f"Edit {fpath}：把 frontmatter 的 `type: memory` 按页面真实语义改为 5 类之一"
+                    "（entity / concept / source / comparison / synthesis）。**不要**改成"
+                    " `memory-entry`——那是 MEMORY 桶扩展值，写进内容页语义错且不再触发本检查"
+                ),
             }
         )
 
@@ -1599,8 +1601,10 @@ def build_upgrade_plan(
                         **base,
                         "type": "fixtures-fix-agents-version",
                         "to_action": (
-                            f"Edit {fpath}「当前配置」表 Wiki Format 版本行单元格改为 `{expected}`（实际为 `{actual}`）——"
-                            "参考 lint-checklist.md「调用方式」（--check-version 子命令段）"
+                            f"跑 `llmw wiki upgrade --apply`：CLI 全量重渲染 AGENTS.md，版本行随渲染落地"
+                            f"（`{actual}` → `{expected}`）。**不要**手改 AGENTS.md——byte-owned 禁改，"
+                            "手改过不了 agents-md-template-sync 的整文件字节比对；若因版本行 diff 进"
+                            " blocked_drift，确认无本地定制后加 `--yes` 重跑"
                         ),
                     }
                 )
@@ -1612,15 +1616,10 @@ def build_upgrade_plan(
                         **base,
                         "type": "fixtures-fix-agents-md-resync",
                         "to_action": (
-                            "AGENTS.md 全量重渲染（模板同步机制，4 步）："
-                            "(1) 从旧 AGENTS.md「当前配置」表提取 主题 / 创建日期 / CLI 版本（主题 fallback："
-                            "H1 `# <主题> Wiki — LLM 维护守则`）；"
-                            "(2) 渲染包内 agents-md-template.md——{{TOPIC_NAME}} / {{SETUP_DATE}} / "
-                            "{{CLI_VERSION}} 用旧值，{{WIKI_FORMAT_VERSION}} 用 to_version；"
-                            "(3) diff 旧文件 vs 渲染稿：旧文件**多出的行/段** = 本地定制，逐条列给用户裁定——"
-                            "搬 MEMORY/（一行事实写 MEMORY/MEMORY.md 索引短条目；含 why 的建 "
-                            "MEMORY/<slug>.md 完整条目 + 索引行）或丢弃；"
-                            "(4) Write 渲染稿覆盖 AGENTS.md——成长内容仅「当前配置」表四行变量，其余以模板为准"
+                            "跑 `llmw wiki upgrade --apply`：CLI 全量重渲染 AGENTS.md（byte-owned，"
+                            "「当前配置」表四变量保留 wiki 现值）。若本地定制 diff 进 blocked_drift："
+                            "逐条列给用户裁定——搬 MEMORY/（一行事实写 MEMORY/MEMORY.md 索引短条目；"
+                            "含 why 的建 `MEMORY/<slug>.md` 完整条目）或丢弃，裁定完加 `--yes` 重跑"
                         ),
                     }
                 )
@@ -1633,7 +1632,8 @@ def build_upgrade_plan(
                             "raw/external/.symlink-anchor.toml 损坏：CLI add 拒绝覆盖损坏文件"
                             "（保护手工修复现场）——备份后删除，或手工改对 TOML，再用"
                             " `llmw wiki external add <target> --name=<n>` 重建 entries。"
-                            "字段语义见 external-repo.md「首次接入」；schema SSOT = CLI `external_anchor._REQUIRED_FIELDS`。"
+                            "字段语义见 external-repo.md「首次接入」；schema 归 CLI 持有"
+                            "（`llmw wiki external` 子命令）"
                         ),
                     }
                 )
@@ -1697,11 +1697,11 @@ def build_upgrade_plan(
                         **base,
                         "type": "fixtures-fix-skeleton",
                         "to_action": (
-                            f"Edit {fpath}：按包内 fixtures/（gitignore 见 "
-                            "fixtures/gitignore.txt）"
-                            "补齐 expected 列出的缺失骨架字段（frontmatter 键 / H1 / 说明块 / "
-                            "段标题 / .gitignore 段）。成长型内容（index 类别下条目 / log 历史 / "
-                            "MEMORY 经验 / tag bullet）**不动**——只补结构骨架"
+                            f"Edit {fpath}：按本条 `expected`（缺失骨架信号清单）单 Edit 补齐——"
+                            "frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段"
+                            "（.gitignore 段可跑 `llmw wiki upgrade --apply` 由 CLI 重渲染）；"
+                            "成长型内容（index 类别下条目 / log 历史 / MEMORY 经验 / tag bullet）"
+                            "**不动**——只补结构骨架"
                         ),
                     }
                 )
@@ -1726,20 +1726,18 @@ def build_upgrade_plan(
         "skipped_conflicts": legacy.get("conflicts", []),  # type: ignore
         "agent_rules": [
             "按 actions[] 顺序逐项修；每个 action 前打印依据 rule_ref",
-            "frontmatter-rename：用 Edit 改 frontmatter（删老字段、加新字段；不动 updated）",
-            "file-move：先读源 → 写目标 → 删源",
-            "frontmatter-retype：按 action.note 与 page-templates.md「共有 frontmatter 段」决定具体改法",
+            "frontmatter-retype：按 action.to_action 落（内容页 `type: memory` 改 5 类之一，不要改 `memory-entry`）",
             "skipped_conflicts[] 永远不自动覆盖——转人工",
-            "改完后用 Edit 把 AGENTS.md 末尾「当前配置」表 `Wiki Format 版本` 行改为 to_version",
+            "AGENTS.md / CLAUDE.md 是 byte-owned 禁手改：版本行与骨架均由 `llmw wiki upgrade --apply` 重渲染落地",
             "不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）",
-            "不调 ingest / query / lint——保持职责单一",
+            "不调 ingest / query——保持职责单一（lint --check-version 是本迁移的正路）",
             # fixtures：
             "fixtures_actions[] 与 actions[] 平行处理——先走 fixtures_actions 修约定文件（如 .gitignore / anchor TOML）",
             "再走 actions[] 修内容页 frontmatter / log；fixtures 修复是后续内容页编辑的前置",
             "fixtures-fix-anchor-schema / -anchor-symlink-matches 各 to_action 自含修 schema / ln / 补 entry 的具体指令",
             "fixtures-fix-strip-frontmatter 仅删首部 frontmatter 块，保留全文正文一字不动",
-            "fixtures-fix-skeleton：按 expected 补缺失骨架字段（frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段），单 Edit 可落；成长型内容（index 类别 / log 历史 / MEMORY 经验 / tag bullet）不动",
-            "fixtures-fix-agents-md-resync：AGENTS.md 全量重渲染——「当前配置」表变量保留旧值（Wiki Format 版本行用 to_version），旧文件多出的定制行/段逐条与用户裁定搬 MEMORY/ 或丢弃；其余以模板渲染稿为准，不做局部 Edit",
+            "fixtures-fix-skeleton：按 expected（缺失骨架信号清单）补 frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段，单 Edit 可落；成长型内容（index 类别 / log 历史 / MEMORY 经验 / tag bullet）不动",
+            "fixtures-fix-agents-md-resync / -agents-version：跑 `llmw wiki upgrade --apply`（CLI 重渲染 byte-owned）；本地定制先按 blocked_drift 与用户裁定搬 MEMORY/ 或丢弃",
             "fixtures 改造与 upgrade-workflow.md「语义合并规则」配合读——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按该节判断",
         ],
     }  # type: Dict[str, object]
@@ -1802,8 +1800,8 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
 
     # 当前版本比 SKILL 新 → 告警，不阻断
     if comparison == "newer":
-        print(f"[WARN] wiki 用比 SKILL 更新的 format（{current_format} > {CURRENT_WIKI_FORMAT}）")
-        print("       请更新本 skill 安装；本子命令不会修改 wiki")
+        print(f"[WARN] wiki 用比 llmw 支持版本更新的 format（{current_format} > {CURRENT_WIKI_FORMAT}）")
+        print("       请更新 llmw 安装；本子命令不会修改 wiki")
         print()
         _print_fixtures_check(fixtures_check, indent="")
         return 0

@@ -19,8 +19,9 @@ build_subparsers，由 llmw.cli 组合）：
   new     新建内容页脚手架（frontmatter + H1；**不生成正文**——正文模板 SSOT 在
           references/page-templates.md，避免双源）
           `llmw wiki --path <WIKI_ROOT> write new --type source --slug foo --title "Foo" --sources raw/articles/foo.md [--description ...] [--tags a,b]`
-  memory  新建 MEMORY 条目（仅 title 必填 frontmatter）+ 原子追加 MEMORY.md 索引行
-          `llmw wiki --path <WIKI_ROOT> write memory add --slug foo --title "Foo" [--index-line "一句话"]`
+  memory  新建 MEMORY 条目（title 必填；created/updated 自动落，**不写 type**）+
+          原子追加 MEMORY.md 索引行
+          `llmw wiki --path <WIKI_ROOT> write memory add --slug foo --title "Foo" [--index-line "一句话"] [--description ...] [--tags a,b]`
 
 版本错位警告：wiki AGENTS.md 末尾「当前配置」表钉定版本与 SKILL 的 CURRENT_WIKI_FORMAT 不一致时警告"先 upgrade 再写"
 ——防新格式写进老 wiki。只警告不阻断（逃生舱：用户对老 wiki 有意写入时仍可用）。
@@ -351,7 +352,17 @@ def cmd_memory(wiki_root, args):
     if "## 索引" not in index_text:
         return "MEMORY/MEMORY.md 缺 `## 索引` 段", 2
 
-    entry_path.write_text(f'---\ntitle: "{args.title}"\n---\n\n', encoding="utf-8")
+    now = _now()
+    fm_lines = ["---", f'title: "{args.title}"']
+    if args.description:
+        fm_lines.append(f'description: "{args.description}"')
+    tags = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else []
+    if tags:
+        fm_lines.append("tags: [{}]".format(", ".join(tags)))
+    fm_lines.append(f"created: {now}")
+    fm_lines.append(f"updated: {now}")
+    fm_lines.append("---")
+    entry_path.write_text("\n".join(fm_lines) + "\n\n", encoding="utf-8")
     if not index_text.endswith("\n"):
         index_text += "\n"
     index_line = "- [{}]({}.md){}".format(
@@ -403,6 +414,8 @@ def build_subparsers(sub) -> None:
     p_mem.add_argument("action", choices=["add"])
     p_mem.add_argument("--slug", required=True)
     p_mem.add_argument("--title", required=True)
+    p_mem.add_argument("--description", default="")
+    p_mem.add_argument("--tags", default="", help="逗号分隔 tag 列表")
     p_mem.add_argument("--index-line", default="", help="索引行一句话摘要")
     p_mem.set_defaults(func=cmd_memory)
 

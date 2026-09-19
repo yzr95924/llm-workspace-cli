@@ -16,7 +16,7 @@ description: |
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  wiki_format_version: 0.43.3
+  wiki_format_version: 0.43.4
 ---
 
 # LLM Wiki Management
@@ -29,7 +29,7 @@ metadata:
 本 skill 提供三块交付物：
 
 - **SKILL.md（本文）**——工作流 + 纪律的"宪法"
-- **确定性执行（归 llmw CLI，`llmw.content`）**——本 skill **零代码**。deterministic 工具
+- **确定性执行（归 llmw CLI）**——本 skill **零代码**。deterministic 工具
   （lint / fixtures 检查 / ingest 探测 / 机械写）全部收敛为
   `llmw` 子命令：`llmw wiki lint / check-fixtures / ingest-diff / write`（详见
   「工作流 / 步骤」各节）。高频确定性任务固化在 CLI，agent 只负责需要判断的部分。
@@ -267,7 +267,8 @@ metadata:
 wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明块）：
 
 1. 决定是否值得写——能否让未来 agent 工作更顺？
-2. 判别条目形式：**完整**（含 why+how 上下文）→ `llmw wiki write memory add --slug=... --title=...`
+2. 判别条目形式：**完整**（含 why+how 上下文）→
+   `llmw wiki write memory add --slug=... --title=... [--description=...] [--tags=a,b]`
    建文件 + 索引行，再 Edit 写正文；**短**（纯 reminder）→ 直接 `MEMORY/MEMORY.md` 加一行索引
 3. 写正文——记录具体经验，含上下文 / 解决步骤 / 未来如何避免
 4. **不**追加 log 条目 / **不**在 wiki/index.md 列出（MEMORY 不走单一入口约束）
@@ -284,12 +285,11 @@ wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明
 reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy warn。
 
 **职责**：三方分工——CLI `llmw [wiki] upgrade` 修骨架（byte/block/header-owned + legacy
-paths + self-verify + blocked_drift 门禁）；lint plan `actions[]` 修内容页 frontmatter
-legacy（当前仅 `type-memory-value`）；agent 负责 drift 裁定（本地定制搬 MEMORY 或丢弃）+
-「语义合并规则」（index 重复 / MEMORY 归并）。迁移期不走 `llmw wiki write`；
-**不**追加 log 条目。
+paths + 自检 + blocked_drift 门禁）；lint plan `actions[]` 修内容页 frontmatter legacy；
+agent 负责 drift 裁定（本地定制搬 MEMORY 或丢弃）+「语义合并规则」（index 重复 /
+MEMORY 归并）。迁移期不走 `llmw wiki write`；**不**追加 log 条目。
 
-**完整步骤**（5 步流程 / drift 裁定 / 决策树 / 语义合并细则）见 [`references/upgrade-workflow.md`](references/upgrade-workflow.md)。
+**完整步骤**（5 步流程 / drift 裁定 / 语义合并细则）见 [`references/upgrade-workflow.md`](references/upgrade-workflow.md)。
 
 ## 参考样例
 

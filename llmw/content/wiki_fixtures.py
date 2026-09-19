@@ -103,15 +103,15 @@ CHECK_REGISTRY = [
         "id": "gitignore-external-track-toml",
         "severity": "error",
         "file": ".gitignore",
-        "rule_ref": "external-repo.md「跨主机重建」（gitignore 增强见 .gitignore fixture 与 llmw/content/templates/wiki/fixtures/gitignore.txt）",
+        "rule_ref": "external-repo.md「跨主机重建」",
         "desc": ".gitignore 含 `raw/external/*` 排除 + `!raw/external/.symlink-anchor.toml` 跟踪",
     },
     {
         "id": "symlink-anchor-toml-schema",
         "severity": "error",
         "file": "raw/external/.symlink-anchor.toml",
-        "rule_ref": "external-repo.md「首次接入」（agent 排查损坏时需读懂的字段语义 + 字段 SSOT = CLI `external_anchor._REQUIRED_FIELDS`）",
-        "desc": "raw/external/.symlink-anchor.toml（若存在）：合法 TOML + [[entry]] 数组 + 必填字段齐 + git 身份字段可选（schema SSOT = CLI `external_anchor` 模块）",
+        "rule_ref": "external-repo.md「首次接入」",
+        "desc": "raw/external/.symlink-anchor.toml（若存在）：合法 TOML + [[entry]] 数组 + 必填字段齐 + git 身份字段可选（schema 归 CLI 持有，`llmw wiki external` 子命令维护）",
     },
     {
         "id": "symlink-anchor-toml-symlink-matches",
@@ -173,8 +173,8 @@ CHECK_REGISTRY = [
         "id": "opencode-instructions-sync",
         "severity": "error",
         "file": "agents-md-template.md",
-        "rule_ref": "opencode config.mdx Instructions 小节 + overlay_opencode.INSTRUCTION_FILES",
-        "desc": "包内 agents-md-template.md 的顶层 @import 引用与 overlay_opencode.INSTRUCTION_FILES 一一对应（opencode 不解析 @import，用 instructions 字段替代）",
+        "rule_ref": "AGENTS.md 顶层 @import 链与 opencode Instructions 配置一一对应（CLI 包自检；不一致 = 升级 / 重装 llmw）",
+        "desc": "AGENTS.md 模板顶层 @import 引用与 opencode 路径写入的 instructions 列表一一对应（opencode 不解析 @import，用 instructions 字段替代）",
     },
 ]
 
@@ -371,7 +371,7 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
         changed = [ln for ln in diff if ln.startswith(("+", "-")) and not ln.startswith(("+++", "---"))]
         preview = "; ".join(ln[:60] for ln in changed[:4])
         out["passed"] = False  # type: ignore
-        out["expected"] = "AGENTS.md 与 llmw.content.render 渲染稿字节一致（定制纪律沉淀到 MEMORY/，不进本文件）"
+        out["expected"] = "AGENTS.md 与 CLI 渲染稿字节一致（定制纪律沉淀到 MEMORY/，不进本文件）"
         out["actual"] = f"{len(changed)} 行与渲染稿不一致（首处: {preview}）" if preview else "与渲染稿不一致"
     return out
 
@@ -744,7 +744,7 @@ def check_opencode_instructions_sync(wiki_root: Path, info: Dict[str, str]) -> D
     if template_refs == expected:
         return out
     out["passed"] = False  # type: ignore
-    out["expected"] = "overlay_opencode.INSTRUCTION_FILES = " + repr(expected)
+    out["expected"] = "模板顶层 @import 应为 " + repr(expected)
     out["actual"] = "模板顶层 @import = " + repr(template_refs)
     return out
 
@@ -936,7 +936,6 @@ def _make_skeleton_check(entry: Dict[str, object]) -> Callable[[Path, Dict[str, 
     """按 SKELETON_REGISTRY 描述符生成一条骨架 check 函数（照搬 _check_no_frontmatter 共享模式）。"""
     wiki_path = entry["wiki_path"]  # type: ignore
     severity = entry["severity"]  # type: ignore
-    rule_ref = entry["rule_ref"]  # type: ignore
     sigs = entry["signals"]  # type: ignore
 
     def _check(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
@@ -949,8 +948,8 @@ def _make_skeleton_check(entry: Dict[str, object]) -> Callable[[Path, Dict[str, 
         missing = _check_skeleton_signals(wiki_text, sigs)
         if missing:
             out["passed"] = False
-            out["expected"] = f"骨架信号对齐包内 fixtures/；详见 {rule_ref}"
-            out["actual"] = "; ".join(missing)
+            out["expected"] = "; ".join(missing)
+            out["actual"] = f"缺失 {len(missing)} 项骨架信号"
         return out
 
     _check.__name__ = "check_" + str(entry["id"]).replace("-", "_")  # type: ignore

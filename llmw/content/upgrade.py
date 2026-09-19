@@ -7,19 +7,23 @@
 
     idle → preflight（drift diff）→ resync → verifying → done
                               ↘ blocked_drift（diff 非空 + 非 dry-run 未 --yes）
-                              ↘ verifying fail → exit 2（版本钉不落）
+                              ↘ verifying fail → exit 2（骨架已写盘，自检有 error）
 
-3 终态 JSON 契约（--json 恒可用，agent 判定依据）：
+终态 JSON 契约（--json 恒可用，agent 判定依据）：
 
-    status: done | done_with_residue | blocked_drift
+    status: done | done_with_residue | blocked_drift | verify_failed | error
     - done            : 骨架全渲染 + 自检 0 error + 无残留
     - done_with_residue: 骨架完成，残留清单需 agent
     - blocked_drift   : pre-constraint 自定义将被覆盖，dry-run 输出 diff 停住
+    - verify_failed   : 骨架已写盘但自检有 error（读 verified.failures[] 修完重跑，幂等）
+    - error           : 输入错（如 wiki_metadata.toml 缺失/字段不全）
+
+    current_format: wiki AGENTS.md 版本钉（解析失败 = null，如实上报）；target_format = 包内常量。
 
 退出码（run_upgrade()）:
     0 = done / done_with_residue
     1 = blocked_drift（diff 非空 + 非 dry-run 无 --yes）
-    2 = 自验证失败（版本钉不落）/ 内部错误
+    2 = 输入错 / 自验证失败（骨架已写盘，自检有 error，修完重跑——upgrade 幂等）/ 内部错误
 
 变量 SSOT: metadata toml + 版本常量（不从旧文件反提取，详见 render.py）。
 """
@@ -461,20 +465,32 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
     # 1. plan resync
     plan = plan_resync(wiki_root, meta=meta)
 
+    # 当前版本 = wiki AGENTS.md 版本钉（如实上报；解析失败 = None，不冒充 CLI 常量）
+    from llmw.content.wiki_lint import parse_format_version as _parse_format_version
+
+    current_format = _parse_format_version(wiki_root)
+
     # 2. preflight: 判断 blocked_drift（diff 非空 + 非 dry-run 未 --yes）
     # 注：growth-graft 保留条目，不算 drift；只有 byte-owned render + gitignore-block 算
     has_diff = any(item.get("diff") for item in plan if item.get("action") in ("render", "gitignore-block"))
     if has_diff and not dry_run and not yes:
         # blocked_drift: 输出 diff 但不写盘
+        changed_out = []  # type: List[Dict[str, object]]
+        for item in plan:
+            if not item.get("diff"):
+                continue
+            entry = {
+                "file": str(item.get("rel_path", "")),
+                "action": str(item.get("action", "")),
+            }
+            if item.get("dropped_sections"):
+                entry["dropped_sections"] = item["dropped_sections"]
+            changed_out.append(entry)
         result = {
             "status": "blocked_drift",
-            "current_format": WIKI_FORMAT_VERSION,
+            "current_format": current_format,
             "target_format": WIKI_FORMAT_VERSION,
-            "changed": [
-                {"file": str(item.get("rel_path", "")), "action": str(item.get("action", ""))}
-                for item in plan
-                if item.get("diff")
-            ],
+            "changed": changed_out,
             "residue": [],
             "verified": {"error": 0, "warn": 0, "pass": 0, "skip": 0},
             "hint": "diff 非空，需 --yes 确认（自定义内容先搬 MEMORY/，然后重跑）",
@@ -490,20 +506,23 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
             print(f"\n[llmw] hint: {result['hint']}", file=sys.stderr)
         return 1
 
-    # 3. dry-run: 输出 plan 不写盘
+    # 3. dry-run: 输出 plan 不写盘（dropped_sections 前置可见——唯一数据丢失路径）
     if dry_run:
+        plan_out = []  # type: List[Dict[str, object]]
+        for item in plan:
+            entry = {
+                "file": str(item.get("rel_path", "")),
+                "action": str(item.get("action", "")),
+                "diff": item.get("diff") or None,
+            }
+            if item.get("dropped_sections"):
+                entry["dropped_sections"] = item["dropped_sections"]
+            plan_out.append(entry)
         result = {
             "status": "dry_run",
-            "current_format": WIKI_FORMAT_VERSION,
+            "current_format": current_format,
             "target_format": WIKI_FORMAT_VERSION,
-            "plan": [
-                {
-                    "file": str(item.get("rel_path", "")),
-                    "action": str(item.get("action", "")),
-                    "diff": item.get("diff") or None,
-                }
-                for item in plan
-            ],
+            "plan": plan_out,
         }
         if as_json:
             print(json.dumps(result, indent=2, ensure_ascii=False))
@@ -514,7 +533,11 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
                 action = item.get("action", "")
                 rel = item.get("rel_path", "")
                 diff_lines = (item.get("diff") or "").count("\n")
-                print(f"  [{action}] {rel}" + (f"  ({diff_lines} diff lines)" if diff_lines else ""))
+                line = f"  [{action}] {rel}" + (f"  ({diff_lines} diff lines)" if diff_lines else "")
+                dropped = item.get("dropped_sections") or []
+                if dropped:
+                    line += "  ⚠ 丢弃自定义段: " + " / ".join(f"## {s}" for s in dropped)
+                print(line)
         return 0
 
     # 4. apply resync
@@ -548,12 +571,12 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
     if verified.get("error", 0) > 0:
         result = {
             "status": "verify_failed",
-            "current_format": WIKI_FORMAT_VERSION,
+            "current_format": current_format,
             "target_format": WIKI_FORMAT_VERSION,
             "changed": changed,
             "residue": residue,
             "verified": verified,
-            "error": "自验失败（版本钉不落）",
+            "error": "自验失败（骨架已写盘；读 verified.failures[] 修完重跑，upgrade 幂等）",
         }
         if as_json:
             print(json.dumps(result, indent=2, ensure_ascii=False))
@@ -566,7 +589,7 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
     status = "done" if not residue else "done_with_residue"
     result = {
         "status": status,
-        "current_format": WIKI_FORMAT_VERSION,
+        "current_format": current_format,
         "target_format": WIKI_FORMAT_VERSION,
         "changed": changed,
         "residue": residue,
@@ -576,7 +599,7 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
         print(f"== upgrade {status} ==")
-        print(f"current_format={WIKI_FORMAT_VERSION}")
+        print(f"current_format={current_format}")
         print(f"changed: {len(changed)} files")
         if residue:
             print(f"residue: {len(residue)} items")

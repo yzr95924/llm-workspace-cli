@@ -1,37 +1,46 @@
 # Upgrade（升级 wiki format）详细流程
 
-> 三方分工见下文「职责切分」。任何 breaking 变更的语义合并规则必须落「语义合并规则」，不再另设历史
-> 档案；版本演进叙事看 git log。
+> 本文件只写 **agent 必须感知的升级契约**（触发 / 分工 / drift 裁定 / 语义合并 / 边界）。
+> plan 的 **per-action 字段词汇与执行顺序**由 CLI 输出自带（`agent_rules[]` + 各 action
+> 说明），本文档**不重述**——重述必漂移；下文只钉 agent 必须据以**分支 / 定位**的名字：
+> 终态 `status` / `needs_upgrade` / `residue[]` / `dropped_sections` / `skipped_conflicts[]` /
+> drift 判据 / plan 两数组 + `agent_rules[]`。
+> **冲突时的优先级**：边界与纪律以本文档 + wiki 根 AGENTS.md 为准；每条动作的具体改法以
+> plan 自带的 `agent_rules[]` 为准。三方分工见下文「职责切分」。任何 breaking 变更的
+> 语义合并规则必须落「语义合并规则」，不再另设历史档案；版本演进叙事看 git log。
 
 ## 触发
 
 用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / format 升级 / 是否需要
-reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy warn。
+reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` /
+`wiki-format-version-unparsed` / legacy 或 fixtures 不合规报告。
 
 ## 为什么需要这一步
 
-每个 wiki 仓在 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 字段钉一份版本
-（CLI init 时从包内 `WIKI_FORMAT_VERSION` 常量渲染；本 skill `metadata.wiki_format_version`
-与其同值由 CI gate 保证）。本 workflow 处理 format 演进后的**检测 + 修复**。
+每个 wiki 在 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 字段钉一份
+版本；本 workflow 处理 format 演进后的**检测 + 修复**。
 
 ## 职责切分（**关键**——三方分工）
 
-- **CLI `llmw [wiki] upgrade`**（**骨架修复者**）：处理 byte-owned 全量重渲染
-  （AGENTS.md / CLAUDE.md）+ header-owned 换头保 growth + `.gitignore` managed 块 + legacy
-  paths 移动 + self_verify + blocked_drift 门禁（本地定制 diff 需 `--yes` 确认）。退出 3 终态
-  JSON（agent 判定依据）：`done` / `done_with_residue` / `blocked_drift`；失败态
-  `error` / `verify_failed` 与 `dry_run` 模式输出按退出码处理
-- **lint plan `actions[]`**（**内容页 frontmatter legacy**，目前仅注册 `type-memory-value`）：
-  由 `llmw wiki lint --check-version --apply --json` stdout 输出；`actions[]` 自含 `to_action`，agent 直接用 Edit/Write 落
+- **CLI `llmw wiki upgrade`（骨架修复者）**：修骨架（四类所有权：canonical 见 wiki 根
+  AGENTS.md「骨架所有权四分表」）+ legacy paths 移动。**旧文件里新骨架没有的自定义 `##`
+  段会被丢弃**——dry-run 以 `dropped_sections` 列出、写盘后记入 `residue[]`；`render` /
+  `gitignore-block` 类 diff 需 `--yes`，否则停于 `blocked_drift`。终态 `status`（人读输出
+  与 `--json` 均给出）：`done` / `done_with_residue` / `blocked_drift` / `verify_failed`
+  （自检 error，修完重跑，幂等）/ `error`（输入错）
+- **lint `--check-version --apply --json` 的 plan**（内容页 legacy + 约定文件）：stdout 输出
+  `upgrade_plan`，含两条并行数组（内容页 `actions[]` / 约定文件 `fixtures_actions[]`）；
+  **执行顺序与每条动作的具体改法由 plan 自带的 `agent_rules[]` + 各 action 说明给出**。
+  lint 的 `--apply` 只输出 plan、**不落盘**（与 `upgrade --apply` 相反，后者写盘）——
+  改动由 agent 用 Edit/Write 落
 - **agent 职责**：① drift 裁定（blocked_drift 时与用户决定本地定制搬 MEMORY/ 还是丢弃）
-  ② 内容页 legacy 修复（按 plan `actions[]` 自含 `to_action` 落） ③「语义合并规则」语义合并（index 重复 / MEMORY 归并）
+  ② 按 plan 落 legacy / fixtures 修复 ③「语义合并规则」语义合并（index 重复 / MEMORY 归并）
 - **迁移期不走 `llmw wiki write`**——机械写命令只认识当前形态
-- **迁移依据 SSOT**：CLI `plan_resync`（骨架）+ lint plan `actions[]`（内容页）+「语义合并规则」（语义）
 - **不**追加 log 条目——迁移不是 wiki 操作事件
 
 ## 流程（agent 驱动，5 步）
 
-1. **操作前置**：跑 orient ritual（见 [`SKILL.md「执行原则 / 边界」`](../SKILL.md) 顶部引用块）
+1. **操作前置**：跑 orient ritual（按 [`SKILL.md「执行原则 / 边界」`](../SKILL.md) 顶部引用块）
 
 2. **跑 dry-run 看骨架计划**：
 
@@ -39,11 +48,12 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
    llmw wiki --path="$LLM_WIKI_ROOT" upgrade
    ```
 
-   默认 dry-run，输出 plan（含每个文件的 action：`render` / `growth-graft` / `create` /
-   `gitignore-block`）。先看计划再决定 `--apply`。
+   默认 dry-run。**将被丢弃的自定义 `##` 段在此以 `dropped_sections` 直接列出——这是
+   `--apply` 前唯一的可见时机**；先看计划再决定 `--apply`。
 
-3. **裁定 drift（若 plan 含 `render`/`gitignore-block` 的 diff）**：
-   - CLI `--apply`（不加 `--yes`）遇 diff 即进 `blocked_drift`，输出未覆盖的具体 diff
+3. **裁定 drift（只有 `render` / `gitignore-block` 的 diff 触发）**：
+   - CLI `--apply`（不加 `--yes`）遇这类 diff 即进 `blocked_drift`，输出未覆盖的具体 diff；
+     growth 类只换头保条目，不算 drift
    - agent 逐条对比：本地定制 = AGENTS.md/CLAUDE.md 内**多出模板的行/段**，与用户裁定**搬
      MEMORY/**（一行事实写 MEMORY.md 索引短条目；含 why 建 `MEMORY/<slug>.md` 完整条目）
      或**丢弃**
@@ -55,24 +65,34 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
    llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version
    ```
 
-   - 报告 `needs_upgrade` / legacy pattern groups（如有 legacy 现场）
-   - 若 legacy 有现场 → `--apply --json` 拿 stdout `actions[]`，agent 按 `to_action` 字段用 Edit 落
+   - 报告 `needs_upgrade` / legacy pattern groups / fixtures 不合规项
+   - 版本行缺失 / 无法解析（`wiki-format-version-unparsed`）→ 跑 `upgrade --apply`
+     恢复钉版（CLI 重渲染 AGENTS.md）；wiki 版本比 llmw 支持版本新（`-ahead`）→ 不动 wiki，见「边界」
+   - 若 legacy / fixtures 有现场 → `--apply --json` 拿 `upgrade_plan`，按 plan 自带规则
+     （`agent_rules[]` + 各 action 说明）用 Edit 落
    - **跳过 `skipped_conflicts[]`**——永不自动覆盖人工决策
 
-5. **验证**：重跑 `llmw wiki upgrade` + `llmw wiki lint --check-version`：
-   - `needs_upgrade == false` 且无残留 legacy + upgrade 退出 `done` → 告知用户完成
-   - 仍有残留 → 报告残留 + 转人工
+5. **验证**：重跑第 2、4 步命令：
+   - 终态 `done`、`needs_upgrade == false`、无残留 legacy → 告知用户完成
+   - 终态 `blocked_drift` → 回第 3 步裁定
+   - 终态 `done_with_residue` → 逐项读 `residue[]` 的 `note`（处置建议自带）与用户裁定；
+     `content-page-transform`（解析失败）类转人工
+   - 终态 `verify_failed` → 按 `verified.failures[]` 修完重跑（幂等）
+   - lint 侧仍有 legacy / fixtures 现场 → 报告 + 转人工
 
 **不**调用 ingest / query（保持职责单一）；log 纪律见「职责切分」。
 
 ## 边界
 
 - **不**删除 wiki 内容（即便 raw 已不存在 source 页）——用 `archived: true` 替代
-- **不**对 MEMORY 索引做"自动补行"以外的改动——MEMORY.md 是 LLM 私有记忆清单
-- **不**改 `wiki/log.md` / `wiki/index.md` frontmatter（index 6 键 / log 5 键 reserved，迁移不触及）
-- **冲突页绝不自动覆盖**（lint `--apply` 的 `skipped_conflicts[]` 保证）
-- **`current_format > skill_format`**（wiki 比 SKILL 新）：**不**阻断，告警用户更新本 skill 安装；
-  **不**改 wiki
+- **不**改 MEMORY 条目内容——迁移期唯一允许的 `MEMORY.md` 改动是索引行对齐（补缺失行）
+- **不**手改 `wiki/log.md` / `wiki/index.md` 的 frontmatter——骨架键缺失只按 fixtures plan
+  （`fixtures-fix-skeleton`）补齐，不做此外改动
+- **不**手改 `AGENTS.md` / `CLAUDE.md`（byte-owned）——版本钉与骨架由
+  `llmw wiki upgrade --apply` 重渲染落地
+- **wiki 版本比 llmw 支持版本新**（`-ahead`）：**不**阻断、**不**改 wiki——CLI 自带 WARN
+  引导升级安装
+- **不**用 workspace 级 `llmw upgrade`（聚合批量所有 wiki）替代 `llmw wiki upgrade`
 
 > 其余边界以 wiki 根 `AGENTS.md` 为准（raw 只读等全局纪律）。
 
@@ -84,9 +104,8 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 
 ## 语义合并规则
 
-> lint plan `actions[]` 自含 `to_action`（内容页 legacy 修复直接用 Edit/Write 落）；
-> 「语义合并规则」定义**跨 entry 的语义合并**（index 重复条目 / 多 MEMORY 条目归并）——agent 按本节规则走。
-> CLI 不替代语义判断。
+> CLI 不替代语义判断：本节定义**跨 entry 的语义合并**（index 重复条目 / 多 MEMORY 条目
+> 归并），agent 按规则走。
 
 ### wiki/index.md 条目合并
 
@@ -95,10 +114,11 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
   2. 含 `description` 摘要字段
   3. `updated` 最新者
   余删
-- **同 `<title>` 词但不同 `<relative-path>`** → 标红（`✗ duplicate-title`），转人工裁定——
+- **同 `<title>` 词但不同 `<relative-path>`** → lint 报 `duplicate-title`，转人工裁定——
   是 entity 重命名（保留新路径、合并到老路径）还是概念拆页（重命名其中之一）由人决定
-- **新分类引入（如第六类 `Comparisons`）→ 老 wiki 无该类时**，在 wiki/index.md 末尾
-  按 fixture 头部模板加新类别 H2 + 一行 `<!-- agent: TODO 归类旧页 -->` 占位，提醒人工归类
+- **老 wiki 缺标准类别**（现行 5 类：Entities / Concepts / Sources / Comparisons / Syntheses）→
+  缺失 H2 由 fixtures plan（`fixtures-fix-skeleton`）补齐；agent 在新 H2 下加一行
+  `<!-- agent: TODO 归类旧页 -->` 占位，提醒人工归类
 
 ### MEMORY 经验条目合并
 
@@ -111,18 +131,6 @@ reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy war
 
 ### wiki/log.md 迁移期不改（不合并 / 不截断）
 
-- 迁移期 log **不**合并 / **不**截断 / **不**改格式——保持现状原样搬过来（即使条目数 >
-  `LOG_RETENTION_LIMIT` 也不在迁移期截断；截断是日常运行期行为，`llmw wiki write log` 自动生效）
-- `fixtures-fix-log-format` action 仅当 **新增** 行不合规时落，迁移期**不变更 history**
-
-### 决策树（CLI 骨架 / agent 语义的判断边界）
-
-| 场景 | 路径 |
-|---|---|
-| 骨架一致性（AGENTS.md 模板漂移 / growth 头部 / .gitignore 块 / legacy paths） | CLI `upgrade --apply --yes` 直接落 |
-| 内容页 frontmatter legacy（`type-memory-value`） | lint `--check-version --apply --json` 拿 `actions[]`，按 `to_action` 用 Edit 落 |
-| 跨多 entry 语义归并（重复 index 条目 / 多 MEMORY 归并） | lint plan / fixtures_checks 报现状，agent 走「wiki/index.md 条目合并」/「MEMORY 经验条目合并」落 |
-| log 类（历史 log 修订） | **不**动 — lint 永远不报 log 字段 |
-
-**判定经验**：`llmw wiki upgrade` 退出 `blocked_drift` 时先裁定本地定制；`done_with_residue`
-时逐项处理 `residue[]`；`done` 且 lint `--check-version` 干净即完成。
+- 迁移期 log **不**合并 / **不**截断 / **不**改格式——保持现状原样搬过来（即使条目数超过
+  日常保留上限也不在迁移期截断；截断是日常运行期行为，`llmw wiki write log` 自动生效）
+- 仅新增行不合规时修，迁移期**不变更 history**

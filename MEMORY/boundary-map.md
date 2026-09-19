@@ -1,6 +1,6 @@
 ---
 name: boundary-map
-description: CLI / workspace skill / wiki skill 三方（加用户四方）的依赖方向 + 生命周期 + 产物归属指针 + 新能力判归测试；新增归属决策时先查
+description: 四方（用户 / CLI / 两 skill）依赖方向 + 生命周期 + 产物归属 + 新能力判归测试；新增归属决策 / 改 skill 文档 / 模板 / CLI 指令文本时先查
 metadata:
   type: project
 ---
@@ -48,7 +48,11 @@ metadata:
 **单向约束（反向依赖全禁）**：
 
 - **CLI 代码不读 skill 文件**——运行期资源全部内建 `llmw/content/templates/`（2026-08-20 收敛；format 版本号 SSOT = `llmw/__init__.py` 常量，SKILL.md frontmatter 由 CI gate 比对）
-- skill 文本**不**读 CLI 代码（CLI 重构不能让 skill 失效）；格式契约指向 CLI 资产只用命令名（`llmw check-fixtures`）不用包内路径
+- skill 文本**不**读 CLI 代码（CLI 重构不能让 skill 失效）；格式契约指向 CLI 资产只用命令名
+  （`llmw check-fixtures`）不用包内路径。**反向同理**：CLI 输出的 agent 指令文本
+  （`to_action` / `agent_rules` / `note` / `rule_ref` / `expected` / `actual`）不引包内实现
+  ——只引命令名 / 输出自带字段 / 实例内可读路径（agent 读不到 = 不可执行指令）。
+  两侧机械守护：gate 面 9（skill→CLI）+ 面 10（CLI→agent 文本）
 - skill **不**解析 CLI 输出做元数据读取（直读 toml 更可靠；CLI 输出是人类的，文本可能改）
 - wiki skill **不知** workspace skill 存在（workspace → wiki 是单委托；反向会破坏 DAG）
 - **agent（workspace skill）代跑 llmw 的边界**——读/探测/升级类命令直接执行；写类（改 workspace / wiki 元数据、影响运行中 session）先给用户确认后再执行；**api_key 类命令始终由用户亲自执行**（secret 不过 agent）。不手写 toml——元数据写必须经 CLI（schema 校验 / 原子写 / 唯一性约束由 CLI 保证）。历史："让 CLI 写"曾被解读为"只告诉用户"（2026-08-21 前）；修订为"skill 在场时可代跑以闭环 UX，同时保留不手写 toml 的防线"

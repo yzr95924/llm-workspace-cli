@@ -77,15 +77,15 @@
    （老 wiki 会落后于当前版本）+ wiki/index.md + wiki/log.md
 2. 跑升级 dry-run 看骨架计划：
     llmw wiki --path=~/wiki/llm-systems upgrade
-    CLI 输出 plan（每个文件 action：render / growth-graft / gitignore-block）
-3. 若 plan 含 diff 触发 blocked_drift → 与用户裁定本地定制：
+    CLI 输出 plan（每个文件一个 action + diff 行数）
+3. 若 plan 含 `render` / `gitignore-block` 的 diff → 触发 blocked_drift，与用户裁定本地定制：
    - AGENTS.md / CLAUDE.md 中多出模板渲染稿的行/段 = 用户本地定制
    - 逐条决定搬到 MEMORY/ 还是丢弃
    - 裁定完 → 重跑 `llmw wiki --path=... upgrade --apply --yes` 落地
 4. 查内容页 legacy + 跑修复（lint 侧）：
-    llmw wiki --path=~/wiki/llm-systems lint --check-version --json
+    llmw wiki --path=~/wiki/llm-systems lint --check-version --apply --json
     → needs_upgrade: true；legacy 组（如有）：
-          - N 处老格式 → agent 按 plan `actions[]` 自含 `to_action` 用 Edit 落
+          - N 处老格式 → agent 按 plan 自带规则（`agent_rules[]` + 各 action 说明）用 Edit 落
 5. 验证：重跑 `llmw wiki --path=... upgrade` + `lint --check-version`
-    → needs_upgrade: false ✓ 完成；upgrade 退出 done；无残留冲突
+    → needs_upgrade: false ✓ 完成；upgrade 终态 done；无残留冲突
 ```

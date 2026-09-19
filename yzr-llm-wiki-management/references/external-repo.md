@@ -27,7 +27,7 @@ agent 主导两项判断（CLI 帮不上）：
   记 commit（anchor 记录"接入意图"，commit 是机器快照会腐坏）
 - **`notes`（可选）**：agent 自由文本
 
-（schema SSOT = CLI `llmw.content.external_anchor._REQUIRED_FIELDS`；本文件仅列
+（schema SSOT = CLI 的 `llmw wiki external` 子命令——anchor 归 CLI 持有；本文件仅列
 agent 判断侧所需的语义要点。）
 
 ## sources: 元素类型（external 特化）

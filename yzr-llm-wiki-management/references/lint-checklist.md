@@ -39,7 +39,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version --apply --json
 plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_actions[]`）；
 标记冲突页 → agent 跳过 + 转人工；**互斥模式**，不写 log 条目。
 完整 agent 修复路径见 [SKILL.md「Upgrade」](../SKILL.md)；
-迁移依据 SSOT = plan `actions[]`（remove/add_or_modify/to_action 自含）+
+迁移依据 SSOT = plan 自带的 `agent_rules[]` +
 [`upgrade-workflow.md「语义合并规则」`](upgrade-workflow.md)。
 
 ## Deterministic 检查清单（CLI 执行）
@@ -49,8 +49,8 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ### 前置：wiki 版本一致性
 
-每次常规 lint 都查 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 行与 `CURRENT_WIKI_FORMAT` 一致性（实现：
-`check_format_version()`，与 `--check-version` 同源）——日常 lint 就能感知版本漂移：
+每次常规 lint 都查 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 行与 `CURRENT_WIKI_FORMAT` 一致性（与
+`--check-version` 同源实现）——日常 lint 就能感知版本漂移：
 
 - `wiki-format-version-stale`（warn）：版本**落后** SKILL → 跑 `--check-version --apply`
   走升级流程（SKILL.md「Upgrade」）
@@ -71,14 +71,15 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 - 扫 `wiki/` 5 个内容子目录 + `<wiki-root>/MEMORY/*.md`（排除 `MEMORY.md` 本身）
 - 口径两类：**wiki 5 类内容页** 5 必填（`title` / `type` /
   `created` / `updated` / `tags`，字段定义见 [`page-templates.md「共有 frontmatter 段」`](page-templates.md)）；
-  **MEMORY/*.md** 仅 `title` 必填（其余全 optional）
-- `type` 取值：5 类内容页；MEMORY 桶额外 `memory` / `memory-entry`
+  **MEMORY/*.md** 仅 `title` 必填（字段契约 canonical 见 `MEMORY/MEMORY.md` fixture 头部）
+- `type` 取值：内容页 5 类 + MEMORY 桶 `memory` / `memory-entry`（后两者仅为兼容既有页——
+  MEMORY 桶约定不写 `type`，契约 canonical 见 `MEMORY/MEMORY.md` fixture 头部）
 - `type-memory-value`（error）：wiki 内容页误用 reserved `type: memory`
   （仅 MEMORY 桶合法，内容页非法）
 - findings：`missing-frontmatter`（error）/ `invalid-type`（error）/ `invalid-tags`（error，
   `tags` 非 list 类型）/ `missing-sources`（error，source/synthesis 页缺 `sources` 字段或为空——
   与「frontmatter 来源」的 `sources-missing`（值不可访问）不同名不同因，均保留）
-- **frontmatter 定界符结构**（`check_frontmatter_structure`）：
+- **frontmatter 定界符结构**：
   - `frontmatter-delimiter-glued`（**error**）：闭合 `---` 与正文粘连（如 `---# 标题`）——
     前置块定界符失效、整页不渲染，而宽松 frontmatter 正则仍"剥得掉"（历史 bug：
     `write touch` 每轮吞一个换行累积成粘连）。修法：手动 Edit 在闭合 `---` 后补换行
@@ -267,7 +268,7 @@ CLI + agent 一起输出统一格式，每条带：**严重性** + **类别** + 
 2. **询问用户先修哪些**——不要一次全修（容易回退或引入新问题）
 3. 修完后**重新跑 lint 验证**——不要带着 fix 没验过的状态前进
 4. 若启用 git，重大修复 commit 时建议加 `lint: <summary>` 前缀；裸目录树 wiki 跳过 commit 步骤
-5. **若跑 fixtures-check**——按 [`upgrade-workflow.md「决策树」`](upgrade-workflow.md) 区分 CLI 骨架 vs agent 语义合并；
+5. **若跑 fixtures-check**——按 [`upgrade-workflow.md「职责切分」`](upgrade-workflow.md) 区分 CLI 骨架 vs agent 语义合并；
    `fixtures-fix-*` 系列（anchor-schema / symlink-matches / log-format 等当前格式维护）：anchor 类
    走 `llmw wiki external add/remove/rebuild` 命令（CLI 持有 schema SSOT，参考
    [`external-repo.md「sources: 元素类型」`](external-repo.md)）；
@@ -293,5 +294,5 @@ CLI + agent 一起输出统一格式，每条带：**严重性** + **类别** + 
   wiki_metadata.toml）的合规性：
      check 清单以 `llmw wiki check-fixtures --json` 输出为准（CLI 内部注册表唯一真源；
      结构探测 + 骨架字段比对两类，后者读 llmw 包内字节金标准作 SSOT）；语义合并由 LLM 按
-     [`upgrade-workflow.md「语义合并规则」`](upgrade-workflow.md) 判断——CLI 不替代人。常规 lint 另跑
-     `check_format_version`（「前置：wiki 版本一致性」）报版本漂移 warn
+     [`upgrade-workflow.md「语义合并规则」`](upgrade-workflow.md) 判断——CLI 不替代人。常规 lint 按
+     「前置：wiki 版本一致性」报版本漂移 warn
