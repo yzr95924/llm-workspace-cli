@@ -310,7 +310,7 @@ def cmd_new(wiki_root, args):
         return f"new 目标页已存在（如需更新用 Edit）：{page_path}", 2
     if args.type == "source" and not args.sources:
         return (
-            "new --type source 必须提供 --sources（lint lint-checklist.md「frontmatter 来源」sources 非空是 error）",
+            "new --type source 必须提供 --sources（缺失会被 lint 报 sources-missing；解释见 llmw wiki lint --explain=sources-missing）",
             2,
         )
 

@@ -2,12 +2,14 @@
 """
 wiki_lint — deterministic 健康检查（llmw wiki lint）
 
-跑 references/lint-checklist.md「Deterministic 检查清单」（全部项）+ external symlink 检查。
+跑全部 deterministic 检查（finding 解释走 `lint --explain`，注册表 = llmw.content.findings）
++ external symlink 检查。
 半定性检查（「半定性检查（agent 执行）」段，矛盾主张 / 缺失交叉引用等需理解语义的）由 agent 现场做。
 
 用法：
   llmw wiki lint --name=X | --path=DIR [--severity <LEVEL>] [--no-git]
   llmw wiki lint --name=X | --path=DIR --check-version [--json] [--apply]
+  llmw wiki lint --explain=NAME|all（不跑检查，打 finding 含义 / severity / 修法）
 
 --severity 过滤：error | warn | info | all（默认 all）
 --no-git 跳过 raw/ 的 git status 检查（CI 或裸仓场景）。默认**自动检测**：
@@ -413,7 +415,7 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
 def check_frontmatter(wiki_root: Path) -> List[str]:
     """frontmatter 完整性 + source/synthesis 的 sources 字段
 
-    校验口径分两类（口径 canonical = lint-checklist.md「frontmatter 完整性」）：
+    校验口径分两类（口径 canonical = finding 注册表 llmw.content.findings）：
     - wiki 5 类内容页（entities/concepts/sources/comparisons/syntheses）：
       5 必填（title/type/created/updated/tags）+ 推荐 description
     - MEMORY/*.md：仅 `title` 必填，其余 5 字段全 optional（frontmatter 是
@@ -461,7 +463,8 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
                                 findings.append(
                                     f"sources-absolute-path: {rel} sources 含绝对路径 '{s}'；"
                                     f"必须用相对 wiki 根的路径（如 raw/articles/... 或 "
-                                    f"raw/external/<source-name>/...），与 lint-checklist.md「frontmatter 来源」一致"
+                                    f"raw/external/<source-name>/...）（解释见 "
+                                    f"llmw wiki lint --explain=sources-absolute-path）"
                                 )
                                 continue
                             # raw/discussions/ 禁止作 source——
@@ -734,7 +737,7 @@ def check_log_format(wiki_root: Path) -> List[str]:
 # log.md 滚动窗口上限——超过则建议截断保最近 N 条
 LOG_RETENTION_LIMIT = 50
 
-# source 页 stale 摘要阈值（days）——`updated` 距今超过此值报 stale-summary（详见 lint-checklist.md「过期摘要」）
+# source 页 stale 摘要阈值（days）——`updated` 距今超过此值报 stale-summary（解释见 `--explain=stale-summary`）
 STALE_SUMMARY_DAYS = 90
 
 
@@ -1664,7 +1667,7 @@ def build_upgrade_plan(
         "from_version": current_format,
         "to_version": CURRENT_WIKI_FORMAT,
         "skill_doc": "SKILL.md（yzr-llm-wiki-management skill 根）",
-        "format_doc": "references/lint-checklist.md（yzr-llm-wiki-management skill，check 语义参考）",
+        "format_doc": "references/lint-workflow.md（yzr-llm-wiki-management skill，lint 流程与 --explain 入口）",
         "rule_doc": "references/upgrade-workflow.md（yzr-llm-wiki-management skill）",
         "actions": actions,
         "fixtures_actions": fixtures_actions,

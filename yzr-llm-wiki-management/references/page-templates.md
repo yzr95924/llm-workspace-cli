@@ -51,8 +51,8 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
   `log.md` 是 **reserved 文件**（结构见「index（index.md）」/「log.md（log）」），自带 frontmatter，其中 `type: index` /
   `type: log` 仅作标记、lint 跳过它们——不算概念页 type
 - `tags`——用于跨页搜索 + 未来可能的 dataview 查询。**取值必须严格在 `wiki/tags.md` 白名单内**
-  （取值 / 解析 / 审计循环 canonical 在 fixture 头部说明块；lint 语义见
-  [`lint-checklist.md「Tag Taxonomy 校验」`](lint-checklist.md)）
+  （取值 / 解析 / 审计循环 canonical 在 fixture 头部说明块；lint finding 解释用
+  `llmw wiki lint --explain=tag-not-in-taxonomy`）
 - `created` / `updated`——写入用 `YYYY-MM-DD HH:MM`；lint 按精度宽容解析三种格式：
   date-only / HH:MM / HH:MM:SS
 - 类型特定字段（`sources` / `compared` / `threads`）见各模板
@@ -99,7 +99,7 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 1. **纪律闸门**——生命周期纪律 canonical = 本节（AGENTS.md 模板声明"内容页写页规则不在本文件"，
    指向本 skill）
 2. **lint 兜底**——`reviewed-stale` 拎出漏清戳的页提示复审
-   （触发条件与语义见 [`lint-checklist.md`](lint-checklist.md)）
+   （触发条件与语义：`llmw wiki lint --explain=reviewed-stale`）
 
 **何时设 `reviewed: true`**：
 
@@ -390,8 +390,7 @@ updated: YYYY-MM-DD HH:MM
 H1 `<Topic> Wiki` + 说明块 + 5 类别 H2（Entities / Concepts / Sources / Comparisons
 / Syntheses，字母序）；每条 `- [<title>](<path>) — <description>`。
 
-**lint 口径**见 [`lint-checklist.md「index.md 覆盖」`](lint-checklist.md)（`index-missing` /
-`orphan-page`）。
+**lint 口径**：`llmw wiki lint --explain=index-missing` / `--explain=orphan-page`。
 
 ### log.md（log）
 
@@ -411,8 +410,7 @@ updated: YYYY-MM-DD HH:MM
 头部说明块。正路走 `llmw wiki write log`（格式 + 截断自动保证）；带外手改按 fixture
 格式 + 手工截断。
 
-**lint 口径**见 [`lint-checklist.md`「log.md 格式」/「log.md 条目数（log-truncation）」](lint-checklist.md)
-（`log-format` / `log-truncation-recommended`）。
+**lint 口径**：`llmw wiki lint --explain=log-format` / `--explain=log-truncation-recommended`。
 
 ## 模板使用规则
 

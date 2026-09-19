@@ -85,7 +85,7 @@ setup 由 workspace CLI 完成（见「工作流 / 步骤」）。
 5. **MEMORY/ 是 LLM agent 的私有记忆**——新条目走 `llmw wiki write memory add`；只存
    `<wiki-root>/` 一份（无副本漂移；`wiki/` 外 = publish 不外传）。写入流程见「Memory」节
 6. **tag 白名单在 `wiki/tags.md`**——取值 / 解析 / 审计循环 canonical 在 fixture
-   头部说明块（落盘即读）；lint 语义见 [`lint-checklist.md「Tag Taxonomy 校验」`](references/lint-checklist.md)
+   头部说明块（落盘即读）；lint finding 解释用 `llmw wiki lint --explain=tag-not-in-taxonomy`
 
 ### 边界
 
@@ -198,11 +198,12 @@ setup 由 workspace CLI 完成（见「工作流 / 步骤」）。
 
 ### Lint（健康检查）
 
-**触发**："lint wiki" / 定期（频率阈值见 [`lint-checklist.md「lint 频率」`](references/lint-checklist.md)）/ 大型 wiki 主动建议。
+**触发**："lint wiki" / 定期（频率阈值见 [`lint-workflow.md「lint 频率」`](references/lint-workflow.md)）/ 大型 wiki 主动建议。
 
 **流程骨架**：`llmw wiki lint`（deterministic 层）→ agent 半定性检查（矛盾主张 / 缺失交叉
-引用 / 新摄取方向）→ 报告 + 询问用户先修哪些。检查大类与 finding 口径的权威清单见
-[`references/lint-checklist.md`](references/lint-checklist.md)（执行前必读）；fixtures 一致性归
+引用 / 新摄取方向）→ 报告 + 询问用户先修哪些。finding 口径（含义 / severity / 修法）=
+`llmw wiki lint --explain=all`；半定性检查与频率见
+[`references/lint-workflow.md`](references/lint-workflow.md)（执行前必读）；fixtures 一致性归
 `llmw wiki check-fixtures`（常规 lint 只在 `--check-version` 时附带）。
 
 ### Memory（写入 LLM agent 持久化记忆）

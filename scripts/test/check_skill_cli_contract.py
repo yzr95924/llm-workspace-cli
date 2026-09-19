@@ -14,10 +14,10 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
      不到）。代码块严格校验；行内 backtick 只校验第二 token 为小写命令形态
      的片段，散文提及跳过。**有意不扫 MEMORY/（含历史命令与反例，必误报）
      与 tests/（可执行测试自带 loud failure）**。
-  2. finding 名（双向，skill 域）：lint-checklist 里 `` `name`（severity`` 模式
-     → 必须存在于 wiki_lint.py / wiki_fixtures.py 字面量；wiki_lint.py 的
-     finding 前缀 → 必须在 skill 文本有文档（allowlist 收编有意不文档化的
-     例外）
+  2. finding 口径（skill 域）：prose 不得镜像 finding 清单（`` `name`（severity``
+     形式即红——口径唯一入口是 `llmw wiki lint --explain`，注册表 SSOT 在
+     llmw/content/findings.py；发射点 ↔ 注册表的穷举校验在
+     tests/test_findings_registry.py，不在本 gate）
   3. rule_ref（CLI → skill，skill 域）：llmw/content/*.py + CONTRACT_MDS（skill
      文档 / 模板 / 仓根文档）里的 `<file>.md「节名」` 指针 → 对应 skill 文件与
      标题必须都存在。**名称锚点校验**：引用名须唯一命中一个标题（子串匹配，
@@ -52,7 +52,7 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
       目录路径 token，`<dir>` 必须在 llmw.content.wiki_lint.WIKI_SUBDIRS
       （CLI SSOT）集合内。改目录名时残留旧路径被当场点名，零人工维护
    8. rule_ref 格式闸：llmw/**/*.py 中 rule_ref 值指向 skill 文档必须带 `.md`
-      扩展名（`lint-checklist「名」` 这类缺 .md = gate 3 扫不到的死指针）
+      扩展名（`lint-workflow「名」` 这类缺 .md = gate 3 扫不到的死指针）
    9. module 限定符号禁令（skill↔CLI 解耦）：SKILL_MDS 内 backtick span 命中两形态
       之一即红——(a) `llmw.` 前缀（含多点包内路径，如 `llmw.content` /
       `llmw.content.external_anchor._REQUIRED_FIELDS`）；(b) 单点 `模块.符号`
@@ -120,7 +120,8 @@ WRAPPED_INLINE_RE = re.compile(r"`(llmw[^`]*?)`", re.DOTALL)
 SEMVER_RE = re.compile(r"\bv?\d+\.\d+\.\d+\b")
 SEMVER_KEY_SKIP_RE = re.compile(r"^\s*(?:wiki|workspace)_format_version\s*:")
 SEMVER_FILE_SKIP = {"upgrade-workflow.md"}
-FINDING_IN_SRC_RE = re.compile(r'[fF]"([a-z][a-z0-9]+(?:-[a-z0-9]+)+): ')
+# 面 2 severity 镜像模式：`` `finding-name`（error|warn|info`` = 旧 checklist 镜像格式；
+# 口径改走 `llmw wiki lint --explain` 注册表（findings.py），出现即红。
 SEVERITY_MENTION_RE = re.compile(
     r"`([a-z][a-z0-9]+(?:-[a-z0-9]+)+)`（\*{0,2}(?:error|warn|info)"
 )
@@ -139,7 +140,7 @@ TEMPLATE_BARE_SHORTHAND_RE = re.compile(
 # 后跟旧式 `§` 或新式 `「` 两种形态（token 后无 `.md`）；负向先行 `(?!\.md)` 排除
 # 已带 .md 的正确形式。不抓散文 "SKILL 目录" / "SKILL scan"（后不跟 § / 「）。
 RULE_REF_BARE_RE = re.compile(
-    r"\b(SKILL|lint-checklist|page-templates|upgrade-workflow|ingest-workflow"
+    r"\b(SKILL|lint-workflow|page-templates|upgrade-workflow|ingest-workflow"
     r"|query-workflow|external-repo|examples|formats)(?!\.md)(?: §[一二三四五六七八九十0-9]|[^\w\n]{0,3}「)"
 )
 
@@ -265,30 +266,27 @@ def _iter_agent_texts(tree):
                             yield lineno, key, text
 
 
-# CLI→skill 反向检查的有意例外（在 skill 侧只按 family 提及 / NOTES 级提示，不逐名文档化）
-BACKWARD_ALLOWLIST = set()
-
 TERMINAL_TOKENS = {
     "blocked_drift": ("upgrade-workflow.md", "examples.md"),
     "done_with_residue": ("upgrade-workflow.md",),
     "verify_failed": ("upgrade-workflow.md",),
     "needs_upgrade": ("upgrade-workflow.md", "examples.md"),
     "upgrade_plan": ("upgrade-workflow.md",),
-    "skipped_conflicts": ("upgrade-workflow.md", "lint-checklist.md"),
-    "fixtures_actions": ("upgrade-workflow.md", "lint-checklist.md"),
-    "agent_rules": ("upgrade-workflow.md", "lint-checklist.md", "examples.md"),
+    "skipped_conflicts": ("upgrade-workflow.md", "lint-workflow.md"),
+    "fixtures_actions": ("upgrade-workflow.md", "lint-workflow.md"),
+    "agent_rules": ("upgrade-workflow.md", "lint-workflow.md", "examples.md"),
     # plan 自述的语义字段：本文档只指路，字段词汇归 CLI（agent 按 plan 自带规则落）
     # 注：本表方向是**文档 → CLI**（文档提到才查 CLI 有无该字面量）；CLI 新增枚举值而
     # 文档未跟随时本表查不出（如 upgrade.py 的 `growth-graft-error`），该类漂移靠人工审计
-    "to_action": ("lint-checklist.md", "external-repo.md"),
+    "to_action": ("lint-workflow.md", "external-repo.md"),
     # 注：子串匹配——`actions` 会被 `fixtures_actions` 掩盖，只能抓字段整体消失，
     # 抓不住孤立重命名；且面 4 只覆盖 references/*.md（SKILL.md 的提及扫不到）
-    "actions": ("upgrade-workflow.md", "lint-checklist.md"),
+    "actions": ("upgrade-workflow.md", "lint-workflow.md"),
     # drift 判定的唯一判据（CLI 只对 render / gitignore-block 的 diff 设门禁）
     "gitignore-block": ("upgrade-workflow.md", "examples.md"),
     # finding 名（doc 侧分支依据）：升级触发（版本三态）/ 语义合并判定
-    "wiki-format-version-stale": ("upgrade-workflow.md", "lint-checklist.md"),
-    "wiki-format-version-unparsed": ("upgrade-workflow.md", "lint-checklist.md"),
+    "wiki-format-version-stale": ("upgrade-workflow.md", "lint-workflow.md"),
+    "wiki-format-version-unparsed": ("upgrade-workflow.md", "lint-workflow.md"),
     "duplicate-title": ("upgrade-workflow.md",),
     # 唯一数据丢失路径的前置可见字段（dry-run plan / residue）
     "dropped_sections": ("upgrade-workflow.md",),
@@ -443,25 +441,11 @@ def _iter_wrapped_inline(md_text):
             yield span
 
 
-# ---------- 2. finding 名（双向） ----------
-
-
-def _findings_in_src():
-    names = set()
-    for py in (CONTENT / "wiki_lint.py", CONTENT / "wiki_fixtures.py"):
-        names.update(FINDING_IN_SRC_RE.findall(_read(py)))
-    return names
-
-
-def _lint_finding_prefixes():
-    return set(FINDING_IN_SRC_RE.findall(_py_src("wiki_lint.py")))
-
-
 # ---------- 3. rule_ref（CLI → skill） ----------
 
 
 _BASENAMES = (
-    "SKILL|upgrade-workflow|page-templates|lint-checklist|ingest-workflow"
+    "SKILL|upgrade-workflow|page-templates|lint-workflow|ingest-workflow"
     "|query-workflow|external-repo|examples|formats"
 )
 # 名称锚点引用（规范邻接形式）：`basename.md「节名」` / `` `basename.md`](url)「节名」 ``
@@ -565,8 +549,7 @@ def main():  # pylint: disable=too-many-branches
     errors = []
     stats = {
         "cmds": 0,
-        "fwd_findings": 0,
-        "bwd_findings": 0,
+        "finding_mirrors": 0,
         "rule_refs": 0,
         "tokens": 0,
         "semver": 0,
@@ -629,24 +612,23 @@ def main():  # pylint: disable=too-many-branches
                     )
                 )
 
-    # --- 2. finding 名 ---
-    src_findings = _findings_in_src()
-    lint_text = _read(WIKI_SKILL / "references" / "lint-checklist.md")
+    # --- 2. finding 口径（prose 不得镜像清单；入口 = lint --explain 注册表）---
     skill_all = "\n".join(_read(p) for p in SKILL_MDS)
-    for name in SEVERITY_MENTION_RE.findall(lint_text):
-        stats["fwd_findings"] += 1
-        if name not in src_findings and name not in _py_src("wiki_lint.py"):
-            errors.append(
-                "[finding fwd] lint-checklist 提及 `{}` 但 CLI 源无此名".format(name)
-            )
-    for name in sorted(_lint_finding_prefixes()):
-        stats["bwd_findings"] += 1
-        if name in BACKWARD_ALLOWLIST:
-            continue
-        if name not in skill_all:
-            errors.append(
-                "[finding bwd] CLI finding `{}` 未在 skill 文本文档化".format(name)
-            )
+    for md in SKILL_MDS:
+        for lineno, line in enumerate(_read(md).splitlines(), start=1):
+            for name in SEVERITY_MENTION_RE.findall(line):
+                stats["finding_mirrors"] += 1
+                errors.append(
+                    "[finding-mirror] {}:{} :: prose 镜像 finding `{}`（severity 括注形式）——"
+                    "口径唯一入口是 `llmw wiki lint --explain`"
+                    "（注册表 SSOT = llmw/content/findings.py）".format(
+                        _rel(md), lineno, name
+                    )
+                )
+    if "--explain" not in skill_all:
+        errors.append(
+            "[finding] skill 文本未提及 `--explain`（finding 含义/severity/修法的唯一入口）"
+        )
 
     # --- 3. rule_ref（CLI → skill）+ 「节名」目标标题存在性 ---
     # 3a. llmw/content/*.py：CLI 输出字符串 / docstring / 注释 / rule_ref 字段（纯文本形式）
@@ -786,7 +768,7 @@ def main():  # pylint: disable=too-many-branches
                     )
 
     # --- 8. rule_ref 格式闸（裸 basename 无 .md → gate 3 扫不到 = 死指针） ---
-    # 在 .py 中匹配 "SKILL §N" / "lint-checklist「名」" 等形式；负向先行排除带 .md 的。
+    # 在 .py 中匹配 "SKILL §N" / "lint-workflow「名」" 等形式；负向先行排除带 .md 的。
     # prose "SKILL 目录" / "SKILL scan" 后不跟 § / 「，自然不匹配。
     for py in PY_CONTRACT:
         rel = _rel(py)
@@ -835,13 +817,12 @@ def main():  # pylint: disable=too-many-branches
 
     # --- 报告 ---
     print(
-        "contract (skill+templates+repo-docs → CLI): {} cmd, {} fwd findings, "
-        "{} bwd findings, {} rule_refs, {} tokens, {} semver, {} landmarks, "
+        "contract (skill+templates+repo-docs → CLI): {} cmd, {} finding_mirrors, "
+        "{} rule_refs, {} tokens, {} semver, {} landmarks, "
         "{} layout_tokens, {} rule_ref_fmt_checks, {} module_symbols, "
         "{} agent_text_refs".format(
             stats["cmds"],
-            stats["fwd_findings"],
-            stats["bwd_findings"],
+            stats["finding_mirrors"],
             stats["rule_refs"],
             stats["tokens"],
             stats["semver"],

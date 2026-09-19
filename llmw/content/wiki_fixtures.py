@@ -76,20 +76,20 @@ from llmw.errors import WikiMetadataCorrupt
 from llmw.wiki import store as wiki_store
 
 # -- 公开 check 注册表（顺序 = 输出顺序）--
-# 每条: severity (error/warn)、rule_ref（指向 lint-checklist 段）、desc（人读摘要）
+# 每条: severity (error/warn)、rule_ref（指向 skill 文档段）、desc（人读摘要）
 CHECK_REGISTRY = [
     {
         "id": "agents-version-is-current",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "lint-checklist.md「调用方式」（--check-version wiki-format-version）",
+        "rule_ref": "lint-workflow.md「调用方式」（--check-version wiki-format-version）",
         "desc": "AGENTS.md 末尾「当前配置」表 Wiki Format 版本行需与 --target-format 一致",
     },
     {
         "id": "agents-md-template-sync",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "lint-checklist.md「Deterministic 检查清单」（agents-md-template-sync）",
+        "rule_ref": "upgrade-workflow.md「职责切分」（agents-md-template-sync 修复走 upgrade --apply）",
         "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（「当前配置」四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
@@ -97,7 +97,7 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": "AGENTS.md",
         "rule_ref": "<wiki-root>/AGENTS.md「本文件本身的纪律」节（含骨架所有权四分表）",
-        "desc": "模板零出边引用——不得含 page-templates/lint-checklist/SKILL.md/references/yzr-llm-wiki-management/OKF/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
+        "desc": "模板零出边引用——不得含 page-templates/lint-workflow/SKILL.md/references/yzr-llm-wiki-management/OKF/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
     },
     {
         "id": "gitignore-external-track-toml",
@@ -166,7 +166,7 @@ CHECK_REGISTRY = [
         "id": "wiki-metadata-reads-satisfied",
         "severity": "error",
         "file": "wiki_metadata.toml",
-        "rule_ref": "lint-checklist.md「lint 的边界」（fixtures 边界，check 清单由 CLI 注册表承载）",
+        "rule_ref": "lint-workflow.md「lint 的边界」（fixtures 边界，check 清单由 CLI 注册表承载）",
         "desc": "wiki_metadata.toml 含 SKILL scan 读取的 6 字段：name / topic / display_name / description / tags / created_at",
     },
     {
@@ -382,7 +382,7 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
 # 对运行时读者是死指针；改纪律只改模板对应段，SKILL.md / page-templates.md 单向指入模板。
 TEMPLATE_OUTBOUND_PATTERNS = (
     "page-templates.md",
-    "lint-checklist.md",
+    "lint-workflow.md",
     "SKILL.md",
     "references/",
     "yzr-llm-wiki-management",
@@ -394,7 +394,7 @@ def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Di
     """包内 agents-md-template.md 不含任何指向 skill 目录的出边引用。
 
     模板随 init 拷贝进每个 wiki 成为 AGENTS.md——wiki 侧 agent 读不到 skill 目录，模板内
-    一切 `page-templates.md` / `lint-checklist.md` / `SKILL.md` /
+    一切 `page-templates.md` / `lint-workflow.md` / `SKILL.md` /
     `references/` / `OKF` / 阿拉伯数字 §节号 引用都是死指针（零白名单，含 provenance 声明也不得
     携带——全部改写为自包含措辞）。skill 目录内文件 → 模板 单向引用由本 check
     机械强制；对每个 wiki 报告同一结果（模板是全局文件），违反时 error 逼 skill 侧修复。
