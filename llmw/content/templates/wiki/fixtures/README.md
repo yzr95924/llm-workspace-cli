@@ -112,7 +112,7 @@ fixtures 只承载 **CLI init 时刻的骨架字节**；内容在 init 之后由
 
 | 文件 | fixture 覆盖（骨架） | 成长内容（fixture 外） |
 |---|---|---|
-| `wiki/index.md` | frontmatter + H1 + 说明块 + 5 类别 H2 标题 | 类别下每篇 ingest 产出的 page bullet / 链接 |
+| `wiki/index.md` | frontmatter + H1 + 说明块 + 类别 H2 标题 | 类别下每篇 ingest 产出的 page bullet / 链接 |
 | `wiki/log.md` | frontmatter + 说明块 + 第一条 setup 条目 | 之后由三种 op 痕迹追加的条目 |
 | `wiki/tags.md` | H1 + 说明块（空 bullet 列表） | agent 按需追加的 tag bullet |
 | `MEMORY/MEMORY.md` | H1 + 说明块 + `## 索引` 段标题 | 索引下每条经验条目 |

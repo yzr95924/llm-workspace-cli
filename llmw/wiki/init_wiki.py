@@ -11,7 +11,7 @@ fixtures 是 CLI 字节金标准;完整 gate 走 scripts/test/smoke_fixtures.py
 落盘 8 件产物(AGENTS.md SSOT 拆出):
   AGENTS.md, CLAUDE.md(薄壳), .gitignore, wiki/index.md, wiki/log.md,
   MEMORY/MEMORY.md, wiki/tags.md, scripts/SCRIPTS.md
-子目录: raw/{articles,assets,discussions}, wiki/{5 类内容页}, MEMORY/, scripts/
+子目录: raw/{articles,assets,discussions}, wiki/{内容页子目录}, MEMORY/, scripts/
 
 git 红线: CLI 绝不碰 git——init 仅落盘目录树 + .gitkeep 占位
 + 打印手动 hint;所有 git 操作由用户自行触发。.gitkeep 无条件落盘(8 个空目录:
@@ -22,6 +22,7 @@ git 红线: CLI 绝不碰 git——init 仅落盘目录树 + .gitkeep 占位
 from pathlib import Path
 
 from llmw.config import wiki_templates_dir
+from llmw.content.page_types import WIKI_SUBDIRS
 from llmw.content.render import (
     render_wiki_agents_md,
     render_wiki_claude_md,
@@ -32,14 +33,9 @@ from llmw.errors import SetupFailed, SkillMissing, WikiAlreadyInitialized
 from llmw.fsutil import atomic_write
 
 
-# 内容页子目录（字母序创建）；MEMORY/ 与 scripts/ 在落盘循环中一并创建
-_CONTENT_SUBDIRS = [
-    "comparisons",
-    "concepts",
-    "entities",
-    "sources",
-    "syntheses",
-]
+# 内容页子目录（SSOT：llmw/content/page_types.py；字母序创建）；
+# MEMORY/ 与 scripts/ 在落盘循环中一并创建
+_CONTENT_SUBDIRS = sorted(WIKI_SUBDIRS)
 # raw/ 默认子目录(字母序):
 #   articles / assets —— 始终预建(默认占位)
 #   discussions       —— 预建(协作草稿层):用户高频用,预建免去手动 mkdir;

@@ -125,6 +125,24 @@ SEMVER_FILE_SKIP = {"upgrade-workflow.md"}
 SEVERITY_MENTION_RE = re.compile(
     r"`([a-z][a-z0-9]+(?:-[a-z0-9]+)+)`（\*{0,2}(?:error|warn|info)"
 )
+# 面 2b 裸 token 存在性：prose 反引号内全小写 kebab token（finding 名同形）必须能落到
+# 某命名空间——(a) findings 注册表 / (b) CLI 源码既有字面量（fixtures action、upgrade
+# action、ingest reason 等值域）/ (c) 下方示例数据白名单。防 rename 后 prose 裸名引用
+# 静默陈旧（镜像禁令只覆盖 severity 括注格式，管不到分支触发键 / 指针之外的裸引用）。
+KEBAB_TOKEN_RE = re.compile(r"`([a-z][a-z0-9]*(?:-[a-z0-9]+)+)`")
+# 非 CLI 命名空间白名单（token 不是对 CLI 代码真源的引用，无 rename 对账对象）：
+# - 示例数据：slug / 仓名
+# - content-owned schema 值：workspace skill formats.md 的 frontmatter `type` 枚举
+#   （该文件自身是契约唯一承载点，无代码对应物）
+KEBAB_TOKEN_ALLOW = {
+    "attention-is-all-you-need",
+    "linux-kernel",
+    "cross-query",
+    "workspace-index",
+    "workspace-stats",
+    "workspace-lint",
+    "workspace-memory",
+}
 # 面 7a 节号禁令：AGENTS.md 字面量 + ≤6 个非 word 字符（空白 / backtick / 标点）+
 # `§<数字|中文数字>`。`AGENTS.md + `[references/external-repo.md`](...) §三` 形式
 # 中「+ [」含 word char 路径段 → regex 不匹配（§三实指 external-repo.md，非 AGENTS.md）。
@@ -550,6 +568,7 @@ def main():  # pylint: disable=too-many-branches
     stats = {
         "cmds": 0,
         "finding_mirrors": 0,
+        "finding_tokens": 0,
         "rule_refs": 0,
         "tokens": 0,
         "semver": 0,
@@ -629,6 +648,31 @@ def main():  # pylint: disable=too-many-branches
         errors.append(
             "[finding] skill 文本未提及 `--explain`（finding 含义/severity/修法的唯一入口）"
         )
+
+    # --- 2b. finding 名单向存在性（防 rename 后 prose 裸引用静默陈旧）---
+    import llmw.content.findings as _findings_mod  # pylint: disable=import-outside-toplevel
+
+    registry_names = set(_findings_mod.FINDINGS)
+    cli_src_all = "\n".join(_read(p) for p in PY_CONTRACT)
+    kebab_tokens = set()
+    for md in SKILL_MDS:
+        rel = _rel(md)
+        for lineno, line in enumerate(_read(md).splitlines(), start=1):
+            for tok in KEBAB_TOKEN_RE.findall(line):
+                kebab_tokens.add(tok)
+                if (
+                    tok in registry_names
+                    or tok in cli_src_all
+                    or tok in KEBAB_TOKEN_ALLOW
+                ):
+                    continue
+                errors.append(
+                    "[finding-stale] {}:{} :: prose 引用 `{}` 不在 findings 注册表，"
+                    "也不存在于 CLI 源码——疑似 rename 残留；改引用或补白名单".format(
+                        rel, lineno, tok
+                    )
+                )
+    stats["finding_tokens"] = len(kebab_tokens)
 
     # --- 3. rule_ref（CLI → skill）+ 「节名」目标标题存在性 ---
     # 3a. llmw/content/*.py：CLI 输出字符串 / docstring / 注释 / rule_ref 字段（纯文本形式）
@@ -818,11 +862,12 @@ def main():  # pylint: disable=too-many-branches
     # --- 报告 ---
     print(
         "contract (skill+templates+repo-docs → CLI): {} cmd, {} finding_mirrors, "
-        "{} rule_refs, {} tokens, {} semver, {} landmarks, "
+        "{} finding_tokens, {} rule_refs, {} tokens, {} semver, {} landmarks, "
         "{} layout_tokens, {} rule_ref_fmt_checks, {} module_symbols, "
         "{} agent_text_refs".format(
             stats["cmds"],
             stats["finding_mirrors"],
+            stats["finding_tokens"],
             stats["rule_refs"],
             stats["tokens"],
             stats["semver"],

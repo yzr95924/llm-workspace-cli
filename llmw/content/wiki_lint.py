@@ -48,35 +48,17 @@ from llmw.content.log_format import (
     LOG_LINE_RE,
     parse_date_or_datetime,
 )
+from llmw.content.page_types import (
+    TYPE_TO_SECTION,
+    TYPES_DISPLAY,
+    VALID_TYPES,
+    WIKI_SUBDIRS,
+)
 
 # fixtures 一致性检查——`--check-version` 自动调一次；结果并入
 # report["fixtures_check"] + plan["fixtures_actions"]（直接函数调用，非子进程）。
 
-VALID_TYPES = {
-    "entity",
-    "concept",
-    "source",
-    "comparison",
-    "synthesis",
-    # MEMORY 扩展类型——契约 canonical 见 MEMORY/MEMORY.md fixture 头部（MEMORY 桶约定不写
-    # `type`，分桶按路径）；这两值仅为兼容既有页，无逻辑消费：
-    # - `memory`：MEMORY/*.md 自用语义，与 wiki 5 类内容页区分
-    # - `memory-entry`：MEMORY 经验条目标识（与 `memory` 同属 MEMORY 桶）
-    "memory",
-    "memory-entry",
-}
-WIKI_SUBDIRS = ("entities", "concepts", "sources", "comparisons", "syntheses")
 MEMORY_SUBDIR = "MEMORY"
-
-# index.md 类别段名 ↔ 内容页 type——SSOT（wiki_write 的 cmd_index 从本处 import，
-# 两份映射同仓单源，避免漂移）。
-TYPE_TO_SECTION = {
-    "entity": "Entities",
-    "concept": "Concepts",
-    "source": "Sources",
-    "comparison": "Comparisons",
-    "synthesis": "Syntheses",
-}
 # raw/external 与 source 命名共用同一 kebab-case 正则——SSOT 在 llmw.content.external_anchor（CLI
 # anchor 写路径持有该正则与子目录/文件名常量；lint 仅消费）。
 from llmw.content.external_anchor import (  # noqa: E402
@@ -154,7 +136,7 @@ CURRENT_WIKI_FORMAT = WIKI_FORMAT_VERSION
 LEGACY_PATTERN_KEYS = {
     # 历史迁移 pattern（confidence-field / claudemd-tag-section / claudemd-not-thinshell）
     # 已于 2026-08 随"场景清零"退役删除；未来退役字段时按需注册新 key。
-    # 拦 wiki 5 类内容页误用 reserved `type: memory`（MEMORY/*.md 上 type: memory /
+    # 拦 wiki 内容页误用 reserved `type: memory`（MEMORY/*.md 上 type: memory /
     # memory-entry 合法，仅内容页误用才触发本规则）。
     "type-memory-value": "page-templates.md「共有 frontmatter 段」",
 }
@@ -416,15 +398,15 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
     """frontmatter 完整性 + source/synthesis 的 sources 字段
 
     校验口径分两类（口径 canonical = finding 注册表 llmw.content.findings）：
-    - wiki 5 类内容页（entities/concepts/sources/comparisons/syntheses）：
-      5 必填（title/type/created/updated/tags）+ 推荐 description
+    - wiki 内容页：
+      必填 frontmatter 字段 + 推荐 description
     - MEMORY/*.md：仅 `title` 必填，其余 5 字段全 optional（frontmatter 是
       可选 decoration；MEMORY 不在 wiki/index.md 列出、无 reviewed 概念、
-      tag 不共享 wiki taxonomy——5 必填的 rationale 对 MEMORY 多半不成立）
+      tag 不共享 wiki taxonomy——必填字段的 rationale 对 MEMORY 多半不成立）
     """
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
-    # wiki 5 类内容页：完整 5 必填校验
+    # wiki 内容页：完整必填校验
     for sub in WIKI_SUBDIRS:
         for p in pages[sub]:
             if not p.is_file():
@@ -851,8 +833,8 @@ def check_tag_taxonomy(wiki_root: Path) -> List[str]:
     """tag 是否在 taxonomy 白名单内
 
     来源：`wiki/tags.md`。找不到或解析出 0 个 tag → 静默跳过
-    （避免新 setup 的 wiki 必报错）。启用 taxonomy 后，对每个内容页（5 类 +
-    MEMORY 非 MEMORY.md）的 frontmatter.tags 元素做包含校验；不在白名单 → info 级。
+    （避免新 setup 的 wiki 必报错）。启用 taxonomy 后，对每个 wiki 内容页 +
+    MEMORY 非 MEMORY.md 的 frontmatter.tags 元素做包含校验；不在白名单 → info 级。
     """
     findings = []  # type: List[str]
     allowed = parse_tag_taxonomy(wiki_root)
@@ -950,7 +932,7 @@ def _strip_frontmatter_body(text):
 def check_page_size(wiki_root, threshold=PAGE_SIZE_THRESHOLD):
     """页面体量——正文非空行数 > threshold 的内容页建议拆分
 
-    仅检查 5 类内容页（entities/concepts/sources/comparisons/syntheses）——MEMORY/*
+    仅检查 wiki 内容页——MEMORY/*
     agent 私有定位（正文无长度上限）。计非空行（纯空行不计），避免空行撑大计数。
     阈值见模块顶部 PAGE_SIZE_THRESHOLD（SSOT）。
     """
@@ -1444,7 +1426,7 @@ def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
     返回结构（供 build_upgrade_plan 与 --json 输出复用）：
     {
       "patterns": {
-         # 仅 wiki 5 类内容页误用 reserved `type: memory` 触发；MEMORY/*.md 不进此列表
+         # 仅 wiki 内容页误用 reserved `type: memory` 触发；MEMORY/*.md 不进此列表
         "type-memory-value":    [{"file": "wiki/<entities|concepts|sources|comparisons|syntheses>/x.md", "conflict": False}],
       },
       "conflicts": [],
@@ -1493,7 +1475,7 @@ def build_upgrade_plan(
     actions = []  # type: List[Dict[str, object]]
     fixtures_actions = []  # type: List[Dict[str, object]]
 
-    # type-memory-value：wiki 5 类内容页误用 reserved `type: memory`（MEMORY 桶合法，内容页非法）
+    # type-memory-value：wiki 内容页误用 reserved `type: memory`（MEMORY 桶合法，内容页非法）
     for entry in legacy["patterns"]["type-memory-value"]:  # type: ignore
         fpath = entry["file"]  # type: ignore
         actions.append(
@@ -1502,8 +1484,8 @@ def build_upgrade_plan(
                 "type": "frontmatter-retype",
                 "rule_ref": LEGACY_PATTERN_KEYS["type-memory-value"],
                 "to_action": (
-                    f"Edit {fpath}：把 frontmatter 的 `type: memory` 按页面真实语义改为 5 类之一"
-                    "（entity / concept / source / comparison / synthesis）。**不要**改成"
+                    f"Edit {fpath}：把 frontmatter 的 `type: memory` 按页面真实语义改为内容页类型之一"
+                    f"（{TYPES_DISPLAY}）。**不要**改成"
                     " `memory-entry`——那是 MEMORY 桶扩展值，写进内容页语义错且不再触发本检查"
                 ),
             }
@@ -1632,8 +1614,8 @@ def build_upgrade_plan(
                         **base,
                         "type": "fixtures-fix-index-categories",
                         "to_action": (
-                            f"补齐 {fpath} 缺类别：5 标题齐全（见 fixture 头部模板） "
-                            "(Entities / Concepts / Sources / Comparisons / Syntheses)，顺序可调"
+                            f"补齐 {fpath} 缺类别：{len(TYPE_TO_SECTION)} 标题齐全（见 fixture 头部模板）"
+                            f"（{' / '.join(TYPE_TO_SECTION.values())}），顺序可调"
                         ),
                     }
                 )
@@ -1674,7 +1656,7 @@ def build_upgrade_plan(
         "skipped_conflicts": legacy.get("conflicts", []),  # type: ignore
         "agent_rules": [
             "按 actions[] 顺序逐项修；每个 action 前打印依据 rule_ref",
-            "frontmatter-retype：按 action.to_action 落（内容页 `type: memory` 改 5 类之一，不要改 `memory-entry`）",
+            "frontmatter-retype：按 action.to_action 落（内容页 `type: memory` 改内容页类型之一，不要改 `memory-entry`）",
             "skipped_conflicts[] 永远不自动覆盖——转人工",
             "AGENTS.md / CLAUDE.md 是 byte-owned 禁手改：版本行与骨架均由 `llmw wiki upgrade --apply` 重渲染落地",
             "不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）",

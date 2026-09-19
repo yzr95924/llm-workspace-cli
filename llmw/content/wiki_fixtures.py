@@ -66,6 +66,7 @@ from llmw.content._check_common import (
 )
 from llmw.content.external_anchor import SOURCE_NAME_RE
 from llmw.content.log_format import LOG_LINE_RE
+from llmw.content.page_types import TYPE_TO_SECTION
 from llmw.content.render import render_wiki_agents_md
 from llmw.content.wiki_lint import (
     ANCHOR_FILENAME,
@@ -125,7 +126,7 @@ CHECK_REGISTRY = [
         "severity": "warn",
         "file": "wiki/index.md",
         "rule_ref": "wiki/index.md fixture header (wiki 实例内直接可读)",
-        "desc": "wiki/index.md 含 5 类别标题 (Entities / Concepts / Sources / Comparisons / Syntheses)",
+        "desc": "wiki/index.md 含 {} 类别标题 ({})".format(len(TYPE_TO_SECTION), " / ".join(TYPE_TO_SECTION.values())),
     },
     {
         "id": "memory-index-no-frontmatter",
@@ -530,7 +531,7 @@ def check_symlink_anchor_toml_symlink_matches(wiki_root: Path, info: Dict[str, s
 
 
 def check_index_md_categories(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """wiki/index.md 含 5 类别标题（顺序可调）"""
+    """wiki/index.md 含全部类别标题（顺序可调）"""
     out = {  # type: Dict[str, object]
         "passed": True,
         "severity": "warn",
@@ -546,14 +547,14 @@ def check_index_md_categories(wiki_root: Path, info: Dict[str, str]) -> Dict[str
         m = INDEX_CATEGORY_RE.match(line)
         if m:
             name = m.group(1).strip()
-            if name in ("Entities", "Concepts", "Sources", "Comparisons", "Syntheses"):
+            if name in set(TYPE_TO_SECTION.values()):
                 found.add(name)
-    expected = {"Entities", "Concepts", "Sources", "Comparisons", "Syntheses"}
+    expected = set(TYPE_TO_SECTION.values())
     missing = sorted(expected - found)
     if missing:
         out["passed"] = False  # type: ignore
         out["actual"] = f"缺类别: {missing}"
-        out["expected"] = "5 类别齐全 (Entities / Concepts / Sources / Comparisons / Syntheses)"
+        out["expected"] = "{} 类别齐全 ({})".format(len(TYPE_TO_SECTION), " / ".join(TYPE_TO_SECTION.values()))
         return out
     return out
 
@@ -894,7 +895,7 @@ SKELETON_REGISTRY = [
         "severity": "error",
         "wiki_path": "wiki/log.md",
         "rule_ref": "wiki/log.md fixture header (wiki 实例内直接可读)",
-        "desc": "wiki/log.md frontmatter 含 5 必填键（title/type/tags/created/updated）",
+        "desc": "wiki/log.md frontmatter 必填键齐全",
         "signals": {"frontmatter_keys": ["title", "type", "tags", "created", "updated"]},
     },
     {

@@ -11,6 +11,8 @@ severity 取值：error / warn / info。
 
 from typing import NamedTuple, Optional, Tuple
 
+from llmw.content.page_types import CONTENT_TYPES, TYPES_DISPLAY
+
 
 class FindingSpec(NamedTuple):
     """一条 finding 的规格。"""
@@ -74,8 +76,8 @@ FINDINGS = {
     ),
     "invalid-type": FindingSpec(
         "error",
-        "frontmatter `type` 取值非法；内容页应为 entity / concept / source / comparison / synthesis",
-        "改为 5 类之一（字段定义见夹具头部契约）",
+        f"frontmatter `type` 取值非法；内容页应为 {TYPES_DISPLAY}",
+        f"改为 {len(CONTENT_TYPES)} 类之一（字段定义见夹具头部契约）",
     ),
     "log-missing": FindingSpec(
         "error",
@@ -205,7 +207,7 @@ FINDINGS = {
     ),
     "oversized-page": FindingSpec(
         "warn",
-        "5 类内容页正文非空行数超过阈值（阈值随 finding 文本输出；MEMORY 无上限）",
+        "内容页正文非空行数超过阈值（阈值随 finding 文本输出；MEMORY 无上限）",
         "拆成子主题页 + cross-link",
     ),
     "related-broken-link": FindingSpec(

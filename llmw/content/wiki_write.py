@@ -37,22 +37,16 @@ from pathlib import Path
 from llmw.content.external_anchor import SOURCE_NAME_RE
 from llmw.content.ingest_diff import parse_frontmatter_simple
 from llmw.content.log_format import LOG_LINE_RE
+from llmw.content.page_types import (
+    CONTENT_TYPES,
+    TYPE_TO_DIR,
+    TYPE_TO_SECTION,
+)
 from llmw.content.wiki_lint import (
     CURRENT_WIKI_FORMAT,
     LOG_RETENTION_LIMIT,
-    TYPE_TO_SECTION,
     parse_format_version,
 )
-
-# wiki 5 类内容页（非 MEMORY 扩展类型）→ 子目录 + index.md 类别段
-_TYPE_TO_DIR = {
-    "entity": "entities",
-    "concept": "concepts",
-    "source": "sources",
-    "comparison": "comparisons",
-    "synthesis": "syntheses",
-}
-_CONTENT_TYPES = set(_TYPE_TO_DIR.keys())
 
 _FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?", re.DOTALL)
 _INDEX_ENTRY_RE = re.compile(r"^\s*-\s*\[([^\]]+)\]\(([^)]+)\)(.*)$")
@@ -192,7 +186,7 @@ def cmd_index(wiki_root, args):
         return "index add 需要目标页 frontmatter 含非空 title", 2
     section = TYPE_TO_SECTION.get(str(fm.get("type", "")).strip())
     if section is None:
-        return "index add 需要目标页 type 为 5 类内容页之一（当前: {}）".format(fm.get("type")), 2
+        return "index add 需要目标页 type 为内容页类型之一（当前: {}）".format(fm.get("type")), 2
     desc = str(fm.get("description", "")).strip()
     entry = "- [{}]({}){}".format(title, link, (" — " + desc) if desc else "")
 
@@ -299,13 +293,13 @@ def cmd_touch(wiki_root, args):
 
 
 def cmd_new(wiki_root, args):
-    if args.type not in _CONTENT_TYPES:
-        return "new --type 必须是 5 类内容页之一（{}）".format(", ".join(sorted(_CONTENT_TYPES))), 2
+    if args.type not in CONTENT_TYPES:
+        return "new --type 必须是内容页类型之一（{}）".format(", ".join(sorted(CONTENT_TYPES))), 2
     if not SOURCE_NAME_RE.match(args.slug):
         return f"new --slug 必须是小写 kebab-case（^[a-z0-9][a-z0-9-]*$）：{args.slug}", 2
     if not args.title.strip():
         return "new --title 必须非空", 2
-    page_path = Path(wiki_root) / "wiki" / _TYPE_TO_DIR[args.type] / (args.slug + ".md")
+    page_path = Path(wiki_root) / "wiki" / TYPE_TO_DIR[args.type] / (args.slug + ".md")
     if page_path.is_file():
         return f"new 目标页已存在（如需更新用 Edit）：{page_path}", 2
     if args.type == "source" and not args.sources:
@@ -402,7 +396,7 @@ def build_subparsers(sub) -> None:
     p_touch.set_defaults(func=cmd_touch)
 
     p_new = sub.add_parser("new", help="新建内容页脚手架（frontmatter + H1）")
-    p_new.add_argument("--type", required=True, help="5 类内容页之一")
+    p_new.add_argument("--type", required=True, help="内容页类型之一")
     p_new.add_argument("--slug", required=True, help="kebab-case 文件名")
     p_new.add_argument("--title", required=True)
     p_new.add_argument("--description", default="")

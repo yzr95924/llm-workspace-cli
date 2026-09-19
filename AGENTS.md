@@ -142,7 +142,7 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 | `llmw.cli` | argparse + 全局 flag + 分派 | 不含业务逻辑 |
 | `llmw.backends` | backend 单一真源：`KNOWN_BACKENDS`（enter_cli 白名单 / 打标 / 校验共用）+ `STATE_PATTERNS`（status 的 STATE 模式注册表）+ `match_working`/`match_waiting`；加新 agent 只改此文件 | 不写盘、不做 tmux IO |
 | `llmw.config` | workspace 路径解析、SKILL 脚本路径、模板目录定位 | 不解析 workspace.toml |
-| `llmw.content` | **所有**确定性操作单仓收口：`render.py`（骨架渲染单一入口）/ `upgrade.py` + `upgrade_workspace.py`（升级引擎 + 3 终态）/ `wiki_fixtures.py` + `workspace_fixtures.py`（规则注册表 + 探测器，共享脚手架在 `_check_common.py`）/ `findings.py`（lint finding 注册表 SSOT：名 / severity / 含义 / 修法，`lint --explain=NAME` 输出）/ 内容层命令 `wiki_lint.py` / `ingest_diff.py` / `wiki_write.py` / `external_anchor.py` / `log_format.py`（log 行正则 + 日期解析 SSOT）/ `legacy_paths.toml`（数据）。变量 SSOT = metadata toml + `__version__` 常量；不从旧文件反提取变量 | 不写 `raw/` / `wiki/` 语义内容（红线例外见项目定位）；不调用 LLM；不读用户 git 状态；不写元数据 toml（`store` 负责） |
+| `llmw.content` | **所有**确定性操作单仓收口：`render.py`（骨架渲染单一入口）/ `upgrade.py` + `upgrade_workspace.py`（升级引擎 + 3 终态）/ `wiki_fixtures.py` + `workspace_fixtures.py`（规则注册表 + 探测器，共享脚手架在 `_check_common.py`）/ `findings.py`（lint finding 注册表 SSOT：名 / severity / 含义 / 修法，`lint --explain=NAME` 输出）/ `page_types.py`（内容页 type ↔ 子目录 ↔ index 类别段 SSOT）/ 内容层命令 `wiki_lint.py` / `ingest_diff.py` / `wiki_write.py` / `external_anchor.py` / `log_format.py`（log 行正则 + 日期解析 SSOT）/ `legacy_paths.toml`（数据）。变量 SSOT = metadata toml + `__version__` 常量；不从旧文件反提取变量 | 不写 `raw/` / `wiki/` 语义内容（红线例外见项目定位）；不调用 LLM；不读用户 git 状态；不写元数据 toml（`store` 负责） |
 | `llmw.errors` | 自定义异常（按 exit_code 1/2/3 分层） | — |
 | `llmw.fsutil` | 原子写（tmp + fsync + rename）、ISO8601 时间 | — |
 | `llmw._compat` | tomllib (3.11+) / tomli (<3.11) 兼容层 + 手写 toml dump | — |
@@ -228,7 +228,8 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 - **不要在 skill prose 镜像 finding 口径**：finding 的含义 / severity / 修法唯一入口 =
   `llmw wiki lint --explain=all`（注册表 `llmw/content/findings.py`；发射点 ↔ 注册表由
   `tests/test_findings_registry.py` 双向穷举）。skill prose 出现 `` `name`（severity``
-  镜像格式即 gate 面 2 判红；新增 finding 只动注册表 + 发射点。详 [[mechanical-truth-in-code]]。
+  镜像格式即 gate 面 2 判红，裸 kebab token 须命中注册表 / CLI 源码字面量（面 2b 单向存在性，
+  防 rename 后 prose 静默陈旧）；新增 finding 只动注册表 + 发射点。详 [[mechanical-truth-in-code]]。
 - **不要让 model 走环境变量被读出来**：`os.environ.get("ANTHROPIC_*")` 这类读取一律禁止；
   model 配置完全由 `workspace_models.toml` 掌控，enter 的 overlay 交付是 CLI 主动行为
   （写启动配置）。详 [[model-ops-no-env-vars]]。
