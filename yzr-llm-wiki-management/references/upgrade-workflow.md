@@ -19,9 +19,8 @@ legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末�
 - **CLI `llmw wiki upgrade`（骨架修复者）**：修骨架（四类所有权：canonical 见 wiki 根
   AGENTS.md「骨架所有权四分表」）+ legacy paths 移动。**旧文件里新骨架没有的自定义 `##`
   段会被丢弃**——dry-run 以 `dropped_sections` 列出、写盘后记入 `residue[]`；`render` /
-  `gitignore-block` 类 diff 需 `--yes`，否则停于 `blocked_drift`。终态 `status`（人读输出
-  与 `--json` 均给出）：`done` / `done_with_residue` / `blocked_drift` / `verify_failed`
-  （自检 error，修完重跑，幂等）/ `error`（输入错）
+  `gitignore-block` 类 diff 需 `--yes`，否则停于 `blocked_drift`。终态 `status` 由人读输出
+  与 `--json` 均给出，分支处置见「流程」第 5 步
 - **lint `--check-version --apply --json` 的 plan**（内容页 legacy + 约定文件）：stdout 输出
   `upgrade_plan`，含两条并行数组（内容页 `actions[]` / 约定文件 `fixtures_actions[]`）；
   **执行顺序与每条动作的具体改法由 plan 自带的 `agent_rules[]` + 各 action 说明给出**。

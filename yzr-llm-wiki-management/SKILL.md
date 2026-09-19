@@ -11,8 +11,7 @@ description: |
   归档新结论——即使没提 skill 名，也务必使用本 skill。
   不适用：云端 / 团队 wiki（Notion / Confluence / Outline 等）；wiki 元数据配置、增删
   wiki、session 启停（单条 llmw 命令，直接跑即可）；跨 wiki / workspace 层操作（归
-  workspace 层 skill）。
-  **仅当 cwd 是 wiki 根（含 `wiki_metadata.toml` + AGENTS.md 骨架）时触发**；其它目录不适用。
+  workspace 层 skill）；cwd 不是 wiki 根（无 `wiki_metadata.toml` + AGENTS.md 骨架）。
 metadata:
   author: Zuoru YANG
   category: knowledge-base
