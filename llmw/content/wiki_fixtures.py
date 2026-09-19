@@ -166,7 +166,7 @@ CHECK_REGISTRY = [
         "id": "wiki-metadata-reads-satisfied",
         "severity": "error",
         "file": "wiki_metadata.toml",
-        "rule_ref": "lint-checklist.md §八（fixtures 边界，check 清单由 CLI 注册表承载）",
+        "rule_ref": "lint-checklist.md §七（fixtures 边界，check 清单由 CLI 注册表承载）",
         "desc": "wiki_metadata.toml 含 SKILL scan 读取的 6 字段：name / topic / display_name / description / tags / created_at",
     },
     {

@@ -69,6 +69,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
    - 摘要（200-500 字）——核心论点 / 关键数据 / 与本 wiki 其他资料的关系
    - 关键引用——可独立成段的引文 / 数字 / 结论
    - 链接出去的 cross-refs——相关 entity / concept / source 页
+   - 正文含交互流 / 架构关系时优先配图——判定与选型见 [`page-templates.md §四`](page-templates.md)
    - `created`：全新文件设 today；stale-raw 重摄取保留原值
    - **认知质量信号（可选）**：fast-moving / 争议 / 单一弱来源的 source 页，建议在 frontmatter
      标 `contested: true`（仅当**确属矛盾未裁定**时）——`confidence` 字段已退役，

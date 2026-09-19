@@ -64,7 +64,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
   修法：问用户，还原或确认后提交
 - 跳过（不报错不提示）：无 `.git/`（默认状态，CLI 不自动 git init）/ raw/ 未纳入
   git 跟踪 / 传 `--no-git` 静默跳过
-- `raw/discussions/` 未提交改动属预期（详见 ingest-workflow.md §10），从 `git status` 结果中排除
+- `raw/discussions/` 未提交改动属预期（详见 ingest-workflow.md §十），从 `git status` 结果中排除
 
 ### 2. frontmatter 完整性
 
@@ -259,13 +259,7 @@ CLI + agent 一起输出统一格式，每条带：**严重性** + **类别** + 
 `external-anchor-orphan` / `external-target-drift`——
 详见 CLI lint 实现里 external 检查的 docstring。）
 
-## 五、Semantic-merge 规则
-
-> 语义合并规则（agent 走 upgrade plan 时的合并依据）已并入
-> [`references/upgrade-workflow.md` §六](upgrade-workflow.md)——
-> 含 index 条目合并 / MEMORY 经验合并 / log 严格保留 / 决策树。本节只留指针。
-
-## 六、lint 之后
+## 五、lint 之后
 
 跑完 lint 后，agent 应当：
 
@@ -278,7 +272,7 @@ CLI + agent 一起输出统一格式，每条带：**严重性** + **类别** + 
    走 `llmw wiki external add/remove/rebuild` 命令（CLI 持有 schema SSOT，参考 [`external-repo.md`](external-repo.md) §二）；
    log-format 等纯骨架字段按 `to_action` 字段 + schema 指针用 Edit 落
 
-## 七、lint 频率
+## 六、lint 频率
 
 - **小 wiki（< 50 页）**——每月 1 次足够
 - **中 wiki（50-200 页）**——每 2 周 1 次
@@ -286,7 +280,7 @@ CLI + agent 一起输出统一格式，每条带：**严重性** + **类别** + 
 - **重大 ingest 后**——建议跑一次（可能引入新 entity / 断链）
 - **跨 format 升级后**——首次跑 fixtures-check 验证约定文件已切到新 format 字节形态
 
-## 八、lint 的边界
+## 七、lint 的边界
 
 - **不**自动修——只报告；修由用户 / agent 决定
 - **不**评估内容质量（不是 fact-checker）——只看结构和纪律

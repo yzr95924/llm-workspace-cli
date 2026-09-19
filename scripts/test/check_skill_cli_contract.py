@@ -340,12 +340,19 @@ RULE_REF_RE = re.compile(
     + _BASENAMES
     + r")\.md)(?:\s*§(?P<section>[一二三四五六七八九十0-9][0-9.]*)?)?"
 )
-# md 文档里 §N 落在链接关闭之后：`[`baz.md`](url) §N`。RULE_REF_RE 抓不到（§N
-# 与 .md 之间隔着 `](url)`），单独扫。
+# 下面两类 §N 与 .md 之间隔着链接 / 反引号，RULE_REF_RE 抓不到，单独扫：
+# - §N 落在链接关闭之后：`[`baz.md`](url) §N`
+# - §N 落在反引号关闭之后、链接关闭之前：`[`baz.md` §N](url)`
+# 注意 base 分组必须带 (?:...) 包裹——否则 `\.md` 只绑定到交替的最后一项。
 RULE_REF_LINK_SECTION_RE = re.compile(
-    r"\[`?(?P<base>"
+    r"\[`?(?P<base>(?:"
     + _BASENAMES
-    + r"\.md)`?\]\([^)]*\)\s*§(?P<section>[一二三四五六七八九十0-9][0-9.]*)"
+    + r")\.md)`?\]\([^)]*\)\s*§(?P<section>[一二三四五六七八九十0-9][0-9.]*)"
+)
+RULE_REF_QUOTED_SECTION_RE = re.compile(
+    r"\[`(?P<base>(?:"
+    + _BASENAMES
+    + r")\.md)`\s*§(?P<section>[一二三四五六七八九十0-9][0-9.]*)\]"
 )
 CN2ARABIC = {
     "一": 1,
@@ -552,9 +559,10 @@ def main():  # pylint: disable=too-many-branches
     for py in sorted(CONTENT.glob("*.py")):
         for fname, section in RULE_REF_RE.findall(_read(py)):
             _check_rule_ref(fname, section, _rel(py), stats, errors)
-    # 3b. CONTRACT_MDS（skill 文档 / 模板 / 仓根文档）：两种形式都扫
+    # 3b. CONTRACT_MDS（skill 文档 / 模板 / 仓根文档）：三种形式都扫
     #   - 纯文本 `basename.md §N`（RULE_REF_RE）
     #   - 链接关闭后的 §N：`[`baz.md`](url) §N`（RULE_REF_LINK_SECTION_RE）
+    #   - 反引号关闭后的 §N：`[`baz.md` §N](url)`（RULE_REF_QUOTED_SECTION_RE）
     for md in CONTRACT_MDS:
         rel = _rel(md)
         text = _read(md)
@@ -566,6 +574,14 @@ def main():  # pylint: disable=too-many-branches
             seen.add(key)
             _check_rule_ref(fname, section, rel, stats, errors)
         for m in RULE_REF_LINK_SECTION_RE.finditer(text):
+            fname = m.group("base")
+            section = m.group("section")
+            key = (fname, section)
+            if key in seen:
+                continue
+            seen.add(key)
+            _check_rule_ref(fname, section, rel, stats, errors)
+        for m in RULE_REF_QUOTED_SECTION_RE.finditer(text):
             fname = m.group("base")
             section = m.group("section")
             key = (fname, section)

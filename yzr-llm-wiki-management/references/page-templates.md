@@ -3,8 +3,8 @@
 按 `type` 分 5 种。**5 类内容页**共有 frontmatter 段（见下）+ 类型特定字段 + 自由正文。
 
 > **本文件是 content-owned 产物（wiki 内容页）纪律的 canonical**——frontmatter 字段
-> 全集 / 建页阈值 / 认知质量信号 / 矛盾处理 Update Policy 的唯一维护点（AGENTS.md
-> 模板不再承载写页规则）。改规则只改本文件 + bump `wiki_format_version`。
+> 全集 / 建页阈值 / 认知质量信号 / 矛盾处理 Update Policy / 图示使用指引的唯一维护点
+> （AGENTS.md 模板不再承载写页规则）。改规则只改本文件 + bump `wiki_format_version`。
 
 > **本章顺序说明**：下面按**教学序**列出（基础 → 综合：entity → concept → source
 > → comparison → synthesis）。`type` 取值表与目录结构对应——字母序：`comparison` /
@@ -132,8 +132,8 @@ contradictions: [<wiki 页路径数组>, 可选]  # 与本页主张冲突的页�
 ## 二、各类型模板
 
 > **本节约定**：每类模板只列**路径 + 必填 frontmatter + 极简正文骨架**（节名 + 一句
-> "..."占位）。**完整正文示例**（source 摘要实例）见 [`examples.md`](examples.md)
-> 样例二——按需 Read，避免本文件膨胀。
+> "..."占位）；骨架即正文节名契约，写入时按它落。操作全流程 trace（ingest / query 实跑）
+> 见 [`examples.md`](examples.md)——按需 Read，避免本文件膨胀。
 
 ### 1. `entity`（实体页）
 
@@ -234,7 +234,7 @@ type: source
 tags: [<必填但可空>]
 created: YYYY-MM-DD HH:MM
 updated: YYYY-MM-DD HH:MM
-sources:  # 必填——指向 raw/ 现存路径（不得指向 raw/discussions/——草稿非真相源，详见 ingest-workflow.md §10）
+sources:  # 必填——指向 raw/ 现存路径（不得指向 raw/discussions/——草稿非真相源，详见 ingest-workflow.md §十）
   - raw/articles/<slug>.md
 authors: [<name1>, <name2>]  # 可选
 published: YYYY-MM-DD          # 可选
@@ -437,9 +437,9 @@ op ∈ `ingest`/`query`/`lint`/`setup`；日期也接受 `YYYY-MM-DD`（lint 按
 2. **修改时**——保留 frontmatter 全部字段；`updated` 改当天日期
 3. **重写时**——若 `type` / `sources` 等关键字段需要变，**先和用户确认**
 4. **归档 query 答案**——根据答案性质选 `comparison`（对比）或 `synthesis`（综合）
-5. **完整正文示例**——本文件只留 frontmatter SSOT + 极简骨架（节名 + `...` 占位）；
-   真实 wiki 里 5 类模板的填充实例见 [`examples.md`](examples.md) 样例二 / 样例三
-   （source 摘要 + 综合 markdown）——按需 Read，无需把详细实例塞进本文件
+5. **完整操作示例**——本文件只留 frontmatter SSOT + 极简骨架（节名 + `...` 占位）；
+   ingest / query 的实跑流程 trace 见 [`examples.md`](examples.md) 样例二 / 样例三
+   ——按需 Read，无需把详细实例塞进本文件
 
 ### 建页 / 追加 / 归档阈值（Page Thresholds）
 
@@ -454,3 +454,51 @@ entity，lint 报告会被噪声淹没。
 | **不创建页** | 路过提及（脚注 / 一次出现的名字）、领域外的细节、与本 wiki 主题无关 |
 | **拆分页** | 单页正文超过阈值（SSOT = `llmw wiki lint` 的 `PAGE_SIZE_THRESHOLD` 常量）——拆成子主题 + cross-link |
 | **归档页** | 内容被完全取代 / 主题域变化——加 `archived: true`、从 `index.md` 移除（log 走 `ingest` 或 `lint` op，记一条说明性条目） |
+
+## 四、图示使用指引
+
+> **本节为 advisory（建议式）**——图用于压缩过程性 / 结构性内容，不强制；密度优先，
+> 图是正文的压缩，不是装饰。
+
+**何时配图（判定）**：
+
+- **优先配图**——交互流程 / pipeline / 状态机 / 组件-模块关系 / 层级结构；散文写这类
+  内容超过 2-3 句仍绕不清时，换一张图
+- **不配图**——静态定义、简单枚举、单点结论；一页一般 ≤ 2 图（超了先自问是否该拆页，
+  阈值见 §三「建页 / 追加 / 归档阈值」）
+
+**选型规则**：
+
+- **mermaid 为默认**（`flowchart` / `sequenceDiagram`）——中文标签无碍，GitHub 网页 /
+  md-to-html 均可渲染。**源码本身保持可读**（兼顾终端直读）：短标签、线性流、
+  节点 ≤ ~12，超了就拆图或退回文字
+- **ASCII 图仅限**目录树 / 纯英文短标签结构（围栏用 `text`）——**禁止中文标签进
+  ASCII 框**：LLM 数中英混排显示宽度几乎必错，对齐必崩
+- **表格仍是对比类内容首选**（见 §二.4）；LaTeX 公式照旧
+- **不用二进制图片**——检索 / diff / 可移植性三损（wiki 的文本性是一等约束）
+
+**维护规则**：
+
+- **图是主张的一部分**——改主张必同步改图；stale / `reviewed` 判定对图与文字一视同仁
+- **关键结论在图外保留文字**——agent 靠 grep 检索，图里的信息等于不存在；图是压缩，
+  不是替代
+
+**示例**（最小正文片段——结论句自带可检索信息，图只补充结构）：
+
+> 摄入侧三阶段串联，失败在 `ingest-diff` 屏障重试——它只列未摄取文件，不写任何页。
+
+```mermaid
+flowchart LR
+  A[raw 资料] --> B[ingest-diff]
+  B --> C[source 页]
+  C --> D[index / log 同步]
+```
+
+目录树类用 ASCII（纯英文短标签）：
+
+```text
+wiki/
+├── entities/
+├── concepts/
+└── sources/
+```

@@ -82,14 +82,11 @@ checkout branch + 建 symlink；target 不在且无 remote_url → 报 `unrebuil
 llmw wiki lint                     # external-* findings 应为 0
 ```
 
-## 四、与日常接入的关系 / 漂移
+## 四、漂移刷新
 
-- **首次接入**（用户说"把 X 仓纳入 wiki"）：§一；LLM 在原机器跑 add（命名协商 +
-  可能 notes 文本由 LLM 决策）
-- **跨主机重建**（在新机器复现）：§三
-- **漂移刷新**（用户日常 `git pull` 触发）：**不做**自动漂移检测——
-  `remote_url` / `branch` 身份字段极少变化，无需刷新；"摘要是否过期"由用户判断，
-  需要时重 ingest 对应 source 页（`target` 字段不动）
+用户日常 `git pull` target 仓**不**触发任何自动检测——`remote_url` / `branch` 身份字段
+极少变化，无需刷新；"摘要是否过期"由用户判断，需要时重 ingest 对应 source 页
+（`target` 字段不动）。
 
 ## 五、反模式
 
