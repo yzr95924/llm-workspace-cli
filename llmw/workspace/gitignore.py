@@ -1,8 +1,8 @@
 """workspace 级 .gitignore managed block 维护（横切关注点，独立成模块）
 
-被 workspace init / workspace.store 迁移 / wiki add 的 purge / wiki enter 的
-opencode overlay 共同消费——原先散落在 workspace.manager 的私有函数 + 三处
-跨模块 import 私有名（store 反向依赖 manager 成环），现收口为公开 API。
+被 workspace init / wiki remove --purge / llmw upgrade（wiki 侧引 GITIGNORE_LINES、
+workspace 侧重放 managed block）共同消费——原先散落在 workspace.manager 的私有函数 +
+三处跨模块 import 私有名（store 反向依赖 manager 成环），现收口为公开 API。
 """
 
 import re

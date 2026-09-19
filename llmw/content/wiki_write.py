@@ -33,10 +33,10 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from llmw.content.external_anchor import SOURCE_NAME_RE  # noqa: E402
-from llmw.content.ingest_diff import parse_frontmatter_simple  # noqa: E402
-from llmw.content.log_format import LOG_LINE_RE  # noqa: E402
-from llmw.content.wiki_lint import (  # noqa: E402
+from llmw.content.external_anchor import SOURCE_NAME_RE
+from llmw.content.ingest_diff import parse_frontmatter_simple
+from llmw.content.log_format import LOG_LINE_RE
+from llmw.content.wiki_lint import (
     CURRENT_WIKI_FORMAT,
     LOG_RETENTION_LIMIT,
     TYPE_TO_SECTION,

@@ -89,7 +89,7 @@ def _write_workspace_agents_md(
             hint="AGENTS.md 是 workspace schema（用户所有），若需更新请手动编辑",
         )
 
-    # 模板渲染（含 references/ 存在性检查 + 占位符 assert 兜底）
+    # 模板渲染（模板缺失 / 占位符异常由 render 层抛 SetupFailed）
     rendered = render_workspace_agents_md(
         display_name=display_name,
         setup_date=setup_date,
@@ -124,7 +124,7 @@ def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
             hint="CLAUDE.md 是 workspace schema 薄壳（用户所有），若需更新请手动编辑",
         )
 
-    # 模板渲染（含 references/ 存在性检查 + 占位符 assert 兜底）
+    # 模板渲染（模板缺失 / 占位符异常由 render 层抛 SetupFailed）
     rendered = render_workspace_claude_md(display_name=display_name)
 
     try:
@@ -203,7 +203,7 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
         save as save_models,
     )
 
-    save_models(path, create_models_skeleton(path))
+    save_models(path, create_models_skeleton())
 
     # 先写 AGENTS.md (SSOT), 再写 CLAUDE.md (薄壳)
     # setup_date 派生自 workspace.toml.created_at（UTC ISO 8601）— 取 YYYY-MM-DD 与
@@ -308,7 +308,6 @@ def config_interactive(workspace_root: Path) -> None:
     from llmw.workspace import local_store
 
     if not sys.stdin.isatty():
-        # 非 TTY: 打印字段列表 + 用法, 退出 0
         print("[llmw] config 子命令: get KEY / set KEY VALUE / unset KEY")
         print(f"[llmw] workspace: {workspace_root}")
         print("[llmw] 可用 KEY:")
@@ -416,7 +415,7 @@ def _gather_wiki_rows(
             if not all(t in tags for t in tag_filter):
                 continue
 
-        # 通过 resolve 拿 model 来源（若失败则不阻断 list, 标为 <unresolved>）
+        # 通过 resolve 拿 model 来源（若失败则不阻断 list，回落 meta.model / 空值，表格显示 "-"）
         model_info = None
         try:
             from llmw.models.resolve import resolve_for_wiki

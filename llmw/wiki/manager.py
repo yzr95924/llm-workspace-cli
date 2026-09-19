@@ -172,7 +172,6 @@ def add(
     if name in ws.wikis:
         raise WikiExists(f"wiki '{name}' 已存在")
 
-    # 校验 model_id 存在于 registry（统一走 require_model_in_registry）
     if model is not None:
         require_model_in_registry(workspace_root, model)
 
@@ -181,7 +180,6 @@ def add(
     # 文件级拒绝条件(在 mkdir 前检查,失败无需清理半成品目录)
     init_wiki.check_not_initialized(wiki_dir)
 
-    # 非 TTY 下: 必须所有 metadata flag 齐
     if not sys.stdin.isatty():
         missing = []
         if display_name is None:
@@ -198,7 +196,6 @@ def add(
                 hint="补齐 flag 重试，或在 TTY 下用交互模式",
             )
 
-    # 默认 topic = name
     if topic is None:
         topic = name
 
@@ -222,7 +219,6 @@ def add(
         format_version=WIKI_FORMAT_VERSION,
     )
 
-    # 交互模式填 metadata
     if sys.stdin.isatty():
         try:
             _interactive_fill_metadata(workspace_root, wiki_dir, meta)
@@ -230,7 +226,6 @@ def add(
             print("\n[llmw] 跳过剩余 metadata", file=sys.stderr)
         meta = wiki_store.load(wiki_dir)  # reload
     else:
-        # 非 TTY: 一次性写入 flags
         if display_name is not None:
             meta.display_name = display_name
         if description is not None:
@@ -242,7 +237,6 @@ def add(
         meta.bump()
         wiki_store.save(wiki_dir, meta)
 
-    # 注册到 workspace.toml
     ws.wikis[name] = ws_store.WikiEntry(
         name=name,
         path=name,
@@ -372,7 +366,6 @@ def remove(
 
 
 def stop(
-    workspace_root: Path,
     name: str,
     window_suffix: Optional[str] = None,
     yes: bool = False,

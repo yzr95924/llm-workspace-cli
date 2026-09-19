@@ -1,7 +1,7 @@
 """wiki → 最终 ModelEntry 单一查找入口
 
 wiki.metadata.model 优先（需在 registry 中存在），否则 registry 中 is_default
-条目。被 enter / show / list / wiki config 校验共同消费。
+条目。被 enter / show / list 共同消费（wiki config 校验走 require_model_in_registry）。
 """
 
 import sys

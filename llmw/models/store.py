@@ -34,7 +34,7 @@ class ModelEntry:
     name: str
     base_url: str
     api_key: str
-    context_window: int  # 必填（无 fallback）：opencode 路径需显式声明 limit.context
+    context_window: int  # 必填（无 fallback）：claude overlay 按此推断 `[1m]` 视图
     is_default: bool = False
 
 
@@ -135,14 +135,12 @@ def load(workspace_root: Path) -> Registry:
         validate_base_url(m.base_url)
         validate_api_key(m.api_key)
         validate_context_window(m.context_window)
-        # 唯一性
         if m.model_id in models:
             raise ModelIdConflict(
                 f"workspace_models.toml 中 model_id '{m.model_id}' 重复",
             )
         models[m.model_id] = m
 
-    # is_default 计数（一致性校验）
     defaults = [mid for mid, e in models.items() if e.is_default]
     if len(defaults) > 1:
         raise ModelDefaultAmbiguous(
@@ -205,7 +203,7 @@ def delete(workspace_root: Path) -> None:
 # ===== 初始化 / 创建 =====
 
 
-def create_skeleton(workspace_root: Path) -> Registry:
+def create_skeleton() -> Registry:
     """空 Registry 工厂:返回 in-memory Registry。
 
     两条调用点:

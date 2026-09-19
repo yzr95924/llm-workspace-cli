@@ -4,7 +4,7 @@
 
 - llmw.wiki.init_wiki.render_and_write（wiki add 落盘骨架，保留编排逻辑）
 - llmw.workspace.manager 的 init 流程（workspace init 落盘 AGENTS.md / CLAUDE.md）
-- llmw.content.upgrade 引擎（resync 重渲染，Task 4）
+- llmw.content.upgrade 引擎（resync 重渲染）
 - llmw.content.wiki_fixtures 的 agents-md-template-sync（render-compare）
 - llmw.content.workspace_fixtures 的 template-sync（render-compare）
 - tests/test_content_*（替代迷你渲染器 `_render_agents_md` 等）

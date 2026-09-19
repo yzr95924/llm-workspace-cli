@@ -32,7 +32,7 @@ from llmw.errors import SetupFailed, SkillMissing, WikiAlreadyInitialized
 from llmw.fsutil import atomic_write
 
 
-# 内容页子目录 + MEMORY/, 字母序创建
+# 内容页子目录（字母序创建）；MEMORY/ 与 scripts/ 在落盘循环中一并创建
 _CONTENT_SUBDIRS = [
     "comparisons",
     "concepts",

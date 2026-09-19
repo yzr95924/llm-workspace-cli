@@ -34,14 +34,14 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set
 
 # 复用 ingest_diff 的轻量 frontmatter 解析 + log_format 的日期解析 helper
-from llmw.content._check_common import (  # noqa: E402
+from llmw.content._check_common import (
     SEMVER_RE,
 )
 from llmw.content._check_common import (
     compare_semver as _compare_semver,
 )
-from llmw.content.ingest_diff import parse_frontmatter_simple  # noqa: E402
-from llmw.content.log_format import (  # noqa: E402
+from llmw.content.ingest_diff import parse_frontmatter_simple
+from llmw.content.log_format import (
     LOG_LINE_RE,
     parse_date_or_datetime,
 )
@@ -61,7 +61,6 @@ VALID_TYPES = {
     "memory",
     "memory-entry",
 }
-# reviewed 字段仅在值为严格 `true` 时合法；缺省 / 其它值（含 "true" 字符串、yes、1、false）判非法
 WIKI_SUBDIRS = ("entities", "concepts", "sources", "comparisons", "syntheses")
 MEMORY_SUBDIR = "MEMORY"
 
@@ -138,8 +137,8 @@ def _is_absolute_path(p: str) -> bool:
     return False
 
 
-# Wiki format 当前版本——SSOT 是 SKILL.md metadata.wiki_format_version（frontmatter），
-# 经 llmw/__init__ 单源读取，不再维护常量副本（单仓后漂移源消失）。
+# Wiki format 当前版本——SSOT 是 llmw/__init__ 常量（单仓后漂移源消失），
+# SKILL.md frontmatter 由 CI gate 与常量比对（不一致即挂 fixtures-smoke job）。
 # 详见 MEMORY/format-version-bump-single-repo.md。
 from llmw import WIKI_FORMAT_VERSION  # noqa: E402
 
@@ -233,7 +232,7 @@ def _git_porcelain_paths(line: str) -> List[str]:
 
 
 def check_raw_immutable(wiki_root: Path, use_git: bool) -> List[str]:
-    """1. raw/ 是否被改（仅在 wiki 是 git 仓时跑；否则跳过）
+    """raw/ 是否被改（仅在 wiki 是 git 仓时跑；否则跳过）
 
     返回元组 (findings, skipped_reason)：
     - findings：原始改动列表（可能为空）
@@ -280,7 +279,7 @@ def check_raw_immutable(wiki_root: Path, use_git: bool) -> List[str]:
 
 
 def check_external_symlinks(wiki_root: Path) -> List[str]:
-    """10. raw/external/ 下 symlink 的健康检查（扁平 + TOML anchor）
+    """raw/external/ 下 symlink 的健康检查（扁平 + TOML anchor）
 
     触发条件：扫 `raw/external/` 顶层，关联 `.symlink-anchor.toml` 的 [[entry]] 数组：
     - external-anchor-missing（error）：symlink 存在但 anchor 文件本身不在
@@ -410,7 +409,7 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
 
 
 def check_frontmatter(wiki_root: Path) -> List[str]:
-    """2. frontmatter 完整性 + 3. source/synthesis 的 sources 字段
+    """frontmatter 完整性 + source/synthesis 的 sources 字段
 
     校验口径分两类（口径 canonical = lint-checklist.md「frontmatter 完整性」）：
     - wiki 5 类内容页（entities/concepts/sources/comparisons/syntheses）：
@@ -421,7 +420,6 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
     """
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
-    # 跳过不存在的 index / log
     # wiki 5 类内容页：完整 5 必填校验
     for sub in WIKI_SUBDIRS:
         for p in pages[sub]:
@@ -603,7 +601,7 @@ def resolve_link(base: Path, link: str) -> Optional[Path]:
 
 
 def check_link_integrity(wiki_root: Path) -> List[str]:
-    """4. 路径引用完整性"""
+    """路径引用完整性"""
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
     all_pages = []
@@ -632,7 +630,7 @@ def check_link_integrity(wiki_root: Path) -> List[str]:
 
 
 def check_index_coverage(wiki_root: Path) -> List[str]:
-    """5. index.md 覆盖"""
+    """index.md 覆盖"""
     findings = []  # type: List[str]
     index_path = wiki_root / "wiki" / "index.md"
     if not index_path.is_file():
@@ -710,7 +708,7 @@ def check_index_section_placement(wiki_root: Path) -> List[str]:
 
 
 def check_log_format(wiki_root: Path) -> List[str]:
-    """6. log.md 格式"""
+    """log.md 格式"""
     findings = []  # type: List[str]
     log_path = wiki_root / "wiki" / "log.md"
     if not log_path.is_file():
@@ -736,7 +734,7 @@ STALE_SUMMARY_DAYS = 90
 
 
 def check_log_truncation(wiki_root: Path) -> List[str]:
-    """10. log.md 滚动窗口——条目数超过 LOG_RETENTION_LIMIT 建议截断
+    """log.md 滚动窗口——条目数超过 LOG_RETENTION_LIMIT 建议截断
 
     log.md 只保最近 N 条操作（完整历史靠 git：`git log -p -- wiki/log.md`）。
     判定依据：按 LOG_LINE_RE 正则匹配行数。lint 只报告；截断由 agent 用 Edit/Write
@@ -760,7 +758,7 @@ def check_log_truncation(wiki_root: Path) -> List[str]:
 
 
 def check_stale_summaries(wiki_root: Path, threshold_days: int = STALE_SUMMARY_DAYS) -> List[str]:
-    """7. 过期摘要"""
+    """过期摘要"""
     findings = []  # type: List[str]
     sources_dir = wiki_root / "wiki" / "sources"
     if not sources_dir.is_dir():
@@ -842,7 +840,7 @@ def parse_tag_taxonomy(wiki_root: Path) -> Set[str]:
 
 
 def check_tag_taxonomy(wiki_root: Path) -> List[str]:
-    """11. tag 是否在 taxonomy 白名单内
+    """tag 是否在 taxonomy 白名单内
 
     来源：`wiki/tags.md`。找不到或解析出 0 个 tag → 静默跳过
     （避免新 setup 的 wiki 必报错）。启用 taxonomy 后，对每个内容页（5 类 +
@@ -880,7 +878,7 @@ def check_tag_taxonomy(wiki_root: Path) -> List[str]:
 
 
 def check_filename_kebab(wiki_root: Path) -> List[str]:
-    """8. 文件名 kebab-case 规范"""
+    """文件名 kebab-case 规范"""
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
     for sub in WIKI_SUBDIRS + ("index", "log"):
@@ -905,7 +903,7 @@ def check_filename_kebab(wiki_root: Path) -> List[str]:
 
 
 def check_duplicate_titles(wiki_root: Path) -> List[str]:
-    """9. 重复标题"""
+    """重复标题"""
     findings = []  # type: List[str]
     title_to_files = {}  # type: Dict[str, List[str]]
     pages = find_md_files(wiki_root)
@@ -942,7 +940,7 @@ def _strip_frontmatter_body(text):
 
 
 def check_page_size(wiki_root, threshold=PAGE_SIZE_THRESHOLD):
-    """12. 页面体量——正文非空行数 > threshold 的内容页建议拆分
+    """页面体量——正文非空行数 > threshold 的内容页建议拆分
 
     仅检查 5 类内容页（entities/concepts/sources/comparisons/syntheses）——MEMORY/*
     agent 私有定位（正文无长度上限）。计非空行（纯空行不计），避免空行撑大计数。
@@ -967,7 +965,7 @@ def check_page_size(wiki_root, threshold=PAGE_SIZE_THRESHOLD):
 
 
 def check_quality_signals(wiki_root):
-    """13. 可信度与认知质量信号——reviewed / contested / contradictions
+    """可信度与认知质量信号——reviewed / contested / contradictions
 
     deterministic 子检查（字段全部可选；省略 = 不评，lint 不报）：
 
@@ -1183,7 +1181,7 @@ def _check_index_review_badges(wiki_root):
 
 
 def check_memory_index(wiki_root: Path) -> List[str]:
-    """14. MEMORY.md 索引一致性——MEMORY/*.md（非 MEMORY.md）必须被索引列出
+    """MEMORY.md 索引一致性——MEMORY/*.md（非 MEMORY.md）必须被索引列出
 
     MEMORY.md 是单一真源（无 frontmatter）；由 `<wiki-root>/AGENTS.md` 顶部
     `@MEMORY/MEMORY.md` `@import` 自动加载全文。
@@ -1253,7 +1251,7 @@ def check_memory_index(wiki_root: Path) -> List[str]:
 
 
 def check_related_links(wiki_root: Path) -> List[str]:
-    """15. related / compared 路径引用完整性
+    """related / compared 路径引用完整性
 
     校验 wiki 内容页 frontmatter 的 `related`（concept 页）与 `compared`
     （comparison 页）字段——按 page-templates.md「共有 frontmatter 段」约定解析为**内容根 `wiki/`
@@ -1432,19 +1430,19 @@ def check_format_version(wiki_root: Path) -> List[str]:
         findings.append(
             "wiki-format-version-unparsed: AGENTS.md 末尾「当前配置」表 `Wiki Format 版本` 行无法解析"
             "（缺 AGENTS.md 或表格格式破坏）——"
-            "跑 `lint_wiki.py --check-version` 诊断"
+            "跑 `llmw wiki lint --check-version` 诊断"
         )
         return findings
     cmp = _compare_semver(current, CURRENT_WIKI_FORMAT)
     if cmp == "older":
         findings.append(
-            f"wiki-format-version-stale: AGENTS.md 末尾「当前配置」表 format {current} 落后 SKILL {CURRENT_WIKI_FORMAT}——"
-            "跑 `lint_wiki.py --check-version --apply` 走升级流程"
+            f"wiki-format-version-stale: AGENTS.md 末尾「当前配置」表 format {current} 落后 llmw 支持版本 {CURRENT_WIKI_FORMAT}——"
+            "跑 `llmw wiki lint --check-version --apply` 走升级流程"
         )
     elif cmp == "newer":
         findings.append(
-            f"wiki-format-version-ahead: AGENTS.md 末尾「当前配置」表 format {current} 领先 SKILL {CURRENT_WIKI_FORMAT}——"
-            "更新本 skill 安装（lint_wiki.py）对齐"
+            f"wiki-format-version-ahead: AGENTS.md 末尾「当前配置」表 format {current} 领先 llmw 支持版本 {CURRENT_WIKI_FORMAT}——"
+            "更新 llmw 安装对齐"
         )
     # equal / unknown → 无 finding
     return findings
@@ -1531,7 +1529,6 @@ def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
 
 
 def build_upgrade_plan(
-    wiki_root: Path,
     current_format: Optional[str],
     legacy: Dict[str, object],
     fixtures_check: Optional[Dict[str, object]] = None,
@@ -1790,7 +1787,7 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     if json_mode:
         # JSON 模式：输出 report；apply 时再附 plan
         if apply:
-            plan = build_upgrade_plan(wiki_root, current_format, legacy, fixtures_check)
+            plan = build_upgrade_plan(current_format, legacy, fixtures_check)
             report["upgrade_plan"] = plan
         print(json.dumps(report, indent=2, ensure_ascii=False))
         return 0
@@ -1851,7 +1848,7 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
 
     # apply 时把 upgrade plan 以 JSON 输出到 stdout（agent 直接消费；不落盘，升级无中间文件残留）
     if apply:
-        plan = build_upgrade_plan(wiki_root, current_format, legacy, fixtures_check)
+        plan = build_upgrade_plan(current_format, legacy, fixtures_check)
         print("\n[PLAN] upgrade plan 已生成（stdout JSON 输出，agent 直接消费，不落盘）")
         print(
             f"       actions: {len(plan['actions'])}, skipped_conflicts: {len(plan['skipped_conflicts'])}, "  # type: ignore

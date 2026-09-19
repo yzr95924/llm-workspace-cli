@@ -11,8 +11,8 @@ user 来规避，代价是丢 user 配置）。
 **ANTHROPIC_MODEL 视图化**（`_claude_anthropic_model`）——Claude Code 客户端的 1M
 context 启用约定是给模型名加 `[1m]` 后缀；registry.field `name` 只存裸 wire 格式
 （k3 / MiniMax-M3），由本路径按 `context_window` 字段权威声明自动加。客户端特定
-约定不耦合进 registry 数据——opencode 路径在 `_gateway_model_id` 内部剥后缀做
-wire 兼容，qodercli 不读 overlay。三种 backend 各自负责生成自己需要的视图。
+约定不耦合进 registry 数据——opencode 路径不读本 overlay，模型由后端内部自由
+切换；qodercli 同样跳过。三种 backend 各自负责生成自己需要的视图。
 
 **Habit template**（`_HABIT_TEMPLATE`）——非用户可配的"习惯级" env key，统一随
 overlay 写入所有 wiki，确保跨 session 风格一致。增删改一律改本文件常量；不增 CLI
@@ -56,8 +56,8 @@ def _claude_anthropic_model(name: str, context_window: int) -> str:
 
     Claude Code 客户端的 1M context 启用约定是给模型名加 `[1m]` 后缀。本函数
     按 context_window 字段权威声明自动加——避免把客户端特定约定耦合进 registry
-    数据(不同 agent 各自生成, claude 路径走本视图函数, opencode 路径在
-    `_gateway_model_id` 内部剥后缀做到 wire 兼容)。
+    数据(不同 agent 各自生成, claude 路径走本视图函数, opencode / qodercli 不经
+    本路径)。
 
     边界:context_window >= 1M 且 name 不带 `[1m]` 后缀 → 自动加;否则原样
     (允许 name 在过渡期带后缀,保留幂等)。

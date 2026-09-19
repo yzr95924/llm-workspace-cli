@@ -11,18 +11,18 @@ upgrade-workflow.md「语义合并规则」+ LLM agent 走 upgrade plan 时处�
 用法:
   llmw wiki check-fixtures --path=<WIKI_ROOT> [--json] [--target-format <semver>]
 
-缺省 --target-format 时读 llmw.WIKI_FORMAT_VERSION（包内常量；SKILL.md 前端的版本 SSOT 由 CI gate 比对）。
-standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 tomli/tomllib。
+缺省 --target-format 时读 llmw.WIKI_FORMAT_VERSION（包内常量；SKILL.md 前端的版本由 CI gate 与常量比对）。
+TOML 解析自带最小实现，不依赖 tomli/tomllib。
 
 退出码:
-  0 = 全部 check pass (或仅 skip)
-  1 = 至少一条 check fail
+  0 = 全部 check pass (或仅 skip / warn)
+  1 = 至少一条 error 级 check fail
   2 = 运行错误（路径 / 参数 / 文件 IO）
 
 设计权衡:
 - 该脚本不写文件，也不产出 upgrade plan（由 llmw wiki lint --check-version
   `--apply` 以 stdout JSON 输出并 call 它的活）；standalone 调用方只能看到 stdout/JSON 报告。
-- 21 条 check（13 条结构探测 + 7 条骨架字段比对 + 1 条模板自检 `template-no-outbound-refs`）；
+- check 清单 = 结构探测 + 骨架字段比对（SKELETON_REGISTRY）+ 模板自检；
   下一个 wiki format 升级只需新增 register 条目 / SKELETON_REGISTRY 描述符。骨架信号硬编码在
   SKELETON_REGISTRY（与包内 fixtures/ 一致，改 fixtures 时手工同步描述符）；
   唯独 .gitignore 走包内 fixtures/gitignore.txt 自动跟随。
@@ -32,10 +32,10 @@ standalone（不依赖 lint_wiki.py）；自身合法 TOML 解析，不依赖 to
   主题/创建日期/CLI 版本三变量 + wiki 自钉 format 版本，渲染包内 agents-md-template.md
   后字节比对——一次性覆盖"旧版本残留 + 本地改动"全部漂移，取代 0.25.0- 的两条存在性检查
   （has-at-imports / top-read-directive）。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
-- 复用 lint_wiki / log_format 的常量（MEMORY_SUBDIR / EXTERNAL_SUBDIR / ANCHOR_FILENAME /
-  SEMVER_RE / LOG_LINE_RE，SSOT 单一，直接 import 不复制）。
-  仅 `_compare_semver` / `_parse_anchor_minimal` 保留本地实现（与 lint_wiki 版本有语义
-  差异：None 参数 / captured_at 空串的处理不同，check 需要更严格的宽容度）。
+- 常量 SSOT 直接 import 不复制：SEMVER_RE / `_compare_semver` ← `_check_common`；
+  MEMORY_SUBDIR / EXTERNAL_SUBDIR / ANCHOR_FILENAME ← `wiki_lint`；LOG_LINE_RE ← `log_format`。
+  `_parse_anchor_minimal` 保留本地实现（与 `external_anchor.load` 的差别：captured_at
+  空串本版过滤——check 需更严格的判定）。
 """
 
 import difflib
@@ -49,7 +49,7 @@ from typing import Callable, Dict, List, Optional
 from llmw import WIKI_FORMAT_VERSION
 from llmw import __version__ as CLI_VERSION
 from llmw.config import wiki_templates_dir
-from llmw.content._check_common import (  # noqa: E402
+from llmw.content._check_common import (
     SEMVER_RE,
 )
 from llmw.content._check_common import (
@@ -64,10 +64,10 @@ from llmw.content._check_common import (
 from llmw.content._check_common import (
     scan_template_outbound_refs as _scan_template_outbound_refs,
 )
-from llmw.content.external_anchor import SOURCE_NAME_RE  # noqa: E402
-from llmw.content.log_format import LOG_LINE_RE  # noqa: E402
+from llmw.content.external_anchor import SOURCE_NAME_RE
+from llmw.content.log_format import LOG_LINE_RE
 from llmw.content.render import render_wiki_agents_md
-from llmw.content.wiki_lint import (  # noqa: E402
+from llmw.content.wiki_lint import (
     ANCHOR_FILENAME,
     EXTERNAL_SUBDIR,
     MEMORY_SUBDIR,
@@ -97,7 +97,7 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": "AGENTS.md",
         "rule_ref": "<wiki-root>/AGENTS.md「本文件本身的纪律」节（含骨架所有权四分表）",
-        "desc": "模板零出边引用——不得含 page-templates/lint-checklist/SKILL.md/references/yzr-llm-wiki-management/external-repo/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
+        "desc": "模板零出边引用——不得含 page-templates/lint-checklist/SKILL.md/references/yzr-llm-wiki-management/OKF/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
     },
     {
         "id": "gitignore-external-track-toml",
@@ -194,8 +194,8 @@ def _skill_format_version() -> Optional[str]:
 def _parse_anchor_minimal(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
     """最小 TOML 解析——支持 [[entry]] 表 + key = "value" 双引号。
 
-    本地保留（非 lint_wiki import）：与 lint_wiki._parse_anchor 语义基本一致，但
-    captured_at 为空字符串时本版过滤（lint_wiki 版保留）——check 需更严格的判定。
+    本地保留（非 external_anchor import）：与 external_anchor.load 语义基本一致，但
+    captured_at 为空字符串时本版过滤（external_anchor 版保留）——check 需更严格的判定。
     返回 List[Dict] 或 None（文件缺失 / 解析失败 / 无有效 entry）。
     """
     text = _read_text(anchor_path)
@@ -394,8 +394,8 @@ def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Di
     """包内 agents-md-template.md 不含任何指向 skill 目录的出边引用。
 
     模板随 init 拷贝进每个 wiki 成为 AGENTS.md——wiki 侧 agent 读不到 skill 目录，模板内
-    一切 `page-templates.md` / `lint-checklist.md` / `external-repo.md` / `SKILL.md` /
-    `references/` / 阿拉伯数字 §节号 引用都是死指针（零白名单，含 provenance 声明也不得
+    一切 `page-templates.md` / `lint-checklist.md` / `SKILL.md` /
+    `references/` / `OKF` / 阿拉伯数字 §节号 引用都是死指针（零白名单，含 provenance 声明也不得
     携带——全部改写为自包含措辞）。skill 目录内文件 → 模板 单向引用由本 check
     机械强制；对每个 wiki 报告同一结果（模板是全局文件），违反时 error 逼 skill 侧修复。
     """
@@ -635,7 +635,7 @@ def check_log_md_format(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obje
     for i, line in enumerate(text.splitlines(), start=1):
         if not line.strip():
             continue
-        # 仅检查 ## 一级 heading 行（与 lint_wiki.py check_log_format 同口径；
+        # 仅检查 ## 一级 heading 行（与 wiki_lint.check_log_format 同口径；
         # 条目正则即以 ## 起头）；其它行（续段落 / 描述）允许
         if line.lstrip().startswith("## "):
             if not LOG_LINE_RE.match(line):
@@ -684,8 +684,8 @@ def check_tags_md_no_frontmatter(wiki_root: Path, info: Dict[str, str]) -> Dict[
 
 
 # 读取契约 co-location：这 6 字段 = workspace skill scan 读 wiki_metadata.toml 的字段子集。
-# SKILL 将来新读某字段，必须同步加到这里——清单完整，gate 才有效
-# wiki-metadata-reads-satisfied gate 才有效（清单漂移 = check 不报警 = gate 失效）。
+# SKILL 将来新读某字段，必须同步加到这里——清单完整（wiki-metadata-reads-satisfied
+# 检查）才有效（清单漂移 = check 不报警 = gate 失效）。
 WIKI_METADATA_REQUIRED_FIELDS = ("name", "topic", "display_name", "description", "tags", "created_at")
 WIKI_METADATA_KEY_RE = re.compile(r"^[ \t]*([a-z_]+)[ \t]*=", re.MULTILINE)
 
@@ -957,7 +957,7 @@ def _make_skeleton_check(entry: Dict[str, object]) -> Callable[[Path, Dict[str, 
     return _check
 
 
-# 骨架 check 并入 CHECK_REGISTRY（runtime 顺序 = 输出顺序，排在原 13 条之后）
+# 骨架 check 并入 CHECK_REGISTRY（runtime 顺序 = 输出顺序）
 CHECK_REGISTRY.extend(
     {
         "id": s["id"],

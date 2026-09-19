@@ -237,7 +237,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # ===== wiki 级 =====
     # --name 放 parent 上（不 required）：rename 走 --old/--new 替代 name；
-    # 其他子命令 (add/remove/show/config/enter) 依赖 dispatch 时手动校验 args.name。
+    # 其他子命令 (add/remove/show/config/enter/stop) 依赖 dispatch 时手动校验 args.name。
     # 这样保留 `wiki --name=X <action>` 旧语法 + 新 `wiki rename --old=... --new=...`。
     p_wiki = sub.add_parser("wiki", help="wiki 子命令", parents=[common])
     p_wiki.add_argument("--name", metavar="NAME", help="目标 wiki 名")
@@ -248,7 +248,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     wiki_sub = p_wiki.add_subparsers(dest="wiki_action", metavar="ACTION")
 
-    # add
     pw_add = wiki_sub.add_parser("add", help="新建 wiki", parents=[common])
     pw_add.add_argument("--topic", default=None)
     pw_add.add_argument("--display-name", default=None, dest="display_name")
@@ -263,7 +262,6 @@ def build_parser() -> argparse.ArgumentParser:
         "flag 仅为向后兼容保留,无实际效果——落盘后打印的手动 hint 见输出",
     )
 
-    # remove
     pw_rm = wiki_sub.add_parser("remove", help="移除 wiki", parents=[common])
     pw_rm.add_argument(
         "--purge",
@@ -278,7 +276,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pw_rm.add_argument("--yes", "-y", action="store_true")
 
-    # rename
     pw_rename = wiki_sub.add_parser(
         "rename",
         help="重命名 wiki (目录 + workspace 索引 + metadata)",
@@ -289,10 +286,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--new", required=True, metavar="NEW", help="新 wiki 名 (须符合 NAME_RE)"
     )
 
-    # show
     wiki_sub.add_parser("show", help="查看 wiki 详情", parents=[common])
 
-    # config (sub: get / set / unset)
     pw_cfg = wiki_sub.add_parser(
         "config", help="读写 wiki_metadata.toml", parents=[common]
     )
@@ -302,7 +297,6 @@ def build_parser() -> argparse.ArgumentParser:
     pw_cfg.add_argument("cfg_key", nargs="?", default=None)
     pw_cfg.add_argument("cfg_value", nargs="?", default=None)
 
-    # enter
     pw_enter = wiki_sub.add_parser(
         "enter",
         help="启动 AI agent session (默认 opencode，workspace_local.toml#enter_cli 可切 claude/qodercli；在当前 tmux session 开窗口，不在 tmux 内 → 恰一个可见 session 直接开入其中，否则兜底 llm_workspace + attach)",
@@ -317,7 +311,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="并行窗口后缀：拼接为 <wiki>-<suffix>（缺省 main）；传了才新开，不传恒为复用跳转",
     )
 
-    # stop
     pw_stop = wiki_sub.add_parser(
         "stop",
         help="终止 wiki 的 agent session 窗口（kill-window；候选 >1 需 --window-suffix 消歧）",
@@ -413,7 +406,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="机械字节写操作（log / index / touch / new / memory）",
         parents=[common],
     )
-    from llmw.content.wiki_write import build_subparsers as _write_subs  # noqa: E402
+    from llmw.content.wiki_write import build_subparsers as _write_subs
 
     write_sub = pw_write.add_subparsers(
         dest="write_cmd", metavar="ACTION", required=True
@@ -426,7 +419,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="raw/external/ anchor + symlink（add / remove / list / rebuild）",
         parents=[common],
     )
-    from llmw.content.external_anchor import build_subparsers as _ext_subs  # noqa: E402
+    from llmw.content.external_anchor import build_subparsers as _ext_subs
 
     ext_sub = pw_ext.add_subparsers(
         dest="external_cmd", metavar="ACTION", required=True
@@ -503,7 +496,7 @@ def _resolve_content_root(args) -> Path:
 
 
 def _cmd_wiki_content(args) -> int:
-    """wiki 内容层子命令分派（lint / check-fixtures / ingest-diff / write / upgrade）。
+    """wiki 内容层子命令分派（lint / check-fixtures / ingest-diff / write / external / upgrade）。
 
     在 workspace 解析之前处理——--path 直传时不依赖 workspace。
     """
@@ -857,7 +850,6 @@ def main(argv=None) -> int:
                 from llmw.wiki.manager import stop as wiki_stop
 
                 return wiki_stop(
-                    ws_root,
                     args.name,
                     window_suffix=args.window_suffix,
                     yes=args.yes,

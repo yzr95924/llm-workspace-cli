@@ -3,7 +3,7 @@
 ingest_diff.py — 找出 raw/ 里需要 LLM 关注的文件
 
 用法：
-  python3 ingest_diff.py [<WIKI_ROOT>] [--json] [--relative] [--check-stale]
+  llmw wiki ingest-diff --path=<WIKI_ROOT> [--json] [--relative] [--check-stale]
 
 判定"已摄取"的依据：
 - 扫 <WIKI_ROOT>/raw/ 递归收集可摄取的文本素材（扩展名白名单：*.md / *.markdown / *.txt；
@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import Dict, List, Set
 
 # log 行格式正则 + created/updated 时间解析 SSOT 来自 log_format 模块
-from llmw.content.log_format import LOG_INGEST_RE, parse_date_or_datetime  # noqa: E402
+from llmw.content.log_format import LOG_INGEST_RE, parse_date_or_datetime
 
 # 简易 YAML frontmatter 解析（不依赖 pyyaml，避免 setup 阶段的依赖膨胀）
 # 支持最常见的 key: value 形式（含数组、字符串）
@@ -120,13 +120,12 @@ def collect_raw_files(raw_root: Path) -> List[Path]:
         return []
     files = []  # type: List[Path]
     seen = set()  # type: Set[str]
-    # assets/ + discussions/ 子树直接跳过（不去 glob 它们）
+    # assets/ + discussions/ 子树整体跳过（rglob 会先遍历到，命中后按祖先过滤）
     skip_dirs = {raw_root / "assets", raw_root / "discussions"}
     for pattern in INGEST_GLOBS:
         for p in raw_root.rglob(pattern):
             if not p.is_file():
                 continue
-            # 任一祖先在 skip_dirs 集合里就跳过
             if any(parent in skip_dirs for parent in p.parents):
                 continue
             name = p.name
@@ -183,8 +182,8 @@ def collect_ingested_sources_map(wiki_root: Path) -> Dict[str, List[Path]]:
 def raw_newer_than_source(raw_path: Path, source_page: Path) -> bool:
     """raw 文件的 mtime 日期是否晚于 source 页 frontmatter.updated。
     若 updated 缺失 / 格式错 / mtime 不可读，视为"无法判定"，返回 False
-    （保守起见不报 stale，避免误报）。updated 接受 `YYYY-MM-DD` 与 `YYYY-MM-DD HH:MM`
-    两种格式（见 log_format.parse_date_or_datetime）。"""
+    （保守起见不报 stale，避免误报）。updated 接受 `YYYY-MM-DD` / `YYYY-MM-DD HH:MM` /
+    `YYYY-MM-DD HH:MM:SS` 三种格式（见 log_format.parse_date_or_datetime）。"""
     text = source_page.read_text(encoding="utf-8", errors="replace")
     fm = parse_frontmatter_simple(text)
     updated = fm.get("updated")

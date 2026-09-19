@@ -95,7 +95,6 @@ def model_add(
     if context_window is not None:
         validate_context_window(context_window)
 
-    # TTY 交互模式
     if sys.stdin.isatty():
 
         def ask(label, cur, validator):
@@ -146,13 +145,11 @@ def model_add(
                 hint="补齐 flag 重试，或在 TTY 下用交互模式",
             )
 
-    # 加载现有 registry；不存在 → 初始化
     try:
         reg = load(workspace_root)
     except RegistryMissing:
-        reg = create_skeleton(workspace_root)
+        reg = create_skeleton()
 
-    # 重复检测
     if model_id in reg.models:
         raise ModelIdConflict(
             f"model_id '{model_id}' 已存在",
@@ -291,7 +288,6 @@ def model_remove(workspace_root: Path, model_id: str, yes: bool = False) -> None
             hint="先 `llmw model set-default --model-id=<其他>` 或 `llmw model unset-default`",
         )
 
-    # 非 TTY 下需要 --yes
     if not sys.stdin.isatty():
         if not yes:
             raise PurgeRequiresConfirmation(

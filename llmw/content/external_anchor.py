@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from llmw._compat import toml_dump
-from llmw.fsutil import atomic_write  # noqa: E402
+from llmw.fsutil import atomic_write
 
 SOURCE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 EXTERNAL_SUBDIR = "external"
@@ -57,8 +57,8 @@ def _anchor_path(wiki_root: Path) -> Path:
 def load(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
     """解析 .symlink-anchor.toml；返回 List[Dict]（每个有效 entry 一条）或 None（损坏/无有效 entry）
 
-    与原 wiki_lint._parse_anchor 完全等价（含未知行 lenient 跳过、缺必填字段/非
-    external-repo kind 的 entry 过滤、0 有效 entry → None）。
+    解析 SSOT（wiki_lint 反向 import 本模块）；与 wiki_fixtures._parse_anchor_minimal
+    的差别：captured_at 空串本版保留（fixtures check 侧过滤更严）。
     """
     try:
         text = anchor_path.read_text(encoding="utf-8", errors="replace")

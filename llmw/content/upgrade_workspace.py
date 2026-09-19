@@ -10,19 +10,20 @@
                               ↘ blocked_drift（diff 非空 + 非 dry-run 无 --yes）
                               ↘ verifying fail → exit 2（版本钉不落）
 
-3 终态 JSON 契约（--json 恒可用）：
+终态 JSON 契约（--json 恒可用）：
 
-    status: done | blocked_drift（workspace 侧恒无 residue）
-    - done           : 4 类骨架处理 + 自检 0 error
-    - blocked_drift  : 自定义内容将被覆盖，dry-run 输出 diff 停住
+status: done | done_with_residue | blocked_drift | dry_run | verify_failed
+- done               : 4 类骨架处理 + 自检 0 error + 无 residue
+- done_with_residue  : 同上但有旧自定义段被丢弃（residue 明细随 JSON 输出）
+- blocked_drift      : 自定义内容将被覆盖，dry-run 输出 diff 停住
 
 退出码：
     0 = done
     1 = blocked_drift
     2 = 自验证失败 / 内部错误
 
-变量 SSOT: workspace.toml.created_at (setup_date) + llmw.WORKSPACE_FORMAT_VERSION（包内常量；SKILL.md 前端版本由 CI gate 与常量比对）
-+ 版本常量；display_name 例外（workspace.toml 未存），仍需从现有 AGENTS.md「当前配置」表 / H1 提取。
+变量 SSOT: workspace.toml.created_at (setup_date) + llmw.WORKSPACE_FORMAT_VERSION（包内常量；SKILL.md 前端版本由 CI gate 与常量比对）；
+display_name 例外（workspace.toml 未存），仍需从现有 AGENTS.md「当前配置」表 / H1 提取。
 """
 
 import json
@@ -37,12 +38,12 @@ from llmw.config import workspace_templates_dir
 from llmw.content import render as _render
 from llmw.content import upgrade as _wiki_upgrade
 from llmw.content import workspace_fixtures
-from llmw.content._check_common import read_text as _read_text  # noqa: E402
+from llmw.content._check_common import read_text as _read_text
 from llmw.fsutil import atomic_write
 from llmw.workspace import store as ws_store
 from llmw.workspace.gitignore import ensure_workspace_gitignore
 
-# workspace 骨架 4 类文件
+# workspace 骨架文件按所有权分 3 类（byte / block / header-owned）
 _BYTE_OWNED = ("AGENTS.md", "CLAUDE.md")
 _BLOCK_OWNED = (".gitignore",)
 _HEADER_OWNED = ("MEMORY/MEMORY.md",)

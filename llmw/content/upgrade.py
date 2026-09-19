@@ -16,7 +16,7 @@
     - done_with_residue: 骨架完成，残留清单需 agent
     - blocked_drift   : pre-constraint 自定义将被覆盖，dry-run 输出 diff 停住
 
-退出码（main()）:
+退出码（run_upgrade()）:
     0 = done / done_with_residue
     1 = blocked_drift（diff 非空 + 非 dry-run 无 --yes）
     2 = 自验证失败（版本钉不落）/ 内部错误
@@ -35,7 +35,7 @@ from llmw import WIKI_FORMAT_VERSION
 from llmw import __version__ as CLI_VERSION
 from llmw.content import render as _render
 from llmw.content import wiki_fixtures
-from llmw.content._check_common import read_text as _read_text  # noqa: E402
+from llmw.content._check_common import read_text as _read_text
 from llmw.fsutil import atomic_write
 from llmw.wiki import store as wiki_store
 
@@ -231,7 +231,7 @@ def _render_byte_owned(*, topic: str, setup_date: str) -> Dict[str, str]:
 
 
 def _render_fixture(fixture_name: str) -> str:
-    """读 reference fixture 文本 + 替换占位符；返原始文本（不做 substitute，caller 按需）。"""
+    """读包内 fixture 模板原始文本（不做 substitute，caller 按需）。"""
     from llmw.config import wiki_templates_dir
 
     return _render._read_template(wiki_templates_dir() / fixture_name)
@@ -524,7 +524,7 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
     legacy_changed = apply_legacy_paths(wiki_root)
     changed.extend(legacy_changed)
 
-    # 6. transforms (empty slots placeholder)
+    # 6. residue 汇总（growth-graft-error / dropped_sections 可见化，不静默）
     residue = []  # type: List[Dict[str, str]]
     for item in plan:
         if item.get("action") == "growth-graft-error":

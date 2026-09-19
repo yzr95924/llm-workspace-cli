@@ -84,7 +84,7 @@ from llmw.errors import (
 
 _BYOBU_BIN = "byobu-tmux"
 # 兜底 session 名（代码常量，不可配）：enter 不在 tmux 内（且可见 session 数 ≠1）时的
-# 落点，status/enter 共享。命名约束：禁含 `-`、禁 `_` 开头——byobu-select-session 菜单
+# 落点（enter 使用）。命名约束：禁含 `-`、禁 `_` 开头——byobu-select-session 菜单
 # 按此隐藏 session（口径见 visible_sessions），违规名会被裸 byobu 永远挡在直达门外
 BYOBU_SESSION = "llm_workspace"
 
@@ -335,7 +335,7 @@ def find_tagged_window(
             parts[4],
         )
         if wname == window_name and tag == wiki:
-            return wid, dead == "1", tagged_backend == backend
+            return wid, dead == DEAD_FLAG, tagged_backend == backend
     return None
 
 

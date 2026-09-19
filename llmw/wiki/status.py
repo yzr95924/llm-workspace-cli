@@ -108,7 +108,7 @@ def _row_to_dict(row: byobu.WindowRow, now: float) -> Optional[Dict]:
     wiki = row.wiki
     if not wiki:
         return None
-    dead = row.dead == "1"
+    dead = row.dead == byobu.DEAD_FLAG
     started = _to_int(row.started)
     dead_time = _to_int(row.dead_time)
     activity = _to_int(row.activity)
@@ -146,7 +146,7 @@ def _row_to_dict(row: byobu.WindowRow, now: float) -> Optional[Dict]:
 def _render_table(rows: List[Dict]) -> None:
     """R5 文本表：WIKI / WINDOW / SESSION / BACKEND / STATE / UPTIME / IDLE。
 
-    入参已按 state 优先级排好（actionable first，见 _enumerate）。
+    入参已按 state 优先级排好（actionable first，见 _state_sorted）。
     """
     if not rows:
         print("# (no running sessions)", file=sys.stdout)

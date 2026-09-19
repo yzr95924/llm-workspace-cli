@@ -39,7 +39,7 @@ from typing import Dict, Optional
 from llmw import WORKSPACE_FORMAT_VERSION
 from llmw import __version__ as CLI_VERSION
 from llmw.config import workspace_templates_dir
-from llmw.content._check_common import (  # noqa: E402
+from llmw.content._check_common import (
     SEMVER_RE,
 )
 from llmw.content._check_common import (
