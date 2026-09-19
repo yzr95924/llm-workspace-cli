@@ -217,7 +217,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         dest="context_window",
-        help="模型上下文窗口大小（整数 token, 1-10000000）,opencode 路径回写到 limit.context",
+        help="模型上下文窗口大小（整数 token, 1-10000000）,claude overlay 按此推断 `[1m]` 视图",
     )
     pm_add.add_argument("--default", action="store_true", dest="as_default")
 
@@ -645,16 +645,14 @@ def main(argv=None) -> int:
                 ws_toml = _ws_store.load(ws_root)
                 wikis = getattr(ws_toml, "wikis", {}) or {}
             except Exception as exc:
-                # 加载失败：workspace 骨架升级可能还在跑，记为 not_found 并收尾
-                wikis = {}
-                if as_json:
-                    aggregated_wikis = [
-                        {
-                            "status": "load_failed",
-                            "hint": f"workspace.toml 加载失败：{exc}",
-                        }
-                    ]
-                else:
+                # 加载失败：workspace 骨架升级可能还在跑，记为 load_failed、不阻断收尾
+                aggregated_wikis = [
+                    {
+                        "status": "load_failed",
+                        "hint": f"workspace.toml 加载失败：{exc}",
+                    }
+                ]
+                if not as_json:
                     print(
                         f"\n[llmw] warn: workspace.toml 加载失败：{exc}",
                         file=sys.stderr,
