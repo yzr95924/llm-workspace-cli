@@ -85,9 +85,8 @@
 
 ### A6.2 MEMORY/*.md（非 MEMORY.md）
 
-frontmatter 仅 `title` 必填；`type` 若写则固定为 `workspace-memory`（与 wiki 侧 MEMORY
-解耦口径对齐）；`created`/`updated`/`tags`/`description`/`wikis` 全 optional。
-lint `memory-not-indexed` 兜底；不强制 inbound 链接，不在 INDEX.md 列出。
+frontmatter 口径 canonical = `<workspace>/AGENTS.md` 的「Memory 纪律」节（byte-owned 模板渲染），
+本文件不重复。lint `memory-not-indexed` 兜底；不强制 inbound 链接，不在 INDEX.md 列出。
 
 ## A7. Frontmatter 字段通用规则
 

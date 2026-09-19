@@ -27,7 +27,7 @@ metadata:
 
 - **SKILL.md（本文）**——工作流 + 边界
 - **references/formats.md**——skill 写盘文件的格式契约（A1-A8；正文「格式 Ax」编号均指本文件）
-- **确定性执行归 llmw CLI**——本 skill **零代码**，收敛为两条命令，不一致时以探测器为准：
+- **确定性执行归 llmw CLI**——本 skill **零代码**，不一致时以探测器为准：
   - `llmw check-fixtures`：只探测（输出 drift 报告，不写盘）
   - `llmw upgrade`：workspace 骨架 + 逐 wiki 聚合确定性升级（默认 dry-run）
 
@@ -179,7 +179,8 @@ agent 留退路。
    - workspace.toml 注册但磁盘上不存在的 wiki（孤儿注册）
    - STATS.md 与 INDEX.md 的 wiki 列表是否一致
    - MEMORY 索引一致性：扫 `<workspace>/MEMORY/*.md`（排除 `MEMORY.md`），任一文件未在
-     `MEMORY/MEMORY.md` 索引列出 → 报 `memory-not-indexed`（severity = info）
+     `MEMORY/MEMORY.md` 索引列出 → 报 `memory-not-indexed`（severity = info；名字沿用
+     wiki 侧 finding 名——workspace 级由 agent 内联报告，CLI 不发射）
 2. **半定性检查**：
    - 主题重叠的 wiki 是否需要合并
    - tag 体系是否混乱（同名 tag 含义不同 / 同含义 tag 命名不一）
@@ -217,14 +218,10 @@ agent 留退路。
 **流程**：
 
 1. `llmw upgrade` 默认 dry-run → 输出 workspace + 各 wiki 的处理计划 + 终态 JSON（加 `--json` 机器可读）
-2. **解读终态**（workspace 段：`done` / `done_with_residue` / `blocked_drift`；`dry_run` 是
-   默认 dry-run 模式的正常输出，`verify_failed` 按退出码处理）：
-   - `done` → 收尾，提示用户"workspace 升级完成，X 个 wiki 已升"
-   - `done_with_residue` → 按 `residue[]` 明细逐项处理（旧自定义段被丢弃项）
-   - `blocked_drift` → 按 `hint` 字段把自定义内容搬 `MEMORY/`，再 `llmw upgrade --apply --yes` 重跑
-   - `verify_failed` → 按 `verified.failures[]` 修完重跑（幂等）
-   - 逐 wiki 聚合段：各 wiki 状态按段内输出处理；`not_found` / `load_failed` / `error`
-     条目按段内 hint 转人工，不阻断其它 wiki
+2. **解读终态**：按 JSON 字段行动——`status` 定终态；`hint` / `residue[]`（旧自定义段被丢弃项）/
+   `verified.failures[]` 自带处理指引，`verify_failed` 修完重跑（幂等）。`dry_run` 是默认模式
+   的正常输出、非失败。agent 侧补充：收尾时向用户报"X 个 wiki 已升"；逐 wiki 聚合段内异常
+   条目按段内 hint 转人工，**不阻断**其它 wiki
 3. 各 wiki 的后续内容迁移走 `yzr-llm-wiki-management` 工作流——本 skill 不代跑
 
 **不**写 `INDEX.md` / `STATS.md` / `LINT.md`（升级不是 scan / lint 事件）。升级只动
