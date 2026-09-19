@@ -123,7 +123,7 @@ TEMPLATE_BARE_SHORTHAND_RE = re.compile(
 # 已带 .md 的正确形式。不抓散文 "SKILL 目录" / "SKILL scan"（后不跟 § / 「）。
 RULE_REF_BARE_RE = re.compile(
     r"\b(SKILL|lint-checklist|page-templates|upgrade-workflow|ingest-workflow"
-    r"|query-workflow|external-repo|examples)(?!\.md)(?: §[一二三四五六七八九十0-9]|[^\w\n]{0,3}「)"
+    r"|query-workflow|external-repo|examples|formats)(?!\.md)(?: §[一二三四五六七八九十0-9]|[^\w\n]{0,3}「)"
 )
 
 # 面 7a 的 .py 扫描域——只扫 llmw/**/*.py（排除 tests/）。tests/ 有 §N 形式的 test 输入
@@ -336,7 +336,7 @@ def _lint_finding_prefixes():
 
 _BASENAMES = (
     "SKILL|upgrade-workflow|page-templates|lint-checklist|ingest-workflow"
-    "|query-workflow|external-repo|examples"
+    "|query-workflow|external-repo|examples|formats"
 )
 # 名称锚点引用（规范邻接形式）：`basename.md「节名」` / `` `basename.md`](url)「节名」 ``
 # / `` [`basename.md「节名」`](url) ``——basename 与「」之间只允许 backtick / 空白 /
@@ -380,7 +380,7 @@ def _heading_hits(md_text, name):
 
 
 def _resolve_targets(fname):
-    """引用目标候选列表。SKILL.md 两 skill 同名——两候选都查（任一满足即过）。"""
+    """引用目标候选列表。SKILL.md / references/* 两 skill 同名——候选都查（任一满足即过）。"""
     if fname == "SKILL.md":
         return [
             d / fname
@@ -389,7 +389,13 @@ def _resolve_targets(fname):
                 REPO / "yzr-llm-workspace-management",
             )
         ]
-    return [WIKI_SKILL / "references" / fname]
+    return [
+        d / "references" / fname
+        for d in (
+            REPO / "yzr-llm-wiki-management",
+            REPO / "yzr-llm-workspace-management",
+        )
+    ]
 
 
 def _check_rule_ref(fname, name, src_label, stats, errors):

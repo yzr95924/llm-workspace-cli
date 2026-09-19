@@ -23,9 +23,10 @@ metadata:
 维护一个**本地多 wiki** 工作区的"全局视图"和跨 wiki 编排——单 wiki 的 ingest / query / lint 走
 `yzr-llm-wiki-management` skill。
 
-两块交付物：
+三块交付物：
 
 - **SKILL.md（本文）**——工作流 + 边界
+- **references/formats.md**——skill 写盘文件的格式契约（A1-A8；正文「格式 Ax」编号均指本文件）
 - **确定性执行归 llmw CLI**——本 skill **零代码**，收敛为两条命令，不一致时以探测器为准：
   - `llmw check-fixtures`：只探测（输出 drift 报告，不写盘）
   - `llmw upgrade`：workspace 骨架 + 逐 wiki 聚合确定性升级（默认 dry-run）
@@ -48,7 +49,7 @@ metadata:
 - **link** → 通过 `yzr-llm-wiki-management` ingest 流程在涉及 wiki 加跨 wiki 链接
 - **lint** → 写 `<workspace>/LINT.md`（格式 A5）+ 对话总结
 - **upgrade** → 跑 `llmw upgrade`（默认 dry-run，加 `--apply [--yes]` 落盘）；
-  3 终态 JSON 由 CLI 输出；详见「Upgrade」
+  终态 JSON 由 CLI 输出；详见「Upgrade」
 
 ## 执行原则 / 边界
 
@@ -80,13 +81,47 @@ metadata:
 
 **违反归属 = bug**。完整归属表 + 四分表见 `<workspace>/AGENTS.md` 的「本 workspace 的边界」+「本文件本身的纪律」（含骨架所有权四分表）节（byte-owned 模板渲染）。
 
+### 反合理化三件套（硬禁令的护栏）
+
+> 本 skill 的硬禁令集中在上面两节：不手写 toml / api_key 命令用户亲自执行 / 不直接编辑
+> wiki 文件 / 归属表「违反 = bug」。三件套只堵**已被合理化的违反**；直接忽略规则属上面
+> 两节的覆盖面问题，与三件套无关。
+
+#### Rationalization Table
+
+> **收录纪律**：只从实跑 transcript 收录（预写借口 = 噪声 + 信号干扰）。本表尚无实跑记录
+> ——未来 RED / 实跑中出现的借口逐行补入（列头即收录格式）。
+
+| 常见借口 | 为什么是错的 | 应改做什么 |
+| --- | --- | --- |
+
+#### 违反字面 = 违反精神
+
+任何对硬禁令的"看起来不同但效果一致"的绕法都算违反。判定锚点：`workspace*.toml` /
+`wiki_metadata.toml` 的字节是否由 agent 直接产生、api_key 是否经过 agent、`<wiki>/wiki/**`
+是否被本 skill 改写——任一被触碰即违反。**禁止**用"严格按字面 / 严格按精神"二选一措辞给
+agent 留退路。
+
+#### Red Flags（念头清单 — 出现即停）
+
+念头出现 ≠ 已违反；念头 = 警告 = 重读上面两节。
+
+- "用户催得急，直接改 toml 更快"
+- "只是补两行，等价于 CLI 会写的内容，不算手写"
+- "api_key 反正我也要用到，顺手帮用户配上"
+- "这处 wiki 文件改动很小，不走 wiki skill 也等价"
+- "先写了再说，CLI / lint 能兜底"
+- "约定没禁这一种改法"
+
+> 条目来源：标「实跑观察」者为 RED transcript 实录；未标注者为通用合理化模式（红旗是低成本预警网、广撒无害；实跑捕获新借口时追加并标注）。
+
 ## 工作流 / 步骤
 
 ### 启动检查
 
 每次进入本 skill 时：
 
-1. 定位 workspace 路径：`$LLMW_WORKSPACE` → 默认 `~/yzr-llm-wiki-workspace` → 交互问
+1. 定位 workspace 路径（来源链见「输入 / 输出」表）
 2. 验证 `<workspace>/workspace.toml` 存在——不存在提示用户 "workspace 还没 init，跑 `llmw init` 初始化"（**不**替用户跑）
 3. **加载跨 wiki MEMORY 索引**：在 workspace 根工作时经 `<workspace>/AGENTS.md` 的
    `@MEMORY/MEMORY.md` import 自动加载；非根目录工作 / 原生读 AGENTS.md 不展开 `@` 的 agent →
@@ -104,7 +139,7 @@ metadata:
 1. 读 `<workspace>/workspace.toml` 拿 `[wikis]` 注册表
 2. 对每个 wiki：
    - 读 `<wiki>/wiki_metadata.toml`（CLI 维护）
-    - 读 `<wiki>/AGENTS.md` 的「本 wiki 的边界」节（拿边界）
+   - 读 `<wiki>/AGENTS.md` 的「本 wiki 的边界」节（拿边界）
    - 读 `<wiki>/wiki/index.md`（已有内容 + 段落骨架）
    - 扫 `<wiki>/wiki/{entities,concepts,sources,comparisons,syntheses}/` 拿 page counts
    - 扫 `<wiki>/raw/` 递归拿原始资料数（仅计数，不读内容）
@@ -131,7 +166,7 @@ metadata:
 **good query 必有"是否归档"环节**——归档落点与两级归属的纪律见 `<workspace>/AGENTS.md`
 「查询 / 综合纪律」；workspace 级归档由本 skill 直接写（格式 A4），wiki 级部分转交 `yzr-llm-wiki-management`。
 
-归档正文引用上游易变事实时过感知测试——规则 SSOT 见 `yzr-llm-wiki-management` 的 `references/ingest-workflow.md`「正文引用的稳定性」节。
+归档正文引用上游易变事实时过感知测试——规则 SSOT 见 `yzr-llm-wiki-management` 的 ingest-workflow.md「正文引用的稳定性」节。
 
 ### Link（跨 wiki 交叉引用）
 
@@ -166,13 +201,17 @@ metadata:
 3. **本 skill 不做的**：单 wiki 内部 lint——转交 `yzr-llm-wiki-management`
 4. **输出**：写 `<workspace>/LINT.md`（格式 A5）+ 对话中报告
 
+> **为什么这些检查 agent 内联**：机械操作脚本化准入针对写路径（消除"md 规则 → 手工执行
+> → lint 兜底"三层成本）；本节为只读诊断，无写路径。这些文件 CLI 不读写（A8），检查随
+> skill 格式契约同侧演进。
+
 **何时不做 lint**：用户只问 query → 不 lint；用户说"扫一下" → scan 而非 lint。
 
 ### Memory（跨 wiki agent 私有记忆）
 
 **触发**：在 scan / query / link / lint 过程中识别到**跨 wiki**值得沉淀的信息时主动写。
 
-完整"何时写/不写" + 判别尺度 canonical = `<workspace>/AGENTS.md` 的「Memory 纪律」节（byte-owned 模板渲染），本附录不重复。
+完整"何时写/不写" + 判别尺度 canonical = `<workspace>/AGENTS.md` 的「Memory 纪律」节（byte-owned 模板渲染），本 skill 不重复。
 
 **流程**：
 
@@ -193,9 +232,10 @@ metadata:
 
 **流程**：
 
-1. `llmw upgrade` 默认 dry-run → 输出 workspace + 各 wiki 的处理计划 + 3 终态 JSON（加 `--json` 机器可读）
-2. **解读 3 终态**：
+1. `llmw upgrade` 默认 dry-run → 输出 workspace + 各 wiki 的处理计划 + 终态 JSON（加 `--json` 机器可读）
+2. **解读终态**（3 终态：`done` / `done_with_residue` / `blocked_drift`；dry-run 与 `verify_failed` 按退出码处理）：
    - `done` → 收尾，提示用户"workspace 升级完成，X 个 wiki 已升"
+   - `done_with_residue` → 按 `residue[]` 明细逐项处理（旧自定义段被丢弃项）
    - `blocked_drift` → 按 `hint` 字段把自定义内容搬 `MEMORY/`，再 `llmw upgrade --apply --yes` 重跑
    - `verify_failed` → 报告用户，转人工
 3. 各 wiki 的后续内容迁移走 `yzr-llm-wiki-management` 工作流——本 skill 不代跑
@@ -225,143 +265,11 @@ metadata:
 
 ## 参考文件
 
-- **必读**：`<workspace>/AGENTS.md`（= `workspace-agents-md-template.md` 模板渲染稿，byte-owned）——workspace 级契约的 canonical
+- [`references/formats.md`](references/formats.md)——产物格式契约 A1-A8；scan / query 归档 /
+  lint / memory 写盘前必读
+- **必读**：`<workspace>/AGENTS.md`（= CLI 包内 workspace-agents-md-template.md 的渲染稿，
+  byte-owned）——workspace 级契约的 canonical
 - **单 wiki 契约**：`yzr-llm-wiki-management` SKILL.md + references/（本 skill 读 wiki 文件时按其契约理解，不直接写）
 - **引用约定**：`xxx.md「节名」` 指针用法 canonical 见 `yzr-llm-wiki-management`
   SKILL.md「文档引用约定」
 - **CLI 文档**：workspace CLI（命令 `llmw`，与本 skill 同仓维护）——命令面参考 `llmw --help`
-
-## 附录：产物格式契约与读取契约
-
-> 附录承载 skill 写盘文件的格式契约。读取契约与实例归属见 `<workspace>/AGENTS.md`。
-
-### A1. workspace.toml 读取契约
-
-- 路径：`<workspace-root>/workspace.toml`
-- 完整 schema 权威在 CLI 代码；`workspace-toml-reads-satisfied` check 校验读取契约完整性
-
-**skill 实际读取的字段**（`scan` / `upgrade` 用）：
-
-| 字段 | 用途 |
-| --- | --- |
-| `templates_version` | `llmw upgrade` 版本比对 + 自动 bump（含 `workspace_format` / `wiki_format` 双分量） |
-| `[wikis.<name>].path` | skill `scan` 遍历 wiki 子目录 |
-| `[wikis.<name>].created_at` | INDEX 内 wiki 排序 |
-
-### A2. INDEX.md
-
-- 维护方：**skill** 在 `scan` 时写；CLI 不写
-- frontmatter 必填（A7） + `type: workspace-index`；`title` 推荐 `"Workspace Index"`；`tags` 推荐 `[workspace, index]`
-- 正文骨架：
-
-  ```markdown
-  # <Workspace Display Name> — Workspace Index
-
-  > workspace 入口文档。每个 wiki 一节，按 wiki name 字母序；同字母序内按 `created_at` 升序。
-
-  ## Wikis
-
-  ### <wiki-name>
-
-  - **display_name**: ...
-  - **topic**: ...
-  - **description**: ...
-  - **tags**: [...]
-  - **created**: YYYY-MM-DD
-  - **last activity**: YYYY-MM-DD (log entry kind)
-  - **page counts**: 0 entities / 0 concepts / ...
-  - **key entities**: [...]
-  - **one-line summary**: ...
-
-  ## Cross-wiki Links
-  ...（短描述）
-  ## Recent Activity (across all wikis)
-  ...
-  ```
-
-### A3. STATS.md
-
-- 维护方：**skill** 在 `scan` 时一并写；与 INDEX.md 区别：结构化（表格）
-- frontmatter 必填（A7） + `type: workspace-stats`
-- 正文骨架：`# <Workspace> — Workspace Stats` + `## Overview` 总表 + `## Per-wiki` 每 wiki
-  一节分表（pages / entities / concepts / sources / comparisons / syntheses / raw_files /
-  last_log_entry / tags / memory_files）
-- skill 写入场景：`scan`（与 INDEX.md 同一次刷新）
-
-### A4. cross_queries/
-
-- 维护方：**skill** 在 `query` 输出适合归档时 `Write`
-- 文件命名：`<slug>.md`，kebab-case `^[a-z0-9][a-z0-9-]*$`（A8）
-- frontmatter 必填（A7） + `type: cross-query`；`tags` 推荐
-  `[workspace, cross-query, <涉及 wiki 的 tag>...]`；必填 `sources`（引用 wiki 内页路径数组）+
-  `wikis`（涉及 wiki 名数组）
-- skill 写入场景：`query` 输出用户确认归档时
-
-### A5. LINT.md
-
-- frontmatter 必填（A7） + `type: workspace-lint`
-- 正文骨架：`# <Workspace> — Lint Report (<YYYY-MM-DD>)` + `## Per-wiki Issues`（每 wiki
-  一段，本 wiki 内 lint 走 yzr-llm-wiki-management）+ `## Workspace-level Issues`
-  （跨 wiki 重复 entity / 未注册子目录 / STATS 过期 / MEMORY 索引一致 / ...)
-- skill 写入场景：`lint`（每次覆盖）
-
-### A6. workspace MEMORY/
-
-- 维护方：CLI init 时创建空目录 + 写 `MEMORY/MEMORY.md` 索引占位；后续条目由 **skill** 写入 + 同步追加 MEMORY.md 索引一行。人类不写；CLI 不写
-- MEMORY 不在 INDEX.md 中强制列出（agent 私有入口）
-- **条目形式（完整 / 短）+ 何时写/不写 + 索引行格式** canonical = `<workspace>/AGENTS.md` 的「Memory 纪律」节（byte-owned 模板渲染），本附录不重复
-
-#### A6.1 MEMORY/MEMORY.md（索引）
-
-无 frontmatter（被 `<workspace>/AGENTS.md` 用 `@MEMORY/MEMORY.md` `@import` 内联加载）；正文：顶部 1 段说明 + `## 索引` 段（完整/短两条格式共存）。
-
-#### A6.2 MEMORY/*.md（非 MEMORY.md）
-
-frontmatter 仅 `title` 必填；`type` 若写则固定为 `workspace-memory`（与 wiki 侧 MEMORY
-解耦口径对齐）；`created`/`updated`/`tags`/`description`/`wikis` 全 optional。
-lint `memory-not-indexed` 兜底；不强制 inbound 链接，不在 INDEX.md 列出。
-
-### A7. Frontmatter 字段通用规则
-
-**通用必填 5 项**（workspace 级 markdown，**MEMORY/*.md 例外——见 A6.2**）：
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `title` | string | 不含扩展名 |
-| `type` | enum | 见下表 |
-| `tags` | array | 可空 |
-| `created` | date | `YYYY-MM-DD` |
-| `updated` | date | `YYYY-MM-DD` |
-
-**`type` 取值**（workspace 级 markdown）：
-
-| `type` | 备注 |
-| --- | --- |
-| `workspace-index` | `<workspace>/INDEX.md`（唯一） |
-| `workspace-stats` | `<workspace>/STATS.md`（唯一） |
-| `workspace-lint` | `<workspace>/LINT.md`（唯一） |
-| `cross-query` | `<workspace>/cross_queries/<slug>.md` |
-| `workspace-memory` | `<workspace>/MEMORY/*.md`（若写 type；optional） |
-
-**类型特化字段**：
-
-| 字段 | 适用 type | 必填 | 含义 |
-| --- | --- | --- | --- |
-| `sources` | `cross-query` | 是 | 引用的 wiki 内页路径数组（相对 workspace 根） |
-| `wikis` | `cross-query` / `workspace-memory` | `cross-query` 是 / `workspace-memory` 推荐 | 涉及的 wiki 名列表 |
-| `description` | 所有 | 推荐 | 一句话 |
-
-字段**语义**写法（怎么写好 `title` / `description` / `tags`）SSOT = `yzr-llm-wiki-management` page-templates.md「共有 frontmatter 段」。
-
-### A8. 命名约束
-
-本表只承载 **skill 写盘文件**的命名约束（这些文件 CLI 不读写、无机械 gate，约束唯一承载点
-= 本节）。wiki name（`llmw wiki add` 创建时校验）与 CLI 内部标识符归 CLI；wiki 命名推荐
-风格见 `<workspace>/AGENTS.md` 的「跨 wiki 约定」节。
-
-| 维度 | 规则 | 适用对象 |
-| --- | --- | --- |
-| cross_query slug | kebab-case `^[a-z0-9][a-z0-9-]*$` | `cross_queries/<slug>.md` |
-| MEMORY 文件名 | kebab-case `^[a-z0-9][a-z0-9-]*$` | `<workspace>/MEMORY/*.md`（MEMORY.md 例外） |
-| frontmatter 字段名 | 严格小写 + 下划线 | 所有 workspace 级 markdown |
-| frontmatter `type` 值 | 严格小写 + 连字符（`workspace-index` / `workspace-memory` 等） | 所有 workspace 级 markdown |

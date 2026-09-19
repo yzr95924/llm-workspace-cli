@@ -100,7 +100,7 @@ CHECK_REGISTRY = [
         "id": "memory-index-skeleton",
         "severity": "error",
         "file": "MEMORY/MEMORY.md",
-        "rule_ref": "MEMORY 产物契约（yzr-llm-workspace-management SKILL.md 附录 A6）+ upgrade 引擎",
+        "rule_ref": "MEMORY 产物契约（yzr-llm-workspace-management references/formats.md A6）+ upgrade 引擎",
         "desc": "MEMORY/MEMORY.md 无 frontmatter + 含 H1 / 说明块 / ## 索引（成长条目不动；缺失文件按 fixtures/memory-index.txt 重建）",
     },
     {
@@ -506,7 +506,7 @@ def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) ->
 
     读取契约 co-location：本 check 校验的字段 = SKILL scan/upgrade 实际读取的字段。若 SKILL
     将来新读 workspace.toml 某字段，必须同步加到这里 + yzr-llm-workspace-management
-    SKILL.md「workspace.toml 读取契约」表（附录 A1）——两处（本 check / SKILL.md）一致，
+    `references/formats.md「A1. workspace.toml 读取契约」` 表——两处（本 check / 该表）一致，
     gate 才有效（清单漂移 = check 不报警 = gate 失效）。
     """
     out = {"passed": True, "severity": "error", "file": "workspace.toml"}  # type: Dict[str, object]
