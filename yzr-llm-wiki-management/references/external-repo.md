@@ -10,8 +10,8 @@
 
 agent 主导三项判断（CLI 帮不上）：
 
-- **命名协商**：`--name` 必须 kebab-case（`^[a-z0-9][a-z0-9-]*$`），由 agent 与用户共同
-  决定（如 `linux-kernel` / `ray`）；CLI 校验
+- **命名协商**：`--name` 必须 kebab-case 短名，由 agent 与用户共同决定（如
+  `linux-kernel` / `ray`）；格式校验归 CLI——非法即拒，报错自带格式要求
 - **target 路径**：推荐 `~/src/<name>` home-relative 形式（跨主机重建友好；CLI rebuild
   自动回写此形式）
 - **notes 文本**：可选，agent 自由写（机械 scribe 入 anchor）

@@ -59,7 +59,7 @@
 ## A4. cross_queries/
 
 - 维护方：**skill** 在 `query` 输出适合归档时 `Write`
-- 文件命名：`<slug>.md`，kebab-case `^[a-z0-9][a-z0-9-]*$`（A8）
+- 文件命名：`<slug>.md`，kebab-case（精确 pattern 见 A8 表）
 - frontmatter 必填（A7） + `type: cross-query`；`tags` 推荐
   `[workspace, cross-query, <涉及 wiki 的 tag>...]`；必填 `sources`（引用 wiki 内页路径数组）+
   `wikis`（涉及 wiki 名数组）
