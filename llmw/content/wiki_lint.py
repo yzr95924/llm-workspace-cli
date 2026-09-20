@@ -321,9 +321,7 @@ def _check_source_element(wiki_root: Path, rel: str, s) -> Optional[str]:
             f"，不可作 source 真相源；先 mv 到 raw/articles "
             f"等正式子树再 ingest"
         )
-    # 0.17+ raw/external/<symlink>/... 例外：symlink 跟随 .resolve() 会落到 wiki 根外，
-    # 不该判 sources-out-of-root；改为解析 <symlink> 段 + 查 anchor / symlink 存在 +
-    # 文件跟随后可访问，全部合法才放过
+    # raw/external/<symlink>/...：.resolve() 会落到 wiki 根外，不该判 sources-out-of-root
     if s.startswith("raw/external/"):
         parts = Path(s).parts
         # 路径段应为 [raw, external, <symlink>, ...]；< 3 视为语法错
@@ -388,11 +386,9 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
             text = p.read_text(encoding="utf-8", errors="replace")
             fm = parse_frontmatter_simple(text)
             rel = p.relative_to(wiki_root).as_posix()
-            # 必填字段
             for field in ("title", "type", "created", "updated", "tags"):
                 if field not in fm:
                     findings.append(f"missing-frontmatter: {rel} 缺 '{field}' 字段")
-            # type 合法
             t = fm.get("type")
             if t is not None and t not in VALID_TYPES:
                 findings.append(f"invalid-type: {rel} type='{t}' 非法；应为 {sorted(VALID_TYPES)} 之一")
@@ -1293,9 +1289,7 @@ def build_upgrade_plan(
             }
         )
 
-    # fixtures 一致性 → fixtures_actions[]
-    # 每条失败 check → 一条 fixtures-fix-* 动作（base 字段含 expected / actual 让 agent
-    # 一眼看清"该改成什么"；cid → 动作表驱动，见 _FIXTURES_ACTION_TABLE）
+    # base 字段含 expected/actual，让 agent 一眼看清"该改成什么"
     if fixtures_check and not fixtures_check.get("skipped"):
         for fc in fixtures_check.get("checks", []) or []:  # type: ignore
             if fc.get("passed") is not False:  # type: ignore

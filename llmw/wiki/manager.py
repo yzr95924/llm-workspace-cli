@@ -116,15 +116,12 @@ def _interactive_fill_metadata(workspace_root, wiki_dir, meta):
             raise
         return v
 
-    # display_name
     v = ask("display_name", meta.display_name)
     if v:
         meta.display_name = v
-    # description
     v = ask("description", meta.description)
     if v:
         meta.description = v
-    # tags
     meta.tags = _tags_submenu(list(meta.tags))
 
     # model（与 config set 同校验：须在 registry 中；TTY 下不阻断 add，只警告——用户可稍后 config set）
@@ -579,7 +576,6 @@ def _show_collect(workspace_root: Path, name: str) -> Dict:
             log_md_p.stat().st_mtime, tz=timezone.utc
         ).isoformat()
 
-    # 通过 resolve 拿最终 model + 来源
     final_model = None
     model_source = None
     try:

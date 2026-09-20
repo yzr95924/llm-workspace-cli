@@ -533,7 +533,6 @@ def check_memory_entries_indexed(wiki_root: Path, info: Dict[str, str]) -> Dict[
         out["skipped"] = "MEMORY/MEMORY.md 不存在"
         return out
 
-    # 收集 MEMORY/ 下除 MEMORY.md 外所有 .md
     memory_entries = [p.name for p in sorted(mem_dir.glob("*.md")) if p.name != "MEMORY.md"]
     if not memory_entries:
         # 无经验条目 → 跳过；纯索引文件不算违规
@@ -918,7 +917,6 @@ def run_checks(wiki_root: Path, target_format: Optional[str]) -> Dict[str, objec
     for check_id, fn in CHECK_FUNCTIONS:
         reg = next(c for c in CHECK_REGISTRY if c["id"] == check_id)
         result = fn(wiki_root, info)
-        # 统一字段 schema
         passed = result.get("passed")  # type: Optional[bool]
         severity = reg["severity"]
         if passed is True:

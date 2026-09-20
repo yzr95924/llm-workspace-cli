@@ -20,7 +20,6 @@ def workspace_with_wiki(tmp_path: Path) -> Path:
     Returns:
         tmp_path: 既是 workspace 根,也是 wiki ``foo`` 父目录
     """
-    # workspace.toml (含 wiki foo 注册)
     ws = ws_store.create_skeleton(tmp_path)
     ws.wikis["foo"] = ws_store.WikiEntry(
         name="foo", path="foo", created_at="2026-01-01T00:00:00Z"

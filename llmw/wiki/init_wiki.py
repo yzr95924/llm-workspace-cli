@@ -84,7 +84,6 @@ def render_and_write(
     index_md = render_wiki_index_md(topic=topic, setup_date=today)
     log_md = render_wiki_log_md(topic=topic, setup_date=today)
 
-    # 读 4 份无占位符的字面量源(memory-index.txt / tags.md.txt / scripts.md.txt / gitignore.txt)
     try:
         memory_md = (fixtures / "memory-index.txt").read_text(encoding="utf-8")
         tags_md = (fixtures / "tags.md.txt").read_text(encoding="utf-8")
@@ -96,7 +95,6 @@ def render_and_write(
             hint="检查 llmw/content/templates/wiki/fixtures/ 是否完整",
         )
 
-    # 先建所有子目录，再 .gitkeep 占位，再落盘 8 份产物
     for d in (
         [wiki_dir / "raw" / x for x in _RAW_SUBDIRS]
         + [wiki_dir / "wiki" / x for x in _CONTENT_SUBDIRS]

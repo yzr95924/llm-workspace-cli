@@ -157,7 +157,6 @@ class CommandTests(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
-        # wiki 根
         self.wiki = self.root / "wiki"
         self.wiki.mkdir()
         # 非 git target
@@ -272,7 +271,6 @@ class CommandTests(unittest.TestCase):
         """git 仓 target：应读出 remote_url + branch（用 file:// 或本地初始化）。"""
         g = self.root / "gitty"
         g.mkdir()
-        # 初始化 git 仓 + 设 fake origin
         subprocess.run(["git", "init", "-q", str(g)], check=True)
         subprocess.run(
             [

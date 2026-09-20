@@ -120,7 +120,6 @@ def _graft_log(old_text: str, fixture_text: str) -> str:
         body = 第一个 ## 起的所有行。"""
         lines = text.splitlines(keepends=True)
         i = 0
-        # frontmatter
         if lines and lines[0].rstrip() == "---":
             j = 1
             while j < len(lines) and lines[j].rstrip() != "---":
