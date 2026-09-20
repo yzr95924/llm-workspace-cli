@@ -15,19 +15,12 @@ def _flag(args, name: str):
     return getattr(args, name, False)
 
 
-# 参数风格：带值 flag 一律 `--flag=value`（= 连接），拒绝空格分隔的 `--flag value`。
-# 严谨、无歧义：带值 flag 与其值在同一 token 内绑定，不靠相邻位置隐式推断。
-# bool flag（store_true / store_false / count）不带值，不受此约束，保持原样。
-# 位置参数（config KEY VALUE 等子动作 / 自由值）不套用 = 约束。
-# 新增带值 flag 直接 `add_argument("--flag", ...)`——判定走 action 类型，无需维护白名单。
-# 新增 bool flag 直接 `add_argument(..., action="store_true"/"store_false")`。
+# 参数风格：带值 flag 一律 `--flag=value`（值同 token 绑定），拒绝空格分隔；bool flag /
+# 位置参数不受约束。新增 flag 直接 add_argument——判定走 action 类型，无需白名单。
 
 
-# 带值 action 判定走公开 API（nargs），不依赖 argparse 私有类名（_StoreAction 等，
-# 版本升级可能改名导致判定静默失效）：
-#   - nargs != 0 → 消费值的 option（单值 None / 多值 int / 其余非零）
-#   - nargs == 0 → 不带值（store_true/false/count/version/help）
-# 子 parser 判定：nargs == argparse.PARSER（公开常量，_SubParsersAction 的专用值）。
+# 带值判定走公开 API nargs（不依赖 argparse 私有类名——版本升级改名会让判定静默失效）：
+# nargs != 0 → 消费值；nargs == 0 → bool flag；nargs == argparse.PARSER → 子 parser。
 def _takes_value(action) -> bool:
     return action.nargs != 0
 
@@ -53,10 +46,7 @@ def _walk_parsers(parser):
 
 
 def _collect_value_flags(parser):
-    """收集 parser 树内所有"带值 flag"的 -- 长选项名（精确字符串集合）。
-
-    bool flag（store_true / store_false / count）与短选项（-q / -y）不带值 / 不受 = 约束，不纳入。
-    """
+    """收集 parser 树内带值 flag 的 -- 长选项名（bool flag 与短选项不纳入）。"""
     names = set()
     for p in _walk_parsers(parser):
         for action in p._actions:
@@ -66,12 +56,9 @@ def _collect_value_flags(parser):
 
 
 def _enforce_equals_form(parser, argv):
-    """强制带值 flag 用 `--flag=value`，拒绝空格分隔的 `--flag value`。
+    """parse 前预扫描 argv：裸 `--flag` 出现即抛 SpaceFormNotAllowed，并禁用前缀缩写堵绕过。
 
-    argparse 原生同时接受两种形式；本函数在 parse 前预扫描 argv——凡是带值 flag 以
-    裸 `--flag`（精确匹配、不带 =）形式出现，即试图用空格传值，抛 SpaceFormNotAllowed。
-    同时禁用前缀缩写（allow_abbrev=False），堵住 `--pref value` 缩写绕过路径。
-    bool flag / 未知 flag / 位置参数不受影响。
+    bool / 未知 flag / 位置参数不受影响。
     """
     for p in _walk_parsers(parser):
         p.allow_abbrev = False
@@ -90,13 +77,10 @@ _WIKI_CONTENT_ACTIONS = frozenset(
 
 
 def _common_flags() -> argparse.ArgumentParser:
-    """全局 flag 的共享 parent。
+    """全局 flag 的共享 parent（挂主 + 各子 parser，前后位置都可用）。
 
-    经 ``parents=[_common_flags()]`` 同时挂到主 parser 与每个子 parser，使全局 flag
-    既可写在子命令前（``llmw --json list``）也可写在子命令后（``llmw list --json``，
-    设计薄壳——子 parser 共享 flags 模式）。``default=SUPPRESS`` 是关键：子 parser 解析时若用户
-    没在该位置传该 flag，就不写入 namespace，从而不会用默认值覆盖主 parser 已解析
-    到的同名值（argparse 子 parser 默认会 clobber）。故读取处须用 ``getattr``。
+    default=SUPPRESS 是关键：子 parser 未传时不写 namespace，不会 clobber 主 parser
+    的值；读取处须 getattr。
     """
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument(
@@ -245,9 +229,7 @@ def build_parser() -> argparse.ArgumentParser:
     pm_rm.add_argument("--yes", "-y", action="store_true")
 
     # ===== wiki 级 =====
-    # --name 放 parent 上（不 required）：rename 走 --old/--new 替代 name；
-    # 其他子命令 (add/remove/show/config/enter/stop) 依赖 dispatch 时手动校验 args.name。
-    # 这样保留 `wiki --name=X <action>` 旧语法 + 新 `wiki rename --old=... --new=...`。
+    # --name 不 required（rename 走 --old/--new）；其余子命令在 dispatch 时校验 args.name
     p_wiki = sub.add_parser("wiki", help="wiki 子命令", parents=[common])
     p_wiki.add_argument("--name", metavar="NAME", help="目标 wiki 名")
     p_wiki.add_argument(
@@ -334,10 +316,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pw_stop.add_argument("--yes", "-y", action="store_true")
 
-    # ---- 内容层子命令（确定性执行；命令表面 SSOT = 本函数的 argparse 树）----
-    # 除 write 外 flags 均在此定义；write 子树的 flag SSOT 在
-    # llmw.content.wiki_write.build_subparsers（cli 经它组合出完整树）——
-    # 无第二入口（模块 main 已退役，业务入口为各模块 run()）。
+    # ---- 内容层子命令（命令表面 SSOT = 本 argparse 树；write / external 子树
+    # 的 flag SSOT 在各自 build_subparsers）----
     pw_lint = wiki_sub.add_parser(
         "lint",
         help="deterministic 健康检查（含 format 版本 / legacy 现场探测）",
@@ -444,10 +424,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _cmd_status(args) -> int:
-    """status 分派：提到 resolve_workspace_root 之前——默认路径解析失败且有带标窗口时
-    降级孤儿清理；显式 --workspace/$LLMW_WORKSPACE 失败保持硬报错（防 typo 路径 +
-    习惯性回 y 误杀活窗口）。
-    """
+    """status 分派（先于 workspace 解析）：默认路径失败 → 孤儿清理；显式路径失败仍硬报错。"""
     from llmw.config import DEFAULT_WORKSPACE, resolve_workspace_root
     from llmw.errors import WorkspaceNotFound
     from llmw.wiki.status import status as wiki_status, status_orphan
@@ -478,9 +455,7 @@ def _cmd_status(args) -> int:
 
 
 def _resolve_content_root(args) -> Path:
-    """内容层子命令的 wiki root 解析：--path 直传（不依赖 workspace）、--name 经 workspace
-    解析、$LLM_WIKI_ROOT env fallback（继承自原模块 standalone 入口的既有行为）。
-    """
+    """内容层 wiki root 解析：--path 直传 / --name 经 workspace / $LLM_WIKI_ROOT 兜底。"""
     from llmw.errors import MissingRequiredFlag, WikiNotFound
     from llmw.workspace import store as ws_store
 
@@ -511,10 +486,7 @@ def _resolve_content_root(args) -> Path:
 
 
 def _cmd_wiki_content(args) -> int:
-    """wiki 内容层子命令分派（lint / check-fixtures / ingest-diff / write / external / upgrade）。
-
-    在 workspace 解析之前处理——--path 直传时不依赖 workspace。
-    """
+    """wiki 内容层子命令分派（先于 workspace 解析——--path 直传不依赖 workspace）。"""
     from llmw.content import ingest_diff, wiki_fixtures, wiki_lint, wiki_write
 
     # --list-rules / --explain 自包含：不扫描文件，不需要 root
@@ -579,10 +551,7 @@ def _cmd_wiki_content(args) -> int:
 
 
 def _capture_output(fn):
-    """捕获 fn 执行期间的标准输出 / 错误输出，返 (rc, text)。
-
-    upgrade 聚合入口需要保留各阶段分片文本再统一编排（JSON 阶段解析 + 人读分节拼接）。
-    """
+    """捕获 fn 的 stdout / stderr，返 (rc, text)（upgrade 聚合需要分片文本再统一编排）。"""
     buf = io.StringIO()
     old_stdout, old_stderr = sys.stdout, sys.stderr
     try:

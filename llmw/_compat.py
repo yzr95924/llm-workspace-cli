@@ -34,9 +34,7 @@ def _dump_section(buf, data, prefix):
         _dump_section(buf, v, prefix=f"{prefix}{k}.")
 
 
-# TOML basic string 必要转义: 反斜杠 / 双引号 / 控制字符。
-# 手写 dump 必须转义, 否则含 \ 或 " 的值会产出非法 TOML, 紧接着的 load 即炸
-# (TOMLDecodeError: Unescaped '\' in a string)。
+# 不转义则含 \ 或 " 的值产出非法 TOML，load 即炸
 _BASIC_ESCAPES = {
     "\\": "\\\\",
     '"': '\\"',

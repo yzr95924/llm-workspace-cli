@@ -35,8 +35,7 @@ from llmw.models.store import (
 
 
 def require_model_in_registry(workspace_root: Path, model_id: str) -> None:
-    """断言 model_id 在 registry 中：不存在 → ModelNotInRegistry；registry 未建 →
-    ModelDefaultNotSet。wiki add 与 wiki config set 的校验统一走这里（单一文案/单一逻辑）。"""
+    """断言 model_id 在 registry（缺 registry → ModelDefaultNotSet；不在 → ModelNotInRegistry）。"""
     try:
         reg = load(workspace_root)
     except RegistryMissing:
@@ -55,7 +54,7 @@ def require_model_in_registry(workspace_root: Path, model_id: str) -> None:
 
 
 def set_default(reg: Registry, model_id: str) -> None:
-    """保证 is_default 全局唯一。add --default 与 set-default 都走这里。"""
+    """唯一保证 is_default 全局唯一的入口（add --default 与 set-default 共用）。"""
     if model_id not in reg.models:
         raise ModelNotInRegistry(
             f"model_id '{model_id}' 不在 registry 中",
@@ -79,10 +78,7 @@ def model_add(
     context_window: Optional[int] = None,
     as_default: bool = False,
 ) -> None:
-    """新增 model 条目。字段校验 + 重复 model_id 检测。
-    --default 时自动取消旧默认（走 set_default）。
-    TTY 下缺 flag → 交互提示；非 TTY → MissingRequiredFlag。
-    """
+    """新增条目：字段校验 + 重名检测；--default 走 set_default；TTY 缺 flag 转交互，非 TTY 报错。"""
     # 字段预校验（一次性给出所有错误）
     if model_id is not None:
         validate_model_id(model_id)
@@ -110,8 +106,7 @@ def model_add(
                     validator(v) if v else None
                     return v or None
                 except LlmwError as e:
-                    # validator 全抛 LlmwError 子类（InvalidModelField 等）——只捕
-                    # LlmwError，避免非预期异常在此二次炸（裸 Exception + e.message）。
+                    # 只捕 LlmwError（validator 全抛其子类）——非预期异常不在此二次炸
                     print(f"    [校验失败] {e.message}")
                     continue
 
@@ -310,6 +305,6 @@ def model_remove(workspace_root: Path, model_id: str, yes: bool = False) -> None
     save(workspace_root, reg)
     print(f"✓ model '{model_id}' 已删除", file=sys.stdout)
     if not reg.models:
-        # registry 变空 → 删除文件（避免空文件留在 .gitignore 列表里）；走 store 层统一出口
+        # 变空 → 删文件（避免空文件留下）；走 store 层统一出口
         registry_delete(workspace_root)
         print("[llmw] registry 已清空, 移除 workspace_models.toml", file=sys.stdout)

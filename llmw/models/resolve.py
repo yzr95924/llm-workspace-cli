@@ -1,8 +1,4 @@
-"""wiki → 最终 ModelEntry 单一查找入口
-
-wiki.metadata.model 优先（需在 registry 中存在），否则 registry 中 is_default
-条目。被 enter / show / list 共同消费（wiki config 校验走 require_model_in_registry）。
-"""
+"""wiki → 最终 ModelEntry 单一查找入口（wiki.model 优先，否则 registry 默认）。"""
 
 import sys
 from pathlib import Path
@@ -28,22 +24,11 @@ def resolve_for_wiki(
     ws: Optional[ws_store.WorkspaceToml] = None,
     registry: Optional[Registry] = None,
 ) -> ModelEntry:
-    """返回 enter 时该 wiki 实际使用的 ModelEntry。
+    """返回该 wiki 实际使用的 ModelEntry（wiki.model 优先且必须在 registry；否则 is_default）。
 
-    优先级：
-      1. wiki_metadata.model （若存在）→ 必须在 registry 中
-      2. registry 中 is_default=true 的唯一条目
-
-    预载参数（ws / registry）：聚合入口（如 llmw list 循环调用）复用同一次文件读取，
-    省 N×重复 IO；None（默认）时各自 load，单次调用语义不变。
-
-    异常：
-      WikiNotFound:        wiki 不在 workspace.toml 中
-      WikiDirMissing:      wiki 子目录缺失
-      RegistryMissing:     registry 文件不存在（被内部转换为 ModelDefaultNotSet）
-      ModelNotInRegistry:  wiki.model 引用了 registry 中不存在的 model_id
-      ModelDefaultNotSet:  registry 空或无 is_default=true
-      ModelDefaultAmbiguous: 多条 is_default=true（数据损坏, load 时抛）
+    ws / registry 为可选预载（聚合入口复用，省 N×IO）；None 时各自 load。
+    异常：WikiNotFound / WikiDirMissing / ModelNotInRegistry / ModelDefaultNotSet /
+    ModelDefaultAmbiguous（RegistryMissing 在内部转为 ModelDefaultNotSet）。
     """
     if ws is None:
         ws = ws_store.load(workspace_root)
@@ -73,12 +58,10 @@ def resolve_for_wiki(
             meta = None
 
     try:
-        # load 对 "有 models 但无 default" 不抛错 (default 可后置); wiki 若指定了 model,
-        # 即使 registry 无 default 也能用 (走下面的 wiki.model 分支)。
-        # 多条 default 仍抛 ModelDefaultAmbiguous, 无 registry 抛 RegistryMissing。
+        # 无 default 不抛错（default 可后置，wiki 指定 model 仍可用）
         reg = registry if registry is not None else load(workspace_root)
     except RegistryMissing as e:
-        # 用户体验：直接说 ModelDefaultNotSet，不要暴露 RegistryMissing
+        # 对用户直接说 ModelDefaultNotSet，不暴露 RegistryMissing
         raise ModelDefaultNotSet(
             str(e.message),
             hint="运行 `llmw model add --model-id=... --name=... --base-url=... --api-key=... --default` 初始化 registry",
@@ -93,8 +76,7 @@ def resolve_for_wiki(
             )
         return reg.models[meta.model]
 
-    # fallback 到默认（lenient load: 多条 default 已抛 ModelDefaultAmbiguous; 无 default
-    # 时 reg 内 is_default 全 False, 走到这里 defaults 为空 → 报 ModelDefaultNotSet）
+    # fallback 默认（无 default 时 defaults 为空 → ModelDefaultNotSet）
     defaults = [m for m in reg.models.values() if m.is_default]
     if not defaults:
         raise ModelDefaultNotSet(

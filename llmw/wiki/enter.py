@@ -1,14 +1,11 @@
-"""wiki enter — 启动 AI agent session（默认 opencode；workspace_local.toml#enter_cli 切换）。
+"""wiki enter — 启动 agent session（backend 由 workspace_local.toml#enter_cli 选）。
 
-- claude：resolved model 经 `<wiki>/.claude/settings.local.json` env 块（Local 层）交付；
-  cmd 只 `--add-dir`（claude 自读 CLAUDE.md）；不注入 subprocess env / --setting-sources。
-- opencode（默认）：不解析 model，写 `<wiki>/opencode.json` instructions 键（同步模板
-  顶层 @import——opencode 不解析 AGENTS.md 的 @path 引用）。
+- claude：resolved model 经 Local 层 settings.local.json 交付；cmd 只 `--add-dir`。
+- opencode（默认）：不解析 model，写 opencode.json instructions 键。
 - qodercli：裸启动，只传目录。
 
-窗口模型：agent 开成当前 tmux session 的窗口；tmux 外按可见 session 数选路（恰 1 个
-直接开入，0/≥2 兜底 llm_workspace + TTY attach）。fire-and-forget：建成返回 0。
-spawn 收口在 _spawn()；窗口原语见 llmw/wiki/byobu.py。
+窗口开在当前 tmux session；tmux 外按可见 session 数选路（0/≥2 兜底 llm_workspace + attach）。
+fire-and-forget：建成返回 0；窗口原语见 byobu.py。
 """
 
 import shlex
@@ -37,8 +34,8 @@ from llmw.workspace import local_store
 
 
 def _build_cmd(wiki_path: Path) -> List[str]:
-    """claude argv：只 `--add-dir`（自读 CLAUDE.md）；不传 --setting-sources（overlay 在
-    Local 层已稳赢 user 配置）/ 不传 --system-prompt（自动聚合，显式注入会双计入）。
+    """claude argv：只 --add-dir（自读 CLAUDE.md）；不传 --setting-sources / --system-prompt
+    （前者无必要——Local 层已稳赢 user 配置；后者会双计入）。
     """
     return ["claude", "--add-dir", str(wiki_path)]
 
@@ -155,12 +152,8 @@ def _spawn(
     dry_run: bool,
     overlay_refreshed: bool = False,
 ) -> int:
-    """最终 spawn 收口（三 backend 共用）：当前 tmux session 开窗/复用；
-    不在 tmux 内 → _select_target_session 按可见 session 数选路：恰 1 个直接在
-    其中开窗（reuse_sole），0 / ≥2 兜底 session llm_workspace + TTY attach / 非
-    TTY hint。
+    """三 backend 共用的 spawn 收口：开窗/复用 + 打标；tmux 外按可见 session 数选路。
 
-    backend 随窗口打标（@llmw_backend），供 status 的 BACKEND 列与 STATE 模式路由。
     overlay_refreshed：复用窗口时是否已写过 overlay（claude/opencode=True；qodercli=False）。
     """
     if dry_run:
@@ -182,8 +175,7 @@ def _spawn(
     )
     _report_spawn_result(target, window_name, created, collected, overlay_refreshed)
     if target.outside:
-        # tmux 外路径（兜底或唯一可见 session 复用）：TTY → attach（落点 = 该窗口，
-        # select/new 已置其为 current）；非 TTY（脚本）→ 只建不 attach，打印 hint
+        # 非 TTY（脚本）只建不 attach，打印 hint
         if sys.stdout.isatty():
             byobu.attach_session(target.session)
         else:
@@ -300,7 +292,6 @@ def enter(
     backend, explicit = _resolve_backend(workspace_root)
     _check_enter_env(backend, dry_run)  # backend 值即 agent 二进制名
 
-    # qodercli 路径：裸启动——跳过 resolve / overlay；只传目录
     if backend == "qodercli":
         return _enter_bare(
             workspace_root,
@@ -313,8 +304,6 @@ def enter(
             window_suffix,
         )
 
-    # opencode 路径（默认）：不解析 model，但写 instructions overlay
-    # （opencode 不解析 @import，用 config instructions 替代）
     if backend == "opencode":
         return _enter_opencode(
             workspace_root,
@@ -326,8 +315,7 @@ def enter(
             explicit,
         )
 
-    # claude 路径：resolve → overlay → spawn。resolve 拿最终 model
-    # （失败阻断 enter，在任何写盘之前）
+    # claude 路径：resolve → overlay → spawn（resolve 失败阻断，先于任何写盘）
     model = resolve_for_wiki(workspace_root, name)
     plan = _build_enter_plan(
         workspace_root, name, wiki_path, meta_p, claude_md, backend, model
@@ -357,7 +345,7 @@ def _enter_dry_run(plan: _EnterPlan, window_suffix: Optional[str]) -> int:
         try:
             meta = wiki_load(plan.wiki_path)
         except (OSError, TOMLDecodeError, SchemaVersionUnsupported) as e:
-            # resolve 已捕过 SchemaVersionUnsupported；这里再捕让 dry-run 还能打印 overlay
+            # 再捕一次让 dry-run 仍能打印 overlay（resolve 已捕过同类）
             print(
                 f"[llmw] warning: 无法读取 wiki_metadata.toml: {type(e).__name__}: {e}",
                 file=sys.stderr,
@@ -483,9 +471,7 @@ def _enter_opencode(
 
 
 def _print_dry_run_model_backends(plan: _EnterPlan, meta) -> None:
-    """claude 路径 dry-run 打印：字段一律取自 ov.render(model) 输出（不手抄 overlay
-    内部逻辑，避免展示与实现漂移；api_key 过 redact）。
-    """
+    """claude 路径 dry-run 打印：字段取自 ov.render(model)（不手抄，避免展示与实现漂移）。"""
     overlay_path, would_write = plan.ov.inspect(plan.wiki_path, plan.model)
     print(f"[llmw] workspace: {plan.workspace_root}", file=sys.stdout)
     print(f"[llmw] wiki:      {plan.name} ({plan.wiki_path})", file=sys.stdout)
@@ -511,11 +497,9 @@ def _print_dry_run_model_backends(plan: _EnterPlan, meta) -> None:
         f"[llmw]   ANTHROPIC_AUTH_TOKEN = {redact_api_key(expected['ANTHROPIC_AUTH_TOKEN'])}",
         file=sys.stdout,
     )
-    # Habit template（非用户可配的代码内常量, 随 overlay 一同写入）——render 输出
-    # 中 ANTHROPIC_* 之外的 key 即 habit template
+    # ANTHROPIC_* 之外的 key 即 habit template（组内对齐，不与 model env 共享列）
     habit = {k: v for k, v in expected.items() if not k.startswith("ANTHROPIC_")}
     print("[llmw]   (habit template)", file=sys.stdout)
-    # 用最长 key 长度对齐 value 列（habit template 组内对齐, 不与 model env 共享列）
     width = max(len(k) for k in habit)
     for k, v in habit.items():
         print(f"[llmw]     {k:{width}s} = {v}", file=sys.stdout)

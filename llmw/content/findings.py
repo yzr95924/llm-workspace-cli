@@ -1,12 +1,7 @@
 """lint finding 注册表——finding 名 / severity / 含义 / 修法的唯一真源（SSOT）。
 
-消费端：
-- ``wiki_lint.severity_of``（严重性映射）
-- ``llmw wiki lint --explain [name]``（解释输出；agent 按需读，替代散文镜像）
-
-新增 deterministic 检查 = 本表加一条 + wiki_lint.py 发射同名 finding；
-``tests/test_findings_registry.py`` 双向穷举校验（漏配 / 死条目均红）。
-severity 取值：error / warn / info。
+消费端：``wiki_lint.severity_of`` 与 `lint --explain`。新增检查 = 本表加一条 +
+wiki_lint.py 发射同名 finding（tests/test_findings_registry.py 双向穷举校验）。
 """
 
 from typing import NamedTuple, Optional, Tuple
@@ -268,8 +263,7 @@ FINDINGS = {
     ),
 }  # type: Dict[str, FindingSpec]
 
-# 跳过提示（注记，非 finding）：经 [NOTES] 输出、不参与 severity 过滤。
-# 注册表穷举测试据此豁免该前缀。
+# 注记（非 finding）：经 [NOTES] 输出、不过滤；穷举测试据此豁免
 NOTE_PREFIXES = ("raw-immutable-skipped",)
 
 

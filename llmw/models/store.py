@@ -16,8 +16,7 @@ from llmw.errors import (
 )
 from llmw.fsutil import atomic_write, chmod_600, now_iso8601
 
-# model_id 允许 ^[a-z0-9_-]{1,64}$ (首字符可为 - 或 _),
-# 比 wiki name 的 NAME_RE 更宽松. 本地复刻,不再 import wiki.NAME_RE.
+# 比 wiki NAME_RE 宽（首字符可为 -/_）；本地持有，不 import wiki 侧
 MODEL_ID_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
 
 SCHEMA_VERSION_SUPPORTED = 2
@@ -115,7 +114,6 @@ def load(workspace_root: Path) -> Registry:
 
     models: Dict[str, ModelEntry] = {}
     for entry in raw.get("models", []):
-        # context_window 必填——老仓库缺字段直接拒载,提示用户手动补
         if "context_window" not in entry:
             raise InvalidModelField(
                 f"model_id '{entry.get('model_id', '?')}' 缺 context_window 字段",
@@ -147,8 +145,7 @@ def load(workspace_root: Path) -> Registry:
             f"workspace_models.toml 中存在 {len(defaults)} 条 is_default=true: {defaults}",
             hint="运行 `llmw model set-default --model-id=<ID>` 修复唯一性",
         )
-    # 注：「有 models 但无 default」是合法中间状态（default 可后置），load 不对此抛错。
-    # 是否需要 default 由消费方判断（如 resolve_for_wiki 的 fallback）。
+    # 「有 models 无 default」合法（default 可后置）——是否需要由消费方判断
     return Registry(
         schema_version=sv,
         created_at=raw.get("created_at", ""),
@@ -191,10 +188,7 @@ def save(workspace_root: Path, reg: Registry) -> None:
 
 
 def delete(workspace_root: Path) -> None:
-    """删除 workspace_models.toml（registry 变空时的收尾，经 store 层统一出口）。
-
-    manager 不直接碰文件系统删除——文件删除策略（如未来加备份）收敛在 store。
-    """
+    """删除 registry 文件（manager 不直接碰 fs 删除，策略收敛在 store）。"""
     toml_path = workspace_root / "workspace_models.toml"
     if toml_path.is_file():
         toml_path.unlink()
@@ -204,14 +198,7 @@ def delete(workspace_root: Path) -> None:
 
 
 def create_skeleton() -> Registry:
-    """空 Registry 工厂:返回 in-memory Registry。
-
-    两条调用点:
-    - `workspace init`: init 内显式调 `save` 落盘空骨架
-    - `model_add` lazy fallback: 文件不存在时,in-memory 初始化 → mutate → save
-
-    注：本函数不写盘；调用方负责 save。
-    """
+    """空 Registry 工厂（不写盘；调用方 save）。"""
     now = now_iso8601()
     return Registry(
         schema_version=SCHEMA_VERSION_SUPPORTED,

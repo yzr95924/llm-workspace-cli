@@ -1,32 +1,8 @@
 #!/usr/bin/env python3
-"""workspace_fixtures — workspace fixtures 一致性检查（升级时专用；CLI 入口 `llmw check-fixtures`）
+"""workspace_fixtures — workspace 约定文件的结构性字节合规检查（`llmw check-fixtures`）。
 
-从 fixture 视角校验一个已存在 workspace 的
-"约定文件"（AGENTS.md / CLAUDE.md / .gitignore / MEMORY/MEMORY.md / workspace.toml
-templates_version）是否满足当前 workspace format 的结构要求。本模块只校验**结构性字节合规**；
-修复由 agent 按报告里的 fix 动作走 SKILL.md「Upgrade」工作流——本模块不写任何文件。
-
-用法:
-  llmw check-fixtures --workspace=<WORKSPACE_ROOT> [--json] [--target-format <semver>]
-
-缺省 --target-format 时读 llmw.WORKSPACE_FORMAT_VERSION（包内常量；SKILL.md 前端的版本 SSOT 由 CI gate 比对）。
-standalone（不依赖其他脚本 / 第三方库；Python 3.7+）。
-
-退出码:
-  0 = 全部 check pass（或仅 warn / skip）
-  1 = 至少一条 error 级 check fail
-  2 = 运行错误（路径 / 参数 / 文件 IO）
-
-设计权衡:
-- 不落 .migration-plan.json——workspace 修复面恒定 ≤ 4 个结构文件，报告即清单；
-  中断后重跑本脚本即可续（检测幂等）。零中间产物。
-- AGENTS.md / CLAUDE.md 走**模板渲染比对**：从末尾「当前配置」表提取 4 变量，渲染包内
-  llmw/content/templates/workspace/workspace-{agents-md,claude-md}-template.md 后字节比对——
-  一次性覆盖"旧版本残留 + 本地改动"全部漂移。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
-- 版本新旧（agents-version-is-current）与正文同步（agents-md-template-sync）正交：
-  后者渲染时用 workspace 自钉版本替换 {{WORKSPACE_FORMAT_VERSION}}。
-- workspace.toml 的 wiki_format 分量只展示不比对（跨 skill 指针：该跑各 wiki 的 upgrade
-  由 yzr-llm-wiki-management 负责，本脚本不读兄弟 skill 的版本）。
+只查结构、不写文件；修复由 agent 按报告里的 fix 动作走 upgrade 工作流。
+零中间产物（报告即清单，重跑幂等）。退出码 0/1/2 = pass / error fail / 运行错误。
 """
 
 import difflib
@@ -173,10 +149,7 @@ def _extract_template_vars(agents_text: str) -> Dict[str, Optional[str]]:
 
 
 def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#1: AGENTS.md「当前配置」表 `Workspace Format 版本` 行与 target_format 一致（新旧判定）。
-
-    与 template-sync 正交：只管版本新旧，不管正文同步。系统只理解当前格式——「当前配置」表解析失败 = unknown，触发 workspace-fix-agents-md-resync。
-    """
+    """check#1: `Workspace Format 版本` 行与 target 一致（只管新旧，正文同步归 check#2）。"""
     out = {"passed": True, "file": "AGENTS.md"}  # type: Dict[str, object]
     text = _read_text(ws_root / "AGENTS.md")
     if text is None:
@@ -221,16 +194,7 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
 
 
 def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#2: AGENTS.md 与 render.py 渲染稿字节一致。
-
-    渲染输入尽量从 workspace.toml + 版本常量派生; **display_name 例外**——
-    workspace.toml 没有该字段（init 时只写到 AGENTS.md），仍需从 AGENTS.md 末尾
-    「当前配置」表（或 H1）提取。其它 3 变量均 SSOT 派生，模板措辞改后本 check 自动跟随。
-
-    与 check#1 的关系: 本 check 直接用 CURRENT format 版本渲染, 旧 workspace 必然字节差
-    → 也会 drift。**冗余 benign**: 两者都推荐 upgrade, 一次修复。check#1 仅做 currency
-    信息报告 + 老格式 fallback。
-    """
+    """check#2: AGENTS.md 与渲染稿字节一致（display_name 例外地从 AGENTS.md 提取）。"""
     out = {"passed": True, "file": "AGENTS.md"}  # type: Dict[str, object]
     ws_text = _read_text(ws_root / "AGENTS.md")
     if ws_text is None:
@@ -295,11 +259,7 @@ def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
 
 
 def check_claude_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#3: CLAUDE.md 薄壳与 render.py 渲染稿字节一致。
-
-    薄壳唯一变量是 {{WORKSPACE_DISPLAY_NAME}}；workspace.toml 没存 display_name,
-    仍需从 AGENTS.md「当前配置」表 / H1 提取。
-    """
+    """check#3: CLAUDE.md 薄壳与渲染稿字节一致（display_name 从 AGENTS.md 提取）。"""
     out = {"passed": True, "file": "CLAUDE.md"}  # type: Dict[str, object]
     tpl_path = workspace_templates_dir() / "workspace-claude-md-template.md"
     if not tpl_path.is_file():
@@ -344,11 +304,7 @@ GITIGNORE_SECTIONS = ("# OS / 编辑器", "# Obsidian 配置", "# 临时文件")
 
 
 def check_gitignore_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#4: .gitignore 段结构齐全（llmw 托管块 3 规则 + 3 段各 ≥1 规则）。
-
-    只查结构不绑死具体规则行——容忍用户删段内单条规则（如纯 Linux 删 .DS_Store）；
-    但 llmw 托管块 3 条敏感文件规则缺一不可（0.5.0/0.6.0/0.6.1 连续加固的对象）。
-    """
+    """check#4: .gitignore 段结构齐全（托管块 3 敏感规则缺一不可；段内单条规则容忍删）。"""
     out = {"passed": True, "file": ".gitignore"}  # type: Dict[str, object]
     text = _read_text(ws_root / ".gitignore")
     if text is None:
@@ -406,10 +362,7 @@ def check_gitignore_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str, o
 
 
 def check_memory_index_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#5: MEMORY/MEMORY.md 骨架（无 frontmatter + H1 + 说明块 + ## 索引）。
-
-    成长内容（## 索引 下的经验条目）不动；文件缺失按包内 fixtures/memory-index.txt 重建。
-    """
+    """check#5: MEMORY/MEMORY.md 骨架（成长条目不动；缺失按 fixtures/memory-index.txt 重建）。"""
     out = {"passed": True, "file": "MEMORY/MEMORY.md"}  # type: Dict[str, object]
     text = _read_text(ws_root / "MEMORY" / "MEMORY.md")
     if text is None:
@@ -449,10 +402,9 @@ TV_WIKI_FORMAT_RE = re.compile(r"(?:wiki_format|wiki_spec)\s*=\s*([0-9]+\.[0-9]+
 
 
 def check_workspace_toml_templates_version(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#6: workspace.toml templates_version 的 workspace_format 分量与 target 一致（warn）。
+    """check#6: templates_version 的 workspace_format 分量与 target 一致（warn，不阻断）。
 
-    不阻断（旧 format 产物仍可读）。wiki_format 分量只展示不比对——跨 skill
-    指针，提示用户跑各 wiki 的 upgrade（yzr-llm-wiki-management），本脚本不读兄弟 skill 版本。
+    wiki_format 分量只展示不比对（查各 wiki 升级是 wiki skill 的事）。
     """
     out = {"passed": True, "file": "workspace.toml"}  # type: Dict[str, object]
     text = _read_text(ws_root / "workspace.toml")
@@ -501,16 +453,10 @@ NEXT_SECTION_RE = re.compile(r"^\[", re.MULTILINE)
 
 
 def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#7: workspace.toml 含 SKILL scan/upgrade 读取的字段（读取契约自洽）。
+    """check#7: workspace.toml 含 SKILL scan/upgrade 读取的字段（templates_version + 各 wiki path/created_at）。
 
-    校验顶层 templates_version + 每个 [wikis.<name>] 的 path / created_at（SKILL scan
-    遍历 + INDEX 排序用）。workspace.toml 不存在 → skip（复用 templates-version-sync
-    的 skip 语义，不重复报）。minimal TOML 风格：只认 key = 行 + [section] 头，不引入 tomli。
-
-    读取契约 co-location：本 check 校验的字段 = SKILL scan/upgrade 实际读取的字段。若 SKILL
-    将来新读 workspace.toml 某字段，必须同步加到这里 + yzr-llm-workspace-management
-    `references/formats.md「A1. workspace.toml 读取契约」` 表——两处（本 check / 该表）一致，
-    gate 才有效（清单漂移 = check 不报警 = gate 失效）。
+    读取契约双处同改：本 check 与 skill references/formats.md「A1. workspace.toml 读取契约」
+    表必须一致（漂移 = gate 失效）。
     """
     out = {"passed": True, "file": "workspace.toml"}  # type: Dict[str, object]
     text = _read_text(ws_root / "workspace.toml")
@@ -536,10 +482,7 @@ def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) ->
     return out
 
 
-# 模板零出边引用（架构不变量：纪律正文唯一维护点 = 模板，模板是引用图汇点）。
-# 任何指向 skill 目录文件 / 阿拉伯数字 §节号的引用都会被本 check 报 error——workspace 侧
-# agent 读不到 skill 目录、解析不了这些指针（模板自己都写着"模板与配套工具随 skill 分发，不在本 workspace 内"），
-# 对运行时读者是死指针；改纪律只改模板对应段，SKILL.md 单向指入模板。
+# 模板零出边引用（模板 = 引用图汇点）：指向 skill 目录的指针对 workspace 侧 agent 是死指针
 TEMPLATE_OUTBOUND_PATTERNS = (
     "workspace-claude-md-template.md",
     "SKILL.md",
@@ -550,15 +493,7 @@ TEMPLATE_OUTBOUND_PATTERNS = (
 
 
 def check_template_no_outbound_refs(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """包内 workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用。
-
-    模板随 init 拷贝进 workspace 成为 AGENTS.md——workspace 侧 agent 读不到 skill 目录，模板内
-    一切 `workspace-claude-md-template.md` / `SKILL.md` /
-    `references/` / skill 名 / 阿拉伯数字 §节号 引用都是死指针（零白名单，含 provenance
-    声明也不得携带——全部改写为自包含措辞）。skill 目录内文件 → 模板 单向引用由本
-    check 机械强制；对每个 workspace 报告同一结果（模板是全局文件），违反时 error 逼
-    skill 侧修复。
-    """
+    """包内 workspace-agents-md-template.md 零出边引用（零白名单；违反 → skill 侧修复）。"""
     out = {"passed": True, "file": "workspace-agents-md-template.md"}  # type: Dict[str, object]
     template = _read_text(workspace_templates_dir() / "workspace-agents-md-template.md")
     if template is None:

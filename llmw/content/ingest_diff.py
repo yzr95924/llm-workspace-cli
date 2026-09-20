@@ -1,32 +1,11 @@
 #!/usr/bin/env python3
-"""
-ingest_diff.py — 找出 raw/ 里需要 LLM 关注的文件
+"""ingest_diff — 找出 raw/ 里需要 LLM 关注的文件（`llmw wiki ingest-diff`）。
 
-用法：
-  llmw wiki ingest-diff --path=<WIKI_ROOT> [--json] [--relative] [--check-stale]
+"已摄取"判定 = source 页 frontmatter.sources ∪ log.md ingest 标题。三类输出：
+untracked（未摄取）/ stale-raw（--check-stale：raw mtime 晚于 source updated）/
+log-only-no-source-page（log 有记录但 source 页缺失）。
 
-判定"已摄取"的依据：
-- 扫 <WIKI_ROOT>/raw/ 递归收集可摄取的文本素材（扩展名白名单：*.md / *.markdown / *.txt；
-  见 INGEST_GLOBS）
-- 读所有 wiki/sources/*.md 的 frontmatter.sources 字段，建立 raw 路径 → source 页映射
-- 同时读 wiki/log.md 提取 ingest 条目标题（排查"log 写了但 source 页丢了"）
-
-三类需要关注的文件：
-1. **未摄取**（reason=untracked）——raw 路径不在任何 source 页的 sources 字段里
-2. **待重新摄取**（reason=stale-raw，仅 --check-stale）——raw 路径已有 source 页，
-   但 raw 文件 mtime 晚于 source 页 frontmatter.updated，说明 raw 被用户更新过
-3. **log-only**（reason=log-only-no-source-page）——log 有 ingest 记录但 source 页缺失
-
-输出：
-- 默认 plain text：每行一个路径（stdout 保持纯路径，便于 grep / 循环）
-- --json：JSON 数组 [{path, abs_path, size_bytes, mtime, reason}]
-- --relative：输出相对 WIKI_ROOT 而非相对 raw/
-- 人类可读的按类别计数总结打到 stderr
-
-退出码：
-- 0 = 全部已摄取（且 --check-stale 下无 stale 项）
-- 1 = 有需要关注的项
-- 2 = 运行错误
+stdout 保持纯路径（--json / --relative 可换格式）；计数总结走 stderr。退出码 0/1/2。
 """
 
 import json
@@ -111,26 +90,15 @@ def parse_frontmatter_simple(text: str) -> Dict:
     return result
 
 
-# ingest 单元：raw/ 下被视为"可摄取素材"的扩展名白名单。
-# 文本素材（md / txt / markdown）走 raw/{articles,clippings,papers,...}/
-# 等任意子目录，rglob 递归扫；raw/assets/ 整棵子树跳过（用户放图片 / 二进制附件的地方，
-# LLM 不该管它们是否"已摄取"——它们本身就是 raw 终态，不应被 source 页引用）；
-# raw/discussions/ 整棵子树跳过（用户 + LLM 协作草稿层，参照 ingest-workflow.md「raw/discussions/ 草稿消化」——不是待摄取的
-# 用户真相源，LLM 可写，不应被 ingest_diff 当 untracked 素材列出）。
 INGEST_GLOBS = ("*.md", "*.markdown", "*.txt")
 
 
 def collect_raw_files(raw_root: Path) -> List[Path]:
-    """递归收集 raw/ 下可摄取的文本素材（排除 assets/ + discussions/ 子树与隐藏 / 系统文件）。
+    """递归收集 raw/ 下可摄取的文本素材（排除 assets/ 与 discussions/ 子树、隐藏 / 系统文件）。
 
-    为什么不收 raw/assets/：assets/ 是用户放图片 / 附件 / 二进制 PDF 的地方，
-    引用关系走 raw/{articles,...} 下的 .md（md 内用相对路径链图）。把 png
-    报为 untracked 会污染 ingest_diff 的信号。
-    为什么不收 raw/discussions/：discussions/ 是用户 + LLM 双方可写的
-    协作草稿层，不是"用户掌控的真相源"——把它当 untracked 素材列出会
-    诱导 LLM 把自己写的草稿当 raw 真相 ingest 回 wiki（provenance 后门）。草稿要转
-    正式先由用户确认 mv 到 raw/articles 等子树（归档两路径详见 wiki 根 AGENTS.md 的
-    raw/discussions/ 节），mv 后才会被本函数扫到。
+    assets/ 是图片 / 附件终态（不该被当 untracked 信号）；discussions/ 是协作草稿层，
+    列出来会诱导 LLM 把自己写的草稿当 raw 真相 ingest（provenance 后门）——转正先 mv 到
+    raw/articles 等子树。
     """
     if not raw_root.is_dir():
         return []
@@ -164,9 +132,7 @@ def normalize_rel(path: Path, base: Path) -> str:
 
 
 def collect_ingested_from_log(log_path: Path) -> Set[str]:
-    """从 wiki/log.md 提取 ingest 条目的标题集合。
-    注意：log 只记标题，不直接给出 raw 路径；这里仅做提示性收集。
-    实际"已摄取"判定主要靠 source 页 frontmatter。"""
+    """从 log.md 提取 ingest 标题集合（提示性；"已摄取"判定主要靠 source 页 frontmatter）。"""
     ingested = set()  # type: Set[str]
     if not log_path.is_file():
         return ingested
@@ -178,8 +144,7 @@ def collect_ingested_from_log(log_path: Path) -> Set[str]:
 
 
 def collect_ingested_sources_map(wiki_root: Path) -> Dict[str, List[Path]]:
-    """读所有 wiki/sources/*.md 的 frontmatter.sources，返回
-    raw 相对路径（POSIX）→ 引用它的 source 页列表。"""
+    """frontmatter.sources → raw 相对路径（POSIX）到引用页列表的映射。"""
     mapping = {}  # type: Dict[str, List[Path]]
     sources_dir = wiki_root / "wiki" / "sources"
     if not sources_dir.is_dir():
@@ -196,10 +161,7 @@ def collect_ingested_sources_map(wiki_root: Path) -> Dict[str, List[Path]]:
 
 
 def raw_newer_than_source(raw_path: Path, source_page: Path) -> bool:
-    """raw 文件的 mtime 日期是否晚于 source 页 frontmatter.updated。
-    若 updated 缺失 / 格式错 / mtime 不可读，视为"无法判定"，返回 False
-    （保守起见不报 stale，避免误报）。updated 接受 `YYYY-MM-DD` / `YYYY-MM-DD HH:MM` /
-    `YYYY-MM-DD HH:MM:SS` 三种格式（见 log_format.parse_date_or_datetime）。"""
+    """raw mtime 日期是否晚于 source 页 updated；无法判定（缺 / 格式错）返 False（不误报）。"""
     text = source_page.read_text(encoding="utf-8", errors="replace")
     fm = parse_frontmatter_simple(text)
     updated = fm.get("updated")
@@ -229,22 +191,18 @@ def run(wiki_root: Path, *, as_json: bool = False, relative: bool = False, check
     for p in raw_files:
         rel_to_root = normalize_rel(p, wiki_root)
         if rel_to_root in ingested_paths:
-            # 已摄取——仅 --check-stale 时看 raw 是否被更新过
             if check_stale:
                 for sp in src_map[rel_to_root]:
                     if raw_newer_than_source(p, sp):
                         pending.append((p, "stale-raw"))
                         break
             continue
-        # 未摄取
         stem = p.stem
         if stem in log_titles:
-            # log 有但 source 页丢了——标记为待重建
             pending.append((p, "log-only-no-source-page"))
             continue
         pending.append((p, "untracked"))
 
-    # 输出
     if as_json:
         out = []
         for p, reason in pending:
@@ -270,7 +228,6 @@ def run(wiki_root: Path, *, as_json: bool = False, relative: bool = False, check
                 else:
                     print(normalize_rel(p, raw_root))
 
-    # 人类可读总结 → stderr（保持 stdout 为纯路径列表）
     if pending:
         counts = {}  # type: Dict[str, int]
         for _, reason in pending:
@@ -283,7 +240,6 @@ def run(wiki_root: Path, *, as_json: bool = False, relative: bool = False, check
                 file=sys.stderr,
             )
 
-    # log-only 异常提示
     log_only = [pr for pr in pending if pr[1] == "log-only-no-source-page"]
     if log_only and not as_json:
         print(file=sys.stderr)

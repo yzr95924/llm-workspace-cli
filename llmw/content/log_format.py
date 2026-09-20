@@ -1,15 +1,7 @@
 #!/usr/bin/env python3
-"""log.md 行格式正则 + created/updated 时间解析的 SSOT。
+"""log.md 行格式 + frontmatter 时间解析的 SSOT（格式权威；文档描述在 page-templates.md）。
 
-本模块是格式权威（executable truth）；yzr-llm-wiki-management 的
-page-templates.md 与实例 AGENTS.md 中的格式说明是文档描述，改格式时同步更新文档。
-
-符号：
-- `LOG_OPS`：合法 op 集合（LOG_LINE_RE 与 CLI --op choices 共用）
-- `LOG_LINE_RE`：全 op——用于 lint 验证 log.md 每行格式合法
-- `LOG_INGEST_RE`：仅 ingest op + 抓标题——用于 ingest_diff 从 log.md 提取"被 ingest 过"的标题集合
-- `parse_date_or_datetime`：宽容解析 `YYYY-MM-DD` 或 `YYYY-MM-DD HH:MM[:SS]` → `datetime.date`，
-  给 lint/ingest_diff 解析 frontmatter `created` / `updated` 用；解析失败返 None
+LOG_LINE_RE 供 lint 全格式校验；LOG_INGEST_RE 供 ingest_diff 反查 ingest 标题。
 """
 
 import re
@@ -22,11 +14,7 @@ _DATETIME_SECOND = "%Y-%m-%d %H:%M:%S"
 
 
 def parse_date_or_datetime(s):
-    """宽容解析 `YYYY-MM-DD` / `YYYY-MM-DD HH:MM` / `YYYY-MM-DD HH:MM:SS` → `datetime.date`。
-
-    失败（含 None / 非 str / 格式错）返 None；调用方需自行决定"无法判定 = 跳过 lint"。
-    三种格式按精度从低到高试，先匹配先返回（保证 `2026-07-27` 不会误吃成 `2026-07-27 00:00`）。
-    """
+    """`YYYY-MM-DD` / `YYYY-MM-DD HH:MM[:SS]` → date（精度从低到高试）；失败返 None。"""
     if not isinstance(s, str):
         return None
     for fmt in (_DATE_ONLY, _DATETIME_MINUTE, _DATETIME_SECOND):
@@ -40,12 +28,10 @@ def parse_date_or_datetime(s):
 # 合法 op 集合（SSOT）——LOG_LINE_RE 与 CLI 的 --op choices 共用，新增 op 只改这里
 LOG_OPS = ("ingest", "query", "lint", "setup")
 
-# 格式权威: 本模块（文档描述在 page-templates.md）
 # HH:MM 可选（regex 非锚定尾部）；老 wikis 仅 date 仍合法
 LOG_LINE_RE = re.compile(
     r"^## \[\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?\] "
     r"(" + "|".join(LOG_OPS) + r") \| .+$"
 )
 
-# 仅 ingest 分支（用于从 log.md 反查 ingest 过的标题；不是 lint 全格式校验）
 LOG_INGEST_RE = re.compile(r"^## \[\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?\] ingest \| (.+)$")

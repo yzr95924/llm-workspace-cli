@@ -1,32 +1,13 @@
-"""llmw.content.upgrade_workspace — workspace 骨架升级引擎
+"""llmw.content.upgrade_workspace — workspace 骨架升级引擎（`llmw upgrade`，流程与 wiki 侧同构）。
 
-确定性执行 `llmw upgrade`（workspace 级）：重渲染 workspace 根的 byte-owned 文件
-(AGENTS.md / CLAUDE.md)、managed block 重放 .gitignore、header-owned MEMORY.md 段嫁接、
-自验 fixtures checker 0 error、版本钉 `templates_version` 的 workspace_format 分量 bump。
+重渲染 byte/block/header-owned 文件 + 自检 0 error + templates_version bump。
+终态 JSON（--json 恒可用）：
 
-流程与 wiki 侧 (upgrade.py) 同构：
+    status: done | done_with_residue | blocked_drift | dry_run | verify_failed
+    current_format = AGENTS.md 版本钉（解析失败 = null，如实上报）；target = 包内常量。
 
-    idle → preflight（drift diff）→ resync → verifying → bump → done
-                              ↘ blocked_drift（diff 非空 + 非 dry-run 无 --yes）
-                              ↘ verifying fail → exit 2（版本钉不落）
-
-终态 JSON 契约（--json 恒可用）：
-
-status: done | done_with_residue | blocked_drift | dry_run | verify_failed
-- done               : 4 类骨架处理 + 自检 0 error + 无 residue
-- done_with_residue  : 同上但有旧自定义段被丢弃（residue 明细随 JSON 输出）
-- blocked_drift      : 自定义内容将被覆盖，dry-run 输出 diff 停住
-- verify_failed      : 骨架已写盘但自检有 error（读 verified.failures[] 修完重跑，幂等）
-
-current_format: workspace AGENTS.md 版本钉（解析失败 = null，如实上报）；target_format = 包内常量。
-
-退出码：
-    0 = done
-    1 = blocked_drift
-    2 = 自验证失败 / 内部错误
-
-变量 SSOT: workspace.toml.created_at (setup_date) + llmw.WORKSPACE_FORMAT_VERSION（包内常量；SKILL.md 前端版本由 CI gate 与常量比对）；
-display_name 例外（workspace.toml 未存），仍需从现有 AGENTS.md「当前配置」表 / H1 提取。
+退出码：0 = done；1 = blocked_drift；2 = 自验失败（版本钉不落）。
+变量 SSOT = workspace.toml.created_at + 版本常量；display_name 例外（toml 未存，从 AGENTS.md 提取）。
 """
 
 import json
@@ -57,15 +38,8 @@ _TV_PARSE = re.compile(
 )
 
 
-# ===== 辅助 =====
-
-
 def _extract_display_name_and_setup_date(ws_root: Path):
-    """从现有 AGENTS.md 提取 display_name + 从 workspace.toml.created_at 派生 setup_date。
-
-    display_name 例外：workspace.toml 没存该字段（仅 AGENTS.md 持有），故从「当前配置」表 / H1 提取。
-    setup_date SSOT：workspace.toml.created_at[:10]。
-    """
+    """display_name 从 AGENTS.md 提取（toml 未存）；setup_date = workspace.toml.created_at[:10]。"""
     display_name = None
     agents_text = _read_text(ws_root / "AGENTS.md")
     if agents_text:
@@ -90,10 +64,7 @@ def _current_workspace_format(ws_root: Path) -> Optional[str]:
 
 
 def _compute_gitignore_block(current_text: str) -> Optional[str]:
-    """跑 ensure_workspace_gitignore 于 sandbox，返回其生成的 .gitignore 内容。
-
-    复用公开 API（gitignore.py:ensure_workspace_gitignore），不引入新的 helper。
-    """
+    """在 sandbox 对 current_text 跑 ensure_workspace_gitignore，返回其产物。"""
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -138,17 +109,11 @@ def _diff_text(old: str, new: str) -> Optional[str]:
 
 
 def _render_growth_memory(old_text: str) -> str:
-    """MEMORY/MEMORY.md 段嫁接：保留旧 ## 索引 下的条目，用新 fixture 的头部 + ## 索引 段头。
-
-    memory-index.txt 无 frontmatter，结构 = H1 + 说明块 + `## 索引` + 占位 / 条目示例。
-    """
+    """MEMORY/MEMORY.md 段嫁接：新头部 + 保留旧 ## 索引 条目。"""
     fixture_text = _read_text(workspace_templates_dir() / "fixtures" / "memory-index.txt")
     if fixture_text is None:
         return old_text  # fixture 缺失 → 保持原样（让 check 报 error，self_verify 拦住）
     return _wiki_upgrade._render_growth_headers(old_text=old_text, fixture_text=fixture_text, rel_path="MEMORY.md")
-
-
-# ===== plan_resync =====
 
 
 def plan_resync(ws_root: Path) -> List[Dict[str, object]]:
@@ -270,9 +235,6 @@ def plan_resync(ws_root: Path) -> List[Dict[str, object]]:
     return plan
 
 
-# ===== apply_resync =====
-
-
 def apply_resync(ws_root: Path, plan: List[Dict[str, object]]) -> List[Dict[str, str]]:
     """按 plan 写盘；返 changed[{file, action}]。"""
     changed = []  # type: List[Dict[str, str]]
@@ -310,9 +272,6 @@ def apply_resync(ws_root: Path, plan: List[Dict[str, object]]) -> List[Dict[str,
     return changed
 
 
-# ===== self_verify =====
-
-
 def self_verify(ws_root: Path) -> Dict[str, object]:
     report = workspace_fixtures.run_checks(ws_root, WORKSPACE_FORMAT_VERSION)
     summary = report["summary"]  # type: ignore
@@ -326,12 +285,8 @@ def self_verify(ws_root: Path) -> Dict[str, object]:
     }
 
 
-# ===== bump templates_version =====
-
-
 def _bump_templates_version(ws_root: Path, target_workspace_format: str) -> bool:
-    """仅替换 templates_version.workspace_format 分量；wiki_format 分量保留。
-    返是否真的变更。"""
+    """仅换 templates_version 的 workspace_format 分量（wiki_format 保留）；返是否变更。"""
     try:
         ws = ws_store.load(ws_root)
     except Exception:
@@ -348,9 +303,6 @@ def _bump_templates_version(ws_root: Path, target_workspace_format: str) -> bool
     ws.templates_version = new_tv
     ws_store.save(ws_root, ws)
     return True
-
-
-# ===== main entry =====
 
 
 def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = False, as_json: bool = False) -> int:

@@ -1,10 +1,7 @@
-"""backend 单一真源：agent CLI 名集合 + status STATE 模式注册表。
+"""backend 单一真源：agent CLI 名集合 + status STATE 模式注册表（新增 agent 只改本文件）。
 
-项目内所有"backend 知识"收敛于此：enter_cli 白名单、spawn 打标、status 的 BACKEND 列与
-STATE 模式路由——新增 agent 只改本文件一处。
-
-STATE_PATTERNS：backend → 屏幕尾部文本判据（opencode 基于 1.18.18 实测；claude /
-qodercli 暂缺，占位未配置）。模式随 CLI 版本漂移 → 匹配不上优雅降级 unknown。
+STATE_PATTERNS：backend → 屏幕尾部文本判据（opencode 实测；claude / qodercli 暂无，
+降级 unknown）。模式随 CLI 版本漂移，匹配不上即降级。
 """
 
 from typing import Dict, NamedTuple, Optional, Tuple
@@ -20,8 +17,7 @@ class StatePatterns(NamedTuple):
 
 KNOWN_BACKENDS = frozenset({"claude", "qodercli", "opencode"})
 
-# 默认 backend（workspace_local.toml#enter_cli 未设时的缺省）：唯一真源——
-# local_store 落盘判定 / config dump 文案 / enter 回退 全部引此，不散落 "claude" 字面量。
+# 默认 backend 唯一真源（落盘判定 / config 文案 / enter 回退均引此）
 DEFAULT_BACKEND = "opencode"
 
 _OPENCODE_SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -36,10 +32,7 @@ STATE_PATTERNS: Dict[str, StatePatterns] = {
 
 
 def match_working(tail: str, backend: Optional[str]) -> bool:
-    """tail（capture-pane 尾部文本）是否命中 backend 的 working 判据。
-
-    未注册 backend → False（对应方降级 unknown）。
-    """
+    """tail 是否命中 backend 的 working 判据；未注册 backend → False（降级 unknown）。"""
     pats = STATE_PATTERNS.get(backend)
     if pats is None:
         return False
@@ -49,7 +42,7 @@ def match_working(tail: str, backend: Optional[str]) -> bool:
 
 
 def match_waiting(tail: str, backend: Optional[str]) -> bool:
-    """tail 是否命中 backend 的 waiting 判据（与 working 互斥，调用方保证先查 working）。"""
+    """tail 是否命中 waiting 判据（互斥项，调用方先查 working）。"""
     pats = STATE_PATTERNS.get(backend)
     if pats is None:
         return False

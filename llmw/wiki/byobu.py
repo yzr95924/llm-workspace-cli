@@ -1,8 +1,6 @@
-"""byobu/tmux 薄封装 + 开窗编排原语（spawn / 复用 / 打标 / 枚举 + session 可见性查询）。
+"""byobu/tmux 薄封装 + 开窗编排（spawn / 复用 / 打标 / 枚举 / session 可见性）。
 
-模型：agent 开成 tmux 窗口，归属 / 起算 / backend 打在窗口用户选项上（无自建账本；
-tmux 窗口表即注册表）。只被 enter / status / manager 调用。
-兼容 tmux ≥ 2.7（无版本分叉）；各原语的替代方案与坑见对应函数注释。
+无自建账本——tmux 窗口表即注册表（打标 @llmw_*）。兼容 tmux ≥ 2.7。
 """
 
 import os
@@ -20,28 +18,23 @@ from llmw.errors import (
 )
 
 _BYOBU_BIN = "byobu-tmux"
-# 兜底 session 名（代码常量，不可配）：tmux 外且可见 session 数 ≠1 时的落点。
-# 命名约束：禁含 `-`、禁 `_` 开头——byobu-select-session 菜单按此隐藏 session，
-# 违规名会被裸 byobu 永远挡在直达门外（与 visible_sessions 口径同源）。
+# 兜底 session 名；禁含 `-`、禁 `_` 开头——byobu-select-session 菜单按此隐藏，
+# 违规名会被裸 byobu 挡在直达门外
 BYOBU_SESSION = "llm_workspace"
 
-# pane_dead 格式变量的字面量（_LIST_FORMAT 的 #{pane_dead}）：消费端统一引此，不裸比较 "1"
+# pane_dead 字面量：消费端统一引此，不裸比较 "1"
 DEAD_FLAG = "1"
 
-# 最近一次失败命令的 stderr（单线程 CLI 无并发问题）——供异常消息带真实报错，
-# 不能只靠 returncode 猜。
+# 最近一次失败命令的 stderr（单线程 CLI）——供异常消息带真实报错
 _LAST_STDERR = ""
 
-# suffix 校验（wiki 名由 NAME_RE 保证；suffix 是 --window-suffix 的实际输入）
 _SUFFIX_RE = re.compile(r"^[a-z0-9_-]{1,16}$")
 _WINDOW_NAME_MAX = 40
 
-# byobu wrapper 的 stdout 污染（见 _run docstring）：只剥 OSC 标题序列，
-# 不动其它 ANSI（TUI 内容的颜色等）。
+# 只剥 OSC 标题序列，不动其它 ANSI（byobu wrapper 每次调用都前置标题序列，污染解析）
 _OSC_RE = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")
 
-# 枚举 10 字段：@llmw_* 为打标；pane_current_command 供 BACKEND fallback 与假活检测。
-# 解析产物 = WindowRow（消费端属性访问；列序只在本类与 _LIST_FORMAT 维护）。
+# 列序只在本类与 _LIST_FORMAT 维护
 _LIST_FORMAT = (
     "#{session_name}\t#{window_id}\t#{window_name}\t#{window_activity}\t"
     "#{pane_dead}\t#{pane_dead_time}\t#{@llmw_wiki}\t#{@llmw_started}\t"
@@ -95,11 +88,7 @@ def window_name_for(wiki: str, suffix: str) -> str:
 
 
 def _run(args: List[str]) -> "subprocess.CompletedProcess[str]":
-    """调 byobu-tmux；只信 returncode，stderr 杂讯仅供错误提示。
-
-    stdout 统一剥离 OSC 序列：byobu wrapper 每次调用都前置终端标题
-    ``\\x1b]0;user@host (ip) - byobu\\x07``，不清洗会污染所有 -p / -F / list-* 解析。
-    """
+    """调 byobu-tmux；returncode 为准，stdout 统一剥 OSC（否则污染 -p / -F / list-* 解析）。"""
     global _LAST_STDERR
     p = subprocess.run(
         [_BYOBU_BIN] + args,
@@ -125,11 +114,9 @@ def has_session(name: str) -> bool:
 
 
 def visible_sessions() -> List[str]:
-    """裸 byobu 菜单可见的 session 名（tmux 外 enter 选路用）。
+    """裸 byobu 菜单可见的 session 名（隐藏 `_` 开头与含 `-`，口径与菜单对齐）。
 
-    隐藏 `_` 开头与含 `-` 的名字——与 byobu-select-session 菜单口径对齐：
-    enter 选中的 session 必须与用户敲裸 byobu 会进的一致，否则分组残影会把
-    "唯一真实 session" 场景顶成 ≥2。
+    不对齐的话分组残影会把"唯一真实 session"场景顶成 ≥2。
     """
     p = _run(["list-sessions", "-F", "#{session_name}"])
     if p.returncode != 0:
@@ -174,8 +161,7 @@ def new_window(
 ) -> Optional[str]:
     """在指定 session 开窗口；失败 → None。
 
-    ``-t <session>:`` 显式冒号段：target-window 无冒号时整串按窗口 index/name 解析，
-    数字 session 名（tmux/byobu 默认 "0"/"1"…）会被窗口 index 匹配抢先报 in use。
+    必须 `-t <session>:` 带冒号：无冒号时数字 session 名会被窗口 index 匹配抢先报 in use。
     """
     return _window_id(
         _run(
@@ -199,10 +185,9 @@ def new_window(
 def find_tagged_window(
     session: str, window_name: str, wiki: str, backend: str
 ) -> Optional[Tuple[str, bool, bool]]:
-    """按窗口名 + @llmw_wiki + @llmw_backend 判复用；无命中 → None。
+    """按窗口名 + @llmw_wiki + @llmw_backend 判复用；返回 (id, dead, backend_matches)。
 
-    返回 (window_id, pane_dead, backend_matches)。老窗口无 backend 标 = 不符
-    （状态不明不猜）。pane_dead / backend 不符的处置由调用方做。
+    老窗口无 backend 标 = 不符（状态不明不猜）；处置由调用方做。
     """
     p = _run(
         [
@@ -251,11 +236,9 @@ def tag_window(window_id: str, wiki: str, backend: str) -> None:
 
 
 def list_windows() -> List[WindowRow]:
-    """全 server 窗口枚举；无 server / 无窗口 → []。
+    """全 server 窗口枚举（快照语义：session 中途消失则跳过）；按 window_id 去重。
 
-    逐 session 枚举（兼容 tmux ≥2.7）；session 两次调用间消失 → 跳过（快照语义）。
-    按 window_id 去重：linked/grouped session 下同一窗口在多 session 可见，
-    不去重会出重复行 / 让 stop 误报多候选。
+    去重必要性：linked/grouped session 下同一窗口在多 session 可见，不去重会让 stop 误报多候选。
     """
     p = _run(["list-sessions", "-F", "#{session_name}"])
     if p.returncode != 0:
@@ -283,9 +266,9 @@ def kill_window(window_id: str) -> bool:
 
 
 def capture_pane_tail(window_id: str, lines: int = 15) -> str:
-    """捕获当前 pane 尾部文本（STATE 判定用）；失败 → 空串。
+    """捕获 pane 尾部文本（STATE 判定用）；失败 → 空串。
 
-    -J 合并折行：窄 pane 下 TUI hint 会被硬折行拆开，子串匹配失效。
+    -J 必须带：窄 pane 下 TUI hint 被硬折行拆开会让子串匹配失效。
     """
     p = _run(["capture-pane", "-p", "-J", "-t", window_id, "-S", f"-{lines}"])
     if p.returncode != 0:
@@ -299,11 +282,9 @@ def attach_session(session: str) -> bool:
 
 
 def spawn_window(spec: SpawnSpec) -> Tuple[bool, str, bool]:
-    """开 agent 窗口或复用带标同名窗口（env 前缀拼 shell_cmd；argv[0] 先解析绝对路径）。
+    """开 agent 窗口或复用带标同名窗口；返回 (created, window_id, collected)。
 
-    Returns:
-        (created, window_id, collected)：created True=新建 / False=复用；
-        collected=True 表示新建前收掉了同名 dead 残留（供调用方打印）。
+    collected=True = 新建前收掉了同名 dead 残留（供调用方打印）。
     """
     session = spec.session
     window_name = spec.window_name
@@ -311,8 +292,8 @@ def spawn_window(spec: SpawnSpec) -> Tuple[bool, str, bool]:
     cwd = spec.cwd
     backend = spec.backend
     resolved = shutil.which(spec.cmd_argv[0]) or spec.cmd_argv[0]
-    # env 走命令前缀注入：`K=V cmd` 赋值前缀是 sh -c 原生语义（取代 tmux 3.2+ 的 -e），
-    # 全版本兼容；值过 shlex.quote。调用方只传非敏感变量（LLM_WIKI_ROOT 路径）。
+    # env 用 `K=V cmd` 前缀注入（sh -c 原生语义，全版本兼容；tmux -e 要 3.2+）；
+    # 调用方只传非敏感变量（LLM_WIKI_ROOT 路径）
     env_prefix = " ".join(f"{k}={shlex.quote(v)}" for k, v in spec.env.items())
     shell_cmd = " ".join(shlex.quote(a) for a in [resolved] + list(spec.cmd_argv[1:]))
     if env_prefix:
@@ -337,7 +318,6 @@ def spawn_window(spec: SpawnSpec) -> Tuple[bool, str, bool]:
         elif backend_ok:
             if select_window(wid):
                 return False, wid, False
-            # select 失败（窗口刚好死掉）→ 降级 new-window
         else:
             # 拒绝：带标活窗但 backend 不符（或老窗口无 @llmw_backend 标）——
             # 复用会吞掉"切换 agent"的意图；不自动开同名第二窗口（唯一性不变量）
@@ -349,7 +329,7 @@ def spawn_window(spec: SpawnSpec) -> Tuple[bool, str, bool]:
 
     wid = new_window(session, window_name, cwd, shell_cmd)
     if wid is None:
-        # new-window 失败：session 在 has_session 之后被 kill → 最后重试一次一步建
+        # session 可能在 has_session 之后被 kill → 重试一次一步建
         wid = new_session(session, window_name, cwd, shell_cmd)
     if wid is None:
         raise ByobuCommandFailed(

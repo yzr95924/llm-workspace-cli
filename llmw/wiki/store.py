@@ -16,8 +16,7 @@ from llmw.errors import (
 from llmw.fsutil import atomic_write, now_iso8601
 
 SCHEMA_VERSION_SUPPORTED = 2
-# wiki name 必须以 [a-z0-9] 起头,中间允许 [a-z0-9_-]
-# (model_id 形如 "claude-sonnet-4-6" 需 - 在中间;但 -/_ 作首字符会与目录/路径语义冲突)
+# 首字符必须 [a-z0-9]（-/_ 开头与目录/路径语义冲突）
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 TAG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
 
@@ -65,8 +64,7 @@ def load(wiki_dir: Path) -> WikiMetadata:
             f"wiki_metadata.toml schema_version={sv} 不被支持 (当前 CLI 仅支持 v{SCHEMA_VERSION_SUPPORTED})",
             hint="升级 CLI 或手动迁移",
         )
-    # 必填字段缺失 → 类型化错误（exit 1），不裸抛 KeyError（exit 3 内部错误）。
-    # 字段级 schema 校验收敛在 store 层（AGENTS.md 边界：manager/resolve 不重新校验）。
+    # 必填缺失 → 类型化错误（不裸抛 KeyError 落 exit 3）；schema 校验只在 store 层
     missing = [k for k in ("name", "topic", "created_at", "updated_at") if k not in raw]
     if missing:
         raise WikiMetadataCorrupt(

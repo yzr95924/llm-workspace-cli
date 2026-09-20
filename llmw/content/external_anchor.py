@@ -1,22 +1,9 @@
 #!/usr/bin/env python3
-"""external_anchor — raw/external/ 写路径（anchor + symlink 注册表变换）
+"""external_anchor — raw/external/ 写路径（anchor `[[entry]]` 数组 + symlink 注册表变换）。
 
-CLI 接管 anchor (`raw/external/.symlink-anchor.toml`) 与对应 symlink 的写路径；
-skill 仅在"接哪台仓、叫啥名、notes 写啥"这些判断上介入。
-
-子命令（经 `llmw wiki --name=X external <action>` 或 `--path=DIR external <action>`）：
-  add <target> --name <n> [--notes "..."]   注册 entry + 建 symlink
-  remove <name>                              删 entry + 删 symlink（target 仓永不碰）
-  list                                       NAME/TARGET/REMOTE/BRANCH/STATUS + --json
-  rebuild [--target NAME=PATH ...] [--yes]   按 anchor 重建（含 clone 外部仓）
-
-anchor 单文件 `[[entry]]` 数组。schema v1，最小必填 4 字段
-(`symlink` / `target` / `captured_at` / `kind="external-repo"`) + 可选 git 身份字段
-(`remote_url` / `branch`) + 可选 `notes`。**不**记 commit（anchor 记录"接入意图"，
-commit 是机器快照会腐坏）。
-
-退出码：0 = 成功（含 no-op）；1 = 用户错误（参数非法、entry 已存在/缺失）；
-2 = 环境错误（git 不在 PATH、网络失败、非 TTY 无 --yes 拒绝执行）。
+anchor 记"接入意图"不记 commit（commit 是机器快照会腐坏）；target 仓永不触碰。
+子命令 add / remove / list / rebuild（经 `llmw wiki external <action>`）。
+退出码 0/1/2 = 成功 / 用户错误 / 环境错误。
 """
 
 import argparse
@@ -40,8 +27,6 @@ SCHEMA_VERSION = 1
 _REQUIRED_FIELDS = ("symlink", "target", "captured_at", "kind")
 _VALID_KIND = "external-repo"
 
-# ---------- 路径 ----------
-
 
 def _external_dir(wiki_root: Path) -> Path:
     return wiki_root / "raw" / EXTERNAL_SUBDIR
@@ -51,14 +36,10 @@ def _anchor_path(wiki_root: Path) -> Path:
     return _external_dir(wiki_root) / ANCHOR_FILENAME
 
 
-# ---------- Store: load (lenient) / save (strict) ----------
-
-
 def load(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
-    """解析 .symlink-anchor.toml；返回 List[Dict]（每个有效 entry 一条）或 None（损坏/无有效 entry）
+    """解析 anchor（lenient）：有效 entry 列表，或 None（损坏 / 无有效 entry）。
 
-    解析 SSOT（wiki_lint 反向 import 本模块）；与 wiki_fixtures._parse_anchor_minimal
-    的差别：captured_at 空串本版保留（fixtures check 侧过滤更严）。
+    与 wiki_fixtures._parse_anchor_minimal 的差别：captured_at 空串此版保留。
     """
     try:
         text = anchor_path.read_text(encoding="utf-8", errors="replace")
@@ -149,10 +130,7 @@ def _validate_entry(entry: Dict) -> Tuple[Optional[str], int]:
 
 
 def save(anchor_path: Path, entries: List[Dict]) -> None:
-    """严格校验 + 原子写 + schema_version=1。不 chmod（无 secret）。
-
-    空 entry 列表 → 删除 anchor 文件（注册表无意图状态）+ 顺手清 external_dir 空目录。
-    """
+    """严格校验 + 原子写；空列表 → 删 anchor 文件并顺手清空 external_dir。"""
     for entry in entries:
         err, code = _validate_entry(entry)
         if err:
@@ -172,21 +150,14 @@ def save(anchor_path: Path, entries: List[Dict]) -> None:
             pass
         return
     anchor_path.parent.mkdir(parents=True, exist_ok=True)
-    # TOML 键用 `[[entry]]` 单数（与模板 / fixtures / skill 文档描述 SSOT 对齐）
     data = {"schema_version": SCHEMA_VERSION, "entry": list(entries)}
     buf = io.StringIO()
     toml_dump(data, buf)
     atomic_write(anchor_path, buf.getvalue())
 
 
-# ---------- git 身份字段 best-effort ----------
-
-
 def _git_read(target: Path) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-    """读 target 的 git 身份字段：(is_repo, remote_url_or_None, branch_or_None)。
-
-    git 不在 PATH → 抛 FileNotFoundError，调用方转环境错误。
-    """
+    """(is_repo, remote_url, branch)；git 不在 PATH 抛 FileNotFoundError（调用方转环境错误）。"""
     check = subprocess.run(
         ["git", "-C", str(target), "rev-parse", "--is-inside-work-tree"],
         stdout=subprocess.PIPE,
@@ -248,9 +219,6 @@ def _target_for_anchor(target: Path) -> str:
 
 def _expand(target_str: str) -> Path:
     return Path(target_str).expanduser()
-
-
-# ---------- cmd ----------
 
 
 def cmd_add(wiki_root: Path, args) -> Tuple[Optional[str], int]:
@@ -596,15 +564,8 @@ def cmd_rebuild(wiki_root: Path, args) -> Tuple[Optional[str], int]:
     return (None, 0)
 
 
-# ---------- main ----------
-
-
 def build_subparsers(sub) -> None:
-    """把 add / remove / list / rebuild 挂到给定的 subparsers action。
-
-    external 子树的 flag SSOT 在此——llmw.cli.build_parser() 经本函数组合出完整
-    命令树；无独立入口。
-    """
+    """把 add / remove / list / rebuild 挂到 subparsers（external 子树 flag SSOT）。"""
     p_add = sub.add_parser(
         "add",
         help="注册 entry + 建 symlink（target 必须是已存在路径）",

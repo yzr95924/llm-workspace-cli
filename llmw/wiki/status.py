@@ -1,8 +1,7 @@
 """llmw status — 一屏回答"哪些 wiki 的 agent 在跑、跑了多久、是否已退出"。
 
-tmux 窗口表即注册表（实时枚举带标窗口，无轮询无账本）。主路径只读；唯一例外是
-workspace 缺失时的孤儿清理（显式确认后收残留窗口——该场景 stop 已被 cli 的
-workspace 解析阻断）。被 llmw/cli.py 接线。
+tmux 窗口表即注册表（实时枚举，无账本）。主路径只读；唯一破例是 workspace 缺失时的
+孤儿清理（显式确认后 kill——该场景 stop 已被 cli 的 workspace 解析阻断）。
 """
 
 import json
@@ -22,9 +21,7 @@ _ORPHAN_CLEAN_HINT = (
     "或手动 `byobu-tmux kill-window -t @N`"
 )
 
-# ===== STATE 判定 =====
-# 内部值 ASCII 稳定（--json 契约）；显示值只入表格层。判定短路：dead → 假活 shell
-# → capture-pane 模式匹配（注册表见 backends.py）→ unknown。
+# STATE 内部值 ASCII 稳定（--json 契约）；显示值只入表格层。判定注册表见 backends.py
 _STATE_DISPLAY = {
     "dead": "✗",
     "shell": "⚠ shell",
@@ -230,9 +227,9 @@ def status_orphan(
     as_json: bool = False,
     tmux_line: bool = False,
 ) -> int:
-    """孤儿清理：workspace 缺失时的 status 降级路径（仅 cli.py 隐式默认路径解析
-    失败时调用；显式路径失败保持硬报错）。非 TTY / --json / --tmux 只打 hint；
-    TTY 纯文本表下确认后逐窗 kill。
+    """workspace 缺失时的降级路径（仅隐式默认路径解析失败时；显式路径仍硬报错）。
+
+    非 TTY / --json / --tmux 只打 hint；TTY 确认后逐窗 kill。
     """
     if not byobu.byobu_available():
         raise err

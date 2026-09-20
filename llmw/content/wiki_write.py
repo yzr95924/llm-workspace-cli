@@ -1,32 +1,9 @@
 #!/usr/bin/env python3
-"""wiki_write.py — 机械字节写操作（scripts 持有形式，agent 持有判断）
+"""wiki_write — 机械字节写操作（子命令 log / index / touch / new / memory）。
 
-准入规则（yzr-skill-creator 审计标准「机械操作脚本化」）：一个写操作进脚本，当且仅当
-(1) 输出字节是输入的纯函数——不读正文内容、无权衡、无用户偏好；(2) lint 已有对应检查
-能验证产物。五个子命令都满足两条。手写永远是 schema 合法的、lint 兜底——本脚本是
-**默认路径不是闸门**（agent 遇到脚本不支持的形态，退到 Edit/Write 不算违规）。
-
-子命令（经 `llmw wiki --path <WIKI_ROOT> write <sub>` 调用；子树 flag SSOT 在
-build_subparsers，由 llmw.cli 组合）：
-  log     追加 wiki/log.md 条目（严格格式；写完自动截断保最近 LOG_RETENTION_LIMIT 条）
-          `llmw wiki --path <WIKI_ROOT> write log --op ingest --title "..."`
-          `llmw wiki --path <WIKI_ROOT> write log --op ingest --bulk --topic "..." --count N`
-  index   增删 wiki/index.md 条目（从页 frontmatter 派生 title/description，类别段内字母序）
-          `llmw wiki --path <WIKI_ROOT> write index add <wiki/sources/foo.md>`
-          `llmw wiki --path <WIKI_ROOT> write index remove <wiki/sources/foo.md>`
-  touch   编辑后更新：`updated`=现在 + 删 `reviewed` / `reviewed_at`（清审核戳）
-          `llmw wiki --path <WIKI_ROOT> write touch <wiki/concepts/foo.md>`
-  new     新建内容页脚手架（frontmatter + H1；**不生成正文**——正文模板 SSOT 在
-          references/page-templates.md，避免双源）
-          `llmw wiki --path <WIKI_ROOT> write new --type source --slug foo --title "Foo" --sources raw/articles/foo.md [--description ...] [--tags a,b]`
-  memory  新建 MEMORY 条目（title 必填；created/updated 自动落，**不写 type**）+
-          原子追加 MEMORY.md 索引行
-          `llmw wiki --path <WIKI_ROOT> write memory add --slug foo --title "Foo" [--index-line "一句话"] [--description ...] [--tags a,b]`
-
-版本错位警告：wiki AGENTS.md 末尾「当前配置」表钉定版本与 SKILL 的 CURRENT_WIKI_FORMAT 不一致时警告"先 upgrade 再写"
-——防新格式写进老 wiki。只警告不阻断（逃生舱：用户对老 wiki 有意写入时仍可用）。
-
-退出码：0 = 成功（含 no-op）；2 = 运行错误 / 参数错误。
+准入：输出字节是输入的纯函数且 lint 可验证产物；**默认路径不是闸门**——agent 遇到
+脚本不支持的形态退到 Edit/Write 不算违规。版本错位（wiki 钉定 format ≠ 当前）只警告不阻断。
+退出码：0 = 成功（含 no-op）；2 = 运行错误 / 参数错误。命令示例见 `llmw wiki write --help`。
 """
 
 import re
@@ -109,8 +86,7 @@ def cmd_log(wiki_root, args):
     body_lines = body.splitlines()
     entry_idx = [i for i, ln in enumerate(body_lines) if LOG_LINE_RE.match(ln)]
     if len(entry_idx) > LOG_RETENTION_LIMIT:
-        # 保留 frontmatter 后至首条 log 之前的 preamble（空行 + 说明块，header-owned）
-        # ——旧实现 `body.splitlines()[cut:]` 把 cut 前整段丢掉，首轮截断即毁说明块
+        # 截断必须保留 frontmatter 后的 preamble（空行 + 说明块）——旧实现会连说明块一起丢
         keep_from = entry_idx[-LOG_RETENTION_LIMIT]
         preamble = body_lines[: entry_idx[0]]
         body = "\n".join(preamble + body_lines[keep_from:]) + "\n"
@@ -129,11 +105,7 @@ def cmd_log(wiki_root, args):
 
 
 def _index_page_paths(wiki_root, page_arg):
-    """把 index add/remove 的 <wiki/...> 参数规范化为 wiki 根相对 posix 路径
-
-    参数基准：相对 wiki 根（`wiki/sources/foo.md`）；绝对路径也接受。
-    目标页必须已存在（index add 需要读 frontmatter；remove 需要定位条目）。
-    """
+    """index add/remove 的页面参数 → wiki 根相对 posix 路径（基准 = wiki 根；绝对路径也收）。"""
     p = Path(page_arg)
     if not p.is_absolute():
         p = Path(wiki_root) / p

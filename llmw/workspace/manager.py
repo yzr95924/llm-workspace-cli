@@ -58,13 +58,9 @@ def _check_enter_cli(value: str) -> None:
 
 
 def _is_effectively_empty(path: Path) -> bool:
-    """目录是否为空（忽略 git 元数据 .git 与 .gitignore）。
-    只含 .git（git 仓目录或 worktree 的 .git 指针文件）和/或 .gitignore 的目录视为空，
-    允许在已有的 git 空仓上 init。git init 本身幂等，重跑无害。
+    """目录是否视为空（忽略 .git / .gitignore，允许 git 空仓直接 init）。
 
-    .gitignore 也忽略：它是 git 工作流的常规伴随文件，且正是 init 自身
-    （ensure_workspace_gitignore）会写/维护的文件。若不忽略，llmw 写出的 .gitignore
-    会反过来挡住自身的 re-init（自反矛盾）。
+    忽略 .gitignore 的必要性：它是 init 自己写的文件，不忽略会挡住自身 re-init（自反矛盾）。
     """
     ignored = {".git", ".gitignore"}
     return all(entry.name in ignored for entry in path.iterdir())
@@ -73,15 +69,7 @@ def _is_effectively_empty(path: Path) -> bool:
 def _write_workspace_agents_md(
     workspace_root: Path, display_name: str, setup_date: str
 ) -> None:
-    """按 workspace-agents-md-template.md 拷贝生成 <workspace>/AGENTS.md (SSOT)。
-
-    setup_date 由调用方派生自 workspace.toml.created_at（[:10] 取 YYYY-MM-DD），
-    与 checker（从同字段派生）保持一致——变量 SSOT 原则。
-
-    模板渲染统一走 llmw.content.render。
-
-    AGENTS.md 已存在 → 拒绝覆盖 (schema 是用户所有)。
-    """
+    """渲染生成 <workspace>/AGENTS.md；已存在拒绝覆盖（schema 归用户）。"""
     agents_md = workspace_root / "AGENTS.md"
     if agents_md.exists():
         raise WorkspaceExists(
@@ -107,16 +95,7 @@ def _write_workspace_agents_md(
 
 
 def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
-    """按 workspace-claude-md-template.md 拷贝生成 <workspace>/CLAUDE.md (薄壳)。
-
-    薄壳 = @AGENTS.md 一行 + 声明 (~10 行);CLI 仅在 init 时拷模板 + 替换 1 占位符
-      {{WORKSPACE_DISPLAY_NAME}} (薄壳不持 format 版本——版本在 AGENTS.md 末尾「当前配置」表)。
-    字面: 薄壳仅替换 WORKSPACE_DISPLAY_NAME,不共享 AGENTS.md 的 4 键 mapping。
-
-    模板渲染统一走 llmw.content.render(单一入口，变量 SSOT)。
-
-    CLAUDE.md 已存在 → 拒绝覆盖 (薄壳也是 schema, 用户所有)。
-    """
+    """渲染生成 <workspace>/CLAUDE.md 薄壳（仅替换 display_name）；已存在拒绝覆盖。"""
     claude_md = workspace_root / "CLAUDE.md"
     if claude_md.exists():
         raise WorkspaceExists(
@@ -137,15 +116,7 @@ def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
 
 
 def _write_workspace_memory_index(workspace_root: Path) -> None:
-    """拷包内 fixtures/memory-index.txt → <workspace>/MEMORY/MEMORY.md (索引)。
-
-    无 frontmatter、被 <workspace>/CLAUDE.md 用 @MEMORY/MEMORY.md import 会话常驻。
-    幂等 : 已存在则跳过——MEMORY 是 LLM agent 私有记忆,init 重跑不应覆盖。
-
-    与 _write_workspace_claude_md 的拒绝策略对照:
-      - workspace.toml / CLAUDE.md / .gitignore / workspace_models.toml: 已存在 → 拒绝 / 块替换
-      - MEMORY/MEMORY.md: 已存在 → 跳过(idempotent)
-    """
+    """拷贝 fixtures/memory-index.txt → MEMORY/MEMORY.md（已存在则跳过——agent 私有记忆不覆盖）。"""
     target = workspace_root / "MEMORY" / "MEMORY.md"
     if target.exists():
         # idempotent: 已存在即跳过;由 skill 在 cross-wiki MEMORY 工作时维护
@@ -176,11 +147,7 @@ def _write_workspace_memory_index(workspace_root: Path) -> None:
 
 
 def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
-    """初始化 workspace 根。返回 path
-
-    git 由用户在外部自行 init/clone——CLI 不碰 git；若 path 已是 git 空仓
-    （仅含 .git/.gitignore），允许在其上 init。
-    """
+    """初始化 workspace 根；git 由用户自理（CLI 不碰 git；git 空仓允许直接 init）。"""
     path = path.resolve()
     if path.exists():
         if not _is_effectively_empty(path):
@@ -193,11 +160,9 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
 
     ws = ws_store.create_skeleton(path)
 
-    # 写 workspace 级 .gitignore（无论是否启用 git 都生成，便于后续补 git）
+    # .gitignore 无条件生成（便于后续补 git）；registry 空骨架落盘（save 内置 chmod 600）
     ensure_workspace_gitignore(path)
 
-    # workspace init 时刻创建空 workspace_models.toml 骨架
-    # （含 schema_version=2 + 空 models=[]；save 内置 chmod 600 + NFS 跳过）
     from llmw.models.store import (
         create_skeleton as create_models_skeleton,
         save as save_models,
@@ -205,14 +170,11 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
 
     save_models(path, create_models_skeleton())
 
-    # 先写 AGENTS.md (SSOT), 再写 CLAUDE.md (薄壳)
-    # setup_date 派生自 workspace.toml.created_at（UTC ISO 8601）— 取 YYYY-MM-DD 与
-    # checker 派生逻辑一致（变量 SSOT 原则）
+    # 先 AGENTS.md 后 CLAUDE.md；setup_date 派生自 created_at（与 checker 同源）
     setup_date = (ws.created_at or "")[:10]
     _write_workspace_agents_md(path, display_name, setup_date=setup_date)
     _write_workspace_claude_md(path, display_name)
 
-    # 拷 workspace MEMORY.md 索引（agent 跨 wiki 持久化记忆,LLM 拥有）
     _write_workspace_memory_index(path)
 
     print(f"[llmw] workspace 已初始化于 {path}", file=sys.stdout)
@@ -384,12 +346,9 @@ def config_interactive(workspace_root: Path) -> None:
 def _gather_wiki_rows(
     workspace_root: Path, ws, tag_filter: Optional[List[str]]
 ) -> List[dict]:
-    """list 数据聚合：遍历 registry + 读 wiki metadata + resolve model + 派生 last_activity。
+    """list 聚合：遍历 registry + 读 metadata + resolve model + last_activity。
 
-    meta 读取失败（文件损坏等）→ warning + 降级空元数据（列表仍完整，不因单个 wiki
-    损坏而整体失败）——与 _show_collect 同一降级模式。
-
-    ws / registry 由调用方预载后传入 resolve_for_wiki（循环内复用，省 N×文件 IO）。
+    单 wiki 元数据损坏 → warning + 降级空值（列表不整体失败）；ws / registry 预载后循环复用。
     """
     from llmw.models.resolve import resolve_for_wiki
     from llmw.models.store import load as registry_load
@@ -530,12 +489,9 @@ def _disp_pad(text, width):
 
 
 def _render_list_table(rows: List[dict]) -> None:
-    """精简单行表格：NAME / CREATED / LAST_ACTIVITY / MODEL。
+    """精简单行表格（时间列短格式，完整时间戳走 --json）。
 
-    - 时间列只展示短格式（年-月-日 时:分）；完整 ISO 时间戳走 --json。
-    - path / display_name / tags / model_source 与 NAME 高度重合或多为空，表格不展示（走 --json / wiki show）。
-    - 列宽与补空格均按显示宽度计（中文占 2 列）；行 prefix 固定 2 列（`⚠ ` 或 2 空格），
-      name 统一 pad 到 name_w、表头前补 2 空格，保证最长名字行也不顶歪后续列。
+    列宽按显示宽度计（中文 2 列）；行 prefix 固定 2 列，保证列不顶歪。
     """
     created_cells = [_short_time(r["created_at"]) for r in rows]
     last_activity_cells = [_short_time(r["last_activity"]) for r in rows]
@@ -567,7 +523,7 @@ def _render_list_table(rows: List[dict]) -> None:
 def list_wikis(
     workspace_root: Path, as_json: bool = False, tag_filter: Optional[List[str]] = None
 ) -> int:
-    """返回 0; 输出由调用方决定 (stdout)。聚合与渲染分离（_gather_wiki_rows + _render_*）。"""
+    """聚合与渲染分离（_gather_wiki_rows + _render_*）；输出到 stdout。"""
     ws = ws_store.load(workspace_root)
     rows = _gather_wiki_rows(workspace_root, ws, tag_filter)
 

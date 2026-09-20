@@ -1,30 +1,8 @@
 #!/usr/bin/env python3
-"""
-wiki_lint — deterministic 健康检查（llmw wiki lint）
+"""wiki_lint — deterministic 健康检查（`llmw wiki lint`）。
 
-跑全部 deterministic 检查（finding 解释走 `lint --explain`，注册表 = llmw.content.findings）
-+ external symlink 检查。
-半定性检查（「半定性检查（agent 执行）」段，矛盾主张 / 缺失交叉引用等需理解语义的）由 agent 现场做。
-
-用法：
-  llmw wiki lint --name=X | --path=DIR [--severity <LEVEL>] [--no-git]
-  llmw wiki lint --name=X | --path=DIR --check-version [--json] [--apply]
-  llmw wiki lint --explain=NAME|all（不跑检查，打 finding 含义 / severity / 修法）
-
---severity 过滤：error | warn | info | all（默认 all）
---no-git 跳过 raw/ 的 git status 检查（CI 或裸仓场景）。默认**自动检测**：
-  仅当 wiki 根目录在 git 仓内且 raw/ 被 git 跟踪时才跑 raw 不可变性检查；
-  裸目录树 / 无 git / raw 未纳入 git → 自动跳过并打印提示（不报错，不阻断）。
---check-version 扫描当前 wiki 的 format 版本（解析 AGENTS.md 末尾「当前配置」表 `Wiki Format 版本` 字段），
-  与本 skill metadata.wiki_format_version 比对，列出老格式 legacy 现场。默认仅打印报告
-   （不动任何文件）；加 `--apply` 把 upgrade plan 以 JSON 输出到 **stdout**（agent 直接
-   消费，**不落盘**——升级全程 wiki 根无任何中间文件残留）供按 references/upgrade-workflow.md
-   用 Edit/Write 修复；加 `--json` 输出机器可读 JSON。互斥模式。
-
-退出码：
-- 0 = 全部指定严重性级别内无 finding / --check-version 报告完成（无论是否需迁移）
-- 1 = 有 finding（仅常规 lint 模式）
-- 2 = 运行错误
+finding 含义 / severity / 修法走 `--explain`（注册表 = llmw.content.findings）；
+半定性检查由 agent 现场做。退出码：0 = 无 finding / 报告完成；1 = 有 finding；2 = 运行错误。
 """
 
 import json
@@ -35,7 +13,6 @@ from datetime import date
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Set, Tuple
 
-# 复用 ingest_diff 的轻量 frontmatter 解析 + log_format 的日期解析 helper
 from llmw.content._check_common import (
     SEMVER_RE,
 )
@@ -55,12 +32,8 @@ from llmw.content.page_types import (
     WIKI_SUBDIRS,
 )
 
-# fixtures 一致性检查——`--check-version` 自动调一次；结果并入
-# report["fixtures_check"] + plan["fixtures_actions"]（直接函数调用，非子进程）。
-
 MEMORY_SUBDIR = "MEMORY"
-# raw/external 与 source 命名共用同一 kebab-case 正则——SSOT 在 llmw.content.external_anchor（CLI
-# anchor 写路径持有该正则与子目录/文件名常量；lint 仅消费）。
+# kebab-case 正则与 external 子目录 / anchor 文件名常量 SSOT 在 external_anchor（lint 仅消费）
 from llmw.content.external_anchor import (  # noqa: E402
     ANCHOR_FILENAME,
     EXTERNAL_SUBDIR,
@@ -72,9 +45,7 @@ DISCUSSIONS_SUBDIR = "discussions"  # raw/ 下用户 + LLM 协作草稿层；与
 MD_LINK_RE = re.compile(r"!?\[([^\]]*)\]\(([^)]+)\)")
 EXTERNAL_URL_RE = re.compile(r"^(https?:|mailto:|//)")
 
-# 代码区剔除：Markdown 语义上 fenced block / 行内 code span 里的 [..](..) 不是链接
-# （渲染器不 linkify），裸文本扫 MD_LINK_RE 会误报——三处 finditer 调用点统一先剔除。
-# 替换为等长空白：保行号 / 偏移稳定（如需按 finditer 偏移回溯原文不受影响）。
+# 剔 code 区再扫链接（渲染器不 linkify code 区，裸扫会误报）；等长空白替换保偏移稳定
 _CODE_FENCE_RE = re.compile(r"^(?P<fence>```|~~~)[^\n]*\n.*?^(?P=fence)[^\n]*$", re.M | re.S)
 _CODE_SPAN_RE = re.compile(r"`[^`\n]*`")
 
@@ -85,27 +56,14 @@ def strip_code_regions(text: str) -> str:
     return _CODE_SPAN_RE.sub(lambda m: " " * len(m.group(0)), text)
 
 
-# 绝对路径检测（Unix + Windows）——见 check_frontmatter 的 `sources-absolute-path` 用途。
-# - Unix 绝对路径：以 `/` 起始
-# - Windows 盘符：`C:\` / `C:/`（兼容正反斜杠，大小写不敏感）
-# - Windows UNC：`\\server\share` 形式（双反斜杠起始）
 _WIN_DRIVE_RE = re.compile(r"^[A-Za-z]:[\\/]")
 
 
 def _is_absolute_path(p: str) -> bool:
-    """平台无关的"绝对路径"判定
+    """平台无关的绝对路径判定（Unix / Windows 盘符 / UNC 三种形式）。
 
-    之所以不走 pathlib.PurePath.is_absolute()：它对 `PureWindowsPath` / `PurePosixPath`
-    的行为分平台（同一字符串在 Linux 上跑会判 False，在 Windows 上跑会判 True）。
-    lint 必须在 POSIX 主机上跑也能正确判 Windows 绝对路径，故自己写跨平台规则。
-
-    返回 True 的 3 种形式：
-    - `/foo/bar`（Unix 绝对）
-    - `C:\\foo\\bar` / `C:/foo/bar`（Windows 盘符）
-    - `\\\\server\\share`（Windows UNC）
-
-    注：先剥首尾成对引号——`parse_frontmatter_simple` 对 list 元素保留引号（`sources:
-    - '/etc/passwd'` 解析为字面 "'/etc/passwd'"），不剥的话单引号包裹的 Unix 绝对路径会被漏判。
+    不走 pathlib.PurePath.is_absolute()——它按调用平台分叉，POSIX 主机判不了 Windows 路径。
+    先剥成对引号：frontmatter list 元素保留引号（`'/etc/passwd'`），不剥会漏判。
     """
     if not p:
         return False
@@ -123,25 +81,17 @@ def _is_absolute_path(p: str) -> bool:
     return False
 
 
-# Wiki format 当前版本——SSOT 是 llmw/__init__ 常量（单仓后漂移源消失），
-# SKILL.md frontmatter 由 CI gate 与常量比对（不一致即挂 fixtures-smoke job）。
-# 详见 MEMORY/format-version-bump-single-repo.md。
+# SSOT = llmw/__init__ 常量；SKILL.md frontmatter 由 CI gate 比对
 from llmw import WIKI_FORMAT_VERSION  # noqa: E402
 
 CURRENT_WIKI_FORMAT = WIKI_FORMAT_VERSION
 
-# 已知 legacy pattern 的"pattern key"——为后续扩展预留，每个 key 是一类迁移动作。
-# rule_ref 是迁移依据的溯源指针；修复语义自含于 plan actions 的 to_action 字段 +
-# references/upgrade-workflow.md「语义合并规则」——不另设历史档案。
+# pattern key → 迁移依据（rule_ref）；修复语义自含于 plan actions 的 to_action
 LEGACY_PATTERN_KEYS = {
-    # 历史迁移 pattern（confidence-field / claudemd-tag-section / claudemd-not-thinshell）
-    # 已于 2026-08 随"场景清零"退役删除；未来退役字段时按需注册新 key。
-    # 拦 wiki 内容页误用 reserved `type: memory`（MEMORY/*.md 上 type: memory /
-    # memory-entry 合法，仅内容页误用才触发本规则）。
+    # 拦内容页误用 reserved `type: memory`（MEMORY 桶合法，仅内容页误用触发）
     "type-memory-value": "page-templates.md「共有 frontmatter 段」",
 }
 
-# 严重性等级
 SEV_RANK = {"error": 0, "warn": 1, "info": 2}
 
 
@@ -150,12 +100,10 @@ def is_external_url(url: str) -> bool:
 
 
 def find_md_files(wiki_root: Path) -> Dict[str, List[Path]]:
-    """收集所有 wiki/**/*.md，按 type 分类（用子目录名判定）
+    """收集 wiki/**/*.md 与 MEMORY/*.md，按子目录分桶（memory 桶不强制 index 覆盖）。
 
-    MEMORY 子目录扫到独立的 'memory' 桶：走 frontmatter 校验但**不**强制 index 覆盖。
+    桶键推导自 page_types.WIKI_SUBDIRS（新增内容类型不 KeyError）。
     """
-    # 桶键从 page_types.WIKI_SUBDIRS 推导（+ index/log/memory 三个非内容桶）——
-    # 新增内容页类型时不会 KeyError（曾硬编码子目录名，与 SSOT 脱节）
     out = {sub: [] for sub in WIKI_SUBDIRS + ("index", "log", "memory")}  # type: Dict[str, List[Path]]
     wiki_dir = wiki_root / "wiki"
     if not wiki_dir.is_dir():
@@ -165,7 +113,6 @@ def find_md_files(wiki_root: Path) -> Dict[str, List[Path]]:
         if d.is_dir():
             for p in sorted(d.glob("*.md")):
                 out[sub].append(p)
-    # MEMORY/ 单独扫：与 wiki/ 平级、位于 <wiki-root>/MEMORY/（不在 wiki/ 下）
     mem_dir = wiki_root / MEMORY_SUBDIR
     if mem_dir.is_dir():
         for p in sorted(mem_dir.glob("*.md")):
@@ -176,11 +123,10 @@ def find_md_files(wiki_root: Path) -> Dict[str, List[Path]]:
 
 
 def is_git_repo(path: Path) -> bool:
-    """判定 path 是否在 git 仓内（`.git/` 子目录存在即可，不依赖 git CLI）。
+    """path 是否在 git 仓内（`.git/` 存在即可，不依赖 git CLI）。
 
-    wiki 默认是裸目录树，git 仅 setup 时 `--git` opt-in；本函数用于自动跳过
-    无 git 场景下的 raw/ 不可变性检查，避免无脑报"raw 已被改"（无 git 时
-    本来就没有"未提交改动"概念）。"""
+    裸目录树 wiki 默认支持——无 git 时没有"未提交改动"概念，不可变性检查据此跳过。
+    """
     if not path.is_dir():
         return False
     cur = path.resolve()
@@ -194,11 +140,9 @@ def is_git_repo(path: Path) -> bool:
 
 
 def _git_porcelain_paths(line: str) -> List[str]:
-    """从 `git status --porcelain` v1 一行提取全部 path（相对 cwd）。
+    """porcelain v1 一行 → path 列表（rename/copy 行返 [old, new]）。
 
-    普通行返回 1 个 path；rename/copy 行（`XY <old> -> <new>`，git 实测 old 在 `->` 前、
-    new 在后）返回 [old, new] 两个。格式：前 2 字符 = XY 状态，第 3 字符 = 空格；
-    含特殊字符的 path 被 C 风格双引号包裹。
+    前 2 字符 = XY 状态、第 3 字符 = 空格；含特殊字符的 path 被双引号包裹。
     """
     if len(line) < 4:
         return []
@@ -211,20 +155,15 @@ def _git_porcelain_paths(line: str) -> List[str]:
 
 
 def check_raw_immutable(wiki_root: Path, use_git: bool) -> List[str]:
-    """raw/ 是否被改（仅在 wiki 是 git 仓时跑；否则跳过）
+    """raw/ 是否有未提交改动（非 git 仓 / raw 未跟踪 → 跳过）。
 
-    返回元组 (findings, skipped_reason)：
-    - findings：原始改动列表（可能为空）
-    - skipped_reason：跳过时的提示文本；未跳过时为空字符串。
-      调用方决定怎么展示（lint 输出 / 退出码 / 副作用）。
+    返回 (findings, skipped_reason)；skipped_reason 非空 = 跳过原因，由调用方展示。
     """
     if not use_git:
         return ([], "")
     raw_dir = wiki_root / "raw"
     if not raw_dir.is_dir():
         return ([], "")
-    # 自动检测：不在 git 仓内就直接跳过，不依赖 git CLI；这是"裸目录树
-    # wiki 默认支持"的关键路径——强假设 wiki 是 git 仓会让裸目录树误报。
     if not is_git_repo(wiki_root):
         return ([], "raw-immutable-skipped: 未启用 git（无 .git/），跳过 raw/ 不可变性检查")
     try:
@@ -236,20 +175,14 @@ def check_raw_immutable(wiki_root: Path, use_git: bool) -> List[str]:
             universal_newlines=True,
         )
     except FileNotFoundError:
-        # git CLI 不在 PATH（极少见，.git/ 存在但 git 没装）——同样跳过
         return ([], "raw-immutable-skipped: 未找到 git CLI，跳过 raw/ 不可变性检查")
     if result.returncode != 0:
-        # 是 git 仓但 raw/ 没被 git 跟踪（`.gitignore` 忽略或从未 add）——
-        # 这种情况没有"未提交改动"概念（git 一无所知），跳过
         return ([], "raw-immutable-skipped: raw/ 未纳入 git 跟踪，跳过 raw/ 不可变性检查")
     lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
-    # raw/discussions/ 是用户 + LLM 协作的草稿层，双方可写——
-    # 其未提交改动不属于"raw 被违规改"，从 raw-modified 信号中排除（与 `raw/external/` 的 symlink 接入
-    # 并列为本 skill 的两处 raw/ 写权限例外）。external/ 的 symlink 本身被 .gitignore
-    # 排除，不会出现在 git status 里，故此处只需过滤 discussions/。
+    # discussions/ 是协作草稿层、双方可写，未提交改动不算 raw 违规；external/ 的
+    # symlink 被 .gitignore 排除不进 status。rename 行任一侧命中 discussions 也排除
+    # （归档 mv 跨边界：discussions/ → articles/ 属合法）
     discussions_prefix = "raw/" + DISCUSSIONS_SUBDIR + "/"
-    # rename 两侧都可能涉及 discussions/（归档 mv 跨边界：discussions/ → articles/），
-    # 任一路径命中即排除，避免合法归档误报 raw-modified
     lines = [ln for ln in lines if not any(p.startswith(discussions_prefix) for p in _git_porcelain_paths(ln))]
     if not lines:
         return ([], "")
@@ -258,41 +191,28 @@ def check_raw_immutable(wiki_root: Path, use_git: bool) -> List[str]:
 
 
 def check_external_symlinks(wiki_root: Path) -> List[str]:
-    """raw/external/ 下 symlink 的健康检查（扁平 + TOML anchor）
+    """raw/external/ 与 anchor 的双向健康检查（扁平布局 + TOML anchor）。
 
-    触发条件：扫 `raw/external/` 顶层，关联 `.symlink-anchor.toml` 的 [[entry]] 数组：
-    - external-anchor-missing（error）：symlink 存在但 anchor 文件本身不在
-    - external-anchor-corrupt（error）：anchor 解析失败或 0 个有效 entry
-    - external-source-name-invalid（error）：symlink 命名不合 `^[a-z0-9][a-z0-9-]*$`
-    - external-anchor-orphan（warn）：symlink 存在但 anchor 中无对应 entry（漏录）
-    - external-symlink-missing（error）：anchor 有 entry 但 external/ 顶层无对应 symlink
-    - external-target-dead（error）：entry.target 路径不存在
-    - external-target-drift（warn）：symlink 实际解析 vs anchor target 不一致
-
-    返回 finding 列表；该目录不存在/无 symlink 且无 anchor 时返回空。
+    finding 名与 severity 见 llmw.content.findings；目录不存在时返回空。
     """
     findings = []  # type: List[str]
     external_dir = wiki_root / "raw" / EXTERNAL_SUBDIR
     if not external_dir.is_dir():
         return findings
 
-    # 列出 external/ 顶层：symlinks + 误建的子目录
     try:
         top_entries = list(external_dir.iterdir())
     except OSError:
         return findings
 
     symlink_names = set()  # type: Set[str]
-    # 收集所有 symlink（含 broken symlink —— lexists 行为；symlink-to-dir 也算 symlink）
     for entry in top_entries:
         if entry.name.startswith("."):
             continue
         if entry.name in symlink_names:
-            continue  # 罕见：重名，跳过
-        # 必须先判 is_symlink：symlink-to-dir 时 is_dir() 也为 True，
-        # 但 0.17.0+ 仍把它当 symlink 用（target 是目录是合法的）
+            continue
+        # 先判 is_symlink：symlink-to-dir 的 is_dir() 也为 True，但 target 是目录合法
         if entry.is_symlink():
-            # symlink 命名规范
             if not SOURCE_NAME_RE.match(entry.name):
                 rel = entry.relative_to(wiki_root).as_posix()
                 findings.append(
@@ -301,7 +221,6 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
                 )
             symlink_names.add(entry.name)
             continue
-        # 非 symlink：子目录（旧 layout 残留）或普通文件
         if entry.is_dir():
             rel = entry.relative_to(wiki_root).as_posix()
             findings.append(
@@ -309,19 +228,16 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
                 f"symlink + anchor 应直接 in external/，不要开 <source-name>/ 子目录"
             )
             continue
-        # 普通文件
         rel = entry.relative_to(wiki_root).as_posix()
         findings.append(
             f"external-source-name-invalid: {rel} 是普通文件，但 raw/external/ 顶层只允许 "
             f"symlink + '{ANCHOR_FILENAME}'（扁平布局）"
         )
 
-    # 解析 anchor 文件
     anchor_path = external_dir / ANCHOR_FILENAME
     entries = None  # type: Optional[List[Dict[str, str]]]
     if not anchor_path.is_file():
         if symlink_names:
-            # symlink 存在但 anchor 不存在
             findings.append(
                 f"external-anchor-missing: raw/external/ 下有 symlink "
                 f"{sorted(symlink_names)} 但缺 '{ANCHOR_FILENAME}'（必填）"
@@ -332,11 +248,9 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
         findings.append(f"external-anchor-corrupt: raw/external/{ANCHOR_FILENAME} 解析失败或 0 个有效 entry")
         return findings
 
-    # entry name → entry dict
     entry_by_symlink = {e["symlink"]: e for e in entries if "symlink" in e}
 
-    # 双向校验：symlink ↔ entry
-    # (1) 每个 symlink 必须有对应 entry
+    # 双向校验 (1)：每个 symlink 必须有 entry
     for sl_name in sorted(symlink_names):
         if sl_name not in entry_by_symlink:
             rel = (external_dir / sl_name).relative_to(wiki_root).as_posix()
@@ -352,11 +266,9 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
                 f"用户需重新锚定或删除 symlink"
             )
             continue
-        # target 存活时：target 路径与当前 symlink 解析不一致 = target 被迁移了
-        # 0.14.0+ anchor target 允许 ~/...，比较前 expanduser + resolve：
-        # 仅 expanduser 不够——若 home 目录（如 /home/yzr → /apsarapangu/...）本身是
-        # symlink，字面 expanduser 后仍带中间 symlink，会与 sl_path.resolve() 不等
-        # 而误报 drift。resolve() 把锚和 symlink 拉到同一物理路径再比。
+        # target 与 symlink 解析不一致 = drift。比较前双方都要 resolve()：仅
+        # expanduser 不够——home 目录本身可能是 symlink（/home/x → 挂载点），
+        # 会与 sl_path.resolve() 不等而误报
         sl_path = external_dir / sl_name
         try:
             current_target = str(sl_path.resolve())
@@ -374,7 +286,7 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
                 f"anchor 需更新"
             )
 
-    # (2) 每个 entry 必须有对应 symlink
+    # 双向校验 (2)：每个 entry 必须有 symlink
     for entry in entries:
         sl_name = entry.get("symlink", "")
         if sl_name not in symlink_names:
@@ -388,14 +300,10 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
 
 
 def _check_source_element(wiki_root: Path, rel: str, s) -> Optional[str]:
-    """source 页单个 sources 元素的校验。
-
-    返回 finding 或 None；每元素至多一条（命中根因即返，不重复报）。
-    """
+    """source 页单个 sources 元素 → finding 或 None（每元素至多一条，不重复报）。"""
     if not isinstance(s, str):
         return None
-    # 0.13.0+：必须用相对路径（基于 wiki 根）——绝对路径（Unix `/...`、Windows
-    # 盘符 / UNC）会让 wiki 失去跨机器可移植性
+    # 必须相对路径——绝对路径（Unix / Windows 盘符 / UNC）破坏跨机器可移植性
     if _is_absolute_path(s):
         return (
             f"sources-absolute-path: {rel} sources 含绝对路径 '{s}'；"
@@ -491,14 +399,10 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
             # tags 若取则必须是 list（否则 tag taxonomy 静默跳过该页解析）
             if "tags" in fm and not isinstance(fm["tags"], list):
                 findings.append(f"invalid-tags: {rel} tags 应为 list，当前类型不符")
-            # source / synthesis 的 sources 必填且非空
             if t in ("source", "synthesis"):
                 findings.extend(_check_sources_field(wiki_root, rel, t, fm.get("sources", [])))
-    # MEMORY/*.md（排除 MEMORY/MEMORY.md 索引）：仅 title 必填；其余 5 字段全 optional。
-    # frontmatter 整体仍可选（与短条目「1 行索引行」形态对齐）；有就按"有就校验"的
-    # 弱规则（type 若取则在 VALID_TYPES 内；tags 若取则是 list）。
+    # MEMORY/*.md（除索引）：仅 title 必填；frontmatter 整体可选，有则按弱规则校验
     for p in pages["memory"]:
-        # 跳过 MEMORY/MEMORY.md（索引，无 frontmatter；不校验字段）
         if p.name == "MEMORY.md" and p.parent.name == MEMORY_SUBDIR:
             continue
         if not p.is_file():
@@ -506,28 +410,20 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
         text = p.read_text(encoding="utf-8", errors="replace")
         fm = parse_frontmatter_simple(text)
         rel = p.relative_to(wiki_root).as_posix()
-        # title 是唯一必填字段（与文件名 slug 配合做交叉校验 / grep 找页）
         if "title" not in fm:
             findings.append(f"missing-frontmatter: {rel} 缺 'title' 字段")
-        # type 若取则必须合法（含 memory / memory-entry 扩展）
         t = fm.get("type")
         if t is not None and t not in VALID_TYPES:
             findings.append(f"invalid-type: {rel} type='{t}' 非法；应为 {sorted(VALID_TYPES)} 之一")
-        # tags 若取则必须是 list（否则 wiki tag-not-in-taxonomy 后续会跳过解析）
         if "tags" in fm and not isinstance(fm["tags"], list):
             findings.append(f"invalid-tags: {rel} tags 应为 list，当前类型不符")
     return findings
 
 
 def check_frontmatter_structure(wiki_root: Path) -> List[str]:
-    """frontmatter 定界符结构（write touch 历史 bug 会把闭合 `---` 与正文粘连）
+    """frontmatter 定界符结构：闭合 `---` 须独占一行（粘连 → error），与正文间须空行（缺 → warn）。
 
-    宽松 frontmatter 正则（`^---\\n.*?\\n---`）对粘连形态（`---# 标题`）照样"剥得掉"，
-    但前置块定界符失效会让整页不渲染——即"lint 全绿、页面打不开"。两类判定：
-    - 闭合 `---` 必须独占一行（`---` 后只允许空白 + 换行 / EOF）：粘连 → **error**
-      （frontmatter-delimiter-glued）
-    - 闭合定界符与正文之间应有空行（canonical 形态，page-templates.md）：缺空行 →
-      **warn**（frontmatter-no-blank-line，页面仍可渲染但已偏离金标准）
+    宽松 frontmatter 正则对粘连形态照样"剥得掉"，别的检查全绿但页面不渲染——本检查兜底。
     """
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
@@ -541,7 +437,6 @@ def check_frontmatter_structure(wiki_root: Path) -> List[str]:
         if not text.startswith("---"):
             continue
         rel = p.relative_to(wiki_root).as_posix()
-        # 严格闭合：`---` 独占一行（后随空白/换行/EOF），行尾 `---` 前不允许正文字符
         strict = re.match(r"^---\n.*?\n---[ \t]*(?=\n|$)", text, re.DOTALL)
         if strict is None:
             findings.append(
@@ -550,7 +445,6 @@ def check_frontmatter_structure(wiki_root: Path) -> List[str]:
             )
             continue
         rest = text[strict.end() :]
-        # rest[0] 是闭合行自身的换行；再往后若还有内容且不以空行（\n）开头 → 缺空行
         if len(rest) > 1 and not rest[1:].startswith("\n"):
             findings.append(
                 f"frontmatter-no-blank-line: {rel} 闭合 `---` 与正文之间缺空行"
@@ -560,23 +454,20 @@ def check_frontmatter_structure(wiki_root: Path) -> List[str]:
 
 
 def resolve_link(base: Path, link: str) -> Optional[Path]:
-    """把 Markdown 链接解析为绝对路径；外部 URL / 锚点返回 None"""
+    """Markdown 链接 → 绝对路径；外部 URL / 锚点 / query 返回 None。"""
     link = link.strip()
-    # 去掉锚点
     link = link.split("#", 1)[0]
-    # 去掉 query
     link = link.split("?", 1)[0]
     if not link:
         return None
     if is_external_url(link):
         return None
-    # 相对路径
     target = (base.parent / link).resolve()
     return target
 
 
 def check_link_integrity(wiki_root: Path) -> List[str]:
-    """路径引用完整性"""
+    """正文 Markdown 链接完整性（仅 wiki/ 范围；raw/ 下的图不查）。"""
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
     all_pages = []
@@ -592,7 +483,6 @@ def check_link_integrity(wiki_root: Path) -> List[str]:
             target = resolve_link(p, url)
             if target is None:
                 continue
-            # 只检查 wiki 范围内的链接（raw/ 下的图不在范围）
             try:
                 target.relative_to(wiki_root.resolve() / "wiki")
             except ValueError:
@@ -605,13 +495,12 @@ def check_link_integrity(wiki_root: Path) -> List[str]:
 
 
 def check_index_coverage(wiki_root: Path) -> List[str]:
-    """index.md 覆盖"""
+    """index.md 覆盖：内容页必须被列出。"""
     findings = []  # type: List[str]
     index_path = wiki_root / "wiki" / "index.md"
     if not index_path.is_file():
         return ["index-missing: wiki/index.md 不存在"]
     index_text = index_path.read_text(encoding="utf-8", errors="replace")
-    # 收集 index 引用的所有相对路径
     indexed = set()  # type: Set[str]
     for m in MD_LINK_RE.finditer(strip_code_regions(index_text)):
         url = m.group(2)
@@ -623,7 +512,6 @@ def check_index_coverage(wiki_root: Path) -> List[str]:
         except ValueError:
             continue
         indexed.add(rel)
-    # 找所有非 index / log 的页面
     pages = find_md_files(wiki_root)
     for sub in WIKI_SUBDIRS:
         for p in pages[sub]:
@@ -636,13 +524,9 @@ def check_index_coverage(wiki_root: Path) -> List[str]:
 
 
 def check_index_section_placement(wiki_root: Path) -> List[str]:
-    """index.md 条目必须落在与页 type 对应的 `##` 类别段内
+    """index.md 条目须落在页 type 对应的 `##` 类别段内（覆盖检查看不到位置错乱）。
 
-    宽松覆盖检查（链接存在即可）看不到位置错乱：cmd_index add 历史 bug 会把目标段
-    body 整段剪到文件尾（跟在最后一个 `##` 段后）——条目仍在 index.md 里，orphan
-    不报。本检查逐条目标出条目实际所在段，与页 frontmatter type 推出的期望段比对。
-    目标页缺失（broken-link 报）/ type 缺失或非法（missing-frontmatter / invalid-type
-    报）→ 跳过，不重复报。
+    目标页缺失 / type 非法 → 跳过（由 broken-link / invalid-type 报，不重复）。
     """
     findings = []  # type: List[str]
     index_path = wiki_root / "wiki" / "index.md"
@@ -701,20 +585,14 @@ def check_log_format(wiki_root: Path) -> List[str]:
     return findings
 
 
-# log.md 滚动窗口上限——超过则建议截断保最近 N 条
 LOG_RETENTION_LIMIT = 50
-
-# source 页 stale 摘要阈值（days）——`updated` 距今超过此值报 stale-summary（解释见 `--explain=stale-summary`）
 STALE_SUMMARY_DAYS = 90
 
 
 def check_log_truncation(wiki_root: Path) -> List[str]:
-    """log.md 滚动窗口——条目数超过 LOG_RETENTION_LIMIT 建议截断
+    """log.md 条目数超滚动窗口上限即建议截断（完整历史靠 git）；只报告，截断由 agent 做。
 
-    log.md 只保最近 N 条操作（完整历史靠 git：`git log -p -- wiki/log.md`）。
-    判定依据：按 LOG_LINE_RE 正则匹配行数。lint 只报告；截断由 agent 用 Edit/Write
-    删最老条目保最近 N 条（脚本不修改 wiki 内容——见本文件顶部职责声明）。
-    log-missing 已被 check_log_format 报告，这里跳过重复报错。
+    log-missing 由 check_log_format 报，这里跳过。
     """
     findings = []  # type: List[str]
     log_path = wiki_root / "wiki" / "log.md"
@@ -733,7 +611,7 @@ def check_log_truncation(wiki_root: Path) -> List[str]:
 
 
 def check_stale_summaries(wiki_root: Path, threshold_days: int = STALE_SUMMARY_DAYS) -> List[str]:
-    """过期摘要"""
+    """source 页 `updated` 距今超阈值。"""
     findings = []  # type: List[str]
     sources_dir = wiki_root / "wiki" / "sources"
     if not sources_dir.is_dir():
@@ -755,43 +633,31 @@ def check_stale_summaries(wiki_root: Path, threshold_days: int = STALE_SUMMARY_D
     return findings
 
 
-# Tag taxonomy 解析常量
 TAXONOMY_BULLET_RE = re.compile(r"^[-*]\s+(.+)$")
 TAG_KV_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
-# Tag taxonomy 主流位置：wiki/tags.md，无 frontmatter，纯裸 bullet 列表。
 TAG_FILE_PRIMARY = "wiki/tags.md"
 
 
 def _parse_tag_bullets(text: str) -> Set[str]:
-    """从裸 bullet 文本里提取 kebab-case tag 集合
+    """裸 bullet 文本 → kebab-case tag 集合。
 
-    解析规则（来源：wiki/tags.md 全文）：
-    - 每行形如 `- category：tag1 / tag2 / tag3`（中文 / 英文分隔符都支持）
-      或 `- tag`（无分类）
-    - 多个 tag 用 `/` `，` `,` 任一字符分隔
-    - 跳过 code block fence、HTML comment、空行
-    - 只保留 kebab-case（`^[a-z0-9][a-z0-9-]*$`）的 tag
-    - 不要求特殊 heading——传给本函数的 text 应当已是"目标内容段"（已剔除非 bullet 行）
+    支持 `- category：tag1 / tag2`（中英文分隔符）与 `- tag`；跳过注释 / fence / 空行。
     """
     tags = set()  # type: Set[str]
     for line in text.splitlines():
         stripped = line.strip()
-        # 跳过空行 / 注释 / code block
         if not stripped or stripped.startswith("<!--") or stripped.startswith("```"):
             continue
-        # 提取 bullet 内容
         m = TAXONOMY_BULLET_RE.match(stripped)
         if not m:
             continue
         content = m.group(1).strip()
-        # 分类形式："category：tag1 / tag2"——第一个 ： 或 : 是分隔符
         sep_match = re.match(r"^([^：:]+)[：:]\s*(.+)$", content)
         if sep_match:
             tag_part = sep_match.group(2)
         else:
             tag_part = content
-        # 多 tag 分隔
         for t in re.split(r"[/，,]", tag_part):
             t = t.strip().strip("`").strip("*").strip()
             if t and TAG_KV_RE.match(t):
@@ -800,13 +666,7 @@ def _parse_tag_bullets(text: str) -> Set[str]:
 
 
 def parse_tag_taxonomy(wiki_root: Path) -> Set[str]:
-    """读 tag 白名单，返回允许 tag 集合
-
-    来源：`<wiki_root>/wiki/tags.md`（LLM 拥有、按需扩展）。
-
-    解析失败 / 文件不存在 / 解析出 0 个 tag → 返回空集合（调用方应静默跳过，
-    避免新 setup 的 wiki 必报错）。
-    """
+    """读 wiki/tags.md 白名单；文件不存在 / 解析出 0 个 → 空集合（调用方静默跳过）。"""
     primary = wiki_root / TAG_FILE_PRIMARY
     if primary.is_file():
         text = primary.read_text(encoding="utf-8", errors="replace")
@@ -815,12 +675,7 @@ def parse_tag_taxonomy(wiki_root: Path) -> Set[str]:
 
 
 def check_tag_taxonomy(wiki_root: Path) -> List[str]:
-    """tag 是否在 taxonomy 白名单内
-
-    来源：`wiki/tags.md`。找不到或解析出 0 个 tag → 静默跳过
-    （避免新 setup 的 wiki 必报错）。启用 taxonomy 后，对每个 wiki 内容页 +
-    MEMORY 非 MEMORY.md 的 frontmatter.tags 元素做包含校验；不在白名单 → info 级。
-    """
+    """内容页 frontmatter.tags 是否都在白名单内；空白名单跳过。"""
     findings = []  # type: List[str]
     allowed = parse_tag_taxonomy(wiki_root)
     if not allowed:
@@ -829,9 +684,7 @@ def check_tag_taxonomy(wiki_root: Path) -> List[str]:
     target_pages = []  # type: List[Path]
     for sub in WIKI_SUBDIRS:
         target_pages.extend(pages[sub])
-    # MEMORY/*.md 不进 tag 白名单校验——MEMORY 是 agent 私有记忆（AGENTS.md 模板「MEMORY/」节）：
-    # MEMORY 私有 tag（lint / external-repo / symlink 等）是 LLM 工作上下文分类，
-    # 不应跟 wiki 用户面共享 taxonomy（tag 白名单是防 wiki 索引/过滤漂移）。
+    # MEMORY/*.md 不进白名单校验：agent 私有记忆，tag 不共享用户面 taxonomy
     for p in target_pages:
         if not p.is_file():
             continue
@@ -853,7 +706,7 @@ def check_tag_taxonomy(wiki_root: Path) -> List[str]:
 
 
 def check_filename_kebab(wiki_root: Path) -> List[str]:
-    """文件名 kebab-case 规范"""
+    """文件名 kebab-case（MEMORY.md 索引除外）。"""
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
     for sub in WIKI_SUBDIRS + ("index", "log"):
@@ -864,7 +717,6 @@ def check_filename_kebab(wiki_root: Path) -> List[str]:
                 findings.append(
                     f"filename-not-kebab: {rel} 文件名 '{p.name}' 应使用 kebab-case（小写字母 + 数字 + 短横线）"
                 )
-    # MEMORY/* 走同一规则，但排除 MEMORY.md（索引，大写不报错）
     for p in pages["memory"]:
         if p.name == "MEMORY.md" and p.parent.name == MEMORY_SUBDIR:
             continue
@@ -878,7 +730,7 @@ def check_filename_kebab(wiki_root: Path) -> List[str]:
 
 
 def check_duplicate_titles(wiki_root: Path) -> List[str]:
-    """重复标题"""
+    """同一 title 出现在多页。"""
     findings = []  # type: List[str]
     title_to_files = {}  # type: Dict[str, List[str]]
     pages = find_md_files(wiki_root)
@@ -899,13 +751,12 @@ def check_duplicate_titles(wiki_root: Path) -> List[str]:
     return findings
 
 
-# 页面正文行数阈值——超过则建议拆分。
-# SSOT：其他文件 prose 提到「单页正文阈值」时，统一引用此常量，避免散弹式散落。
+# 正文非空行阈值（其他 prose 引此常量）
 PAGE_SIZE_THRESHOLD = 300
 
 
 def _strip_frontmatter_body(text):
-    """返回去掉 frontmatter 后的正文（frontmatter 不计入页面体量）"""
+    """去 frontmatter，返回正文（体量统计不计 frontmatter）。"""
     body_start = 0
     if text.startswith("---"):
         m = re.match(r"^---\n.*?\n---\n?", text, re.DOTALL)
@@ -915,12 +766,7 @@ def _strip_frontmatter_body(text):
 
 
 def check_page_size(wiki_root, threshold=PAGE_SIZE_THRESHOLD):
-    """页面体量——正文非空行数 > threshold 的内容页建议拆分
-
-    仅检查 wiki 内容页——MEMORY/*
-    agent 私有定位（正文无长度上限）。计非空行（纯空行不计），避免空行撑大计数。
-    阈值见模块顶部 PAGE_SIZE_THRESHOLD（SSOT）。
-    """
+    """正文非空行数超阈值的内容页（MEMORY 无上限）。"""
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
     for sub in WIKI_SUBDIRS:
@@ -940,41 +786,17 @@ def check_page_size(wiki_root, threshold=PAGE_SIZE_THRESHOLD):
 
 
 def check_quality_signals(wiki_root):
-    """可信度与认知质量信号——reviewed / contested / contradictions
+    """可信度 / 认知质量信号：reviewed / contested / contradictions + index ✓✗ 标识漂移。
 
-    deterministic 子检查（字段全部可选；省略 = 不评，lint 不报）：
-
-    A. 可信度信号 reviewed：
-    - pending-review（info）：非 log/index 页未含 reviewed: true——新常态，仅提示
-    - reviewed-stale（warn）：reviewed: true 存在但 updated > reviewed_at——LLM 修改后漏清戳
-    - invalid-reviewed-value（warn）：reviewed 取值非严格 true（如 "true" 字符串、yes、1、false）
-    - reviewed-at-missing（warn）：reviewed: true 存在但缺 reviewed_at
-    - reviewed-at-orphan（warn）：reviewed_at 存在但缺 reviewed: true
-
-    B. 认知质量信号 contested / contradictions：
-    - contested-page（warn）：contested: true 的页——含未解决矛盾
-    - contradiction-target-missing（warn）：contradictions 指向不存在的页
-    - contradiction-asymmetric（warn）：A 把 B 列入 contradictions 但 B 未反向标注 A
-      （字段语义要求双向标注，见 page-templates.md「共有 frontmatter 段」）
-
-    C. index.md 标识漂移：
-    - index-review-badge-drift（warn）：wiki/index.md 上的 ✓/✗ 标识与被链页 frontmatter 不一致
-
-    字段语义见 page-templates.md「可选：可信度与认知质量信号」。
-    只把作者已写 / 已渲染的信号拎出来；判定"某页是否真的经过认真审核"是半定性工作。
+    字段全部可选（省略 = 不评）；只拎作者已写 / 已渲染的信号，finding 含义见 --explain。
     """
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
     target_pages = []  # type: List[Path]
     for sub in WIKI_SUBDIRS:
         target_pages.extend(pages[sub])
-    # MEMORY/*.md 不进 reviewed 校验——MEMORY 与 wiki 内容页的 frontmatter 规则解耦：
-    # MEMORY 是 agent 私有记忆，无「人工 review」的语义角色。MEMORY/MEMORY.md
-    # （索引）本就 excluded。
-    # 字段语义（reviewed / reviewed_at / contested / contradictions）仍可被 MEMORY
-    # 写、用作 agent 内部信号；只是不进 lint 兜底报告。
-
-    # contradictions 对端映射：page_rel -> set(已解析且存在的 target wiki 相对路径)
+    # MEMORY 是 agent 私有记忆，不进 reviewed 校验（字段仍可写，只是不兜底报告）
+    # contradictions 对端映射：page_rel -> 已解析对端集合（对称性检查用）
     contra_out = {}  # type: Dict[str, Set[str]]
     for p in target_pages:
         if not p.is_file():
@@ -983,25 +805,19 @@ def check_quality_signals(wiki_root):
         fm = parse_frontmatter_simple(text)
         rel = p.relative_to(wiki_root).as_posix()
 
-        # —— A. 可信度信号 reviewed ——
-        # 用 raw-line 扫描而非 parse_frontmatter_simple：后者会自动剥引号，
-        # 而 `reviewed` 语义要求严格 boolean 字面量 `true`（`reviewed: "true"` 视为非法）
         reviewed_raw = _raw_field_value(text, "reviewed")
         reviewed_at_raw = fm.get("reviewed_at")
         is_reviewed = reviewed_raw == "true"
         has_reviewed_at = reviewed_at_raw is not None and str(reviewed_at_raw).strip() != ""
 
-        # invalid-reviewed-value: reviewed 存在但取值非严格 true
         if reviewed_raw is not None and not is_reviewed:
             findings.append(f"invalid-reviewed-value: {rel} reviewed='{reviewed_raw}' 非法；应为严格 true 或省略")
 
-        # reviewed-at-missing / reviewed-at-orphan: 两个字段应成对
         if is_reviewed and not has_reviewed_at:
             findings.append(f"reviewed-at-missing: {rel} reviewed=true 但缺 reviewed_at")
         if has_reviewed_at and not is_reviewed:
             findings.append(f"reviewed-at-orphan: {rel} reviewed_at='{reviewed_at_raw}' 但缺 reviewed=true")
 
-        # reviewed-stale: LLM 修改后漏清戳（updated > reviewed_at）
         if is_reviewed and has_reviewed_at:
             updated = fm.get("updated")
             if updated and str(updated).strip() > str(reviewed_at_raw).strip():
@@ -1010,11 +826,9 @@ def check_quality_signals(wiki_root):
                     f"但 updated={updated} — LLM 修改后未清 reviewed，建议重新审核"
                 )
 
-        # pending-review: 未审核页面（新常态，info）
         if not is_reviewed:
             findings.append(f"pending-review: {rel} 未审核 — 待人工复审后置 reviewed: true")
 
-        # —— B. 认知质量信号 contested / contradictions ——
         if str(fm.get("contested", "")).strip().strip("\"'").lower() == "true":
             findings.append(f"contested-page: {rel} contested=true — 含未解决矛盾主张，需裁定后移除该标记")
 
@@ -1040,7 +854,6 @@ def check_quality_signals(wiki_root):
             if resolved:
                 contra_out[rel] = resolved
 
-    # 对称性：A 标 B → B 应标 A
     for src, targets in contra_out.items():
         for tgt in targets:
             back = contra_out.get(tgt)
@@ -1050,28 +863,25 @@ def check_quality_signals(wiki_root):
                     f"但 {tgt} 的 contradictions 未反向标注 {src}（要求双向标注）"
                 )
 
-    # —— D. index.md 标识漂移 ——
     findings.extend(_check_index_review_badges(wiki_root))
 
     return findings
 
 
-# index.md 条目正则：`- [title](path)` 后跟可选 description + 可选 ✓/✗ 标识
+# index.md 条目：`- [title](path)` + 可选 description / ✓✗ 标识
 _INDEX_ENTRY_RE = re.compile(
     r"^\s*-\s*\[[^\]]+\]\(([^)]+)\)(.*)$",
     re.MULTILINE,
 )
-# 标识正则：`✓ reviewed YYYY-MM-DD` 或 `✗ pending review`（无外层方括号，与 page-templates.md「共有 frontmatter 段」设计一致）
+# `✓ reviewed YYYY-MM-DD` 或 `✗ pending review`
 _REVIEWED_BADGE_RE = re.compile(r"✓\s+reviewed\s+(\d{4}-\d{2}-\d{2})\b|✗\s+pending\s+review\b")
 
 
 def _raw_field_value(text: str, key: str):
-    """从原始 frontmatter 文本中提取 key 的字面值，不剥离引号
+    """取 frontmatter key 的原始字面值（不剥引号）；None = key 不存在，"" = 存在但空。
 
-    parse_frontmatter_simple 会自动剥引号（`reviewed: "true"` → `'true'`），但
-    `reviewed` 字段语义要求严格 boolean 字面量 `true`，需看原始字面以区分
-    `reviewed: true` 与 `reviewed: "true"` / `reviewed: 'true'` / `reviewed: yes` 等。
-    返回 None 表示该 key 不在 frontmatter 中；返回 "" 表示 key 在但值为空。
+    不能用 parse_frontmatter_simple——它剥引号，而 reviewed 语义要求严格 `true` 字面量
+    （`"true"` / `'true'` / yes 都要能被区分出来）。
     """
     fm_match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
     if not fm_match:
@@ -1084,13 +894,7 @@ def _raw_field_value(text: str, key: str):
 
 
 def _check_index_review_badges(wiki_root):
-    """index.md 上的 ✓/✗ 标识与被链页 frontmatter 不一致时报警
-
-    三种漂移都查：
-    - 被链页 reviewed=true 但 index 缺标识
-    - 被链页 reviewed=true 但 index 日期错
-    - 被链页未 reviewed 但 index 有 ✓ reviewed 标识
-    """
+    """index.md ✓/✗ 标识与被链页 reviewed 状态一致性（缺 / 日期错 / 多余均报）。"""
     findings = []  # type: List[str]
     index_path = wiki_root / "wiki" / "index.md"
     if not index_path.is_file():
@@ -1100,7 +904,6 @@ def _check_index_review_badges(wiki_root):
     for m in _INDEX_ENTRY_RE.finditer(text):
         path = m.group(1).strip()
         rest = m.group(2)
-        # 跳过外链 / 锚点
         if is_external_url(path) or path.startswith("#"):
             continue
         target = (index_path.parent / path).resolve()
@@ -1109,17 +912,14 @@ def _check_index_review_badges(wiki_root):
         except ValueError:
             continue
         if not target.is_file():
-            continue  # 已被 orphan-page / broken-link 覆盖
+            continue
         target_text = target.read_text(encoding="utf-8", errors="replace")
-        # 用 raw-line 扫描 reviewed 字段，绕过 parse_frontmatter_simple 的剥引号
-        # 行为——`reviewed: "true"` 应判未审核（与 check_quality_signals 严格一致）
         reviewed = _raw_field_value(target_text, "reviewed")
         target_fm = parse_frontmatter_simple(target_text)
         reviewed_at = target_fm.get("reviewed_at")
         is_reviewed = reviewed == "true"
         reviewed_at_s = str(reviewed_at).strip() if reviewed_at is not None else ""
         badge_match = _REVIEWED_BADGE_RE.search(rest)
-        # 从条目路径反推被链页标题（用于 finding 信息）
         title_match = re.match(r"\s*-\s*\[([^\]]+)\]", m.group(0))
         title = title_match.group(1) if title_match else path
 
@@ -1130,7 +930,6 @@ def _check_index_review_badges(wiki_root):
                     f"被链页 reviewed=true reviewed_at={reviewed_at_s}"
                 )
             else:
-                # 检查日期是否一致（仅 ✓ reviewed 才带日期）
                 if "✓" in badge_match.group(0):
                     actual_date_match = re.search(r"(\d{4}-\d{2}-\d{2})", badge_match.group(0))
                     actual_date = actual_date_match.group(1) if actual_date_match else None
@@ -1140,13 +939,11 @@ def _check_index_review_badges(wiki_root):
                             f"标识为 '{badge_match.group(0)}' 但被链页 reviewed=true reviewed_at={reviewed_at_s} — 日期错"
                         )
                 else:
-                    # 是 ✗ pending review 但被链页其实是 reviewed
                     findings.append(
                         f"index-review-badge-drift: wiki/index.md 条目 '{title}' 标识为 '{badge_match.group(0)}' "
                         f"但被链页 reviewed=true reviewed_at={reviewed_at_s} — 标识类型错"
                     )
         else:
-            # 被链页未 reviewed，index 不应有 ✓ reviewed 标识（✗ pending review 与缺省都允许）
             if badge_match and "✓" in badge_match.group(0):
                 findings.append(
                     f"index-review-badge-drift: wiki/index.md 条目 '{title}' "
@@ -1156,40 +953,18 @@ def _check_index_review_badges(wiki_root):
 
 
 def check_memory_index(wiki_root: Path) -> List[str]:
-    """MEMORY.md 索引一致性——MEMORY/*.md（非 MEMORY.md）必须被索引列出
+    """MEMORY.md 索引 ↔ MEMORY/*.md 双向一致性。
 
-    MEMORY.md 是单一真源（无 frontmatter）；由 `<wiki-root>/AGENTS.md` 顶部
-    `@MEMORY/MEMORY.md` `@import` 自动加载全文。
-    本检查只扫 `MEMORY.md ## 索引` 段对 `MEMORY/*.md` 的覆盖——0.23.0 短暂的双轨
-    （MEMORY.md + AGENTS.md「本 wiki 的边界」节内联段并集）已废，单一真源下不再需要双处同步。
-
-    不走 wiki/index.md 强制入口；但每条经验条目需在 `MEMORY.md` 列一行，否则
-    下次 `@import` 加载后该 agent 视角下 MEMORY 沦为死库。
-
-    反向（索引列了某 `<slug>.md` 但文件不存在）也在此检查：`memory-index-dangling`
-    warn——索引行指向不存在的文件 = 索引与磁盘脱节（MEMORY 纪律"不删除条目"被违反
-    或文件被误移），下次会话按索引读必落空。注意只能靠链接判定：短条目
-    （`- 一句话事实`）无链接、不算 dangling。
-
-    MEMORY.md 不存在时静默跳过（不报错）。
-    severity = info（轻量索引非强制入口，类比 tag-not-in-taxonomy）。
-
-    短条目（与 wiki skill SKILL.md「Memory」同步）：MEMORY.md 索引行可无对应 .md 文件
-    （`- 一句话事实` 格式），不进本检查范围——只兜底"有 .md 但未索引"。
-
-    路径变更：MEMORY/ 从 wiki/ 下移到 <wiki-root>/MEMORY/（与 wiki/ 平级）。
+    经验条目须在 MEMORY.md 索引列一行（AGENTS.md `@import` 加载依赖）；反向 dangling 也查。
+    短条目（`- 一句话事实`）无链接文件，不算 dangling；MEMORY.md 缺失时静默跳过。
     """
     findings = []  # type: List[str]
-    mem_dir = wiki_root / MEMORY_SUBDIR  # 移到 wiki 根下；老 wiki 走 --check-version --apply
+    mem_dir = wiki_root / MEMORY_SUBDIR
     memory_index = mem_dir / "MEMORY.md"
     if not memory_index.is_file():
         return findings
-    # 单一真源：只扫 MEMORY.md 索引（`@import` 已自动加载全文）；任一条 `<slug>.md`
-    # 未列入 MEMORY.md 索引即报 `memory-not-indexed` info。
     indexed = set()  # type: Set[str]
     mem_dir_resolved = mem_dir.resolve()
-    # 单一真源：MEMORY.md `## 索引` 段对 MEMORY/*.md 的覆盖即可
-    # （AGENTS.md 不再持有副本，`@import` 透明加载——无需双轨兜底）。
     try:
         text = memory_index.read_text(encoding="utf-8", errors="replace")
     except OSError:
@@ -1198,7 +973,6 @@ def check_memory_index(wiki_root: Path) -> List[str]:
         target = resolve_link(memory_index, m.group(2))
         if target is None:
             continue
-        # 只关心 MEMORY/ 范围内的链接
         try:
             target.relative_to(mem_dir_resolved)
         except ValueError:
@@ -1206,12 +980,10 @@ def check_memory_index(wiki_root: Path) -> List[str]:
         if target.is_file():
             indexed.add(target.name)
         else:
-            # 反向：索引指向的 <slug>.md 不存在（短条目无链接、不进来）——索引与磁盘脱节
             findings.append(
                 f"memory-index-dangling: MEMORY/MEMORY.md 索引指向 "
                 f"{target.relative_to(wiki_root).as_posix()}，但该文件不存在"
             )
-    # 扫 MEMORY/*.md（排除 MEMORY.md 本身）；任一不在 indexed → memory-not-indexed
     for p in sorted(mem_dir.glob("*.md")):
         if p.name == "MEMORY.md":
             continue
@@ -1226,26 +998,10 @@ def check_memory_index(wiki_root: Path) -> List[str]:
 
 
 def check_related_links(wiki_root: Path) -> List[str]:
-    """related / compared 路径引用完整性
+    """frontmatter `related` / `compared` 路径引用（文件不存在 → warn）。
 
-    校验 wiki 内容页 frontmatter 的 `related`（concept 页）与 `compared`
-    （comparison 页）字段——按 page-templates.md「共有 frontmatter 段」约定解析为**内容根 `wiki/`
-    相对**（`concepts/X.md` → `<wiki>/wiki/concepts/X.md`），文件不存在则报
-    `related-broken-link` warn。注意基准陷阱：`wiki_root` 是最外层 `<wiki>/`
-    （其下才是 `wiki/` 内容根），故解析须补 `wiki/` 段——与 source 页 `sources`
-    字段走最外层 `raw/` 基准（见 check_frontmatter）刻意区分。
-
-    路径格式约定（类型特化字段）：**内容根 `wiki/` 相对路径**（如
-    `concepts/transformer.md`），不带前导 `./`、不带 `../` 跨目录、也不带
-    `wiki/` 前缀——与正文 Markdown 链接（约定用文件相对路径）形成清晰的两层约定。
-
-    为什么是 warn 而非 error：frontmatter 路径字段是机器消费（lint / cross-page
-    综合），不是人直接阅读内容；与正文 `broken-link`（error）严重性区分开，
-    让 LLM 在批量 ingest 时不被元数据小毛病阻断。
-
-    与「路径引用完整性」的 `broken-link` 的区别：本检查覆盖 frontmatter 字段（`related` /
-    `compared`），「路径引用完整性」覆盖正文 markdown 链接。两者都用 wiki 根或文件相对解析，
-    路径校验，但作用域正交。
+    基准陷阱：字段相对内容根 `wiki/`（解析须补 `wiki/` 段），与 `sources` 的外层 `raw/` 基准不同。
+    为什么是 warn：机器消费字段，不让元数据小毛病阻断批量 ingest（正文 broken-link 才是 error）。
     """
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
@@ -1258,9 +1014,7 @@ def check_related_links(wiki_root: Path) -> List[str]:
         text = p.read_text(encoding="utf-8", errors="replace")
         fm = parse_frontmatter_simple(text)
         rel = p.relative_to(wiki_root).as_posix()
-        # related / compared 字段——两字段同语义（按 wiki 根相对路径引用 wiki
-        # 内其它页），合并扫描。`contradictions` 走文件相对（「可信度与认知质量信号」既有逻辑），
-        # 不在本检查范围——约定有意保留两层区分
+        # related / compared 同语义合扫；contradictions 走文件相对，不在本检查
         for field_name in ("related", "compared"):
             items = fm.get(field_name, [])
             if not isinstance(items, list) or not items:
@@ -1268,13 +1022,10 @@ def check_related_links(wiki_root: Path) -> List[str]:
             for idx, item in enumerate(items):
                 if not isinstance(item, str):
                     continue
-                # 防御：若元素是外部 URL（语义上不该出现但防御性兜底）→ 跳过
                 if is_external_url(item):
                     continue
-                # related / compared 是内容根 wiki/ 相对（按 page-templates.md「共有 frontmatter 段」）（concepts/X.md），
-                # 不是最外层根相对——wiki_root 是 <wiki>/，真实内容页在 <wiki>/wiki/<sub>/，
-                # 故补 wiki/ 段。不 .resolve() 避免跟随实际不存在的目录/文件时静默吞错
-                # （is_file() 已能准确判定）
+                # 补 wiki/ 段（内容根相对，非最外层根相对）；不 .resolve()——
+                # is_file() 判定已够，跟随不存在路径反而吞错
                 target = wiki_root / "wiki" / item
                 if not target.is_file():
                     findings.append(
@@ -1289,28 +1040,16 @@ def severity_of(finding: str) -> str:
     return _severity_of(finding)
 
 
-# ---------------------------------------------------------------------------
-# --check-version：扫描 wiki 的 format 版本 + 老格式 legacy 现场
-# 职责：纯探测（不动 wiki 内容）；agent 拿到 plan 后按 references/upgrade-workflow.md 走 Edit/Write 修复。
-# ---------------------------------------------------------------------------
+# ===== --check-version：纯探测（不写盘）；plan 的消费方 = upgrade-workflow.md =====
 
-# AGENTS.md 末尾「当前配置」表格式版本行匹配：
-# | Wiki Format 版本 | 0.7.0 |
-# 兼容用户编辑后的格式变体（多余空格、备注尾部等）；semver 走单独正则抓取。
+# 「当前配置」表格式版本行（容忍用户编辑变体，如多余空格 / 备注尾部；semver 单独抓取）
 CLAUDE_FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\s*\|")
 
 
 def parse_format_version(wiki_root: Path) -> Optional[str]:
-    """从 wiki 纪律 SSOT（AGENTS.md「当前配置」表）抽 "Wiki Format 版本"。
+    """抽 AGENTS.md「当前配置」表的 `Wiki Format 版本`；解析失败 / 缺文件 → None。
 
-    SSOT 是 <wiki-root>/AGENTS.md（薄壳 CLAUDE.md 不持版本）。系统只理解当前格式——
-    AGENTS.md 缺失或「当前配置」表行无法解析 = 版本未知，由 wiki-format-version-unparsed 报。
-
-    返回 semver 字符串（如 "0.11.0"）；找不到或解析失败返回 None。
-
-    设计权衡：仅解析「当前配置」表的"Wiki Format 版本"行，不扫描全文（避免误抓正文里出现的
-    版本号）。用户编辑表格时若格式被破坏（例如把"Wiki Format 版本"改成"Wiki 版本"），
-    解析失败——提示用户人工填回，而不是猜。
+    只认表行不扫全文（防误抓正文版本号）；表被编辑坏 → None，让上游提示人工填回而不是猜。
     """
     md_file = wiki_root / "AGENTS.md"
     if not md_file.is_file():
@@ -1324,22 +1063,15 @@ def parse_format_version(wiki_root: Path) -> Optional[str]:
         if not m:
             continue
         cell = m.group(1).strip()
-        # 单元格可能含备注（如 "0.7.0 (current)"），抓首个 semver
         semver = SEMVER_RE.search(cell)
         if semver:
             return semver.group(0)
-        # 单元格写了非 semver 文本——视为解析失败
         return None
     return None
 
 
 def check_format_version(wiki_root: Path) -> List[str]:
-    """常规 lint 也查 wiki 版本与 SKILL（CURRENT_WIKI_FORMAT）是否一致；不一致提示走升级流程。
-
-    与 cmd_check_version 复用同一 parse_format_version + _compare_semver，但本函数只产
-    warn finding 提示（不产 plan——plan 由 --check-version --apply 落）。让用户日常
-    lint 时就能感知「wiki 版本落后/领先 SKILL」，而不必显式跑 --check-version 才发现。
-    """
+    """常规 lint 里报 wiki 版本新旧（只产 warn；升级 plan 由 --check-version --apply 落）。"""
     findings = []  # type: List[str]
     current = parse_format_version(wiki_root)
     if current is None:
@@ -1365,11 +1097,7 @@ def check_format_version(wiki_root: Path) -> List[str]:
 
 
 def _run_fixtures_check(wiki_root: Path) -> Dict[str, object]:
-    """直接调 wiki_fixtures.run_checks（非子进程）；返其报告 dict。
-
-    失败兜底：调用抛异常时返空 dict（不带 'checks' 字段）—— caller 据此判断
-    「fixtures check 未跑」，不应阻 lint 主流程。
-    """
+    """直调 wiki_fixtures.run_checks；异常兜底返 skipped（不阻 lint 主流程）。"""
     try:
         from llmw.content.wiki_fixtures import run_checks
 
@@ -1379,20 +1107,7 @@ def _run_fixtures_check(wiki_root: Path) -> Dict[str, object]:
 
 
 def _has_type_memory(page_rel: str, text: str) -> bool:
-    """检查 wiki 内容页是否误用保留的 `type: memory`。
-
-    `type: memory` / `type: memory-entry` 仅 MEMORY 桶合法（契约 canonical 见
-    MEMORY/MEMORY.md fixture 头部），wiki 内容页（entities / concepts / sources /
-    comparisons / syntheses）出现 `type: memory` 是误用。
-
-    Args:
-        page_rel: 页面相对 wiki 根的 POSIX 路径（如 `wiki/sources/x.md` / `MEMORY/foo.md`）
-        text: 页面全文
-
-    Returns:
-        True 当且仅当页面**不在** MEMORY/ 下且 frontmatter 含 `type: memory`
-    """
-    # MEMORY 桶合法值；本函数只扫内容页
+    """内容页是否误用 `type: memory`（该值仅 MEMORY 桶合法；本函数只扫内容页）。"""
     if page_rel.startswith("MEMORY/"):
         return False
 
@@ -1406,24 +1121,13 @@ def _has_type_memory(page_rel: str, text: str) -> bool:
 
 
 def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
-    """扫已知 legacy 现场，按 pattern key 分组 + 标记冲突。
-
-    返回结构（供 build_upgrade_plan 与 --json 输出复用）：
-    {
-      "patterns": {
-         # 仅 wiki 内容页误用 reserved `type: memory` 触发；MEMORY/*.md 不进此列表
-        "type-memory-value":    [{"file": "wiki/<entities|concepts|sources|comparisons|syntheses>/x.md", "conflict": False}],
-      },
-      "conflicts": [],
-    }
-    """
+    """扫 legacy 现场：{"patterns": {key: [...]}, "conflicts": [...]}（供 plan / --json 复用）。"""
     pages = find_md_files(wiki_root)
     out = {
         "patterns": {k: [] for k in LEGACY_PATTERN_KEYS},  # type: Dict[str, List[Dict[str, object]]]
         "conflicts": [],  # type: List[Dict[str, str]]
     }  # type: Dict[str, object]
 
-    # 扫所有内容页 + MEMORY 经验条目（不含 MEMORY.md 索引本身）
     candidates = []  # type: List[Path]
     for sub in WIKI_SUBDIRS:
         candidates.extend(pages[sub])
@@ -1444,9 +1148,7 @@ def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
     return out
 
 
-# fixtures-check 失败项 → fixtures_actions[] 的 (type, to_action 构造器) 表。
-# 新增 check 只需在表里加一行（或让 id 落在 _FIXTURES_SKELETON_SUFFIXES 的骨架类里
-# 自动命中通用骨架修复）；其余未注册 cid 走 unknown 兜底。
+# fixtures-check 失败项 → (type, to_action) 表；新增 check 加一行即可，骨架类后缀自动命中
 _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]] = {
     "gitignore-external-track-toml": (
         "fixtures-fix-gitignore",
@@ -1526,7 +1228,6 @@ _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]
     ),
 }
 
-# 骨架字段级比对 check 的后缀（信号来自包内 fixtures/；新增该类 check 自动匹配）
 _FIXTURES_SKELETON_SUFFIXES = ("-skeleton", "-frontmatter-complete", "-init-rules-complete")
 
 _FIXTURES_SKELETON_SPEC: Tuple[str, Callable[[Dict[str, object]], str]] = (
@@ -1569,18 +1270,14 @@ def build_upgrade_plan(
     legacy: Dict[str, object],
     fixtures_check: Optional[Dict[str, object]] = None,
 ) -> Dict[str, object]:
-    """把 detect_legacy_patterns 的发现 + fixtures-check 的发现组织成 agent 可执行的 plan。
+    """legacy + fixtures 发现 → agent 可执行 plan（fixtures_actions 优先于 actions，两套都跑）。
 
-    每个 action 含 file / type / rule_ref / to_action（agent 照 to_action 用 Edit/Write 落）；
-    agent 按 references/upgrade-workflow.md 引用 rule_ref 走 Edit/Write。
-    fixtures-fix-* 类动作落进 `fixtures_actions[]`，与 legacy pattern 的 actions[] 平行——
-    agent 走 plan 时两套都得跑（fixtures 修复优先于内容页 frontmatter 修复）。
+    每个 action 含 file / type / rule_ref / to_action；消费流程见 references/upgrade-workflow.md。
     """
     today = date.today().isoformat()
     actions = []  # type: List[Dict[str, object]]
     fixtures_actions = []  # type: List[Dict[str, object]]
 
-    # type-memory-value：wiki 内容页误用 reserved `type: memory`（MEMORY 桶合法，内容页非法）
     for entry in legacy["patterns"]["type-memory-value"]:  # type: ignore
         fpath = entry["file"]  # type: ignore
         actions.append(
@@ -1622,7 +1319,6 @@ def build_upgrade_plan(
             "AGENTS.md / CLAUDE.md 是 byte-owned 禁手改：版本行与骨架均由 `llmw wiki upgrade --apply` 重渲染落地",
             "不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）",
             "不调 ingest / query——保持职责单一（lint --check-version 是本迁移的正路）",
-            # fixtures：
             "fixtures_actions[] 与 actions[] 平行处理——先走 fixtures_actions 修约定文件（如 .gitignore / anchor TOML）",
             "再走 actions[] 修内容页 frontmatter / log；fixtures 修复是后续内容页编辑的前置",
             "fixtures-fix-anchor-schema / -anchor-symlink-matches 各 to_action 自含修 schema / ln / 补 entry 的具体指令",
@@ -1636,29 +1332,22 @@ def build_upgrade_plan(
 
 
 def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
-    """--check-version 子命令主入口。
+    """--check-version 主入口：版本 + legacy 探测 + fixtures check。
 
-    - 解析 AGENTS.md 末尾「当前配置」表 wiki_format_version
-    - 探测已知 legacy 现场
-    - 默认打印人读报告（不写文件）
-    - --json 输出机器可读 JSON
-    - --apply 把 upgrade plan 以 JSON 输出到 stdout（agent 修复路径的依据；不落盘）
+    默认只打印报告；--apply 把 upgrade plan 输出到 stdout（不落盘）。
     """
     current_format = parse_format_version(wiki_root)
     comparison = _compare_semver(current_format, CURRENT_WIKI_FORMAT)
     legacy = detect_legacy_patterns(wiki_root)
 
-    # 数 legacy pattern 总数（不算 conflicts，因为 conflicts 不进 plan）
     total_patterns = 0
     for entries in legacy["patterns"].values():  # type: ignore
         total_patterns += len(entries)  # type: ignore
     needs_upgrade = (comparison == "older") or (total_patterns > 0)
 
-    # 调一次 fixtures-check——直接调 llmw.content 的 run_checks（同一进程）；
-    # 输出并入 report["fixtures_check"]。调用失败时 fixtures_check 含 skipped=True，标识"未跑"。
     fixtures_check = _run_fixtures_check(wiki_root)
     if not fixtures_check.get("skipped"):
-        # 有 findings 时也可触发 needs_upgrade（fixture 不合规也算"待迁移"）
+        # fixtures 不合规（error/warn）也算"待迁移"
         f_sum = fixtures_check.get("summary", {})  # type: ignore
         if f_sum.get("error", 0) > 0 or f_sum.get("warn", 0) > 0:  # type: ignore
             needs_upgrade = True
@@ -1670,18 +1359,16 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
         "needs_upgrade": needs_upgrade,
         "legacy_patterns": legacy["patterns"],  # type: ignore
         "conflicts": legacy["conflicts"],  # type: ignore
-        "fixtures_check": fixtures_check,  # fixtures 结构化校验结果
+        "fixtures_check": fixtures_check,
     }
 
     if json_mode:
-        # JSON 模式：输出 report；apply 时再附 plan
         if apply:
             plan = build_upgrade_plan(current_format, legacy, fixtures_check)
             report["upgrade_plan"] = plan
         print(json.dumps(report, indent=2, ensure_ascii=False))
         return 0
 
-    # 人读模式
     print("=== Wiki Format 版本检查 ===")
     print(f"  current_format : {current_format or '(解析失败)'}")
     print(f"  skill_format   : {CURRENT_WIKI_FORMAT}")
@@ -1689,7 +1376,6 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     print(f"  needs_upgrade: {needs_upgrade}")
     print()
 
-    # 当前版本比 SKILL 新 → 告警，不阻断
     if comparison == "newer":
         print(f"[WARN] wiki 用比 llmw 支持版本更新的 format（{current_format} > {CURRENT_WIKI_FORMAT}）")
         print("       请更新 llmw 安装；本子命令不会修改 wiki")
@@ -1697,14 +1383,12 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
         _print_fixtures_check(fixtures_check, indent="")
         return 0
 
-    # 解析失败 → 提示用户填 AGENTS.md 末尾「当前配置」表
     if current_format is None:
         print("[WARN] 无法解析 <wiki-root>/AGENTS.md 末尾「当前配置」表 `Wiki Format 版本`")
         print("       请确认该行存在且格式为: | Wiki Format 版本 | 0.x.y |")
         print("       解析失败不影响 legacy pattern 探测（下方继续输出）")
         print()
 
-    # legacy pattern 列表
     legacy_empty = total_patterns == 0 and not legacy["conflicts"]  # type: ignore
     fixtures_skipped = bool(fixtures_check.get("skipped"))
     fixtures_empty = fixtures_skipped or not any(
@@ -1732,10 +1416,8 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
             for c in legacy["conflicts"]:  # type: ignore
                 print(f"  - {c['file']}: {c['reason']}")  # type: ignore
 
-    # fixtures-check 段
     _print_fixtures_check(fixtures_check, indent="")
 
-    # apply 时把 upgrade plan 以 JSON 输出到 stdout（agent 直接消费；不落盘，升级无中间文件残留）
     if apply:
         plan = build_upgrade_plan(current_format, legacy, fixtures_check)
         print("\n[PLAN] upgrade plan 已生成（stdout JSON 输出，agent 直接消费，不落盘）")
@@ -1756,9 +1438,7 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
 
 
 def _print_fixtures_check(fixtures_check: Dict[str, object], indent: str = "") -> None:
-    """人读模式打印 fixtures-check 段。被 cmd_check_version 调用。
-    跑挂时只一行 skip 提示；其余按 fixture summary 打印。
-    """
+    """人读打印 fixtures-check 段（跑挂时一行 skip）。"""
     if fixtures_check.get("skipped"):
         print(f"{indent}[FIXTURES] skipped: {fixtures_check.get('reason', '(unknown)')}")
         return
@@ -1797,10 +1477,9 @@ def run(
     apply: bool = False,
     json_mode: bool = False,
 ) -> int:
-    """lint 业务入口（cli.py dispatch 直调；flag SSOT 在 llmw.cli argparse 树）。
+    """lint 业务入口（flag SSOT 在 llmw.cli argparse 树）。
 
-    no_git: 传 True 完全不检测 git；不传时按 `.git/` 存在与否自动决定
-    （裸目录树 wiki 默认支持——不强制用户装 git 或 init 仓）。
+    no_git=True 完全不检测 git；否则按 `.git/` 自动决定（裸目录树 wiki 默认支持）。
     """
     if not (wiki_root / "wiki").is_dir():
         print(f"ERROR: {wiki_root}/wiki 不存在（wiki 还没 setup？）", file=sys.stderr)
@@ -1808,14 +1487,12 @@ def run(
 
     effective_use_git = not no_git
 
-    # --check-version 是互斥模式：跑版本扫描，不跑常规 lint
+    # --check-version 是互斥模式：只跑版本扫描
     if check_version:
         return cmd_check_version(wiki_root, apply=apply, json_mode=json_mode)
 
-    # 跑所有检查
     all_findings = []  # type: List[str]
-    info_notes = []  # type: List[str]  # 不计入 severity 过滤的"说明性输出"（如 raw-immutable 跳过原因）
-    # 版本一致性优先报——落后/领先 SKILL 时提示走 --check-version 升级流程
+    info_notes = []  # type: List[str]  # 说明性输出，不受 --severity 过滤
     all_findings.extend(check_format_version(wiki_root))
     raw_findings, raw_skip = check_raw_immutable(wiki_root, effective_use_git)
     all_findings.extend(raw_findings)
@@ -1838,23 +1515,19 @@ def run(
     all_findings.extend(check_memory_index(wiki_root))
     all_findings.extend(check_related_links(wiki_root))
 
-    # 过滤
     if severity != "all":
         threshold = SEV_RANK[severity]
         all_findings = [f for f in all_findings if SEV_RANK[severity_of(f)] <= threshold]
 
-    # 输出：跳过提示（INFO 级别但不受 --severity 过滤；让用户始终能看到）
     if info_notes:
         print("\n[NOTES]")
         for n in info_notes:
             print(f"  {n}")
 
-    # 输出
     if not all_findings:
         print("No issues found. ✓")
         return 0
 
-    # 按严重性分组
     by_sev = {"error": [], "warn": [], "info": []}  # type: Dict[str, List[str]]
     for f in all_findings:
         by_sev[severity_of(f)].append(f)

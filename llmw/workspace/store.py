@@ -1,8 +1,6 @@
-"""workspace.toml 读写 + schema 校验
+"""workspace.toml 读写 + schema 校验。
 
-schema v2: workspace.toml 只承载**结构数据** (schema 元信息 + wiki 注册表)。
-v1（``enter_cli`` / ``enter_byobu`` / ``default_model``）已于 2026-08 退役，
-load v1 → ``SchemaVersionUnsupported``（无自愈路径）。
+v2 只承载结构数据（schema 元信息 + wiki 注册表）；v1 已硬退役——load 直接拒，无自愈路径。
 """
 
 import io
@@ -91,11 +89,7 @@ def save(workspace_root: Path, ws: WorkspaceToml) -> None:
 
 
 def create_skeleton(workspace_root: Path) -> WorkspaceToml:
-    """init 时调用：生成空 workspace.toml (schema v2)。
-
-    templates_version 编码双 format 版本（供 llmw upgrade 收尾比对），供 skill scan 前比对：
-    形如 ``workspace_format=0.2.0; wiki_format=0.5.0``。
-    """
+    """生成空 workspace.toml；templates_version 编码双 format 版本（upgrade / scan 比对用）。"""
     ws = WorkspaceToml(
         schema_version=SCHEMA_VERSION_SUPPORTED,
         created_at=now_iso8601(),

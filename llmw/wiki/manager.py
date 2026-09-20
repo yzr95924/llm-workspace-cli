@@ -39,10 +39,7 @@ from llmw.workspace.gitignore import ensure_workspace_gitignore
 
 
 def resolve_wiki_path(workspace_root: Path, name: str) -> Path:
-    """查 workspace 注册表 → wiki 绝对路径；未注册 → WikiNotFound。
-
-    唯一实现（enter / remove / rename / show / config 共用），不各写一份。
-    """
+    """查注册表 → wiki 绝对路径；未注册 → WikiNotFound（各命令共用唯一实现）。"""
     ws = ws_store.load(workspace_root)
     if name not in ws.wikis:
         raise WikiNotFound(
@@ -53,11 +50,7 @@ def resolve_wiki_path(workspace_root: Path, name: str) -> Path:
 
 
 def _print_git_hint(wiki_dir: Path) -> None:
-    """git 红线: CLI 不碰 git——落盘后打印手动 hint,让用户自行决定。
-
-    .gitkeep 占位文件已在 init_wiki.render_and_write 无条件落盘(8 个空目录);
-    用户 `git add .` 时空目录自然纳入跟踪。
-    """
+    """git 红线：CLI 不碰 git——落盘后打印手动 hint（.gitkeep 已由 init_wiki 放好）。"""
     print(f"[llmw] wiki 已落盘为纯目录树: {wiki_dir}", file=sys.stdout)
     print("[llmw] 若需 git 版本控制,请手动执行:", file=sys.stdout)
     print(f"[llmw]   cd {wiki_dir}", file=sys.stdout)
@@ -76,8 +69,7 @@ def _print_git_hint(wiki_dir: Path) -> None:
 
 
 def _tags_submenu(cur_tags: List[str]) -> List[str]:
-    """tags 交互子菜单（a 添加 / r 移除 / s 替换 / d 完成）——add 交互与 wiki config
-    交互共用同一实现，避免双份拷贝漂移。返回编辑后的 tags 列表。"""
+    """tags 交互子菜单（a 添加 / r 移除 / s 替换 / d 完成）；add 与 config 交互共用。"""
     while True:
         print(f"  tags [当前: {cur_tags}]: <a 添加 / r 移除 / s 替换 / d 完成>")
         try:
@@ -114,10 +106,7 @@ def _tags_submenu(cur_tags: List[str]) -> List[str]:
 
 
 def _interactive_fill_metadata(workspace_root, wiki_dir, meta):
-    """交互填充 display_name / description / tags / model
-
-    workspace_root 供 model 的 registry 存在性校验（与 config set 同逻辑）。
-    """
+    """交互填充 display_name / description / tags / model（model 走 registry 校验）。"""
 
     def ask(label, cur):
         suffix = " [当前: <未设置>]" if not cur else f" [当前: {cur!r}]"
@@ -177,7 +166,6 @@ def add(
 
     wiki_dir = workspace_root / name
 
-    # 文件级拒绝条件(在 mkdir 前检查,失败无需清理半成品目录)
     init_wiki.check_not_initialized(wiki_dir)
 
     if not sys.stdin.isatty():
@@ -199,18 +187,14 @@ def add(
     if topic is None:
         topic = name
 
-    # 创建子目录(exist_ok=True: 允许目标目录已存在; 已在更早 check_not_initialized
-    # 阻断 AGENTS.md / CLAUDE.md / wiki/index.md / MEMORY.md / tags.md / SCRIPTS.md
-    # 已存在的覆盖场景)
+    # 空目录可已存在；覆盖场景已由 check_not_initialized 阻断
     wiki_dir.mkdir(parents=False, exist_ok=True)
 
-    # 先建 wiki_metadata.toml（UTC created_at），再从其派生 SETUP_DATE（设计文档 §7.2
-    # 变量 SSOT：模板变量 + checker 派生逻辑读同字段）。[:16] = YYYY-MM-DD HH:MM；
-    # replace("T", " ") 把 ISO 8601 "T" 分隔符换成空格（与 fixtures/README.md 字节金标准对齐）。
+    # 先落 metadata（UTC created_at），SETUP_DATE 由其派生（与 checker 读同字段）；
+    # [:16] = YYYY-MM-DD HH:MM（字节金标准粒度）
     meta = wiki_store.create_skeleton(wiki_dir, name, topic)
     setup_date = (meta.created_at or "").replace("T", " ")[:16]
 
-    # CLI 内联实现 wiki 骨架（取代原 setup_wiki.py subprocess）
     init_wiki.render_and_write(
         wiki_dir,
         topic,
@@ -245,8 +229,7 @@ def add(
     ws_store.save(workspace_root, ws)
 
     print(f"[llmw] wiki 已创建: {name} ({wiki_dir})", file=sys.stdout)
-    # git 红线: CLI 不碰 git,统一打印手动 hint。
-    # (cli.py 的 `--git` flag 保留为向后兼容的 vestigial flag;无论是否传 --git 都打印同一份 hint)
+    # git 红线：统一打印手动 hint（--git 为 vestigial flag）
     _print_git_hint(wiki_dir)
     return wiki_dir
 
@@ -257,23 +240,11 @@ def _purge_with_backup(
     name: str,
     no_backup: bool,
 ) -> None:
-    """`wiki remove --purge` 的物理删除:默认备份到 .llmw-trash/,失败阻断。
+    """purge 物理删除：默认备份到 .llmw-trash/（失败阻断不删）；--no-backup 直接 rmtree。
 
-    wiki 仓删除保留 .bak 备份的安全网;--no-backup 是 escape hatch
-    (CI / 脚本场景)。
-
-    Args:
-        workspace_root: workspace 根(用于 .llmw-trash/ 和 .gitignore 升级)。
-        wiki_path: 待删除的 wiki 目录绝对路径。
-        name: wiki 名(用于备份目录命名)。
-        no_backup: True → 直接 rmtree;False → 先备份。
-
-    Raises:
-        BackupFailed: 备份步骤任一失败(mkdir / rename);失败时不删 wiki。
+    Raises: BackupFailed（备份任一失败）。
     """
-    # 1. 确保 workspace .gitignore managed block 为最新版（含 .llmw-trash/ 排除行）
-    # 老 workspace 的旧版 block（行数/内容不等）会被整体替换为当前 GITIGNORE_LINES。
-    # .gitignore 写入失败不阻断备份（用户可手动 gitignore）——但打 warning，不静默。
+    # 先确保 .gitignore 含 .llmw-trash/ 排除（失败只 warning，不阻断备份）
     try:
         ensure_workspace_gitignore(workspace_root)
     except OSError as e:
@@ -288,8 +259,7 @@ def _purge_with_backup(
         print(f"[llmw] --no-backup: 直接删除 {wiki_path}", file=sys.stdout)
         return
 
-    # 2. 默认路径: 备份到 <workspace>/.llmw-trash/<name>-<ISO8601>/
-    # now_iso8601 形如 "2026-06-29T12:00:00Z";冒号不能在路径里,剥掉。
+    # 备份名带时间戳（冒号不能进路径，剥掉）
     ts = now_iso8601().replace(":", "")
     trash_root = workspace_root / ".llmw-trash"
     backup_path = trash_root / f"{name}-{ts}"
@@ -310,8 +280,7 @@ def _purge_with_backup(
         )
 
     try:
-        # POSIX rename 在同一 FS 下是原子的;wiki_path 和 backup_path 都在
-        # workspace 下,共享 FS,rename 等价于 mv 且无中间态。
+        # 同一 FS 下 POSIX rename 原子（wiki_path 与 backup_path 同在 workspace）
         wiki_path.rename(backup_path)
     except OSError as e:
         raise BackupFailed(
@@ -370,11 +339,9 @@ def stop(
     window_suffix: Optional[str] = None,
     yes: bool = False,
 ) -> int:
-    """stop：kill 指定 wiki 的带标 agent 窗口（`llmw wiki --name=X stop`）。
+    """kill wiki 的带标窗口：0 → NoRunningSession；N 且未给 suffix → MultipleRunningSessions；恰 1 → 确认后 kill。
 
-    候选 = `@llmw_wiki == X`（再按窗口名过滤）：0 → NoRunningSession；N 且未给
-    --window-suffix → MultipleRunningSessions（关是低频高危动作，显式消歧比选择器
-    简单）；恰 1 → TTY 确认后 kill。不查 workspace 注册表——窗口枚举即现实。
+    不查注册表——窗口枚举即现实（关是低频高危动作，显式消歧优先）。
     """
     if not byobu.byobu_available():
         raise ByobuNotFound(
@@ -447,10 +414,7 @@ def _confirm_stop(name: str, wname: str, dead: bool) -> bool:
 
 
 def _restore_meta(meta, old: str, old_topic: str, wiki_dir: Path) -> None:
-    """rename 回滚辅助：meta.name/topic 恢复 + save。失败打 warning（回滚是 best-effort）。
-
-    注意先赋值再 save——若 save 失败，meta 在内存中已恢复但文件可能是改名后的值。
-    """
+    """rename 回滚：meta.name/topic 恢复 + save（best-effort，失败打 warning）。"""
     meta.name = old
     meta.topic = old_topic
     try:
@@ -470,24 +434,11 @@ def rename(
     as_json: bool = False,
     quiet: bool = False,
 ) -> None:
-    """rename wiki ``old`` → ``new``: 3 阶段原地 rename + 廉价回滚。
+    """rename wiki ``old`` → ``new``：3 阶段原地 rename（metadata → 目录 → workspace.toml）+ 廉价回滚。
 
-    改动 3 处 (workspace.toml key / 子目录 / wiki_metadata.toml name) + 若 topic
-    默认值==old 则同步 topic。子目录走 POSIX rename (同 FS 下 O(1) 原子, 只改目录项,
-    不动 inode 数据 / symlink), raw/ 下大量文件零拷贝 —— 取代旧的 staging copytree 副本。
-
-    失败策略 (每步失败都回滚到 rename 前一致状态):
-    - Phase 1 (改 old_path metadata) 失败: atomic_write 不留半成品, old_path 完全不动
-    - Phase 2 (old_path.rename(new_path)) 失败: metadata 改回 (EXDEV 附 hint), 目录仍在 old_path
-    - Phase 3 (切 workspace.toml) 失败: fs rename 回来 + metadata 改回
-
-    Raises:
-        InvalidWikiName: new 不符 NAME_RE,或 old == new
-        WikiNotFound: old 不在 workspace registry
-        WikiExists: new 已在 workspace registry,或 new_path 已存在
-        WikiDirMissing: old_path 目录或 wiki_metadata.toml 缺失
-        SchemaVersionUnsupported: wiki_metadata.toml schema_version 不被支持
-        OSError: 文件系统操作失败 (如跨 FS 的 EXDEV; 经 InternalError 包装由 cli 顶层处理)
+    子目录走 POSIX rename（O(1)，raw/ 零拷贝）；topic 默认值 == old 时同步。
+    失败策略：每步失败都回滚到 rename 前一致状态。
+    Raises: InvalidWikiName / WikiNotFound / WikiExists / WikiDirMissing / SchemaVersionUnsupported / OSError。
     """
     wiki_store.validate_name(new)
     if old == new:
@@ -620,9 +571,7 @@ def _show_collect(workspace_root: Path, name: str) -> Dict:
         if wiki_sub_p.is_dir()
         else 0
     )
-    # last_activity: 从 <wiki>/wiki/log.md mtime 派生 —— 不依赖 SKILL/CLI 配合,
-    # SKILL 强制 ingest/query/lint 后必须写 log.md；OS mtime 直接给真实活跃时刻。
-    # log.md 不存在 → None(降级为 "-");NFS 上 stat 安全(chmod 才会 silently fail)。
+    # last_activity 派生自 log.md mtime（不吃 skill 配合；缺失 → None）
     last_activity = None
     log_md_p = wiki_sub_p / "log.md"
     if log_md_p.is_file():
@@ -700,7 +649,6 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return
 
-    # 表格: 收集 (label, value) 对, label 宽度 = max(len(label)), 统一对齐
     created_line = meta.created_at if meta else "-"
     model_line = final_model or "-"
     if model_source:
@@ -745,7 +693,6 @@ def wiki_config_get(workspace_root: Path, name: str, key: Optional[str]) -> None
     wiki_dir = resolve_wiki_path(workspace_root, name)
     meta = wiki_store.load(wiki_dir)
     if key is None:
-        # dump
         print(f"# wiki: {name} ({wiki_dir}/wiki_metadata.toml)")
         for k in WIKI_CONFIG_KEYS:
             v = getattr(meta, k)

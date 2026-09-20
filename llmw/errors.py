@@ -108,10 +108,7 @@ class InvalidWindowSuffix(LlmwError):
 
 
 class WindowBackendMismatch(LlmwError):
-    """enter 复用判定命中带标活窗但 @llmw_backend 与当前 backend 不符。
-
-    复用它会吞掉用户"切换 agent"的意图——拒绝并提示先 stop 或 --window-suffix。
-    """
+    """带标活窗的 @llmw_backend 与当前不符——复用会吞掉"切换 agent"意图，拒绝。"""
 
     exit_code = 1
     user_message = "窗口正在运行不同的 agent backend"
@@ -159,10 +156,7 @@ class SetupFailed(LlmwError):
 
 
 class BackupFailed(LlmwError):
-    """wiki remove --purge 前的备份步骤失败(mv / mkdir 任一失败)
-
-    备份失败时不动 wiki;用户可加 --no-backup 跳过备份直接删。
-    """
+    """remove --purge 备份步骤失败（失败不动 wiki；--no-backup 可跳过备份直接删）。"""
 
     exit_code = 2
     user_message = "wiki 备份失败"

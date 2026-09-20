@@ -1,41 +1,9 @@
 #!/usr/bin/env python3
-"""wiki_fixtures — fixtures 一致性检查（升级时专用；CLI 入口 `llmw wiki check-fixtures`）
+"""wiki_fixtures — wiki 约定文件的结构性字节合规检查（`llmw wiki check-fixtures`）。
 
-从 fixture 视角校验一个已存在 wiki 的
-"约定文件"（AGENTS.md 末尾「当前配置」表 / .gitignore / wiki/index.md / wiki/log.md / wiki/tags.md /
-MEMORY/MEMORY.md / MEMORY/*.md 条目 / scripts/SCRIPTS.md / raw/external/.symlink-anchor.toml /
-wiki_metadata.toml）是否满足当前 wiki format 的结构要求。本模块只校验**结构性字节合规**；
-语义合并（frontmatter 字段升级 / index 重复条目 / 多 MEMORY 条目归并等）由
-upgrade-workflow.md「语义合并规则」+ LLM agent 走 upgrade plan 时处理——本模块不替代。
-
-用法:
-  llmw wiki check-fixtures --path=<WIKI_ROOT> [--json] [--target-format <semver>]
-
-缺省 --target-format 时读 llmw.WIKI_FORMAT_VERSION（包内常量；SKILL.md 前端的版本由 CI gate 与常量比对）。
-TOML 解析自带最小实现，不依赖 tomli/tomllib。
-
-退出码:
-  0 = 全部 check pass (或仅 skip / warn)
-  1 = 至少一条 error 级 check fail
-  2 = 运行错误（路径 / 参数 / 文件 IO）
-
-设计权衡:
-- 该脚本不写文件，也不产出 upgrade plan（由 llmw wiki lint --check-version
-  `--apply` 以 stdout JSON 输出并 call 它的活）；standalone 调用方只能看到 stdout/JSON 报告。
-- check 清单 = 结构探测 + 骨架字段比对（SKELETON_REGISTRY）+ 模板自检；
-  下一个 wiki format 升级只需新增 register 条目 / SKELETON_REGISTRY 描述符。骨架信号硬编码在
-  SKELETON_REGISTRY（与包内 fixtures/ 一致，改 fixtures 时手工同步描述符）；
-  唯独 .gitignore 走包内 fixtures/gitignore.txt 自动跟随。
-- `template-no-outbound-refs`：模板零出边引用是架构不变量（纪律正文唯一维护点 =
-  模板；SKILL.md / page-templates.md 单向指入模板），由该 check 机械强制。
-- AGENTS.md 走**模板渲染比对**（`agents-md-template-sync`）：从 wiki 末尾「当前配置」表提取
-  主题/创建日期/CLI 版本三变量 + wiki 自钉 format 版本，渲染包内 agents-md-template.md
-  后字节比对——一次性覆盖"旧版本残留 + 本地改动"全部漂移，取代 0.25.0- 的两条存在性检查
-  （has-at-imports / top-read-directive）。定制纪律应沉淀到 MEMORY/，不进 AGENTS.md。
-- 常量 SSOT 直接 import 不复制：SEMVER_RE / `_compare_semver` ← `_check_common`；
-  MEMORY_SUBDIR / EXTERNAL_SUBDIR / ANCHOR_FILENAME ← `wiki_lint`；LOG_LINE_RE ← `log_format`。
-  `_parse_anchor_minimal` 保留本地实现（与 `external_anchor.load` 的差别：captured_at
-  空串本版过滤——check 需更严格的判定）。
+只查结构；语义合并（字段升级 / 条目归并等）由 agent 走 upgrade plan 处理。
+不写文件、不产 plan（plan 由 `lint --check-version --apply` 生成）。退出码 0/1/2 = pass / error fail / 运行错误。
+新增 check：registry 加条目（骨架类并加 SKELETON_REGISTRY 描述符）。
 """
 
 import difflib
@@ -193,11 +161,9 @@ def _skill_format_version() -> Optional[str]:
 
 
 def _parse_anchor_minimal(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
-    """最小 TOML 解析——支持 [[entry]] 表 + key = "value" 双引号。
+    """最小 TOML 解析（[[entry]] + 双引号标量）；captured_at 空串过滤（比 external_anchor.load 严）。
 
-    本地保留（非 external_anchor import）：与 external_anchor.load 语义基本一致，但
-    captured_at 为空字符串时本版过滤（external_anchor 版保留）——check 需更严格的判定。
-    返回 List[Dict] 或 None（文件缺失 / 解析失败 / 无有效 entry）。
+    返回 List[Dict] 或 None（缺失 / 解析失败 / 无有效 entry）。
     """
     text = _read_text(anchor_path)
     if text is None:
@@ -259,10 +225,7 @@ def _parse_anchor_minimal(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
     return valid if valid else None
 
 
-# ============================================================================
-# 各 check 函数定义——每个返 Dict { passed, severity, expected, actual, file, evidence }
-# 约定：returned dict 至少有 "passed" (bool)；passed=False 时尽量附 "expected"/"actual"
-# ============================================================================
+# 各 check 函数：返 dict 至少含 "passed"；False 时尽量附 "expected"/"actual"
 
 
 def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
@@ -315,19 +278,8 @@ def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obj
 def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
     """AGENTS.md 与 render.py 渲染稿字节一致（变量 SSOT = metadata + 版本常量）。
 
-    渲染输入变量全部来自 `wiki_metadata.toml` + `llmw/__init__.py` 版本常量,
-    **不从旧文件反提取**。改模板措辞/结构后只动 skill 侧,本 check 自动跟随。
-
-    per-wiki 变量 4 个 (主题 / 创建日期 / CLI 版本 / Wiki Format 版本):
-    - 主题 / 创建日期 = wiki_metadata.toml 的 topic / created_at
-    - CLI 版本 / Wiki Format 版本 = llmw.__version__ / llmw.WIKI_FORMAT_VERSION
-
-    一次覆盖旧版本残留 + 本地改动全部漂移。自定义纪律沉淀到 MEMORY/（不进 AGENTS.md,
-    否则与渲染稿不等）。
-
-    与 `agents-version-is-current` 的关系: 本 check 渲染时直接用 CURRENT format 版本,
-    旧 wiki 必然字节差 → 也会 drift。**冗余是 benign**——两者都推荐 upgrade, 升级路径
-    一次修复。`agents-version-is-current` 仅做 currency 信息报告。
+    渲染输入不从旧文件反提取；定制纪律沉淀 MEMORY/（否则字节不比）。与
+    agents-version-is-current 的冗余是 benign——两者都推荐 upgrade，一次修复。
     """
     out = {"passed": True, "file": "AGENTS.md"}  # type: Dict[str, object]
     wiki_text = _read_text(wiki_root / "AGENTS.md")
@@ -376,10 +328,7 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
     return out
 
 
-# 模板零出边引用（架构不变量：纪律正文唯一维护点 = 模板，模板是引用图汇点）。
-# 任何指向 skill 目录文件 / 阿拉伯数字 §节号的引用都会被本 check 报 error——wiki 侧 agent
-# 解析不了这些指针（模板自己都写着"模板与配套工具随 skill 分发，不在本 wiki 内"），
-# 对运行时读者是死指针；改纪律只改模板对应段，SKILL.md / page-templates.md 单向指入模板。
+# 模板零出边引用（模板 = 引用图汇点）：指向 skill 目录的指针对 wiki 侧 agent 是死指针
 TEMPLATE_OUTBOUND_PATTERNS = (
     "page-templates.md",
     "lint-workflow.md",
@@ -391,14 +340,7 @@ TEMPLATE_OUTBOUND_PATTERNS = (
 
 
 def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """包内 agents-md-template.md 不含任何指向 skill 目录的出边引用。
-
-    模板随 init 拷贝进每个 wiki 成为 AGENTS.md——wiki 侧 agent 读不到 skill 目录，模板内
-    一切 `page-templates.md` / `lint-workflow.md` / `SKILL.md` /
-    `references/` / `OKF` / 阿拉伯数字 §节号 引用都是死指针（零白名单，含 provenance 声明也不得
-    携带——全部改写为自包含措辞）。skill 目录内文件 → 模板 单向引用由本 check
-    机械强制；对每个 wiki 报告同一结果（模板是全局文件），违反时 error 逼 skill 侧修复。
-    """
+    """包内 agents-md-template.md 零出边引用（零白名单；违反 → skill 侧修复）。"""
     out = {"passed": True, "file": "agents-md-template.md"}  # type: Dict[str, object]
     template = _read_text(wiki_templates_dir() / "agents-md-template.md")
     if template is None:
@@ -741,14 +683,8 @@ def check_opencode_instructions_sync(wiki_root: Path, info: Dict[str, str]) -> D
     return out
 
 
-# ============================================================================
-# 骨架字段级比对——gitignore 读包内 fixtures/；
-# 其余骨架信号（frontmatter 键 / H1 / 说明块 / ## 标题）硬编码在 SKELETON_REGISTRY
-# 描述符里（与包内 fixtures/*.txt 一致），改 fixtures 时手工同步描述符。
-# 纯骨架件（.gitignore/tags.md/SCRIPTS.md/MEMORY.md）全字段骨架比对；成长件
-# （index.md/log.md）只比结构必填（frontmatter 键 + H1 + 说明块），不动成长内容。
-# 只有 index.md.txt/log.md.txt 带占位符，其余文件 fixture 即字面量。
-# ============================================================================
+# 骨架字段级比对：信号硬编码在 SKELETON_REGISTRY（与包内 fixtures/*.txt 一致，
+# 改 fixtures 时手工同步）；只有 index.md.txt / log.md.txt 带占位符。
 
 
 def _fixtures_dir() -> Path:
@@ -796,14 +732,8 @@ def _parse_gitignore_sections(text: str) -> Dict[str, List[str]]:
 def _check_skeleton_signals(wiki_text: str, signals: Dict[str, object]) -> List[str]:
     """对照 signals 检查 wiki_text；返缺失项列表（空 = 全 pass）。
 
-    signals 支持的 key（任选组合）：
-      - ``frontmatter_keys``: List[str] — wiki frontmatter 键集必须 ⊇
-      - ``h1``: str — wiki 必须含该字面 H1 行（固定标题，如 ``# Tags``）
-      - ``h1_pattern``: str(regex) — wiki 首个 H1 必须匹配（变体标题，如 index.md ``# <topic> Wiki``）
-      - ``blockquote``: bool — wiki 必须含至少一行 ``>`` 引用（说明块）
-      - ``section_headings``: List[str] — wiki 必须含这些 ``##`` 标题
-      - ``gitignore_section_structure``: bool — 对照 fixtures/gitignore.txt，
-        非 external 段齐全 + 每段 ≥1 规则（容忍用户删某条编辑器规则，不绑死具体行）
+    signals key（任选组合）：frontmatter_keys / h1 / h1_pattern / blockquote /
+    section_headings / gitignore_section_structure。
     """
     missing = []  # type: List[str]
     lines = wiki_text.splitlines()
@@ -960,9 +890,7 @@ CHECK_REGISTRY.extend(
 )
 
 
-# ============================================================================
-# 调度
-# ============================================================================
+# ===== 调度 =====
 
 CHECK_FUNCTIONS = [
     ("agents-version-is-current", check_agents_version),

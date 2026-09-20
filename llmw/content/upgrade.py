@@ -1,31 +1,13 @@
-"""llmw.content.upgrade — wiki 骨架升级引擎
+"""llmw.content.upgrade — wiki 骨架升级引擎（`llmw wiki upgrade`）。
 
-确定性执行 upgrade（`llmw wiki upgrade`）：重渲染 byte-owned 文件 + growth 文件段嫁接
-+ legacy 路径表 + 版本钉写回 + 自检 fixtures checker 0 error。
+确定性执行：byte-owned 重渲染 + growth 段嫁接 + legacy 路径表 + 版本钉写回 + 自检。
+幂等，任意中间态可重跑。终态 JSON（--json 恒可用，agent 判定依据）：
 
-主流程（幂等，任意版本/中间态可重跑）：
+    status: done | done_with_residue | blocked_drift | dry_run | verify_failed | error
+    current_format = wiki AGENTS.md 版本钉（解析失败 = null，如实上报）；target = 包内常量。
 
-    idle → preflight（drift diff）→ resync → verifying → done
-                              ↘ blocked_drift（diff 非空 + 非 dry-run 未 --yes）
-                              ↘ verifying fail → exit 2（骨架已写盘，自检有 error）
-
-终态 JSON 契约（--json 恒可用，agent 判定依据）：
-
-    status: done | done_with_residue | blocked_drift | verify_failed | error
-    - done            : 骨架全渲染 + 自检 0 error + 无残留
-    - done_with_residue: 骨架完成，残留清单需 agent
-    - blocked_drift   : pre-constraint 自定义将被覆盖，dry-run 输出 diff 停住
-    - verify_failed   : 骨架已写盘但自检有 error（读 verified.failures[] 修完重跑，幂等）
-    - error           : 输入错（如 wiki_metadata.toml 缺失/字段不全）
-
-    current_format: wiki AGENTS.md 版本钉（解析失败 = null，如实上报）；target_format = 包内常量。
-
-退出码（run_upgrade()）:
-    0 = done / done_with_residue
-    1 = blocked_drift（diff 非空 + 非 dry-run 无 --yes）
-    2 = 输入错 / 自验证失败（骨架已写盘，自检有 error，修完重跑——upgrade 幂等）/ 内部错误
-
-变量 SSOT: metadata toml + 版本常量（不从旧文件反提取，详见 render.py）。
+退出码：0 = done / done_with_residue；1 = blocked_drift；2 = 输入错 / 自验失败（幂等可重跑）。
+变量 SSOT = metadata toml + 版本常量（不从旧文件反提取）。
 """
 
 import difflib
@@ -48,8 +30,6 @@ from llmw.workspace.gitignore import (
     GITIGNORE_MARKER_END,
     GITIGNORE_MARKER_START,
 )
-
-# ===== plan_resync: 计算 resync 计划（不写盘）=====
 
 
 def _load_meta(wiki_root: Path) -> Optional[Dict[str, str]]:
@@ -101,19 +81,10 @@ def _split_growth(text: str):
 
 
 def _render_growth_headers(*, old_text: str, fixture_text: str, rel_path: str) -> str:
-    """growth 文件换头 + 按段嫁接：保留旧 ## 段条目，用新 frontmatter / 说明块 / ## 段头。
+    """growth 文件换头 + 按段嫁接：新 frontmatter / 说明块 / ## 段头 + 旧段条目。
 
-    算法（按文件类型分三支）:
-    - 标准段文件 (index.md / MEMORY.md / SCRIPTS.md):
-      1. 解析旧文件 frontmatter + 说明块（> 段）+ ## 段体
-      2. 用新 fixture 的 frontmatter + 说明块 + ## 段头
-      3. 对每个 ## 段：若旧文件有同名段 → 填旧段条目；无 → 填 fixture 占位
-      4. 旧文件中 fixture 没有的段不保留（段名 = 骨架契约）；caller 经
-         _dropped_h2_sections 记 residue，不静默
-    - 追加式文件 (log.md):
-      只换 frontmatter + 说明块头（H1 + > 引用）；所有 ## 条目保留（log 是 append-only）。
-    - tags.md: 无 ## 段，白名单 bullet 全在头部注释行之后 → _graft_tags 只换头部。
-    解析失败 → 返空串（caller 判为 blocked_drift，不静默丢条目）。
+    三支：标准段文件（同名段填旧条目；旧独有段丢弃并记 residue）/ log.md（append-only，
+    只换头）/ tags.md（只换注释行前头部）。解析失败 → 返空串（caller 判 blocked，不静默丢条目）。
     """
     # log.md 特例：append-only，所有 ## 条目保留
     if rel_path.endswith("log.md"):
@@ -142,10 +113,7 @@ def _render_growth_headers(*, old_text: str, fixture_text: str, rel_path: str) -
 
 
 def _graft_log(old_text: str, fixture_text: str) -> str:
-    """log.md 专用：只换 frontmatter + 说明块（H1 + > 引用），保留所有 ## 条目。
-
-    log 是 append-only 文件，每个 ## 条目 = 一次操作记录，不应被替换/去重。
-    """
+    """log.md 专用：只换头，保留所有 ## 条目（append-only，不替换不去重）。"""
 
     def _split_head(text: str):
         """返 (head, body) 其中 head = frontmatter + 说明块（H1 + > 行 + 注释行），
@@ -172,11 +140,7 @@ def _graft_log(old_text: str, fixture_text: str) -> str:
 
 
 def _graft_tags(old_text: str, fixture_text: str) -> str:
-    """tags.md 专用：只换头部（H1 + > 说明块 + `<!-- ... -->` 注释行），保留注释行之后的全部白名单 bullet。
-
-    tags.md 无 `##` 段、无 frontmatter——用户 growth（tag 白名单）全部追加在头部
-    `<!-- ... -->` 注释行之后；找不到该注释锚点 → 返空串（caller 判 blocked，不静默丢条目）。
-    """
+    """tags.md 专用：只换头部，保留注释行之后的白名单 bullet；找不到锚点 → 空串（caller 判 blocked）。"""
 
     def _split_at_comment(text: str):
         lines = text.splitlines(keepends=True)
@@ -208,10 +172,7 @@ def _has_growth(lines: List[str]) -> bool:
 
 
 def _dropped_h2_sections(old_text: str, fixture_text: str) -> List[str]:
-    """旧文件有、fixture 没有、且含真实 growth 内容的 ## 段名列表（占位段不记，避免噪声）。
-
-    段名 = 骨架契约（header-owned）：旧段不在新骨架 → 嫁接时丢弃；caller 记 residue，不静默。
-    """
+    """旧文件有、fixture 没有且含真实内容的段名（占位段不记）——caller 记 residue。"""
     _, _, old_sections = _split_growth(old_text)
     _, _, new_sections = _split_growth(fixture_text)
     return [h2 for h2, body in old_sections.items() if h2 not in new_sections and _has_growth(body)]
@@ -254,11 +215,7 @@ def _apply_substitute(text: str, *, topic: str, setup_date: str) -> str:
 
 
 def plan_resync(wiki_root: Path, *, meta: Dict[str, str]) -> List[Dict[str, object]]:
-    """计算 resync 计划（不写盘）→ [{rel_path, action, old?, new?, diff?}]
-
-    action: 'render' (byte-owned 全量重渲染) / 'growth-graft' (growth 换头保条目) /
-            'create' (缺失文件从 fixture 创建) / 'gitignore-block' (.gitignore managed 块替换)
-    """
+    """计算 resync 计划（不写盘）。action: render / growth-graft / create / gitignore-block。"""
     plan = []  # type: List[Dict[str, object]]
     topic = meta["topic"]
     # SETUP_DATE: UTC created_at → "YYYY-MM-DD HH:MM" (replace "T" with space, take first 16 chars)
@@ -354,9 +311,6 @@ def plan_resync(wiki_root: Path, *, meta: Dict[str, str]) -> List[Dict[str, obje
     return plan
 
 
-# ===== apply_resync: 写盘 =====
-
-
 def apply_resync(wiki_root: Path, plan: List[Dict[str, object]]) -> List[Dict[str, str]]:
     """按 plan 写盘；返 changed[] 列表（含 rel_path + action）。"""
     changed = []  # type: List[Dict[str, str]]
@@ -373,9 +327,6 @@ def apply_resync(wiki_root: Path, plan: List[Dict[str, object]]) -> List[Dict[st
         atomic_write(target, new_text)  # type: ignore
         changed.append({"file": str(rel), "action": str(action)})
     return changed
-
-
-# ===== legacy_paths: 路径表变换 =====
 
 
 def _load_legacy_table() -> List[Dict[str, str]]:
@@ -427,9 +378,6 @@ def apply_legacy_paths(wiki_root: Path) -> List[Dict[str, str]]:
     return changed
 
 
-# ===== self_verify =====
-
-
 def self_verify(wiki_root: Path) -> Dict[str, object]:
     """内联重跑 fixtures checker → 返 {error, warn, pass, skip, failures: [...]}。"""
     report = wiki_fixtures.run_checks(wiki_root, WIKI_FORMAT_VERSION)
@@ -443,9 +391,6 @@ def self_verify(wiki_root: Path) -> Dict[str, object]:
         "skip": summary.get("skip", 0),  # type: ignore
         "failures": failures,
     }
-
-
-# ===== main entry =====
 
 
 def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_json: bool = False) -> int:
@@ -475,7 +420,6 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
     # 注：growth-graft 保留条目，不算 drift；只有 byte-owned render + gitignore-block 算
     has_diff = any(item.get("diff") for item in plan if item.get("action") in ("render", "gitignore-block"))
     if has_diff and not dry_run and not yes:
-        # blocked_drift: 输出 diff 但不写盘
         changed_out = []  # type: List[Dict[str, object]]
         for item in plan:
             if not item.get("diff"):

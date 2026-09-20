@@ -1,29 +1,13 @@
-"""workspace 级 .gitignore managed block 维护（横切关注点，独立成模块）
-
-被 workspace init / wiki remove --purge / llmw upgrade（wiki 侧引 GITIGNORE_LINES、
-workspace 侧重放 managed block）共同消费——原先散落在 workspace.manager 的私有函数 +
-三处跨模块 import 私有名（store 反向依赖 manager 成环），现收口为公开 API。
-"""
+"""workspace 级 .gitignore managed block 维护（init / purge / upgrade 共用的公开 API）。"""
 
 import re
 from pathlib import Path
 
 from llmw.fsutil import atomic_write
 
-# workspace 级 .gitignore managed block 内容（本文件 SSOT）
-# 前 3 行严格对齐 registry + Claude Code / Qoder IDE 项目级 overlay。
-# 单仓模型：wiki 是 workspace 直属子目录，**/.<agent>/settings*.json 通配覆盖所有
-# wiki 的 overlay secret，不依赖 per-wiki .gitignore / wiki scaffold。
-# 后 3 行为 llmw 自有扩展（"至少包含"语义下保留以避免误提交，
-# 见 MEMORY 驳正条目）：
-# - workspace_local.toml  主机相关运行时配置 (enter_cli，schema v2 起从 workspace.toml
-#                          拆出；跨主机各异，必须本地化)
-# - .llmw-trash/          wiki remove --purge 写入的备份目录
-# - **/opencode.json      机器本地生成配置（overlay_opencode 整文件拥有，
-#                          每次 llmw wiki enter 幂等渲染重建），不入 git
-#                          （与 **/.claude/settings*.json 同模型）；
-#                          保留行同时兜底遗留含明文 apiKey 的老文件（整文件覆盖
-#                          在下次 enter 自动剥除 provider.llmw，但剥除前仍需排除）
+# managed block 内容（本文件 SSOT）。前 3 行对齐 registry + Claude / Qoder overlay
+# secret；后 3 行为 llmw 自有扩展：workspace_local.toml（主机相关运行时）/
+# .llmw-trash/（purge 备份）/ **/opencode.json（机器本地生成，含遗留明文兜底）。
 GITIGNORE_LINES = (
     "workspace_models.toml",
     "**/.claude/settings*.json",
@@ -33,15 +17,11 @@ GITIGNORE_LINES = (
     "**/opencode.json",
 )
 
-# managed block 边界 marker（SSOT）。所有提取 / 替换 / 渲染该 block 的消费方
-# （本模块 / llmw.content.upgrade / llmw.content.upgrade_workspace）一律引用此常量，
-# 不得复刻字面量——曾因 upgrade_workspace 手写字面量与 SSOT 不一致，整条
-# gitignore-block 升级路径静默失效。
+# managed block 边界 marker（SSOT）——所有提取 / 替换 / 渲染消费方引此常量，不得复刻字面量
 GITIGNORE_MARKER_START = "# >>> llmw (managed by llmw) >>>"
 GITIGNORE_MARKER_END = "# <<< llmw <<<"
 
-# workspace .gitignore 的通用忽略段（OS / 编辑器 / Obsidian / 临时）。
-# 全新 init 时与 managed block 一同落盘；已有 .gitignore 时不追加（尊重外部来源）。
+# 通用忽略段（OS / 编辑器 / Obsidian / 临时）；仅全新 init 落盘，已有 .gitignore 不追加
 _GITIGNORE_COMMON = """\
 # OS / 编辑器
 .DS_Store
@@ -61,12 +41,7 @@ _GITIGNORE_COMMON = """\
 
 
 def ensure_workspace_gitignore(workspace_root: Path) -> None:
-    """确保 workspace 级 .gitignore 含 llmw managed block + 通用忽略段。
-
-    - 文件不存在 → 创建（managed block + OS / Obsidian / 临时通用段）
-    - 文件存在 → 仅更新 managed marker 区间（secret 排除行），通用段不动
-      （已有 .gitignore 视为用户/外部来源，不覆盖其内容）
-    """
+    """确保 .gitignore 含 managed block：文件不存在则连通用段一起建，已存在只换 block 区间。"""
     gitignore = workspace_root / ".gitignore"
     marker_start = GITIGNORE_MARKER_START
     marker_end = GITIGNORE_MARKER_END

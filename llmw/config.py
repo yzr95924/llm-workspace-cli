@@ -13,15 +13,9 @@ CONTENT_DIR = Path(__file__).resolve().parent / "content"
 def resolve_workspace_root(
     explicit: str = None,
 ) -> Path:
-    """解析 workspace 根路径
+    """解析 workspace 根：explicit > $LLMW_WORKSPACE > 默认路径。
 
-    优先级:
-      1. explicit (--workspace flag)
-      2. $LLMW_WORKSPACE env var
-      3. ~/yzr-llm-wiki-workspace (默认)
-
-    解析后校验: 必须存在、是目录、含 workspace.toml。
-    不存在 → WorkspaceNotFound
+    校验存在 / 是目录 / 含 workspace.toml，失败 WorkspaceNotFound。
     """
     if explicit:
         root = Path(explicit).resolve()
@@ -43,15 +37,12 @@ def resolve_workspace_root(
 
 
 def wiki_templates_dir() -> Path:
-    """包内 llmw/content/templates/wiki/ 路径 (AGENTS.md SSOT 模板 / CLAUDE.md 薄壳模板 / fixtures 字节金标准)"""
     return CONTENT_DIR / "templates" / "wiki"
 
 
 def workspace_templates_dir() -> Path:
-    """包内 llmw/content/templates/workspace/ 路径 (workspace AGENTS.md / CLAUDE.md 模板 / fixtures 字节金标准)"""
     return CONTENT_DIR / "templates" / "workspace"
 
 
 def metadata_templates_dir() -> Path:
-    """包内 llmw/content/templates/metadata/ 路径 (wiki_metadata.toml 渲染模板)"""
     return CONTENT_DIR / "templates" / "metadata"
