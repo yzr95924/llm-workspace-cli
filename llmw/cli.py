@@ -1,6 +1,7 @@
 """argparse 顶层 + 全局 flag + 子命令分派"""
 
 import argparse
+import io
 import json
 import os
 import sys
@@ -78,6 +79,14 @@ def _enforce_equals_form(parser, argv):
     for tok in argv:
         if tok in value_flags:
             raise SpaceFormNotAllowed(tok)
+
+
+# wiki 内容层子命令：须在 workspace 解析前分派（--path 直传时不依赖 workspace）。
+# main() 的提前分派判定与 _cmd_wiki_content 的处理器集合共用此常量（单一真源，
+# 新增内容子命令只改这里 + 加一个处理器分支）。
+_WIKI_CONTENT_ACTIONS = frozenset(
+    {"lint", "check-fixtures", "ingest-diff", "upgrade", "write", "external"}
+)
 
 
 def _common_flags() -> argparse.ArgumentParser:
@@ -564,6 +573,123 @@ def _cmd_wiki_content(args) -> int:
 
         return external_anchor.dispatch(root, args)
 
+    # 不可达（main 的提前分派以 _WIKI_CONTENT_ACTIONS 为准）；防两处名单漂移后
+    # 静默落到 `return None`（exit 0）——失败要响
+    raise InternalError(f"未处理的内容子命令: {wa}")
+
+
+def _capture_output(fn):
+    """捕获 fn 执行期间的标准输出 / 错误输出，返 (rc, text)。
+
+    upgrade 聚合入口需要保留各阶段分片文本再统一编排（JSON 阶段解析 + 人读分节拼接）。
+    """
+    buf = io.StringIO()
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    try:
+        sys.stdout = buf
+        sys.stderr = buf
+        rc = fn()
+    finally:
+        sys.stdout, sys.stderr = old_stdout, old_stderr
+    return rc, buf.getvalue()
+
+
+def _cmd_upgrade(args, ws_root: Path) -> int:
+    """`llmw upgrade`：workspace 骨架 + 逐 wiki 聚合两段式（默认 dry-run）。"""
+    from llmw.content import upgrade as _upgrade
+    from llmw.content import upgrade_workspace as _ws_upgrade
+    from llmw.workspace import store as _ws_store
+
+    dry_run = not _flag(args, "apply")
+    yes = _flag(args, "yes")
+    as_json = _flag(args, "json")
+
+    # Phase 1: workspace 骨架
+    ws_rc, ws_out_raw = _capture_output(
+        lambda: _ws_upgrade.run_workspace_upgrade(
+            ws_root, dry_run=dry_run, yes=yes, as_json=as_json
+        )
+    )
+    worst_rc = ws_rc
+
+    # workspace 阶段 JSON（as_json 时）解析一次，供聚合输出复用
+    ws_result_obj = None
+    if as_json and ws_out_raw.strip():
+        try:
+            ws_result_obj = json.loads(ws_out_raw)
+        except ValueError:
+            ws_result_obj = None
+
+    # Phase 2: 逐 wiki
+    try:
+        ws_toml = _ws_store.load(ws_root)
+        wikis = getattr(ws_toml, "wikis", {}) or {}
+    except Exception as exc:
+        # 加载失败：workspace 骨架升级可能还在跑，记为 load_failed、不阻断收尾
+        aggregated_wikis = [
+            {
+                "status": "load_failed",
+                "hint": f"workspace.toml 加载失败：{exc}",
+            }
+        ]
+        if not as_json:
+            print(
+                f"\n[llmw] warn: workspace.toml 加载失败：{exc}",
+                file=sys.stderr,
+            )
+    else:
+        aggregated_wikis = []  # type: list
+        for wiki_name, entry in wikis.items():
+            wiki_root = (ws_root / getattr(entry, "path", "")).resolve()
+            if not wiki_root.is_dir():
+                aggregated_wikis.append(
+                    {
+                        "wiki": wiki_name,
+                        "status": "not_found",
+                        "hint": f"{wiki_root} 不存在",
+                    }
+                )
+                worst_rc = max(worst_rc, 2)
+                continue
+            rc, out = _capture_output(
+                lambda wr=wiki_root: _upgrade.run_upgrade(
+                    wr, dry_run=dry_run, yes=yes, as_json=as_json
+                )
+            )
+            aggregated_wikis.append({"wiki": wiki_name, "output": out, "exit": rc})
+            worst_rc = max(worst_rc, rc)
+
+    _emit_upgrade_aggregate(ws_out_raw, ws_result_obj, ws_rc, aggregated_wikis, as_json)
+    return worst_rc
+
+
+def _emit_upgrade_aggregate(
+    ws_out_raw, ws_result_obj, ws_rc, aggregated_wikis, as_json: bool
+) -> None:
+    """`llmw upgrade` 聚合输出：JSON = {workspace, wikis[]}；人读 = 分节拼接。"""
+    if as_json:
+        out = (
+            {"workspace": ws_result_obj}
+            if ws_result_obj is not None
+            else {"workspace": {"raw": ws_out_raw}}
+        )
+        out["wikis"] = aggregated_wikis
+        print(json.dumps(out, indent=2, ensure_ascii=False))
+        return
+    print("=== workspace ===")
+    print(ws_out_raw.rstrip())
+    if ws_rc:
+        print(f"[exit {ws_rc}]")
+    for item in aggregated_wikis:
+        if item.get("status") in ("not_found", "load_failed"):
+            print(f"\n=== {item.get('wiki', '(workspace)')} ===")
+            print(f"[{item['status']}] {item.get('hint', '')}")
+            continue
+        print(f"\n=== {item['wiki']} ===")
+        print(item.get("output", "").rstrip())
+        if item.get("exit"):
+            print(f"[exit {item['exit']}]")
+
 
 def main(argv=None) -> int:
     argv = list(argv) if argv is not None else sys.argv[1:]
@@ -587,14 +713,7 @@ def main(argv=None) -> int:
             return _cmd_status(args)
 
         # wiki 内容层子命令：--path 直传时不依赖 workspace，须在 workspace 解析前分派
-        if args.command == "wiki" and args.wiki_action in (
-            "lint",
-            "check-fixtures",
-            "ingest-diff",
-            "upgrade",
-            "write",
-            "external",
-        ):
+        if args.command == "wiki" and args.wiki_action in _WIKI_CONTENT_ACTIONS:
             return _cmd_wiki_content(args)
 
         # 下列命令需要先解析 workspace_root；--list-rules 自包含（无需 workspace）先拦截
@@ -617,110 +736,7 @@ def main(argv=None) -> int:
             )
 
         if args.command == "upgrade":
-            from llmw.content import upgrade as _upgrade
-            from llmw.content import upgrade_workspace as _ws_upgrade
-            from llmw.workspace import store as _ws_store
-
-            dry_run = not _flag(args, "apply")
-            yes = _flag(args, "yes")
-            as_json = _flag(args, "json")
-            worst_rc = 0
-
-            # Phase 1: workspace 骨架
-            import io as _io
-
-            ws_buf = _io.StringIO()
-            old_stdout, old_stderr = sys.stdout, sys.stderr
-            try:
-                sys.stdout = ws_buf
-                sys.stderr = ws_buf
-                ws_rc = _ws_upgrade.run_workspace_upgrade(
-                    ws_root, dry_run=dry_run, yes=yes, as_json=as_json
-                )
-            finally:
-                sys.stdout, sys.stderr = old_stdout, old_stderr
-            ws_out_raw = ws_buf.getvalue()
-            ws_rc = max(ws_rc, 0)
-            worst_rc = max(worst_rc, ws_rc)
-
-            # workspace 3-terminal JSON：若 as_json 且 ws 阶段产出了 JSON → 解析一次
-            ws_result_obj = None
-            if as_json and ws_out_raw.strip():
-                try:
-                    ws_result_obj = json.loads(ws_out_raw)
-                except Exception:
-                    ws_result_obj = None
-
-            # Phase 2: 逐 wiki
-            try:
-                ws_toml = _ws_store.load(ws_root)
-                wikis = getattr(ws_toml, "wikis", {}) or {}
-            except Exception as exc:
-                # 加载失败：workspace 骨架升级可能还在跑，记为 load_failed、不阻断收尾
-                aggregated_wikis = [
-                    {
-                        "status": "load_failed",
-                        "hint": f"workspace.toml 加载失败：{exc}",
-                    }
-                ]
-                if not as_json:
-                    print(
-                        f"\n[llmw] warn: workspace.toml 加载失败：{exc}",
-                        file=sys.stderr,
-                    )
-            else:
-                aggregated_wikis = []  # type: list
-                for wiki_name, entry in wikis.items():
-                    wiki_root = (ws_root / getattr(entry, "path", "")).resolve()
-                    if not wiki_root.is_dir():
-                        aggregated_wikis.append(
-                            {
-                                "wiki": wiki_name,
-                                "status": "not_found",
-                                "hint": f"{wiki_root} 不存在",
-                            }
-                        )
-                        worst_rc = max(worst_rc, 2)
-                        continue
-                    buf = _io.StringIO()
-                    old_stdout, old_stderr = sys.stdout, sys.stderr
-                    try:
-                        sys.stdout = buf
-                        sys.stderr = buf
-                        rc = _upgrade.run_upgrade(
-                            wiki_root, dry_run=dry_run, yes=yes, as_json=as_json
-                        )
-                    finally:
-                        sys.stdout, sys.stderr = old_stdout, old_stderr
-                    aggregated_wikis.append(
-                        {"wiki": wiki_name, "output": buf.getvalue(), "exit": rc}
-                    )
-                    worst_rc = max(worst_rc, rc)
-
-            if as_json:
-                out = (
-                    {"workspace": ws_result_obj}
-                    if ws_result_obj is not None
-                    else {"workspace": {"raw": ws_out_raw}}
-                )
-                out["wikis"] = aggregated_wikis
-                print(json.dumps(out, indent=2, ensure_ascii=False))
-            else:
-                print("=== workspace ===")
-                print(ws_out_raw.rstrip())
-                if ws_rc:
-                    print(f"[exit {ws_rc}]")
-                if aggregated_wikis:
-                    for item in aggregated_wikis:
-                        if item.get("status") in ("not_found", "load_failed"):
-                            print(f"\n=== {item.get('wiki', '(workspace)')} ===")
-                            print(f"[{item['status']}] {item.get('hint', '')}")
-                            continue
-                        print(f"\n=== {item['wiki']} ===")
-                        print(item.get("output", "").rstrip())
-                        if item.get("exit"):
-                            print(f"[exit {item['exit']}]")
-            return worst_rc
+            return _cmd_upgrade(args, ws_root)
 
         if args.command == "config":
             from llmw.workspace.manager import (

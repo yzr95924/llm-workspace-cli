@@ -16,7 +16,7 @@ import shutil
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import List, NamedTuple, Optional
+from typing import List, NamedTuple, Optional, Tuple
 
 from llmw._compat import TOMLDecodeError
 from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
@@ -217,10 +217,15 @@ def _warn_missing_context(name: str, claude_md: Path, meta_p: Path) -> None:
         print(f"[llmw] warning: wiki '{name}' 缺少 wiki_metadata.toml", file=sys.stderr)
 
 
-def _resolve_backend(workspace_root: Path) -> str:
-    """选 backend：非法值 warning + 回退默认（不静默吞用户意图）。"""
+def _resolve_backend(workspace_root: Path) -> Tuple[str, bool]:
+    """选 backend：非法值 warning + 回退默认（不静默吞用户意图）。
+
+    返回 (backend, explicit)：explicit = 生效 backend 来自 workspace_local.toml
+    显式配置（False = 走默认或非法值回退）。enter 文案据此区分"（默认）"与配置来源。
+    """
     local = local_store.load(workspace_root)
-    backend = local.enter_cli or DEFAULT_BACKEND
+    configured = local.enter_cli
+    backend = configured or DEFAULT_BACKEND
     if backend not in KNOWN_BACKENDS:
         print(
             f"[llmw] warning: workspace_local.toml#enter_cli 值 '{backend}' 不在白名单，"
@@ -228,7 +233,7 @@ def _resolve_backend(workspace_root: Path) -> str:
             file=sys.stderr,
         )
         backend = DEFAULT_BACKEND
-    return backend
+    return backend, configured == backend
 
 
 def _check_enter_env(agent_bin: str, dry_run: bool) -> None:
@@ -292,7 +297,7 @@ def enter(
     meta_p = wiki_path / "wiki_metadata.toml"
     _warn_missing_context(name, claude_md, meta_p)
 
-    backend = _resolve_backend(workspace_root)
+    backend, explicit = _resolve_backend(workspace_root)
     _check_enter_env(backend, dry_run)  # backend 值即 agent 二进制名
 
     # qodercli 路径：裸启动——跳过 resolve / overlay；只传目录
@@ -318,6 +323,7 @@ def enter(
             claude_md,
             dry_run,
             window_suffix,
+            explicit,
         )
 
     # claude 路径：resolve → overlay → spawn。resolve 拿最终 model
@@ -416,13 +422,11 @@ def _enter_opencode(
     claude_md: Path,
     dry_run: bool,
     window_suffix: Optional[str],
+    explicit: bool,
 ) -> int:
     cmd = _build_cmd_opencode(wiki_path)
-    suffix = (
-        "（默认）"
-        if DEFAULT_BACKEND == "opencode"
-        else "(workspace_local.toml#enter_cli)"
-    )
+    # opencode 既可能是默认也可能是显式配置——suffix 据 explicit 如实标注来源
+    suffix = "(workspace_local.toml#enter_cli)" if explicit else "（默认）"
 
     if dry_run:
         overlay_path, would_write = overlay_opencode.inspect(wiki_path)

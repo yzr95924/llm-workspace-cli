@@ -36,7 +36,7 @@ from pathlib import Path
 
 from llmw.content.external_anchor import SOURCE_NAME_RE
 from llmw.content.ingest_diff import parse_frontmatter_simple
-from llmw.content.log_format import LOG_LINE_RE
+from llmw.content.log_format import LOG_LINE_RE, LOG_OPS
 from llmw.content.page_types import (
     CONTENT_TYPES,
     TYPE_TO_DIR,
@@ -47,6 +47,7 @@ from llmw.content.wiki_lint import (
     LOG_RETENTION_LIMIT,
     parse_format_version,
 )
+from llmw.fsutil import atomic_write
 
 _FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?", re.DOTALL)
 _INDEX_ENTRY_RE = re.compile(r"^\s*-\s*\[([^\]]+)\]\(([^)]+)\)(.*)$")
@@ -119,7 +120,7 @@ def cmd_log(wiki_root, args):
             "（完整历史见 git log -p -- wiki/log.md）",
             file=sys.stderr,
         )
-    log_path.write_text(text, encoding="utf-8")
+    atomic_write(log_path, text)
     print(f"已追加 {len(lines)} 条 log 条目到 wiki/log.md", file=sys.stderr)
     return None, 0
 
@@ -174,7 +175,7 @@ def cmd_index(wiki_root, args):
             out.append(line)
         if not removed:
             return f"index 中未找到指向 {link} 的条目", 2
-        index_path.write_text("".join(out), encoding="utf-8")
+        atomic_write(index_path, "".join(out))
         print(f"已从 wiki/index.md 移除 {link} 条目", file=sys.stderr)
         return None, 0
 
@@ -232,9 +233,9 @@ def cmd_index(wiki_root, args):
         if section_lines and not section_lines[-1].endswith("\n"):
             section_lines[-1] += "\n"
         section_lines.append(entry + "\n")
-    index_path.write_text(
+    atomic_write(
+        index_path,
         "".join(out[: target_idx + 1] + section_lines + out[target_idx + 1 :]),
-        encoding="utf-8",
     )
     print(f"已在 wiki/index.md `## {section}` 段添加 {link} 条目", file=sys.stderr)
     return None, 0
@@ -284,7 +285,7 @@ def cmd_touch(wiki_root, args):
     if not any(re.match(r"^updated:\s*", ln) for ln in new_lines):
         new_lines.append(f"updated: {now}\n")
         changed.append(f"补 updated={now}")
-    page_path.write_text("".join(lines[:1] + new_lines + lines[close_idx:]), encoding="utf-8")
+    atomic_write(page_path, "".join(lines[:1] + new_lines + lines[close_idx:]))
     print("touch {}：{}".format(args.page, "；".join(changed) if changed else "无改动"), file=sys.stderr)
     return None, 0
 
@@ -322,7 +323,7 @@ def cmd_new(wiki_root, args):
         fm_lines.extend(f"  - {s}" for s in args.sources)
     fm_lines.append("---")
     body = f"\n\n# {args.title}\n"
-    page_path.write_text("\n".join(fm_lines) + body, encoding="utf-8")
+    atomic_write(page_path, "\n".join(fm_lines) + body)
     print(f"已创建 {page_path}（正文待 agent 按 page-templates.md 填充）", file=sys.stderr)
     return None, 0
 
@@ -356,7 +357,7 @@ def cmd_memory(wiki_root, args):
     fm_lines.append(f"created: {now}")
     fm_lines.append(f"updated: {now}")
     fm_lines.append("---")
-    entry_path.write_text("\n".join(fm_lines) + "\n\n", encoding="utf-8")
+    atomic_write(entry_path, "\n".join(fm_lines) + "\n\n")
     if not index_text.endswith("\n"):
         index_text += "\n"
     index_line = "- {}{} → [正文]({}.md)".format(
@@ -364,7 +365,7 @@ def cmd_memory(wiki_root, args):
         (" — " + args.index_line) if args.index_line else "",
         args.slug,
     )
-    index_path.write_text(index_text + index_line + "\n", encoding="utf-8")
+    atomic_write(index_path, index_text + index_line + "\n")
     print(f"已创建 MEMORY/{args.slug}.md + 追加 MEMORY.md 索引行（正文待 agent 写）", file=sys.stderr)
     return None, 0
 
@@ -379,7 +380,7 @@ def build_subparsers(sub) -> None:
     命令树；无独立入口（入口唯一：`llmw wiki write <sub>`）。
     """
     p_log = sub.add_parser("log", help=f"追加 log.md 条目（自动截断保最近 {LOG_RETENTION_LIMIT} 条）")
-    p_log.add_argument("--op", required=True, choices=["ingest", "query", "lint", "setup"])
+    p_log.add_argument("--op", required=True, choices=LOG_OPS)
     p_log.add_argument("--title", action="append", help="条目标题（可重复）")
     p_log.add_argument("--bulk", action="store_true", help="批量摄取模式（Bulk: <topic> (<N> sources)）")
     p_log.add_argument("--topic", help="--bulk 用的主题概览")

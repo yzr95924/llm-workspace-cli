@@ -40,8 +40,14 @@ from llmw import __version__ as CLI_VERSION
 from llmw.content import render as _render
 from llmw.content import wiki_fixtures
 from llmw.content._check_common import read_text as _read_text
+from llmw.content.wiki_lint import parse_format_version as _parse_format_version
 from llmw.fsutil import atomic_write
 from llmw.wiki import store as wiki_store
+from llmw.workspace.gitignore import (
+    GITIGNORE_LINES,
+    GITIGNORE_MARKER_END,
+    GITIGNORE_MARKER_START,
+)
 
 # ===== plan_resync: 计算 resync 计划（不写盘）=====
 
@@ -317,14 +323,11 @@ def plan_resync(wiki_root: Path, *, meta: Dict[str, str]) -> List[Dict[str, obje
     gi_path = wiki_root / GITIGNORE_REL
     old_gi = _read_text(gi_path)
     if old_gi is not None:
-        from llmw.workspace.gitignore import GITIGNORE_LINES
-
-        marker_s = "# >>> llmw (managed by llmw) >>>"
-        marker_e = "# <<< llmw <<<"
-        new_block = marker_s + "\n" + "\n".join(GITIGNORE_LINES) + "\n" + marker_e
-        import re
-
-        pat = re.compile(re.escape(marker_s) + r".*?" + re.escape(marker_e), re.DOTALL)
+        new_block = GITIGNORE_MARKER_START + "\n" + "\n".join(GITIGNORE_LINES) + "\n" + GITIGNORE_MARKER_END
+        pat = re.compile(
+            re.escape(GITIGNORE_MARKER_START) + r".*?" + re.escape(GITIGNORE_MARKER_END),
+            re.DOTALL,
+        )
         m = pat.search(old_gi)
         if m and m.group(0) != new_block:
             new_gi = pat.sub(new_block, old_gi)
@@ -466,8 +469,6 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
     plan = plan_resync(wiki_root, meta=meta)
 
     # 当前版本 = wiki AGENTS.md 版本钉（如实上报；解析失败 = None，不冒充 CLI 常量）
-    from llmw.content.wiki_lint import parse_format_version as _parse_format_version
-
     current_format = _parse_format_version(wiki_root)
 
     # 2. preflight: 判断 blocked_drift（diff 非空 + 非 dry-run 未 --yes）

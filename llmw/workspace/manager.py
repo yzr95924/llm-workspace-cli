@@ -388,7 +388,19 @@ def _gather_wiki_rows(
 
     meta 读取失败（文件损坏等）→ warning + 降级空元数据（列表仍完整，不因单个 wiki
     损坏而整体失败）——与 _show_collect 同一降级模式。
+
+    ws / registry 由调用方预载后传入 resolve_for_wiki（循环内复用，省 N×文件 IO）。
     """
+    from llmw.models.resolve import resolve_for_wiki
+    from llmw.models.store import load as registry_load
+
+    # registry 预载一次；失败 → None，resolve 内部按原语义重载并抛对应异常
+    # （循环内 except 统一降级 model_info=None）
+    try:
+        registry = registry_load(workspace_root)
+    except Exception:
+        registry = None
+
     rows = []
     for name in sorted(ws.wikis.keys()):
         entry = ws.wikis[name]
@@ -418,9 +430,7 @@ def _gather_wiki_rows(
         # 通过 resolve 拿 model 来源（若失败则不阻断 list，回落 meta.model / 空值，表格显示 "-"）
         model_info = None
         try:
-            from llmw.models.resolve import resolve_for_wiki
-
-            entry_obj = resolve_for_wiki(workspace_root, name)
+            entry_obj = resolve_for_wiki(workspace_root, name, ws=ws, registry=registry)
             model_info = {
                 "model_id": entry_obj.model_id,
                 "name": entry_obj.name,

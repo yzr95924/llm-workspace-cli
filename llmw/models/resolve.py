@@ -6,6 +6,7 @@ wiki.metadata.model 优先（需在 registry 中存在），否则 registry 中 
 
 import sys
 from pathlib import Path
+from typing import Optional
 
 from llmw._compat import TOMLDecodeError
 from llmw.errors import (
@@ -15,17 +16,26 @@ from llmw.errors import (
     WikiDirMissing,
     WikiNotFound,
 )
-from llmw.models.store import ModelEntry, RegistryMissing, load
+from llmw.models.store import ModelEntry, Registry, RegistryMissing, load
 from llmw.wiki import store as wiki_store
 from llmw.workspace import store as ws_store
 
 
-def resolve_for_wiki(workspace_root: Path, wiki_name: str) -> ModelEntry:
+def resolve_for_wiki(
+    workspace_root: Path,
+    wiki_name: str,
+    *,
+    ws: Optional[ws_store.WorkspaceToml] = None,
+    registry: Optional[Registry] = None,
+) -> ModelEntry:
     """返回 enter 时该 wiki 实际使用的 ModelEntry。
 
     优先级：
       1. wiki_metadata.model （若存在）→ 必须在 registry 中
       2. registry 中 is_default=true 的唯一条目
+
+    预载参数（ws / registry）：聚合入口（如 llmw list 循环调用）复用同一次文件读取，
+    省 N×重复 IO；None（默认）时各自 load，单次调用语义不变。
 
     异常：
       WikiNotFound:        wiki 不在 workspace.toml 中
@@ -35,7 +45,8 @@ def resolve_for_wiki(workspace_root: Path, wiki_name: str) -> ModelEntry:
       ModelDefaultNotSet:  registry 空或无 is_default=true
       ModelDefaultAmbiguous: 多条 is_default=true（数据损坏, load 时抛）
     """
-    ws = ws_store.load(workspace_root)
+    if ws is None:
+        ws = ws_store.load(workspace_root)
     if wiki_name not in ws.wikis:
         raise WikiNotFound(
             f"wiki '{wiki_name}' 不在当前 workspace 中",
@@ -65,7 +76,7 @@ def resolve_for_wiki(workspace_root: Path, wiki_name: str) -> ModelEntry:
         # load 对 "有 models 但无 default" 不抛错 (default 可后置); wiki 若指定了 model,
         # 即使 registry 无 default 也能用 (走下面的 wiki.model 分支)。
         # 多条 default 仍抛 ModelDefaultAmbiguous, 无 registry 抛 RegistryMissing。
-        reg = load(workspace_root)
+        reg = registry if registry is not None else load(workspace_root)
     except RegistryMissing as e:
         # 用户体验：直接说 ModelDefaultNotSet，不要暴露 RegistryMissing
         raise ModelDefaultNotSet(

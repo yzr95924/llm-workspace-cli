@@ -526,7 +526,8 @@ def cmd_rebuild(wiki_root: Path, args) -> Tuple[Optional[str], int]:
         except EOFError:
             ans = ""
         if ans not in ("y", "yes"):
-            return ("rebuild 已取消", 0)
+            print("[llmw] rebuild 已取消", file=sys.stderr)
+            return (None, 0)
 
     clone_failed = []
     relink_failed = []

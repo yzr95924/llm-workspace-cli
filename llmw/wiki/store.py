@@ -114,10 +114,11 @@ def create_skeleton(wiki_dir: Path, name: str, topic: str) -> WikiMetadata:
     template_path = metadata_templates_dir() / "wiki_metadata.toml.template"
     template = template_path.read_text(encoding="utf-8")
     now = now_iso8601()
+    # 占位符语法与 render.py 的骨架模板一致（{{KEY}}），双语法并存已统一
     text = (
-        template.replace("__NAME__", name)
-        .replace("__TOPIC__", topic)
-        .replace("__NOW_ISO8601__", now)
+        template.replace("{{NAME}}", name)
+        .replace("{{TOPIC}}", topic)
+        .replace("{{NOW_ISO8601}}", now)
     )
 
     toml_path = wiki_dir / "wiki_metadata.toml"

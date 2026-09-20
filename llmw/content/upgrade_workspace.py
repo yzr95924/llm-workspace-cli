@@ -16,6 +16,9 @@ status: done | done_with_residue | blocked_drift | dry_run | verify_failed
 - done               : 4 类骨架处理 + 自检 0 error + 无 residue
 - done_with_residue  : 同上但有旧自定义段被丢弃（residue 明细随 JSON 输出）
 - blocked_drift      : 自定义内容将被覆盖，dry-run 输出 diff 停住
+- verify_failed      : 骨架已写盘但自检有 error（读 verified.failures[] 修完重跑，幂等）
+
+current_format: workspace AGENTS.md 版本钉（解析失败 = null，如实上报）；target_format = 包内常量。
 
 退出码：
     0 = done
@@ -66,12 +69,7 @@ def _extract_display_name_and_setup_date(ws_root: Path):
     display_name = None
     agents_text = _read_text(ws_root / "AGENTS.md")
     if agents_text:
-        display_name = workspace_fixtures._extract_row(agents_text, workspace_fixtures.WS_NAME_ROW_RE)
-        if not display_name:
-            h1 = next((ln for ln in agents_text.splitlines() if ln.startswith("# ")), "")
-            m = workspace_fixtures.H1_NAME_RE.match(h1)
-            if m:
-                display_name = m.group(1).strip()
+        display_name = workspace_fixtures._display_name_from_agents(agents_text)
 
     setup_date = ""
     ws_toml_text = _read_text(ws_root / "workspace.toml")
@@ -81,6 +79,14 @@ def _extract_display_name_and_setup_date(ws_root: Path):
             setup_date = m.group(1)[:10]
 
     return display_name, setup_date
+
+
+def _current_workspace_format(ws_root: Path) -> Optional[str]:
+    """AGENTS.md「当前配置」表钉定的 workspace format；缺文件 / 解析失败 → None（如实上报）。"""
+    agents_text = _read_text(ws_root / "AGENTS.md")
+    if not agents_text:
+        return None
+    return workspace_fixtures._extract_template_vars(agents_text)["format"]
 
 
 def _compute_gitignore_block(current_text: str) -> Optional[str]:
@@ -105,19 +111,18 @@ def _compute_gitignore_block(current_text: str) -> Optional[str]:
 
 
 def _extract_managed_block(text: str) -> Optional[str]:
-    """从 .gitignore 文本抽出 llmw managed block（含 marker），未找到返 None。"""
-    lines = text.splitlines(keepends=True)
-    start = end = -1
-    for i, ln in enumerate(lines):
-        if ">>> llmw (managed by llmw) <<<" in ln:
-            if start == -1:
-                start = i
-            else:
-                end = i
-                break
-    if start == -1 or end == -1:
-        return None
-    return "".join(lines[start : end + 1])
+    """从 .gitignore 文本抽出 llmw managed block（含 marker），未找到返 None。
+
+    marker SSOT = llmw.workspace.gitignore（GITIGNORE_MARKER_START/END），不手写字面量。
+    """
+    from llmw.workspace.gitignore import GITIGNORE_MARKER_END, GITIGNORE_MARKER_START
+
+    pattern = re.compile(
+        re.escape(GITIGNORE_MARKER_START) + r".*?" + re.escape(GITIGNORE_MARKER_END),
+        re.DOTALL,
+    )
+    m = pattern.search(text)
+    return m.group(0) if m else None
 
 
 def _diff_text(old: str, new: str) -> Optional[str]:
@@ -222,7 +227,6 @@ def plan_resync(ws_root: Path) -> List[Dict[str, object]]:
                 {
                     "rel_path": rel,
                     "action": "gitignore-block",
-                    "new_block": new_block,
                     "new_full_text": new_full,
                     "diff": diff,
                     "newly_created": current == "",
@@ -290,18 +294,9 @@ def apply_resync(ws_root: Path, plan: List[Dict[str, object]]) -> List[Dict[str,
             new_full = item.get("new_full_text")
             if new_full is None:
                 continue
-            # 只替换 llmw managed block，其余原样
-            old_text = _read_text(p) or ""
-            old_block = _extract_managed_block(old_text)
-            new_block = item.get("new_block") or ""
-            if old_block is None and new_block:
-                # 文件无 managed block → 在开头插入
-                updated = new_block + ("\n" if new_block and not new_block.endswith("\n") else "") + old_text
-            elif old_block and new_block:
-                updated = old_text.replace(old_block, new_block, 1)
-            else:
-                updated = old_text
-            atomic_write(p, updated)
+            # new_full_text = ensure_workspace_gitignore 对当前文本的 sandbox 产物：
+            # managed block 原位替换 / 缺失时按 SSOT 位置追加，其余内容原样——直接落盘
+            atomic_write(p, new_full)
             changed.append({"file": rel, "action": "gitignore-block"})
 
         elif action == "growth-graft":
@@ -361,19 +356,25 @@ def _bump_templates_version(ws_root: Path, target_workspace_format: str) -> bool
 def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = False, as_json: bool = False) -> int:
     """升级 workspace 根的骨架；返 0/1/2。"""
     plan = plan_resync(ws_root)
+    # 当前版本 = AGENTS.md 版本钉（如实上报；解析失败 = None，不冒充 CLI 常量——
+    # 与 wiki 侧 upgrade.run_upgrade 同口径）
+    current_format = _current_workspace_format(ws_root)
 
     # 1. 变量提取失败 → blocked
     blocked_reasons = [str(item.get("blocked_reason")) for item in plan if item.get("blocked")]
     if blocked_reasons:
         result = {
             "status": "blocked_drift",
-            "current_format": WORKSPACE_FORMAT_VERSION,
+            "current_format": current_format,
             "target_format": WORKSPACE_FORMAT_VERSION,
             "changed": [],
             "verified": {},
             "hint": f"变量提取失败：{'; '.join(blocked_reasons)}；需人工确认 display_name / ensure workspace.toml 含 created_at",
         }
-        _emit(result, as_json=as_json, to_err=True)
+        if _emit_json_result(result, as_json):
+            return 1
+        print("== workspace upgrade blocked_drift ==", file=sys.stderr)
+        print(f"[llmw] hint: {result['hint']}", file=sys.stderr)
         return 1
 
     # 2. preflight: blocked_drift（diff 非空 + 非 dry-run + 无 --yes）
@@ -381,7 +382,7 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
     if has_diff and not dry_run and not yes:
         result = {
             "status": "blocked_drift",
-            "current_format": WORKSPACE_FORMAT_VERSION,
+            "current_format": current_format,
             "target_format": WORKSPACE_FORMAT_VERSION,
             "changed": [
                 {"file": str(item["rel_path"]), "action": str(item["action"])} for item in plan if item.get("diff")
@@ -389,15 +390,14 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
             "verified": {},
             "hint": "diff 非空，需 --yes 确认（自定义内容先搬 MEMORY/，然后重跑）",
         }
-        if as_json:
-            print(json.dumps(result, indent=2, ensure_ascii=False))
-        else:
-            print("== workspace upgrade blocked_drift ==", file=sys.stderr)
-            for item in plan:
-                if item.get("diff"):
-                    print(f"\n--- {item['rel_path']} ---", file=sys.stderr)
-                    print(item["diff"], file=sys.stderr)
-            print(f"\n[llmw] hint: {result['hint']}", file=sys.stderr)
+        if _emit_json_result(result, as_json):
+            return 1
+        print("== workspace upgrade blocked_drift ==", file=sys.stderr)
+        for item in plan:
+            if item.get("diff"):
+                print(f"\n--- {item['rel_path']} ---", file=sys.stderr)
+                print(item["diff"], file=sys.stderr)
+        print(f"\n[llmw] hint: {result['hint']}", file=sys.stderr)
         return 1
 
     # 3. dry-run：输出 plan（dropped_sections 前置可见——唯一数据丢失路径）
@@ -415,26 +415,25 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
             plan_out.append(entry)
         result = {
             "status": "dry_run",
-            "current_format": WORKSPACE_FORMAT_VERSION,
+            "current_format": current_format,
             "target_format": WORKSPACE_FORMAT_VERSION,
             "plan": plan_out,
         }
-        if as_json:
-            print(json.dumps(result, indent=2, ensure_ascii=False))
-        else:
-            print("== workspace upgrade dry-run ==")
-            print(f"current_format={WORKSPACE_FORMAT_VERSION}")
-            for item in plan:
-                diff_lines = (item.get("diff") or "").count("\n")
-                line = f"  [{item['action']}] {item['rel_path']}"
-                if item.get("newly_created"):
-                    line += "  (newly created)"
-                if diff_lines:
-                    line += f"  ({diff_lines} diff lines)"
-                dropped = item.get("dropped_sections") or []
-                if dropped:
-                    line += "  ⚠ 丢弃自定义段: " + " / ".join(f"## {s}" for s in dropped)
-                print(line)
+        if _emit_json_result(result, as_json):
+            return 0
+        print("== workspace upgrade dry-run ==")
+        print(f"current_format={current_format or '(解析失败)'} target_format={WORKSPACE_FORMAT_VERSION}")
+        for item in plan:
+            diff_lines = (item.get("diff") or "").count("\n")
+            line = f"  [{item['action']}] {item['rel_path']}"
+            if item.get("newly_created"):
+                line += "  (newly created)"
+            if diff_lines:
+                line += f"  ({diff_lines} diff lines)"
+            dropped = item.get("dropped_sections") or []
+            if dropped:
+                line += "  ⚠ 丢弃自定义段: " + " / ".join(f"## {s}" for s in dropped)
+            print(line)
         return 0
 
     # 4. apply
@@ -457,14 +456,17 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
     if verified.get("error", 0) > 0:
         result = {
             "status": "verify_failed",
-            "current_format": WORKSPACE_FORMAT_VERSION,
+            "current_format": current_format,
             "target_format": WORKSPACE_FORMAT_VERSION,
             "changed": changed,
             "residue": residue,
             "verified": verified,
-            "hint": "自验失败（版本钉不落）",
+            "hint": "自验失败（版本钉不落；读 verified.failures[] 修完重跑，幂等）",
         }
-        _emit(result, as_json=as_json, to_err=True)
+        if _emit_json_result(result, as_json):
+            return 2
+        print(f"[llmw] error: {result['hint']}", file=sys.stderr)
+        print(f"[llmw] verified: error={verified.get('error', 0)} warn={verified.get('warn', 0)}", file=sys.stderr)
         return 2
 
     # 6. bump templates_version
@@ -475,31 +477,28 @@ def run_workspace_upgrade(ws_root: Path, *, dry_run: bool = True, yes: bool = Fa
     status = "done" if not residue else "done_with_residue"
     result = {
         "status": status,
-        "current_format": WORKSPACE_FORMAT_VERSION,
+        "current_format": current_format,
         "target_format": WORKSPACE_FORMAT_VERSION,
         "changed": changed,
         "residue": residue,
         "verified": verified,
     }
-    if as_json:
-        print(json.dumps(result, indent=2, ensure_ascii=False))
-    else:
-        print(f"== workspace upgrade {status} ==")
-        print(f"changed: {len(changed)} actions")
-        if residue:
-            print(f"residue: {len(residue)} items")
-            for r in residue:
-                print(f"  - [{r.get('type')}] {r.get('note')}")
-        print(
-            f"verified: error={verified.get('error', 0)} warn={verified.get('warn', 0)} pass={verified.get('pass', 0)}"
-        )
+    if _emit_json_result(result, as_json):
+        return 0
+    print(f"== workspace upgrade {status} ==")
+    print(f"current_format={current_format or '(解析失败)'}")
+    print(f"changed: {len(changed)} actions")
+    if residue:
+        print(f"residue: {len(residue)} items")
+        for r in residue:
+            print(f"  - [{r.get('type')}] {r.get('note')}")
+    print(f"verified: error={verified.get('error', 0)} warn={verified.get('warn', 0)} pass={verified.get('pass', 0)}")
     return 0
 
 
-def _emit(result: Dict[str, object], *, as_json: bool, to_err: bool = False) -> None:
-    if as_json:
-        print(json.dumps(result, indent=2, ensure_ascii=False))
-    else:
-        stream = sys.stderr if to_err else sys.stdout
-        for k, v in result.items():
-            print(f"  {k}: {v}", file=stream)
+def _emit_json_result(result: Dict[str, object], as_json: bool) -> bool:
+    """as_json → 打印 result JSON 并返 True（调用方据此直接 return rc）；否则 False。"""
+    if not as_json:
+        return False
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return True

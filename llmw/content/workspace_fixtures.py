@@ -141,10 +141,11 @@ def _extract_row(text: str, row_re: "re.Pattern[str]") -> Optional[str]:
     return None
 
 
-def _extract_template_vars(agents_text: str) -> Dict[str, Optional[str]]:
-    """提取模板渲染 4 变量——全部来自末尾「当前配置」表；H1 是 Workspace 名的 resilience 兜底。
+def _display_name_from_agents(agents_text: str) -> Optional[str]:
+    """从 AGENTS.md 提取 display_name：「当前配置」表 Workspace 名，缺失则 H1 resilience 兜底。
 
-    系统只理解当前格式：「当前配置」表字段缺失 = 解析失败（unknown），由调用方报 fix。
+    单家实现（check#2/#3 / _extract_template_vars / upgrade 引擎共用）——
+    workspace.toml 不存该字段，渲染输入只能从这里提取。
     """
     name = _extract_row(agents_text, WS_NAME_ROW_RE)
     if name is None:
@@ -152,6 +153,15 @@ def _extract_template_vars(agents_text: str) -> Dict[str, Optional[str]]:
         h1m = H1_NAME_RE.match(h1)
         if h1m:
             name = h1m.group(1).strip()
+    return name
+
+
+def _extract_template_vars(agents_text: str) -> Dict[str, Optional[str]]:
+    """提取模板渲染 4 变量——全部来自末尾「当前配置」表；H1 是 Workspace 名的 resilience 兜底。
+
+    系统只理解当前格式：「当前配置」表字段缺失 = 解析失败（unknown），由调用方报 fix。
+    """
+    name = _display_name_from_agents(agents_text)
     format_cell = _extract_row(agents_text, WORKSPACE_FORMAT_ROW_RE)
     format_semver = SEMVER_RE.search(format_cell) if format_cell else None
     return {
@@ -167,7 +177,7 @@ def check_agents_version_is_current(ws_root: Path, info: Dict[str, str]) -> Dict
 
     与 template-sync 正交：只管版本新旧，不管正文同步。系统只理解当前格式——「当前配置」表解析失败 = unknown，触发 workspace-fix-agents-md-resync。
     """
-    out = {"passed": True, "severity": "error", "file": "AGENTS.md"}  # type: Dict[str, object]
+    out = {"passed": True, "file": "AGENTS.md"}  # type: Dict[str, object]
     text = _read_text(ws_root / "AGENTS.md")
     if text is None:
         out["passed"] = None
@@ -221,7 +231,7 @@ def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
     → 也会 drift。**冗余 benign**: 两者都推荐 upgrade, 一次修复。check#1 仅做 currency
     信息报告 + 老格式 fallback。
     """
-    out = {"passed": True, "severity": "error", "file": "AGENTS.md"}  # type: Dict[str, object]
+    out = {"passed": True, "file": "AGENTS.md"}  # type: Dict[str, object]
     ws_text = _read_text(ws_root / "AGENTS.md")
     if ws_text is None:
         out["passed"] = None
@@ -229,12 +239,7 @@ def check_agents_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
         return out
 
     # Variable 1 (例外): display_name 从 AGENTS.md「当前配置」表 / H1 提取（ws.toml 没存）
-    display_name = _extract_row(ws_text, WS_NAME_ROW_RE)
-    if display_name is None:
-        h1 = next((ln for ln in ws_text.splitlines() if ln.startswith("# ")), "")
-        h1m = H1_NAME_RE.match(h1)
-        if h1m:
-            display_name = h1m.group(1).strip()
+    display_name = _display_name_from_agents(ws_text)
     if not display_name:
         out["passed"] = False  # type: ignore
         out["expected"] = (
@@ -295,21 +300,14 @@ def check_claude_md_template_sync(ws_root: Path, info: Dict[str, str]) -> Dict[s
     薄壳唯一变量是 {{WORKSPACE_DISPLAY_NAME}}；workspace.toml 没存 display_name,
     仍需从 AGENTS.md「当前配置」表 / H1 提取。
     """
-    out = {"passed": True, "severity": "error", "file": "CLAUDE.md"}  # type: Dict[str, object]
+    out = {"passed": True, "file": "CLAUDE.md"}  # type: Dict[str, object]
     tpl_path = workspace_templates_dir() / "workspace-claude-md-template.md"
     if not tpl_path.is_file():
         out["passed"] = None
         out["skipped"] = f"{tpl_path} 未找到（无法模板比对）"
         return out
     agents_text = _read_text(ws_root / "AGENTS.md")
-    display_name = None
-    if agents_text is not None:
-        display_name = _extract_row(agents_text, WS_NAME_ROW_RE)
-        if display_name is None:
-            h1 = next((ln for ln in agents_text.splitlines() if ln.startswith("# ")), "")
-            h1m = H1_NAME_RE.match(h1)
-            if h1m:
-                display_name = h1m.group(1).strip()
+    display_name = _display_name_from_agents(agents_text) if agents_text is not None else None
     if not display_name:
         out["passed"] = None
         out["skipped"] = "AGENTS.md 缺失或 Workspace 名不可解析（无法渲染薄壳比对）"
@@ -351,7 +349,7 @@ def check_gitignore_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str, o
     只查结构不绑死具体规则行——容忍用户删段内单条规则（如纯 Linux 删 .DS_Store）；
     但 llmw 托管块 3 条敏感文件规则缺一不可（0.5.0/0.6.0/0.6.1 连续加固的对象）。
     """
-    out = {"passed": True, "severity": "error", "file": ".gitignore"}  # type: Dict[str, object]
+    out = {"passed": True, "file": ".gitignore"}  # type: Dict[str, object]
     text = _read_text(ws_root / ".gitignore")
     if text is None:
         out["passed"] = False  # type: ignore
@@ -412,7 +410,7 @@ def check_memory_index_skeleton(ws_root: Path, info: Dict[str, str]) -> Dict[str
 
     成长内容（## 索引 下的经验条目）不动；文件缺失按包内 fixtures/memory-index.txt 重建。
     """
-    out = {"passed": True, "severity": "error", "file": "MEMORY/MEMORY.md"}  # type: Dict[str, object]
+    out = {"passed": True, "file": "MEMORY/MEMORY.md"}  # type: Dict[str, object]
     text = _read_text(ws_root / "MEMORY" / "MEMORY.md")
     if text is None:
         out["passed"] = False  # type: ignore
@@ -456,7 +454,7 @@ def check_workspace_toml_templates_version(ws_root: Path, info: Dict[str, str]) 
     不阻断（旧 format 产物仍可读）。wiki_format 分量只展示不比对——跨 skill
     指针，提示用户跑各 wiki 的 upgrade（yzr-llm-wiki-management），本脚本不读兄弟 skill 版本。
     """
-    out = {"passed": True, "severity": "warn", "file": "workspace.toml"}  # type: Dict[str, object]
+    out = {"passed": True, "file": "workspace.toml"}  # type: Dict[str, object]
     text = _read_text(ws_root / "workspace.toml")
     if text is None:
         out["passed"] = None
@@ -514,7 +512,7 @@ def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) ->
     `references/formats.md「A1. workspace.toml 读取契约」` 表——两处（本 check / 该表）一致，
     gate 才有效（清单漂移 = check 不报警 = gate 失效）。
     """
-    out = {"passed": True, "severity": "error", "file": "workspace.toml"}  # type: Dict[str, object]
+    out = {"passed": True, "file": "workspace.toml"}  # type: Dict[str, object]
     text = _read_text(ws_root / "workspace.toml")
     if text is None:
         out["passed"] = None
@@ -561,7 +559,7 @@ def check_template_no_outbound_refs(ws_root: Path, info: Dict[str, str]) -> Dict
     check 机械强制；对每个 workspace 报告同一结果（模板是全局文件），违反时 error 逼
     skill 侧修复。
     """
-    out = {"passed": True, "severity": "error", "file": "workspace-agents-md-template.md"}  # type: Dict[str, object]
+    out = {"passed": True, "file": "workspace-agents-md-template.md"}  # type: Dict[str, object]
     template = _read_text(workspace_templates_dir() / "workspace-agents-md-template.md")
     if template is None:
         out["passed"] = None

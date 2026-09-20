@@ -33,7 +33,7 @@ import subprocess
 import sys
 from datetime import date
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
 # 复用 ingest_diff 的轻量 frontmatter 解析 + log_format 的日期解析 helper
 from llmw.content._check_common import (
@@ -154,16 +154,9 @@ def find_md_files(wiki_root: Path) -> Dict[str, List[Path]]:
 
     MEMORY 子目录扫到独立的 'memory' 桶：走 frontmatter 校验但**不**强制 index 覆盖。
     """
-    out = {
-        "index": [],  # type: List[Path]
-        "log": [],
-        "entities": [],
-        "concepts": [],
-        "sources": [],
-        "comparisons": [],
-        "syntheses": [],
-        "memory": [],
-    }  # type: Dict[str, List[Path]]
+    # 桶键从 page_types.WIKI_SUBDIRS 推导（+ index/log/memory 三个非内容桶）——
+    # 新增内容页类型时不会 KeyError（曾硬编码子目录名，与 SSOT 脱节）
+    out = {sub: [] for sub in WIKI_SUBDIRS + ("index", "log", "memory")}  # type: Dict[str, List[Path]]
     wiki_dir = wiki_root / "wiki"
     if not wiki_dir.is_dir():
         return out
@@ -394,6 +387,79 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
     return findings
 
 
+def _check_source_element(wiki_root: Path, rel: str, s) -> Optional[str]:
+    """source 页单个 sources 元素的校验。
+
+    返回 finding 或 None；每元素至多一条（命中根因即返，不重复报）。
+    """
+    if not isinstance(s, str):
+        return None
+    # 0.13.0+：必须用相对路径（基于 wiki 根）——绝对路径（Unix `/...`、Windows
+    # 盘符 / UNC）会让 wiki 失去跨机器可移植性
+    if _is_absolute_path(s):
+        return (
+            f"sources-absolute-path: {rel} sources 含绝对路径 '{s}'；"
+            f"必须用相对 wiki 根的路径（如 raw/articles/... 或 "
+            f"raw/external/<source-name>/...）（解释见 "
+            f"llmw wiki lint --explain=sources-absolute-path）"
+        )
+    # raw/discussions/ 禁止作 source——协作草稿层不是"用户掌控的真相源"，
+    # 放开口子 = provenance 后门（LLM 自产内容被当 raw 真相 ingest 回 wiki）；
+    # 先 mv 到 raw/articles 等正式子树再走标准 ingest
+    if s.startswith("raw/" + DISCUSSIONS_SUBDIR + "/"):
+        return (
+            f"source-in-discussions: {rel} sources='{s}' 指向 "
+            f"raw/{DISCUSSIONS_SUBDIR}/——discussions/ 是协作草稿层"
+            f"，不可作 source 真相源；先 mv 到 raw/articles "
+            f"等正式子树再 ingest"
+        )
+    # 0.17+ raw/external/<symlink>/... 例外：symlink 跟随 .resolve() 会落到 wiki 根外，
+    # 不该判 sources-out-of-root；改为解析 <symlink> 段 + 查 anchor / symlink 存在 +
+    # 文件跟随后可访问，全部合法才放过
+    if s.startswith("raw/external/"):
+        parts = Path(s).parts
+        # 路径段应为 [raw, external, <symlink>, ...]；< 3 视为语法错
+        if len(parts) < 3:
+            return f"sources-malformed: {rel} sources='{s}' raw/external/ 路径需 <symlink>/<path-under-target>"
+        sl_name = parts[2]
+        anchor = wiki_root / "raw" / EXTERNAL_SUBDIR / ANCHOR_FILENAME
+        if not anchor.is_file():
+            return (
+                f"sources-external-anchor-missing: {rel} sources='{s}' "
+                f"但 {anchor.relative_to(wiki_root).as_posix()} 不存在"
+            )
+        sl_path = wiki_root / "raw" / EXTERNAL_SUBDIR / sl_name
+        if not sl_path.is_symlink() and not sl_path.exists():
+            return f"sources-external-symlink-missing: {rel} sources='{s}' symlink {sl_name} 不存在"
+        # 跟随 symlink 后可访问——不 .resolve() 避免相对 wiki 根判定；文件或目录皆可
+        # （external repo 本身是 git 仓即目录，sources 可指向整个仓作语料）
+        if not (wiki_root / s).exists():
+            return f"sources-missing: {rel} sources='{s}' 路径不可访问"
+        return None
+    sp = (wiki_root / s).resolve()
+    try:
+        sp.relative_to(wiki_root.resolve())
+    except ValueError:
+        return f"sources-out-of-root: {rel} sources='{s}'不在 wiki 根下"
+    if not sp.is_file():
+        return f"sources-missing: {rel} sources='{s}'但文件不存在"
+    return None
+
+
+def _check_sources_field(wiki_root: Path, rel: str, t: str, srcs) -> List[str]:
+    """source / synthesis 页的 sources 字段校验（必填非空；source 页逐元素查现存）。"""
+    if not isinstance(srcs, list) or not srcs:
+        return [f"missing-sources: {rel} type={t} 缺 'sources' 字段或为空"]
+    if t != "source":
+        return []
+    findings = []  # type: List[str]
+    for s in srcs:
+        finding = _check_source_element(wiki_root, rel, s)
+        if finding:
+            findings.append(finding)
+    return findings
+
+
 def check_frontmatter(wiki_root: Path) -> List[str]:
     """frontmatter 完整性 + source/synthesis 的 sources 字段
 
@@ -427,88 +493,7 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
                 findings.append(f"invalid-tags: {rel} tags 应为 list，当前类型不符")
             # source / synthesis 的 sources 必填且非空
             if t in ("source", "synthesis"):
-                srcs = fm.get("sources", [])
-                if not isinstance(srcs, list) or not srcs:
-                    findings.append(f"missing-sources: {rel} type={t} 缺 'sources' 字段或为空")
-                else:
-                    # 对 source 页：每个 src 必须是 raw/ 下现存路径
-                    if t == "source":
-                        for s in srcs:
-                            if not isinstance(s, str):
-                                continue
-                            # 0.13.0+：source 页的 sources 必须用相对路径（基于 wiki 根），
-                            # 绝对路径（Unix `/...`、Windows 盘符 `C:\...` / UNC
-                            # `\\server\...`）会让 wiki 失去跨机器可移植性。命中后
-                            # continue 跳过后续 sources-out-of-root / sources-missing——同一根因，
-                            # 不重复报错。
-                            if _is_absolute_path(s):
-                                findings.append(
-                                    f"sources-absolute-path: {rel} sources 含绝对路径 '{s}'；"
-                                    f"必须用相对 wiki 根的路径（如 raw/articles/... 或 "
-                                    f"raw/external/<source-name>/...）（解释见 "
-                                    f"llmw wiki lint --explain=sources-absolute-path）"
-                                )
-                                continue
-                            # raw/discussions/ 禁止作 source——
-                            # discussions/ 是用户 + LLM 双方可写的协作草稿层，不是"用户掌控的
-                            # 真相源"；放开口子 = provenance 后门（LLM 自产内容被当 raw 真相
-                            # ingest 回 wiki）。要引用其内容先 mv 到 raw/articles 等正式子树走标准
-                            # ingest。命中后 continue 跳过后续 external / missing——
-                            # 同一根因不重复报错。
-                            if s.startswith("raw/" + DISCUSSIONS_SUBDIR + "/"):
-                                findings.append(
-                                    f"source-in-discussions: {rel} sources='{s}' 指向 "
-                                    f"raw/{DISCUSSIONS_SUBDIR}/——discussions/ 是协作草稿层"
-                                    f"，不可作 source 真相源；先 mv 到 raw/articles "
-                                    f"等正式子树再 ingest"
-                                )
-                                continue
-                            # 0.17+ raw/external/<symlink>/... 例外：
-                            # symlink 跟随 .resolve() 会落到 wiki 根外，本不该判
-                            # sources-out-of-root。改为：解析 <symlink> 段、查 anchor +
-                            # symlink 存在 + 文件跟随后可访问，全部合法才放过。
-                            if s.startswith("raw/external/"):
-                                parts = Path(s).parts
-                                # 路径段应为 [raw, external, <symlink>, ...]，
-                                # 段数 < 3 视为语法错（缺 symlink 名或后续 path）
-                                if len(parts) < 3:
-                                    findings.append(
-                                        f"sources-malformed: {rel} sources='{s}' "
-                                        f"raw/external/ 路径需 <symlink>/<path-under-target>"
-                                    )
-                                    continue
-                                sl_name = parts[2]
-                                # anchor 文件必须存在（0.17+ TOML）
-                                anchor = wiki_root / "raw" / EXTERNAL_SUBDIR / ANCHOR_FILENAME
-                                if not anchor.is_file():
-                                    findings.append(
-                                        f"sources-external-anchor-missing: {rel} sources='{s}' "
-                                        f"但 {anchor.relative_to(wiki_root).as_posix()} 不存在"
-                                    )
-                                    continue
-                                # symlink 文件本身必须存在
-                                sl_path = wiki_root / "raw" / EXTERNAL_SUBDIR / sl_name
-                                if not sl_path.is_symlink() and not sl_path.exists():
-                                    findings.append(
-                                        f"sources-external-symlink-missing: {rel} sources='{s}' "
-                                        f"symlink {sl_name} 不存在"
-                                    )
-                                    continue
-                                # 路径跟随 symlink 后可访问——不 .resolve() 避免相对 wiki
-                                # 根判定；只检查可访问性（文件或目录皆可——external repo
-                                # 本身是 git 仓即目录，sources 可指向整个仓作语料）
-                                sp = wiki_root / s
-                                if not sp.exists():
-                                    findings.append(f"sources-missing: {rel} sources='{s}' 路径不可访问")
-                                continue
-                            sp = (wiki_root / s).resolve()
-                            try:
-                                sp.relative_to(wiki_root.resolve())
-                            except ValueError:
-                                findings.append(f"sources-out-of-root: {rel} sources='{s}'不在 wiki 根下")
-                                continue
-                            if not sp.is_file():
-                                findings.append(f"sources-missing: {rel} sources='{s}'但文件不存在")
+                findings.extend(_check_sources_field(wiki_root, rel, t, fm.get("sources", [])))
     # MEMORY/*.md（排除 MEMORY/MEMORY.md 索引）：仅 title 必填；其余 5 字段全 optional。
     # frontmatter 整体仍可选（与短条目「1 行索引行」形态对齐）；有就按"有就校验"的
     # 弱规则（type 若取则在 VALID_TYPES 内；tags 若取则是 list）。
@@ -1459,6 +1444,126 @@ def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
     return out
 
 
+# fixtures-check 失败项 → fixtures_actions[] 的 (type, to_action 构造器) 表。
+# 新增 check 只需在表里加一行（或让 id 落在 _FIXTURES_SKELETON_SUFFIXES 的骨架类里
+# 自动命中通用骨架修复）；其余未注册 cid 走 unknown 兜底。
+_FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]] = {
+    "gitignore-external-track-toml": (
+        "fixtures-fix-gitignore",
+        lambda b: (
+            "Edit .gitignore：把旧 `!raw/external/**/.symlink-anchor.json` 行替换为"
+            " `!raw/external/.symlink-anchor.toml`；保留 `raw/external/*` 排除行不动；"
+            "保留其它规则不动"
+        ),
+    ),
+    "agents-version-is-current": (
+        "fixtures-fix-agents-version",
+        lambda b: (
+            f"跑 `llmw wiki upgrade --apply`：CLI 全量重渲染 AGENTS.md，版本行随渲染落地"
+            f"（`{b['actual']}` → `{b['expected']}`）。**不要**手改 AGENTS.md——byte-owned 禁改，"
+            "手改过不了 agents-md-template-sync 的整文件字节比对；若因版本行 diff 进"
+            " blocked_drift，确认无本地定制后加 `--yes` 重跑"
+        ),
+    ),
+    "agents-md-template-sync": (
+        "fixtures-fix-agents-md-resync",
+        lambda b: (
+            "跑 `llmw wiki upgrade --apply`：CLI 全量重渲染 AGENTS.md（byte-owned，"
+            "「当前配置」表四变量保留 wiki 现值）。若本地定制 diff 进 blocked_drift："
+            "逐条列给用户裁定——搬 MEMORY/（一行事实写 MEMORY/MEMORY.md 索引短条目；"
+            "含 why 的建 `MEMORY/<slug>.md` 完整条目）或丢弃，裁定完加 `--yes` 重跑"
+        ),
+    ),
+    "symlink-anchor-toml-schema": (
+        "fixtures-fix-anchor-schema",
+        lambda b: (
+            "raw/external/.symlink-anchor.toml 损坏：CLI add 拒绝覆盖损坏文件"
+            "（保护手工修复现场）——备份后删除，或手工改对 TOML，再用"
+            " `llmw wiki external add <target> --name=<n>` 重建 entries。"
+            "字段语义见 external-repo.md「首次接入」；schema 归 CLI 持有"
+            "（`llmw wiki external` 子命令）"
+        ),
+    ),
+    "symlink-anchor-toml-symlink-matches": (
+        "fixtures-fix-anchor-symlink-matches",
+        lambda b: (
+            "双向校验：anchor 有 entry 但 symlink 缺 → `mkdir -p raw/external && ln -s <target> raw/external/<symlink>`；"
+            "symlink 有但 anchor 无 entry → 补一条 `[[entry]]` 块（含 symlink/target/captured_at/kind + 可选 git 身份字段）"
+        ),
+    ),
+    "memory-index-no-frontmatter": (
+        "fixtures-fix-strip-frontmatter",
+        lambda b: f"Edit {b['file']}：删除首部 `---...---` YAML frontmatter 块，保留正文",
+    ),
+    "scripts-md-no-frontmatter": (
+        "fixtures-fix-strip-frontmatter",
+        lambda b: f"Edit {b['file']}：删除首部 `---...---` YAML frontmatter 块，保留正文",
+    ),
+    "tags-md-no-frontmatter": (
+        "fixtures-fix-strip-frontmatter",
+        lambda b: f"Edit {b['file']}：删除首部 `---...---` YAML frontmatter 块，保留正文",
+    ),
+    "memory-entries-indexed": (
+        "fixtures-fix-memory-index",
+        lambda b: (
+            "在 MEMORY/MEMORY.md 索引追加缺失条目（fixture 头部说明块规则）："
+            "`- [<slug>](<slug>.md) — 一句话 → [正文](<slug>.md)`"
+        ),
+    ),
+    "log-md-format-strict": (
+        "fixtures-fix-log-format",
+        lambda b: (
+            f"Edit {b['file']} 不合规行：每行匹配 `^## [YYYY-MM-DD HH:MM] (ingest|query|lint|setup) | .+$`（HH:MM 可选；老 wikis date-only 仍合法，宽容解析）；"
+            "迁移期不变更 history（仅当行确属违规，才 Edit 修复格式；保留日期 + 类型 + 简介）"
+        ),
+    ),
+    "index-md-categories-stable": (
+        "fixtures-fix-index-categories",
+        lambda b: (
+            f"补齐 {b['file']} 缺类别：{len(TYPE_TO_SECTION)} 标题齐全（见 fixture 头部模板）"
+            f"（{' / '.join(TYPE_TO_SECTION.values())}），顺序可调"
+        ),
+    ),
+}
+
+# 骨架字段级比对 check 的后缀（信号来自包内 fixtures/；新增该类 check 自动匹配）
+_FIXTURES_SKELETON_SUFFIXES = ("-skeleton", "-frontmatter-complete", "-init-rules-complete")
+
+_FIXTURES_SKELETON_SPEC: Tuple[str, Callable[[Dict[str, object]], str]] = (
+    "fixtures-fix-skeleton",
+    lambda b: (
+        f"Edit {b['file']}：按本条 `expected`（缺失骨架信号清单）单 Edit 补齐——"
+        "frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段"
+        "（.gitignore 段可跑 `llmw wiki upgrade --apply` 由 CLI 重渲染）；"
+        "成长型内容（index 类别下条目 / log 历史 / MEMORY 经验 / tag bullet）"
+        "**不动**——只补结构骨架"
+    ),
+)
+
+_FIXTURES_UNKNOWN_SPEC: Tuple[str, Callable[[Dict[str, object]], str]] = (
+    "fixtures-fix-unknown",
+    lambda b: f"按 rule_ref ({b['rule_ref']}) 与 {b['check_id']} 描述自行处理",
+)
+
+
+def _build_fixtures_action(fc: Dict[str, object]) -> Dict[str, object]:
+    """单条失败 fixtures-check → fixtures_actions[] 条目（base 字段 + 表驱动 to_action）。"""
+    cid = str(fc["id"])
+    base: Dict[str, object] = {
+        "check_id": cid,
+        "file": fc["file"],
+        "severity": fc.get("severity", "error"),
+        "rule_ref": fc.get("rule_ref", ""),
+        "expected": fc.get("expected", ""),
+        "actual": fc.get("actual", ""),
+    }
+    spec = _FIXTURES_ACTION_TABLE.get(cid)
+    if spec is None:
+        spec = _FIXTURES_SKELETON_SPEC if cid.endswith(_FIXTURES_SKELETON_SUFFIXES) else _FIXTURES_UNKNOWN_SPEC
+    action_type, to_action_fn = spec
+    return {**base, "type": action_type, "to_action": to_action_fn(base)}
+
+
 def build_upgrade_plan(
     current_format: Optional[str],
     legacy: Dict[str, object],
@@ -1492,157 +1597,13 @@ def build_upgrade_plan(
         )
 
     # fixtures 一致性 → fixtures_actions[]
-    # 每条 fixtures-check 失败项生成一条对应 fixtures-fix-* 动作；action 字段含
-    # expected / actual 让 agent 一眼看清"该改成什么"；rule_ref 指向对应 skill 文档
-    # 的具体段落。
+    # 每条失败 check → 一条 fixtures-fix-* 动作（base 字段含 expected / actual 让 agent
+    # 一眼看清"该改成什么"；cid → 动作表驱动，见 _FIXTURES_ACTION_TABLE）
     if fixtures_check and not fixtures_check.get("skipped"):
         for fc in fixtures_check.get("checks", []) or []:  # type: ignore
             if fc.get("passed") is not False:  # type: ignore
                 continue
-            cid = fc["id"]  # type: ignore
-            fpath = fc["file"]  # type: ignore
-            expected = fc.get("expected", "")  # type: ignore
-            actual = fc.get("actual", "")  # type: ignore
-            rule_ref = fc.get("rule_ref", "")  # type: ignore
-            severity = fc.get("severity", "error")  # type: ignore
-            base = {
-                "check_id": cid,
-                "file": fpath,
-                "severity": severity,
-                "rule_ref": rule_ref,
-                "expected": expected,
-                "actual": actual,
-            }
-            if cid == "gitignore-external-track-toml":
-                fixtures_actions.append(
-                    {
-                        **base,
-                        "type": "fixtures-fix-gitignore",
-                        "to_action": (
-                            "Edit .gitignore：把旧 `!raw/external/**/.symlink-anchor.json` 行替换为"
-                            " `!raw/external/.symlink-anchor.toml`；保留 `raw/external/*` 排除行不动；"
-                            "保留其它规则不动"
-                        ),
-                    }
-                )
-            elif cid == "agents-version-is-current":
-                fixtures_actions.append(
-                    {
-                        **base,
-                        "type": "fixtures-fix-agents-version",
-                        "to_action": (
-                            f"跑 `llmw wiki upgrade --apply`：CLI 全量重渲染 AGENTS.md，版本行随渲染落地"
-                            f"（`{actual}` → `{expected}`）。**不要**手改 AGENTS.md——byte-owned 禁改，"
-                            "手改过不了 agents-md-template-sync 的整文件字节比对；若因版本行 diff 进"
-                            " blocked_drift，确认无本地定制后加 `--yes` 重跑"
-                        ),
-                    }
-                )
-            elif cid == "agents-md-template-sync":
-                # 模板渲染比对失败 → 全量重渲染（不是单行 Edit）；本地定制按裁定搬 MEMORY/
-                # 详见 llmw.content.upgrade.plan_resync + 仓库 AGENTS.md 骨架所有权四分表
-                fixtures_actions.append(
-                    {
-                        **base,
-                        "type": "fixtures-fix-agents-md-resync",
-                        "to_action": (
-                            "跑 `llmw wiki upgrade --apply`：CLI 全量重渲染 AGENTS.md（byte-owned，"
-                            "「当前配置」表四变量保留 wiki 现值）。若本地定制 diff 进 blocked_drift："
-                            "逐条列给用户裁定——搬 MEMORY/（一行事实写 MEMORY/MEMORY.md 索引短条目；"
-                            "含 why 的建 `MEMORY/<slug>.md` 完整条目）或丢弃，裁定完加 `--yes` 重跑"
-                        ),
-                    }
-                )
-            elif cid == "symlink-anchor-toml-schema":
-                fixtures_actions.append(
-                    {
-                        **base,
-                        "type": "fixtures-fix-anchor-schema",
-                        "to_action": (
-                            "raw/external/.symlink-anchor.toml 损坏：CLI add 拒绝覆盖损坏文件"
-                            "（保护手工修复现场）——备份后删除，或手工改对 TOML，再用"
-                            " `llmw wiki external add <target> --name=<n>` 重建 entries。"
-                            "字段语义见 external-repo.md「首次接入」；schema 归 CLI 持有"
-                            "（`llmw wiki external` 子命令）"
-                        ),
-                    }
-                )
-            elif cid == "symlink-anchor-toml-symlink-matches":
-                fixtures_actions.append(
-                    {
-                        **base,
-                        "type": "fixtures-fix-anchor-symlink-matches",
-                        "to_action": (
-                            "双向校验：anchor 有 entry 但 symlink 缺 → `mkdir -p raw/external && ln -s <target> raw/external/<symlink>`；"
-                            "symlink 有但 anchor 无 entry → 补一条 `[[entry]]` 块（含 symlink/target/captured_at/kind + 可选 git 身份字段）"
-                        ),
-                    }
-                )
-            elif cid in ("memory-index-no-frontmatter", "scripts-md-no-frontmatter", "tags-md-no-frontmatter"):
-                fixtures_actions.append(
-                    {
-                        **base,
-                        "type": "fixtures-fix-strip-frontmatter",
-                        "to_action": f"Edit {fpath}：删除首部 `---...---` YAML frontmatter 块，保留正文",
-                    }
-                )
-            elif cid == "memory-entries-indexed":
-                fixtures_actions.append(
-                    {
-                        **base,
-                        "type": "fixtures-fix-memory-index",
-                        "to_action": (
-                            "在 MEMORY/MEMORY.md 索引追加缺失条目（fixture 头部说明块规则）："
-                            "`- [<slug>](<slug>.md) — 一句话 → [正文](<slug>.md)`"
-                        ),
-                    }
-                )
-            elif cid == "log-md-format-strict":
-                fixtures_actions.append(
-                    {
-                        **base,
-                        "type": "fixtures-fix-log-format",
-                        "to_action": (
-                            f"Edit {fpath} 不合规行：每行匹配 `^## [YYYY-MM-DD HH:MM] (ingest|query|lint|setup) | .+$`（HH:MM 可选；老 wikis date-only 仍合法，宽容解析）；"
-                            "迁移期不变更 history（仅当行确属违规，才 Edit 修复格式；保留日期 + 类型 + 简介）"
-                        ),
-                    }
-                )
-            elif cid == "index-md-categories-stable":
-                fixtures_actions.append(
-                    {
-                        **base,
-                        "type": "fixtures-fix-index-categories",
-                        "to_action": (
-                            f"补齐 {fpath} 缺类别：{len(TYPE_TO_SECTION)} 标题齐全（见 fixture 头部模板）"
-                            f"（{' / '.join(TYPE_TO_SECTION.values())}），顺序可调"
-                        ),
-                    }
-                )
-            elif cid.endswith(("-skeleton", "-frontmatter-complete", "-init-rules-complete")):
-                # 骨架字段级比对 check（信号来自包内 fixtures/；
-                # 新增 *-skeleton 类 check 自动匹配此分支）
-                fixtures_actions.append(
-                    {
-                        **base,
-                        "type": "fixtures-fix-skeleton",
-                        "to_action": (
-                            f"Edit {fpath}：按本条 `expected`（缺失骨架信号清单）单 Edit 补齐——"
-                            "frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段"
-                            "（.gitignore 段可跑 `llmw wiki upgrade --apply` 由 CLI 重渲染）；"
-                            "成长型内容（index 类别下条目 / log 历史 / MEMORY 经验 / tag bullet）"
-                            "**不动**——只补结构骨架"
-                        ),
-                    }
-                )
-            else:
-                fixtures_actions.append(
-                    {
-                        **base,
-                        "type": "fixtures-fix-unknown",
-                        "to_action": f"按 rule_ref ({rule_ref}) 与 {cid} 描述自行处理",
-                    }
-                )
+            fixtures_actions.append(_build_fixtures_action(fc))  # type: ignore
 
     plan = {
         "generated_at": today,

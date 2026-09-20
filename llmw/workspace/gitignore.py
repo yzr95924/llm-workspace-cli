@@ -33,6 +33,13 @@ GITIGNORE_LINES = (
     "**/opencode.json",
 )
 
+# managed block 边界 marker（SSOT）。所有提取 / 替换 / 渲染该 block 的消费方
+# （本模块 / llmw.content.upgrade / llmw.content.upgrade_workspace）一律引用此常量，
+# 不得复刻字面量——曾因 upgrade_workspace 手写字面量与 SSOT 不一致，整条
+# gitignore-block 升级路径静默失效。
+GITIGNORE_MARKER_START = "# >>> llmw (managed by llmw) >>>"
+GITIGNORE_MARKER_END = "# <<< llmw <<<"
+
 # workspace .gitignore 的通用忽略段（OS / 编辑器 / Obsidian / 临时）。
 # 全新 init 时与 managed block 一同落盘；已有 .gitignore 时不追加（尊重外部来源）。
 _GITIGNORE_COMMON = """\
@@ -61,8 +68,8 @@ def ensure_workspace_gitignore(workspace_root: Path) -> None:
       （已有 .gitignore 视为用户/外部来源，不覆盖其内容）
     """
     gitignore = workspace_root / ".gitignore"
-    marker_start = "# >>> llmw (managed by llmw) >>>"
-    marker_end = "# <<< llmw <<<"
+    marker_start = GITIGNORE_MARKER_START
+    marker_end = GITIGNORE_MARKER_END
     block = marker_start + "\n" + "\n".join(GITIGNORE_LINES) + "\n" + marker_end
 
     if not gitignore.is_file():

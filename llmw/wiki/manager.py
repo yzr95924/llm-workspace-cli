@@ -704,7 +704,7 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
     created_line = meta.created_at if meta else "-"
     model_line = final_model or "-"
     if model_source:
-        model_line += f"  (fallback: {model_source})"
+        model_line += f"  (source: {model_source})"
     rows = [
         ("NAME", d["name"]),
         ("PATH", wiki_path),

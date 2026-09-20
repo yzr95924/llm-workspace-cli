@@ -270,7 +270,6 @@ def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obj
     target_format = info.get("target_format") or None
     out = {  # type: Dict[str, object]
         "passed": True,
-        "severity": "error",
         "file": "AGENTS.md",
     }
     if target_format is None:
@@ -330,7 +329,7 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
     旧 wiki 必然字节差 → 也会 drift。**冗余是 benign**——两者都推荐 upgrade, 升级路径
     一次修复。`agents-version-is-current` 仅做 currency 信息报告。
     """
-    out = {"passed": True, "severity": "error", "file": "AGENTS.md"}  # type: Dict[str, object]
+    out = {"passed": True, "file": "AGENTS.md"}  # type: Dict[str, object]
     wiki_text = _read_text(wiki_root / "AGENTS.md")
     if wiki_text is None:
         out["passed"] = None
@@ -400,7 +399,7 @@ def check_template_no_outbound_refs(wiki_root: Path, info: Dict[str, str]) -> Di
     携带——全部改写为自包含措辞）。skill 目录内文件 → 模板 单向引用由本 check
     机械强制；对每个 wiki 报告同一结果（模板是全局文件），违反时 error 逼 skill 侧修复。
     """
-    out = {"passed": True, "severity": "error", "file": "agents-md-template.md"}  # type: Dict[str, object]
+    out = {"passed": True, "file": "agents-md-template.md"}  # type: Dict[str, object]
     template = _read_text(wiki_templates_dir() / "agents-md-template.md")
     if template is None:
         out["passed"] = None
@@ -418,7 +417,6 @@ def check_gitignore_external_track(wiki_root: Path, info: Dict[str, str]) -> Dic
     """.gitignore 含 raw/external/* 排除 + !raw/external/.symlink-anchor.toml 跟踪"""
     out = {  # type: Dict[str, object]
         "passed": True,
-        "severity": "error",
         "file": ".gitignore",
     }
     text = _read_text(wiki_root / ".gitignore")
@@ -452,7 +450,6 @@ def check_symlink_anchor_toml_schema(wiki_root: Path, info: Dict[str, str]) -> D
     """.symlink-anchor.toml（若存在）合法 + 必填字段齐 + git 身份字段可选"""
     out = {  # type: Dict[str, object]
         "passed": True,
-        "severity": "error",
         "file": f"raw/{EXTERNAL_SUBDIR}/{ANCHOR_FILENAME}",
     }
     anchor_path = wiki_root / "raw" / EXTERNAL_SUBDIR / ANCHOR_FILENAME
@@ -492,7 +489,6 @@ def check_symlink_anchor_toml_symlink_matches(wiki_root: Path, info: Dict[str, s
     """anchor entry ↔ external/ 顶层 symlink 双向匹配"""
     out = {  # type: Dict[str, object]
         "passed": True,
-        "severity": "error",
         "file": f"raw/{EXTERNAL_SUBDIR}/",
     }
     anchor_path = wiki_root / "raw" / EXTERNAL_SUBDIR / ANCHOR_FILENAME
@@ -534,7 +530,6 @@ def check_index_md_categories(wiki_root: Path, info: Dict[str, str]) -> Dict[str
     """wiki/index.md 含全部类别标题（顺序可调）"""
     out = {  # type: Dict[str, object]
         "passed": True,
-        "severity": "warn",
         "file": "wiki/index.md",
     }
     text = _read_text(wiki_root / "wiki" / "index.md")
@@ -563,7 +558,6 @@ def check_memory_index_no_frontmatter(wiki_root: Path, info: Dict[str, str]) -> 
     """MEMORY/MEMORY.md 不带 YAML frontmatter"""
     out = {  # type: Dict[str, object]
         "passed": True,
-        "severity": "error",
         "file": f"{MEMORY_SUBDIR}/MEMORY.md",
     }
     text = _read_text(wiki_root / MEMORY_SUBDIR / "MEMORY.md")
@@ -584,7 +578,6 @@ def check_memory_entries_indexed(wiki_root: Path, info: Dict[str, str]) -> Dict[
     """MEMORY/*.md 每条在 MEMORY.md 索引列出"""
     out = {  # type: Dict[str, object]
         "passed": True,
-        "severity": "error",
         "file": f"{MEMORY_SUBDIR}/",
     }
     mem_dir = wiki_root / MEMORY_SUBDIR
@@ -624,7 +617,6 @@ def check_log_md_format(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obje
     """wiki/log.md 每行匹配严格格式（仅 ## 一级 heading 行）"""
     out = {  # type: Dict[str, object]
         "passed": True,
-        "severity": "error",
         "file": "wiki/log.md",
     }
     text = _read_text(wiki_root / "wiki" / "log.md")
@@ -654,7 +646,6 @@ def _check_no_frontmatter(file_path: Path) -> Dict[str, object]:
     rel = file_path.name
     out = {  # type: Dict[str, object]
         "passed": True,
-        "severity": "error",
         "file": rel,
     }
     text = _read_text(file_path)
@@ -697,7 +688,7 @@ def check_wiki_metadata_reads_satisfied(wiki_root: Path, info: Dict[str, str]) -
     CLI `wiki add` 必落盘 wiki_metadata.toml；缺失即产物不完整 → fail（不 skip）。
     复用 minimal TOML key=value 风格解析，不引入 tomli。
     """
-    out = {"passed": True, "severity": "error", "file": "wiki_metadata.toml"}  # type: Dict[str, object]
+    out = {"passed": True, "file": "wiki_metadata.toml"}  # type: Dict[str, object]
     text = _read_text(wiki_root / "wiki_metadata.toml")
     if text is None:
         out["passed"] = False  # type: ignore
@@ -734,7 +725,7 @@ def check_opencode_instructions_sync(wiki_root: Path, info: Dict[str, str]) -> D
     """
     from llmw.models.overlay_opencode import INSTRUCTION_FILES
 
-    out = {"passed": True, "severity": "error", "file": "agents-md-template.md"}  # type: Dict[str, object]
+    out = {"passed": True, "file": "agents-md-template.md"}  # type: Dict[str, object]
     template = _read_text(wiki_templates_dir() / "agents-md-template.md")
     if template is None:
         out["passed"] = None
@@ -936,11 +927,10 @@ SKELETON_REGISTRY = [
 def _make_skeleton_check(entry: Dict[str, object]) -> Callable[[Path, Dict[str, str]], Dict[str, object]]:
     """按 SKELETON_REGISTRY 描述符生成一条骨架 check 函数（照搬 _check_no_frontmatter 共享模式）。"""
     wiki_path = entry["wiki_path"]  # type: ignore
-    severity = entry["severity"]  # type: ignore
     sigs = entry["signals"]  # type: ignore
 
     def _check(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-        out = {"passed": True, "severity": severity, "file": wiki_path}  # type: Dict[str, object]
+        out = {"passed": True, "file": wiki_path}  # type: Dict[str, object]
         wiki_text = _read_text(wiki_root / wiki_path)
         if wiki_text is None:
             out["passed"] = None

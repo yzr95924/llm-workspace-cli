@@ -30,30 +30,22 @@ FIXTURES_MEMORY_INDEX = (TEMPLATES_WS / "fixtures" / "memory-index.txt").read_te
 
 OLD_VERSION = "0.6.2"  # 真实历史版本——永远小于当前 target_format
 
-# 与 llmw/workspace/gitignore.py 的 gitignore managed block 逐字一致
-CLEAN_GITIGNORE = """# >>> llmw (managed by llmw) >>>
-workspace_models.toml
-# IDE 项目级 settings（可能含 token）：`**/` 锚定 workspace 根 + 任意深度子目录
-# `settings*.json` 同时覆盖 `settings.json` + `settings.local.json` + `settings.<env>.json` 等变体
-**/.claude/settings*.json
-**/.qoder/settings*.json
-# <<< llmw <<<
 
-# OS / 编辑器
-.DS_Store
-.idea/
-.vscode/
-*.swp
-*.swo
+def _clean_gitignore_text():
+    """clean workspace 的 .gitignore = 真函数产物（ensure_workspace_gitignore 在 tmp 跑一次）。
 
-# Obsidian 配置（保留 vault 内容）
-.obsidian/workspace*
-.obsidian/cache
+    不手抄 managed block——内容 SSOT = llmw/workspace/gitignore.py#GITIGNORE_LINES；
+    手抄版本曾在规则扩充后静默陈旧（当时升级引擎的 gitignore-block 是死路径，掩盖了漂移）。
+    """
+    sys.path.insert(0, str(REPO))
+    from llmw.workspace.gitignore import ensure_workspace_gitignore
 
-# 临时文件
-*.tmp
-*.bak
-"""
+    with tempfile.TemporaryDirectory() as d:
+        ensure_workspace_gitignore(Path(d))
+        return (Path(d) / ".gitignore").read_text(encoding="utf-8")
+
+
+CLEAN_GITIGNORE = _clean_gitignore_text()
 
 
 def _target_format():
@@ -82,7 +74,7 @@ def _render_claude_md(name="Test"):
 
 def _clean_workspace_toml(format_version=None):
     return (
-        "schema_version = 1\n"
+        "schema_version = 2\n"
         'created_at = "2026-07-01T00:00:00"\n'
         f'templates_version = "workspace_format = {format_version or TARGET_FORMAT}; wiki_format = 0.26.0"\n'
         "\n[wikis]\n"

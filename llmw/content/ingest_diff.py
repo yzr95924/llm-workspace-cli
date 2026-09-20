@@ -45,39 +45,54 @@ FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---", re.DOTALL)
 
 
 def parse_frontmatter_simple(text: str) -> Dict:
-    """轻量 YAML frontmatter 解析；只处理 skill 实际写出的格式"""
+    """轻量 YAML frontmatter 解析；只处理 skill 实际写出的格式
+
+    空值语义：`key:`（无值）先挂起——下一行若是 "  - item" 列表项则按 list 解析，
+    否则落定为空字符串；`key: []` 是立即的空 list（后续跟随的列表项不再吸收）。
+    """
     m = FRONTMATTER_RE.match(text)
     if not m:
         return {}
     block = m.group(1)
     result = {}  # type: Dict[str, object]
-    current_list_key = None
+    pending_key = None  # type: Optional[str]  # `key:` 空值——等下一行确认 list 还是空标量
+    current_list_key = None  # type: Optional[str]
     current_list_items = []  # type: List[str]
-    for raw_line in block.splitlines():
-        line = raw_line.rstrip()
-        if not line:
-            continue
-        # 列表项
-        list_match = re.match(r"^\s+-\s+(.+?)\s*$", line)
-        if list_match and current_list_key is not None:
-            current_list_items.append(list_match.group(1).strip())
-            continue
-        # 若是新 key：先把上一个 list 提交
+
+    def _flush_list():
+        nonlocal current_list_key, current_list_items
         if current_list_key is not None:
             result[current_list_key] = current_list_items
             current_list_key = None
             current_list_items = []
+
+    for raw_line in block.splitlines():
+        line = raw_line.rstrip()
+        if not line:
+            continue
+        # 列表项（仅当上一行是 `key:` 空值 或已在列表内）
+        list_match = re.match(r"^\s+-\s+(.+?)\s*$", line)
+        if list_match and (pending_key is not None or current_list_key is not None):
+            if pending_key is not None:
+                current_list_key = pending_key
+                pending_key = None
+            current_list_items.append(list_match.group(1).strip())
+            continue
+        # 新 key 前收尾：挂起的空值按空字符串落定；上个 list 提交
+        if pending_key is not None:
+            result[pending_key] = ""
+            pending_key = None
+        _flush_list()
         # 新 key: value
         kv_match = re.match(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$", line)
         if not kv_match:
             continue
         key = kv_match.group(1)
         val = kv_match.group(2).strip()
-        if val == "" or val == "[]":
-            # 可能是 inline 列表或空数组——下一行若是 "  - item" 才算列表
+        if val == "":
+            pending_key = key
+        elif val == "[]":
             result[key] = []
-            current_list_key = key
-            current_list_items = []
         elif val.startswith("[") and val.endswith("]"):
             # inline 数组
             inner = val[1:-1].strip()
@@ -90,8 +105,9 @@ def parse_frontmatter_simple(text: str) -> Dict:
             # 普通字符串（去引号）
             result[key] = val.strip("\"'")
     # 收尾
-    if current_list_key is not None:
-        result[current_list_key] = current_list_items
+    if pending_key is not None:
+        result[pending_key] = ""
+    _flush_list()
     return result
 
 
