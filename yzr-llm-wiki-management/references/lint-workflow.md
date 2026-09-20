@@ -115,7 +115,9 @@ CLI stdout 按严重性分组（组头 `[ERROR] (N)` / 缩进行为 finding 文�
 
 1. 整理报告（按严重性排序：error > warn > info）
 2. **询问用户先修哪些**——不要一次全修（容易回退或引入新问题）
-3. 修完后**重新跑 lint 验证**——不要带着 fix 没验过的状态前进
+3. 修完后**重新跑 lint 验证**——不要带着 fix 没验过的状态前进。验证性重跑同属
+   「执行 `llmw wiki lint`」，按 wiki 根 AGENTS.md「写后必同步」记一条（标题以
+   「验证重跑」起头并带结果，如 `验证重跑：干净`）
 4. 若启用 git，重大修复 commit 时建议加 `lint: <summary>` 前缀；裸目录树 wiki 跳过 commit 步骤
 5. **若跑 fixtures-check**——按 [`upgrade-workflow.md「职责切分」`](upgrade-workflow.md) 区分 CLI 骨架 vs agent 语义合并；
    `fixtures-fix-*` 系列（anchor-schema / symlink-matches / log-format 等当前格式维护）：anchor 类
