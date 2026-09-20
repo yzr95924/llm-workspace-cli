@@ -222,14 +222,132 @@ class LogTests(unittest.TestCase):
     def test_missing_log(self):
         (self.root / "wiki" / "log.md").unlink()
         r = _run(self.root, "log", "--op", "ingest", "--title", "X")
-        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.returncode, 1)
         self.assertIn("log-missing", r.stderr)
 
     def test_bad_title_rejected(self):
         r = _run(self.root, "log", "--op", "ingest")
-        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.returncode, 1)  # 业务层校验 → 1（用户错误）
         r2 = _run(self.root, "log", "--op", "bogus", "--title", "X")
-        self.assertEqual(r2.returncode, 2)
+        self.assertEqual(r2.returncode, 2)  # argparse choices 层沿用 Python 惯例 → 2
+
+    def test_raw_appends_third_segment(self):
+        r = _run(
+            self.root,
+            "log",
+            "--op",
+            "ingest",
+            "--title",
+            "Alpha Source",
+            "--raw",
+            "raw/articles/alpha.md",
+        )
+        self.assertEqual(r.returncode, 0, r.stderr)
+        last = self._log_text().splitlines()[-1]
+        self.assertTrue(LOG_LINE_RE.match(last), last)
+        self.assertTrue(last.endswith("| Alpha Source | raw/articles/alpha.md"), last)
+        # LOG_INGEST_RE 可精确反查路径
+        from llmw.content.log_format import LOG_INGEST_RE
+
+        m = LOG_INGEST_RE.match(last)
+        self.assertEqual(m.group("title"), "Alpha Source")
+        self.assertEqual(m.group("raw"), "raw/articles/alpha.md")
+
+    def test_raw_pairs_with_titles_in_order(self):
+        (self.root / "raw" / "articles" / "beta.md").write_text("b", encoding="utf-8")
+        r = _run(
+            self.root,
+            "log",
+            "--op",
+            "ingest",
+            "--title",
+            "A",
+            "--title",
+            "B",
+            "--raw",
+            "raw/articles/alpha.md",
+            "--raw",
+            "raw/articles/beta.md",
+        )
+        self.assertEqual(r.returncode, 0, r.stderr)
+        tail = self._log_text().splitlines()[-2:]
+        self.assertTrue(tail[0].endswith("| A | raw/articles/alpha.md"), tail)
+        self.assertTrue(tail[1].endswith("| B | raw/articles/beta.md"), tail)
+
+    def test_raw_requires_ingest_op(self):
+        r = _run(
+            self.root,
+            "log",
+            "--op",
+            "query",
+            "--title",
+            "X",
+            "--raw",
+            "raw/articles/alpha.md",
+        )
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("--op=ingest", r.stderr)
+
+    def test_raw_rejects_bulk(self):
+        r = _run(
+            self.root,
+            "log",
+            "--op",
+            "ingest",
+            "--bulk",
+            "--topic",
+            "T",
+            "--count",
+            "2",
+            "--raw",
+            "raw/articles/alpha.md",
+        )
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("--bulk", r.stderr)
+
+    def test_raw_count_must_match_titles(self):
+        r = _run(
+            self.root,
+            "log",
+            "--op",
+            "ingest",
+            "--title",
+            "A",
+            "--title",
+            "B",
+            "--raw",
+            "raw/articles/alpha.md",
+        )
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("按序配对", r.stderr)
+
+    def test_raw_normalized_before_write(self):
+        """非规范输入（raw/./x.md）落盘前归一化，保证与 ingest-diff 精确比对同源。"""
+        r = _run(
+            self.root,
+            "log",
+            "--op",
+            "ingest",
+            "--title",
+            "A",
+            "--raw",
+            "raw/./articles/alpha.md",
+        )
+        self.assertEqual(r.returncode, 0, r.stderr)
+        last = self._log_text().splitlines()[-1]
+        self.assertTrue(last.endswith("| A | raw/articles/alpha.md"), last)
+
+    def test_raw_must_be_raw_relative_and_exist(self):
+        for bad, frag in [
+            ("articles/alpha.md", "raw/ 起头"),
+            ("/abs/raw/articles/alpha.md", "wiki 根相对"),
+            ("raw/../../etc/passwd", "raw/ 起头"),
+            ("raw/articles/missing.md", "不存在"),
+            ("raw/articles/alpha.md|x", "不能含"),
+        ]:
+            r = _run(self.root, "log", "--op", "ingest", "--title", "A", "--raw", bad)
+            self.assertEqual(r.returncode, 1, bad)
+            self.assertIn(frag, r.stderr, bad)
 
 
 class IndexTests(unittest.TestCase):
@@ -325,7 +443,7 @@ class IndexTests(unittest.TestCase):
             encoding="utf-8",
         )
         r = _run(self.root, "index", "add", "wiki/sources/no-type.md")
-        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.returncode, 1)
 
     def test_remove(self):
         r = _run(self.root, "index", "remove", "wiki/sources/alpha.md")
@@ -334,7 +452,7 @@ class IndexTests(unittest.TestCase):
 
     def test_remove_missing_rejected(self):
         r = _run(self.root, "index", "remove", "wiki/sources/never.md")
-        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.returncode, 1)
 
 
 class TouchTests(unittest.TestCase):
@@ -373,7 +491,7 @@ class TouchTests(unittest.TestCase):
 
     def test_touch_missing_page(self):
         r = _run(self.root, "touch", "wiki/concepts/nope.md")
-        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.returncode, 1)
 
     def test_touch_twice_preserves_newlines(self):
         for _ in range(2):
@@ -393,7 +511,7 @@ class TouchTests(unittest.TestCase):
             encoding="utf-8",
         )
         r = _run(self.root, "touch", "wiki/concepts/beta.md")
-        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.returncode, 1)
         self.assertIn("粘连", r.stderr)
         # 病变文件未被改写
         self.assertIn(
@@ -445,16 +563,16 @@ class NewTests(unittest.TestCase):
 
     def test_new_source_requires_sources(self):
         r = _run(self.root, "new", "--type", "source", "--slug", "x", "--title", "X")
-        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.returncode, 1)
         self.assertIn("--sources", r.stderr)
 
     def test_new_bad_slug(self):
         r = _run(
             self.root, "new", "--type", "concept", "--slug", "Bad Slug", "--title", "X"
         )
-        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.returncode, 1)
         r2 = _run(self.root, "new", "--type", "memory", "--slug", "x", "--title", "X")
-        self.assertEqual(r2.returncode, 2)
+        self.assertEqual(r2.returncode, 1)
 
     def test_new_refuses_overwrite(self):
         r = _run(
@@ -469,7 +587,7 @@ class NewTests(unittest.TestCase):
             "--sources",
             "raw/articles/alpha.md",
         )
-        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.returncode, 1)
         self.assertIn("已存在", r.stderr)
 
     def test_new_entity_without_sources_ok(self):
@@ -525,11 +643,11 @@ class MemoryTests(unittest.TestCase):
     def test_memory_missing_index(self):
         (self.root / "MEMORY" / "MEMORY.md").unlink()
         r = _run(self.root, "memory", "add", "--slug", "x", "--title", "X")
-        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.returncode, 1)
 
     def test_memory_bad_slug(self):
         r = _run(self.root, "memory", "add", "--slug", "Bad", "--title", "X")
-        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.returncode, 1)
 
 
 class VersionWarnTests(unittest.TestCase):

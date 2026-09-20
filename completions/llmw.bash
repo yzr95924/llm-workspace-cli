@@ -15,7 +15,7 @@ _llmw() {
     # = 后，COMP_WORDS[COMP_CWORD] 是 "="）。规范化 cur 回 `--flag=` 形式以复用下方 --flag=*
     # 分支（返回裸 value，readline 自动附加到 = 后）。仅对带值 flag 触发，避免误伤 bool flag。
     case "$prev" in
-        --name|--model|--model-id|--workspace|--path|--topic|--display-name|--description|--tag|--tags|--base-url|--api-key|--window-suffix|--target-format|--target|--op|--title|--slug|--index-line|--count|--severity|--explain|--notes|--sources|--old|--new)
+        --name|--model|--model-id|--workspace|--path|--topic|--display-name|--description|--tag|--tags|--base-url|--api-key|--window-suffix|--target-format|--target|--op|--title|--slug|--index-line|--count|--severity|--explain|--notes|--sources|--raw|--old|--new)
             case "$cur" in
                 "=") cur="${prev}=" ;;
                 =*)  cur="${prev}${cur}" ;;
@@ -116,7 +116,7 @@ _llmw() {
             COMPREPLY=($(compgen -d -- "${cur#*=}"))
             return 0
             ;;
-        --topic=*|--display-name=*|--description=*|--tag=*|--tags=*|--base-url=*|--api-key=*|--new=*|--window-suffix=*|--target-format=*|--target=*|--op=*|--title=*|--slug=*|--index-line=*|--count=*|--severity=*|--explain=*|--notes=*|--sources=*)
+        --topic=*|--display-name=*|--description=*|--tag=*|--tags=*|--base-url=*|--api-key=*|--new=*|--window-suffix=*|--target-format=*|--target=*|--op=*|--title=*|--slug=*|--index-line=*|--count=*|--severity=*|--explain=*|--notes=*|--sources=*|--raw=*)
             # 带值 flag 但值是 free-form；无候选
             COMPREPLY=()
             return 0
@@ -293,7 +293,7 @@ _llmw() {
                             COMPREPLY=($(compgen -W "$WIKI_WRITE_ACTS $COMMON" -- "$cur"))
                         else
                             case "${w_pos[2]}" in
-                                log)    COMPREPLY=($(compgen -W "--op= --title= --bulk --topic= --count= $COMMON" -- "$cur")) ;;
+                                log)    COMPREPLY=($(compgen -W "--op= --title= --raw= --bulk --topic= --count= $COMMON" -- "$cur")) ;;
                                 index)
                                 # w_pos[0]=wiki [1]=write [2]=index, [3]=add|remove
                                 if [ -z "${w_pos[3]:-}" ]; then

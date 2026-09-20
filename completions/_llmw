@@ -412,6 +412,7 @@ _llmw_wiki() {
                                 _arguments \
                                     '--op=[操作类型]:op:(ingest query lint setup)' \
                                     '--title=[标题]:title:' \
+                                    '--raw=[raw/ 相对路径（仅 ingest）]:raw:' \
                                     '--bulk[批量模式]' \
                                     '--topic=[主题]:topic:' \
                                     '--count=[计数]:count:' \

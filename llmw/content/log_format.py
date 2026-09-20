@@ -28,10 +28,12 @@ def parse_date_or_datetime(s):
 # 合法 op 集合（SSOT）——LOG_LINE_RE 与 CLI 的 --op choices 共用，新增 op 只改这里
 LOG_OPS = ("ingest", "query", "lint", "setup")
 
-# HH:MM 可选（regex 非锚定尾部）；老 wikis 仅 date 仍合法
-LOG_LINE_RE = re.compile(
-    r"^## \[\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?\] "
-    r"(" + "|".join(LOG_OPS) + r") \| .+$"
-)
+# 时间戳：HH:MM / :SS 均可选（老 wikis 仅 date 仍合法）；全非捕获——取组只认命名组，
+# 避免嵌套可选组把位置索引带偏（见 ingest_diff 的历史 group 错位 bug）
+_LOG_TIMESTAMP = r"\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}(?::\d{2})?)?"
 
-LOG_INGEST_RE = re.compile(r"^## \[\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?\] ingest \| (.+)$")
+LOG_LINE_RE = re.compile(r"^## \[" + _LOG_TIMESTAMP + r"\] (" + "|".join(LOG_OPS) + r") \| .+$")
+
+# ingest 行可带第三段 ` | <raw 相对路径>`（wiki 根相对、raw/ 前缀；write log --raw 落盘）；
+# 老条目只有 title → raw 组不参与（None）。解析歧义免疫：raw 段固定以 "raw/" 起头
+LOG_INGEST_RE = re.compile(r"^## \[" + _LOG_TIMESTAMP + r"\] ingest \| (?P<title>.+?)(?: \| (?P<raw>raw/.+?))?$")

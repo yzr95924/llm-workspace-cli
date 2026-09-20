@@ -18,7 +18,7 @@
    - 不存在：创建并把本次贡献写进
    - 存在：追加"参考来源"段
 5. llmw wiki write index add wiki/sources/distributed-systems-overview.md
-6. llmw wiki write log --op=ingest --title="Distributed Systems Overview"
+6. llmw wiki write log --op=ingest --title="Distributed Systems Overview" --raw=raw/articles/distributed-systems-overview.md
 7. 若启用 git，建议 commit；裸目录树 wiki 跳过此步
 ```
 

@@ -227,6 +227,7 @@ complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcomman
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--op=lint"   -f -d 'op=lint'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--op=setup"  -f -d 'op=setup'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--title="      -f -d '标题'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--raw="        -f -d 'raw/ 相对路径（仅 ingest）'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -l bulk           -d '批量模式'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--topic="     -f -d '主题'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--count="     -f -d '计数'

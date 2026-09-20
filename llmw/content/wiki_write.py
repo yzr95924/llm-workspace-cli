@@ -59,27 +59,73 @@ def _log_body_start(text):
 # ---------- log ----------
 
 
+def _validate_raw_arg(wiki_root, raw):
+    """log --raw 校验：wiki 根相对 + raw/ 前缀 + 无 | 换行/绝对路径/.. + 文件存在；返错误串或 None。"""
+    if raw != raw.strip() or not raw:
+        return f"log --raw 不能为空或带首尾空白：{raw!r}"
+    if "|" in raw or "\n" in raw:
+        return f"log --raw 不能含 | 或换行：{raw}"
+    if raw.startswith("/") or "\\" in raw:
+        return f"log --raw 必须是 wiki 根相对路径（POSIX）：{raw}"
+    parts = Path(raw).parts
+    if not parts or parts[0] != "raw" or ".." in parts:
+        return f"log --raw 必须 raw/ 起头的 wiki 根相对路径：{raw}"
+    if not (Path(wiki_root) / raw).is_file():
+        return f"log --raw 指向的文件不存在：{raw}"
+    return None
+
+
+def _validate_raw_args(wiki_root, args):
+    """log --raw 前导校验 + 归一化 → (规范路径列表, 错误串)；未传 --raw 返 ([], None)。
+
+    归一化（as_posix）在写侧收口——与 ingest-diff 的 normalize_rel 同源可比，
+    raw/./x.md、raw//x.md 等非规范输入落盘前即收敛为规范串。
+    """
+    raws = args.raw or []
+    if not raws:
+        return [], None
+    if args.op != "ingest":
+        return [], f"log --raw 仅用于 --op=ingest（当前 op={args.op}）"
+    if args.bulk:
+        return [], "log --raw 不能与 --bulk 同用（bulk 行不记路径）"
+    if not args.title or len(raws) != len(args.title):
+        return [], f"log --raw 需与 --title 数量相等按序配对（raw={len(raws)}, title={len(args.title or [])}）"
+    norms = []
+    for raw in raws:
+        err = _validate_raw_arg(wiki_root, raw)
+        if err:
+            return [], err
+        norms.append(Path(raw).as_posix())
+    return norms, None
+
+
 def cmd_log(wiki_root, args):
     log_path = Path(wiki_root) / "wiki" / "log.md"
     if not log_path.is_file():
-        return "log-missing: wiki/log.md 不存在", 2
+        return "log-missing: wiki/log.md 不存在", 1
+    raws, raw_err = _validate_raw_args(wiki_root, args)
+    if raw_err:
+        return raw_err, 1
     if args.bulk:
         if not args.topic or args.count is None:
-            return "log --bulk 需 --topic 与 --count", 2
+            return "log --bulk 需 --topic 与 --count", 1
         lines = [f"## [{_now()}] {args.op} | Bulk: {args.topic} ({args.count} sources)"]
     else:
         if not args.title:
-            return "log 需至少一个 --title（或 --bulk）", 2
+            return "log 需至少一个 --title（或 --bulk）", 1
         bad = [t for t in args.title if not t.strip() or "\n" in t]
         if bad:
-            return "log 标题必须非空且单行", 2
-        lines = [f"## [{_now()}] {args.op} | {t.strip()}" for t in args.title]
+            return "log 标题必须非空且单行", 1
+        lines = [
+            f"## [{_now()}] {args.op} | {t.strip()}" + (f" | {raws[i]}" if raws else "")
+            for i, t in enumerate(args.title)
+        ]
     text = log_path.read_text(encoding="utf-8", errors="replace")
     if not text.endswith("\n"):
         text += "\n"
     for line in lines:
         if not LOG_LINE_RE.match(line):
-            return f"生成的 log 行格式非法（不该发生）：{line}", 2
+            return f"生成的 log 行格式非法（不该发生）：{line}", 1
         text += line + "\n"
     body_start = _log_body_start(text)
     body = text[body_start:]
@@ -127,10 +173,10 @@ def _index_link_for(rel):
 def cmd_index(wiki_root, args):
     index_path = Path(wiki_root) / "wiki" / "index.md"
     if not index_path.is_file():
-        return "index-missing: wiki/index.md 不存在", 2
+        return "index-missing: wiki/index.md 不存在", 1
     rel = _index_page_paths(wiki_root, args.page)
     if rel is None:
-        return f"index 参数必须是 wiki/ 内的 .md 页：{args.page}", 2
+        return f"index 参数必须是 wiki/ 内的 .md 页：{args.page}", 1
     link = _index_link_for(rel)
     text = index_path.read_text(encoding="utf-8", errors="replace")
 
@@ -146,20 +192,20 @@ def cmd_index(wiki_root, args):
                 continue
             out.append(line)
         if not removed:
-            return f"index 中未找到指向 {link} 的条目", 2
+            return f"index 中未找到指向 {link} 的条目", 1
         atomic_write(index_path, "".join(out))
         print(f"已从 wiki/index.md 移除 {link} 条目", file=sys.stderr)
         return None, 0
 
     if not page_path.is_file():
-        return f"index add 目标页不存在：{rel}", 2
+        return f"index add 目标页不存在：{rel}", 1
     fm = parse_frontmatter_simple(page_path.read_text(encoding="utf-8", errors="replace"))
     title = str(fm.get("title", "")).strip()
     if not title:
-        return "index add 需要目标页 frontmatter 含非空 title", 2
+        return "index add 需要目标页 frontmatter 含非空 title", 1
     section = TYPE_TO_SECTION.get(str(fm.get("type", "")).strip())
     if section is None:
-        return "index add 需要目标页 type 为内容页类型之一（当前: {}）".format(fm.get("type")), 2
+        return "index add 需要目标页 type 为内容页类型之一（当前: {}）".format(fm.get("type")), 1
     desc = str(fm.get("description", "")).strip()
     entry = "- [{}]({}){}".format(title, link, (" — " + desc) if desc else "")
 
@@ -189,7 +235,7 @@ def cmd_index(wiki_root, args):
         else:
             out.append(line)
     if not seen_target:
-        return f"wiki/index.md 缺 `## {section}` 类别段（按 page-templates.md「index（index.md）」骨架补）", 2
+        return f"wiki/index.md 缺 `## {section}` 类别段（按 page-templates.md「index（index.md）」骨架补）", 1
 
     entries = [_INDEX_ENTRY_RE.match(ln) for ln in section_lines if _INDEX_ENTRY_RE.match(ln)]
     if entries:
@@ -219,11 +265,11 @@ def cmd_index(wiki_root, args):
 def cmd_touch(wiki_root, args):
     page_path = Path(wiki_root) / args.page
     if not page_path.is_file():
-        return f"touch 目标页不存在：{args.page}", 2
+        return f"touch 目标页不存在：{args.page}", 1
     text = page_path.read_text(encoding="utf-8", errors="replace")
     lines = text.splitlines(keepends=True)
     if not lines or lines[0].rstrip("\n").strip() != "---":
-        return f"touch 目标页无 frontmatter：{args.page}", 2
+        return f"touch 目标页无 frontmatter：{args.page}", 1
     # 找独占一行的闭合 `---`（frontmatter 定界符必须自成一行，否则前置块失效）。
     # 命中 `---` 开头但行内还有其它字符（如历史 bug 的 `---# 标题` 粘连）→ 拒写，
     # 提示先修文件——lint 会报 frontmatter-delimiter-glued。
@@ -236,12 +282,12 @@ def cmd_touch(wiki_root, args):
                 f"touch 目标页 frontmatter 闭合 `---` 与正文粘连"
                 f"（`{lines[i].rstrip(chr(10))}`）：{args.page}——"
                 f"先手动 Edit 补换行再 touch（lint 会报 frontmatter-delimiter-glued）",
-                2,
+                1,
             )
         close_idx = i
         break
     if close_idx is None:
-        return f"touch 目标页无 frontmatter：{args.page}", 2
+        return f"touch 目标页无 frontmatter：{args.page}", 1
     now = _now()
     changed = []
     new_lines = []
@@ -267,18 +313,18 @@ def cmd_touch(wiki_root, args):
 
 def cmd_new(wiki_root, args):
     if args.type not in CONTENT_TYPES:
-        return "new --type 必须是内容页类型之一（{}）".format(", ".join(sorted(CONTENT_TYPES))), 2
+        return "new --type 必须是内容页类型之一（{}）".format(", ".join(sorted(CONTENT_TYPES))), 1
     if not SOURCE_NAME_RE.match(args.slug):
-        return f"new --slug 必须是小写 kebab-case（^[a-z0-9][a-z0-9-]*$）：{args.slug}", 2
+        return f"new --slug 必须是小写 kebab-case（^[a-z0-9][a-z0-9-]*$）：{args.slug}", 1
     if not args.title.strip():
-        return "new --title 必须非空", 2
+        return "new --title 必须非空", 1
     page_path = Path(wiki_root) / "wiki" / TYPE_TO_DIR[args.type] / (args.slug + ".md")
     if page_path.is_file():
-        return f"new 目标页已存在（如需更新用 Edit）：{page_path}", 2
+        return f"new 目标页已存在（如需更新用 Edit）：{page_path}", 1
     if args.type == "source" and not args.sources:
         return (
             "new --type source 必须提供 --sources（缺失会被 lint 报 sources-missing；解释见 llmw wiki lint --explain=sources-missing）",
-            2,
+            1,
         )
 
     now = _now()
@@ -305,19 +351,19 @@ def cmd_new(wiki_root, args):
 
 def cmd_memory(wiki_root, args):
     if not SOURCE_NAME_RE.match(args.slug):
-        return f"memory add --slug 必须是小写 kebab-case：{args.slug}", 2
+        return f"memory add --slug 必须是小写 kebab-case：{args.slug}", 1
     if not args.title.strip():
-        return "memory add --title 必须非空", 2
+        return "memory add --title 必须非空", 1
     mem_dir = Path(wiki_root) / "MEMORY"
     entry_path = mem_dir / (args.slug + ".md")
     if entry_path.is_file():
-        return f"memory 条目已存在：{entry_path}", 2
+        return f"memory 条目已存在：{entry_path}", 1
     index_path = mem_dir / "MEMORY.md"
     if not index_path.is_file():
-        return "memory add 需要 MEMORY/MEMORY.md 索引存在（缺失走 fixtures-fix 补，不自动创建）", 2
+        return "memory add 需要 MEMORY/MEMORY.md 索引存在（缺失走 fixtures-fix 补，不自动创建）", 1
     index_text = index_path.read_text(encoding="utf-8", errors="replace")
     if "## 索引" not in index_text:
-        return "MEMORY/MEMORY.md 缺 `## 索引` 段", 2
+        return "MEMORY/MEMORY.md 缺 `## 索引` 段", 1
 
     now = _now()
     fm_lines = ["---", f'title: "{args.title}"']
@@ -354,6 +400,11 @@ def build_subparsers(sub) -> None:
     p_log = sub.add_parser("log", help=f"追加 log.md 条目（自动截断保最近 {LOG_RETENTION_LIMIT} 条）")
     p_log.add_argument("--op", required=True, choices=LOG_OPS)
     p_log.add_argument("--title", action="append", help="条目标题（可重复）")
+    p_log.add_argument(
+        "--raw",
+        action="append",
+        help="raw/ 相对路径（仅 ingest；与 --title 按序配对，落第三段 ` | <path>`）",
+    )
     p_log.add_argument("--bulk", action="store_true", help="批量摄取模式（Bulk: <topic> (<N> sources)）")
     p_log.add_argument("--topic", help="--bulk 用的主题概览")
     p_log.add_argument("--count", type=int, help="--bulk 用的 source 数")

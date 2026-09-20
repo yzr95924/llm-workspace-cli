@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """ingest_diff — 找出 raw/ 里需要 LLM 关注的文件（`llmw wiki ingest-diff`）。
 
-"已摄取"判定 = source 页 frontmatter.sources ∪ log.md ingest 标题。三类输出：
+"已摄取"判定 = source 页 frontmatter.sources ∪ log.md ingest 记录（新条目 raw 路径
+精确命中 / 老条目标题 slug 归一化兜底）。三类输出：
 untracked（未摄取）/ stale-raw（--check-stale：raw mtime 晚于 source updated）/
 log-only-no-source-page（log 有记录但 source 页缺失）。
 
@@ -13,7 +14,7 @@ import re
 import sys
 from datetime import date
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 
 # log 行格式正则 + created/updated 时间解析 SSOT 来自 log_format 模块
 from llmw.content.log_format import LOG_INGEST_RE, parse_date_or_datetime
@@ -131,16 +132,32 @@ def normalize_rel(path: Path, base: Path) -> str:
     return rel.as_posix()
 
 
-def collect_ingested_from_log(log_path: Path) -> Set[str]:
-    """从 log.md 提取 ingest 标题集合（提示性；"已摄取"判定主要靠 source 页 frontmatter）。"""
-    ingested = set()  # type: Set[str]
+def _slugify(s: str) -> str:
+    """标题 / 文件名 → kebab-case slug（对齐 `write new --slug` 约定）；无可归一字符 → ""。
+
+    log 标题是 source 页 title、raw 比对对象是文件名 stem，两者只在命名对齐时同源——
+    slug 归一化把 "Attention Is All You Need" 与 stem `attention-is-all-you-need` 对上。
+    """
+    return re.sub(r"[^a-z0-9]+", "-", s.strip().lower()).strip("-")
+
+
+def collect_ingested_from_log(log_path: Path) -> Tuple[Set[str], Set[str]]:
+    """从 log.md 提取 ingest 记录 → (标题集合, raw 相对路径集合)。
+
+    新条目（write log --raw）带 raw 路径 → 精确命中；老条目只有 title → 调用方
+    slug 归一化兜底（提示性；"已摄取"判定主要靠 source 页 frontmatter）。
+    """
+    titles = set()  # type: Set[str]
+    raw_paths = set()  # type: Set[str]
     if not log_path.is_file():
-        return ingested
+        return titles, raw_paths
     for line in log_path.read_text(encoding="utf-8").splitlines():
         m = LOG_INGEST_RE.match(line)
         if m:
-            ingested.add(m.group(1).strip())
-    return ingested
+            titles.add(m.group("title").strip())
+            if m.group("raw"):
+                raw_paths.add(m.group("raw").strip())
+    return titles, raw_paths
 
 
 def collect_ingested_sources_map(wiki_root: Path) -> Dict[str, List[Path]]:
@@ -185,7 +202,8 @@ def run(wiki_root: Path, *, as_json: bool = False, relative: bool = False, check
     raw_files = collect_raw_files(raw_root)
     src_map = collect_ingested_sources_map(wiki_root)
     ingested_paths = set(src_map.keys())
-    log_titles = collect_ingested_from_log(wiki_root / "wiki" / "log.md")
+    log_titles, log_raw_paths = collect_ingested_from_log(wiki_root / "wiki" / "log.md")
+    log_title_slugs = {_slugify(t) for t in log_titles} - {""}
 
     pending = []  # list of (Path, reason) tuples
     for p in raw_files:
@@ -198,7 +216,8 @@ def run(wiki_root: Path, *, as_json: bool = False, relative: bool = False, check
                         break
             continue
         stem = p.stem
-        if stem in log_titles:
+        # 新条目 raw 路径精确命中；老条目（无路径）走标题 slug 归一化兜底（启发式）
+        if rel_to_root in log_raw_paths or _slugify(stem) in log_title_slugs:
             pending.append((p, "log-only-no-source-page"))
             continue
         pending.append((p, "untracked"))

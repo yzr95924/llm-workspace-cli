@@ -72,9 +72,11 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ### Step 6：追加 `log.md`
 
-- `llmw wiki write log --op=ingest --title="<source 页 title>"`——格式 + 滚动窗口截断
-  自动保证
-- 一次 ingest 多个文件 → 重复 `--title`（每条对应一个 source 页）；批处理走 `--bulk`（见下）
+- `llmw wiki write log --op=ingest --title="<source 页 title>" --raw="raw/<相对路径>"`——
+  格式 + 滚动窗口截断自动保证；`--raw` 记录被摄取文件（wiki 根相对、`raw/` 起头，
+  是 `ingest-diff` 判定 log-only-no-source-page 的精确依据）
+- 一次 ingest 多个文件 → `--title` 与 `--raw` 重复且按序配对（每条对应一个 source 页）；
+  批处理走 `--bulk`（见下，bulk 行不记路径）
 
 ### Step 7：建议 commit（启用 git 时）
 
