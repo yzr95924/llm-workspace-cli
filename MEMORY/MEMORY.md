@@ -70,6 +70,8 @@
 
 **SKILL 维护（2026-08-18 起同仓）**
 
+- **两 SKILL 结构已对齐 yzr-skill-creator 模板（2026-09-26）** — skill 细节目录 `references/` → `ref/`（contract gate 路径构造 + fixtures 模式 + lint rule_ref 字符串同步）；节名用规范体 `输入与输出 / 执行原则 / 工作流`（变体后缀退役）；此后 verify 基线 = 0 ERROR / 0 WARN，再出红即真问题
+
 - **两 SKILL 与 CLI 同仓（随 install.sh 一起分发）** — `yzr-llm-wiki-management` / `yzr-llm-workspace-management` 在本仓；install.sh 注册 `~/.agents/skills` 的 symlink 直接指向本仓、`~/.claude/skills`（存在时）建**链式 symlink 指向 `~/.agents/skills/<name>`**（uninstall.sh 的安全检查依赖这个链式形态），uninstall.sh 对称清理。
 - **规范体只陈述现状规则** — AGENTS.md 模板 / SKILL.md 正文 / 本仓 AGENTS.md 写"记什么 / 不记什么"的规则本身；历史与辩护（"旧版必填…已废止""0.x.0 起取消""schema v2 起字段迁出 X"）归 commit message + upgrade-workflow「语义合并规则」，不进规范体。逐条辩护句会让每处维护都承担同步改写的成本（2026-08-17 清理 external anchor commit 字段时踩过）
 - **改 skill 不手改 wiki/workspace 实例** — 模板变更经升级重渲染全量传播，实例 AGENTS.md 不手改（改了会与模板漂移 + 被下次重渲染覆盖）；`agents-md-template-sync` 报漂移属预期，等统一升级
