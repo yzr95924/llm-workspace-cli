@@ -16,7 +16,7 @@ description: |
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  workspace_format_version: 0.10.1
+  workspace_format_version: 0.10.2
 ---
 
 # LLM Workspace Management
@@ -183,14 +183,6 @@ agent 留退路
 > 且这些文件 CLI 不读写（A8）——检查随 skill 格式契约同侧演进
 
 **何时不做 lint**：用户只问 query → 不 lint；用户说"扫一下" → scan 而非 lint
-
-### Memory（跨 wiki agent 私有记忆）
-
-沉淀判断与治理（体检清理 / 删除确认）归 `yzr-memory-management` skill；「何时写 / 不写」
-canonical = `<workspace>/AGENTS.md`「Memory 纪律」节（自动加载），格式 =
-[`ref/formats.md`](ref/formats.md)「A6. workspace MEMORY/」节。机械面：完整条目写
-`MEMORY/<slug>.md` + 索引挂一行，短条目直接进 `MEMORY/MEMORY.md` 索引；写记忆
-**不动** `INDEX.md` / `STATS.md` / `LINT.md`（漏挂索引由 lint `memory-not-indexed` 兜底）
 
 ### Upgrade（升级 workspace 骨架）
 

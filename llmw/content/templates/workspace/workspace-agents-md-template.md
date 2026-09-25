@@ -127,6 +127,9 @@ frontmatter **仅 `title` 必填**（`type` 若写固定 `workspace-memory`；`c
 **写每条经验后必须同步追加 `MEMORY.md` 索引一行**（按"条目形式"选完整或短格式），
 否则下次会话读不到。
 
+**写记忆只动 `MEMORY/`**——不新增 `INDEX.md` 条目、不改 `STATS.md` / `LINT.md`（三者归
+`scan` / `lint` 各自维护）。
+
 ## 六、本文件本身的纪律
 
 - **本文件由 llmw CLI 渲染拥有（byte-owned）——agent 禁手改**（用户可编辑但自担非标准配置后果，见顶部）。自定义纪律沉淀去 `MEMORY/`

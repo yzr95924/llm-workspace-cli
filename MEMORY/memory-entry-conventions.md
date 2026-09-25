@@ -5,7 +5,8 @@ metadata:
   type: project
 ---
 
-MEMORY 条目形式（完整 vs 短）的判别 + 写入纪律的权威约定。对齐 [`yzr-llm-wiki-management` SKILL.md「Memory」](https://github.com/yzr95924/llm-workspace-cli/blob/master/yzr-llm-wiki-management/SKILL.md) 的"判别条目形式"规则，结合本仓特点做精简。
+MEMORY 条目形式（完整 vs 短）的判别 + 写入纪律的权威约定。对齐 wiki 体系的条目契约
+（`llmw` 包内 fixture `memory-index.txt` 头部说明块），结合本仓特点做精简。
 
 **Why:** `MEMORY/MEMORY.md` 被 `<workspace-root>/CLAUDE.md` 用 `@MEMORY/MEMORY.md` import 会话常驻——每条都进上下文。**裸行承载一句话事实**比让 agent 跳去 `Read` 整个 `<slug>.md` 文件快得多也省得多；但"将来怎么用 / 如何避免"等需要完整上下文的，短行承载不下。两类条目按颗粒度选，写错形式要么冗长占用上下文、要么太短丢失关键信息。
 

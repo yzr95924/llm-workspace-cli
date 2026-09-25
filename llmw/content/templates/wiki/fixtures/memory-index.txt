@@ -10,6 +10,8 @@
 >   加一行 `- <slug> — 一句话 → [正文](<slug>.md)`
 > - **短条目**——纯 reminder / 单一偏好 / 无需 why + how → 索引行直接
 >   `- 一句话事实`，不单独建 `.md` 文件
+> - **落盘机制**：完整条目走 `llmw wiki write memory add --slug=... --title=...`（建文件 +
+>   挂索引行，正文再 Edit）；短条目直接在本文件挂一行索引
 > - 两种格式可在本文件共存；lint `memory-not-indexed` 兜底"有 .md 但未索引"
 >
 > **纪律**：条目增删**只改本文件这一份**（`@import` 引用自动同步指向全文，AGENTS.md

@@ -15,7 +15,7 @@ description: |
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  wiki_format_version: 0.43.5
+  wiki_format_version: 0.43.6
 ---
 
 # LLM Wiki Management
@@ -25,7 +25,7 @@ metadata:
 | 方向 | 内容 |
 | --- | --- |
 | 输入 | wiki 根（session cwd；否则 `$LLM_WIKI_ROOT` 或问用户） |
-| 输出 | `wiki/` 内容页（entity / concept / source / comparison / synthesis）+ `wiki/log.md` / `wiki/index.md` / `wiki/tags.md` 条目 + `MEMORY/` 条目 |
+| 输出 | `wiki/` 内容页（entity / concept / source / comparison / synthesis）+ `wiki/log.md` / `wiki/index.md` / `wiki/tags.md` 条目 |
 
 ## 执行原则
 
@@ -174,13 +174,6 @@ metadata:
 `llmw wiki lint --explain=all`；半定性检查与频率见
 [`ref/lint-workflow.md`](ref/lint-workflow.md)（执行前必读）；fixtures 一致性归
 `llmw wiki check-fixtures`（常规 lint 只在 `--check-version` 时附带）
-
-### Memory（写入 LLM agent 持久化记忆）
-
-沉淀判断与治理（何时写 / 体检清理 / 删除确认）归 `yzr-memory-management` skill；wiki 侧只出
-机械面：完整条目 `llmw wiki write memory add --slug=... --title=...` 建文件 + 索引行、再
-Edit 正文；短条目直接往 `MEMORY/MEMORY.md` 挂一行索引。格式契约 canonical =
-wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明块（自动加载）
 
 ### Upgrade（升级 wiki format）
 

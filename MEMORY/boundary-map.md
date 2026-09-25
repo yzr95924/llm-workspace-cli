@@ -94,7 +94,8 @@ metadata:
 单 wiki 的 ingest（摘要、冲突协调、页面综合）、query、lint → **wiki skill**。
 
 MEMORY/ 条目的沉淀判断与治理（两层皆然）→ `yzr-memory-management` skill（外部通用）；
-本仓两 skill 只留机械面指针（落盘命令 / A6 格式契约），判归时不再走 2 / 3。
+两 skill 正文不承载记忆工作流——落盘机制自承载于实例：wiki 走 `MEMORY/MEMORY.md` 头部说明块
+（fixture 声明 `write memory add`），workspace 走「Memory 纪律」节；判归时不再走 2 / 3。
 
 **4. 迁移/升级路径上的写操作？**
 格式流动期（新旧形态并存时）的写操作 → **agent**（脚本只认识当前形态，硬编码 = 探测器要同时理解新旧）。格式稳定后进 CLI。
