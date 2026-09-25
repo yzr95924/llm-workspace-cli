@@ -33,7 +33,7 @@ legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末�
 
 ## 流程（agent 驱动，5 步）
 
-1. **操作前置**：跑 orient ritual（按 [`SKILL.md「执行原则」`](../SKILL.md) 顶部引用块）
+1. **操作前置**：跑 orient ritual（按 [章节](../SKILL.md#执行原则) 顶部引用块）
 
 2. **跑 dry-run 看骨架计划**：
 

@@ -86,7 +86,7 @@ Query 是 wiki 的"消费侧"——把多份资料综合成答案，**好答案�
 
 ### Step 5：归档 query 答案
 
-使用 [`page-templates.md「各类型模板」`](page-templates.md)的 comparison / synthesis 模板
+使用 [章节](page-templates.md#各类型模板)的 comparison / synthesis 模板
 
 - `comparison` 页：focus 在 "A vs B"，frontmatter `compared: [<path-a>, <path-b>]`（必填）
 - `synthesis` 页：focus 在 "跨多个 source 的综合洞察"，frontmatter `threads: [<主题>...]` +
@@ -95,13 +95,13 @@ Query 是 wiki 的"消费侧"——把多份资料综合成答案，**好答案�
   补；`--sources` flag 是 source 页专属（raw/ 路径），synthesis 不走它
 - 归档页若记录跨页矛盾：加 `contested: true` + `contradictions: [对端页]`，且对端页同步互指
   （单向触发 lint `contradiction-asymmetric`；字段语义 canonical 见
-  [`page-templates.md「可选：可信度与认知质量信号」`](page-templates.md)）
+  [章节](page-templates.md#可选可信度与认知质量信号)）
 - 正文：把对话里的答案整理成可独立阅读的页面；**synthesis 页对来源可分的断言用标准脚注
-  `[^n]` 逐段溯源**（写法见 [`page-templates.md「synthesis（综合页）」`](page-templates.md)），
+  `[^n]` 逐段溯源**（写法见 [章节](page-templates.md#synthesis综合页)），
   让每个论点都能不重读 raw 就回溯到具体 source——这是 synthesis 区别于 source 摘要的关键
-- 正文含交互流 / 架构关系时优先配图——判定与选型见 [`page-templates.md「图示使用指引」`](page-templates.md)
+- 正文含交互流 / 架构关系时优先配图——判定与选型见 [章节](page-templates.md#图示使用指引)
 - 正文引用上游易变事实时同样过感知测试——见
-  [`ingest-workflow.md「正文引用的稳定性」`](ingest-workflow.md) 漂移点规避
+  [章节](ingest-workflow.md#正文引用的稳定性漂移点规避) 漂移点规避
 - 脚手架：`llmw wiki write new --type=comparison --slug=... --title=...`（或 `--type=synthesis`）
 - 同步 index：`llmw wiki write index add <page>`
 - 追加 log：`llmw wiki write log --op=query --title="<title>"`

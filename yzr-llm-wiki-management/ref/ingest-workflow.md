@@ -39,27 +39,27 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 "参考来源"段（只追加新来源）
 
 > **重摄取发现矛盾**——不静默覆盖，走
-> [`page-templates.md「矛盾处理 Update Policy」`](page-templates.md)
+> [章节](page-templates.md#矛盾处理-update-policy)
 > （双方 `contested: true` + `contradictions` 互指）。这是 `contested` 信号最常见的产生时机。
 >
 > **生命周期纪律**：被更新的 source 页若原 `reviewed: true`，编辑完跑
 > `llmw wiki write touch <page>`（自动 `updated`=现在 + 清 reviewed 戳）。细节见
-> [`page-templates.md「生命周期规则」`](page-templates.md)
+> [章节](page-templates.md#生命周期规则)
 
 1. **完整读取 raw**——PDF / 图片先做 OCR / 视觉识别
 2. **提取元数据**：标题、作者 / 来源、发布时间、URL、关键标签
 3. **生成 slug**——kebab-case 短标题（例 `attention-is-all-you-need`）
 4. **脚手架**：`llmw wiki write new --type=source --slug=... --title=... --sources=raw/...`
    （自动落必填 frontmatter + H1，slug 校验 + 拒覆盖）→ Edit 写正文，骨架见
-   [`page-templates.md「source（资料页）」`](page-templates.md)：
+   [章节](page-templates.md#source资料页)：
    - 摘要（200-500 字）——核心论点 / 关键数据 / 与本 wiki 其他资料的关系
    - 关键引用（可独立成段的引文 / 数字 / 结论）
    - cross-refs——相关 entity / concept / source 页
    - 正文含交互流 / 架构关系时优先配图，判定见
-     [`page-templates.md「图示使用指引」`](page-templates.md)
+     [章节](page-templates.md#图示使用指引)
    - `created`：全新文件设 today；stale-raw 重摄取保留原值
    - 可选认知质量信号：确属矛盾未裁定时才标 `contested: true`（语义见
-     [`page-templates.md「可选：可信度与认知质量信号」`](page-templates.md)）
+     [章节](page-templates.md#可选可信度与认知质量信号)）
 5. **决策点：是否新建 entity / concept 页**——见「判定"是否新建 entity / concept 页"」
 
 ### Step 4：同步 entity / concept 页
@@ -89,7 +89,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 - 裸目录树 wiki 跳过此步（无版本控制）
 
 **收尾**：主动问用户"要不要查一下新内容与已有内容的联系？"（query 触发见
-[`query-workflow.md「入口与触发」`](query-workflow.md)）
+[章节](query-workflow.md#入口与触发)）
 
 ## 批处理摄取（≥ 3 份 raw 同时摄入）
 
@@ -107,7 +107,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## 判定"是否新建 entity / concept 页"
 
-阈值 canonical 见 [`page-templates.md「建页 / 追加 / 归档阈值」`](page-templates.md)
+阈值 canonical 见 [章节](page-templates.md#建页--追加--归档阈值page-thresholds)
 
 **单篇 ingest 视角的套用**：本 raw 的中心主题 / 反复出现的核心概念 → 建；路过 / 类比 /
 背景提及 → 不建；已有同名 / 近义页 → 先 search 再定（写前必搜）。例：反复提到
@@ -133,7 +133,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ## Ingest 失败的常见原因
 
 - **已存在同名 source 页**——用 Edit 更新而不是 Write 覆盖（`llmw wiki write new` 拒覆盖）
-- **wiki/index.md 缺类别段**——补类别段（骨架见 [`page-templates.md「index（index.md）」`](page-templates.md)）
+- **wiki/index.md 缺类别段**——补类别段（骨架见 [章节](page-templates.md#indexindexmd)）
   或走 upgrade fixtures 修复
 
 > raw 不可读 / log/index 参数缺失等场景 CLI 报错自明——按提示修即可

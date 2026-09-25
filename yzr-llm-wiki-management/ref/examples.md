@@ -1,6 +1,6 @@
 # 完整样例
 
-> 本文件是参考样例的"按需 Read"指针——SKILL.md「参考样例」段仅留一行引用到此，
+> 本文件是参考样例的"按需 Read"指针——[章节](../SKILL.md#参考样例)仅留一行引用到此，
 > 完整样例一律写在本文件
 
 ## 样例一：ingest 一份原始资料
@@ -37,7 +37,7 @@
 4. 询问用户："这段对比适合归档为 wiki/comparisons/<concept-a>-vs-<concept-b>.md 吗？"
 5. 用户同意后：
    - `llmw wiki write new --type=comparison --slug=<concept-a>-vs-<concept-b> --title=...`
-     脚手架 + 按 ref/page-templates.md「comparison（对比页）」模板写正文
+     脚手架 + 按 [章节](page-templates.md#comparison对比页)模板写正文
    - `llmw wiki write index add wiki/comparisons/<concept-a>-vs-<concept-b>.md`
    - `llmw wiki write log --op=query --title="<Concept A> vs <Concept B>"`
 ```

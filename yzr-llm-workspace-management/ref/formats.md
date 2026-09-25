@@ -119,7 +119,7 @@ frontmatter 口径 canonical = `<workspace>/AGENTS.md` 的「Memory 纪律」节
 | `wikis` | `cross-query` / `workspace-memory` | `cross-query` 是 / `workspace-memory` 推荐 | 涉及的 wiki 名列表 |
 | `description` | 所有 | 推荐 | 一句话 |
 
-字段**语义**写法（怎么写好 `title` / `description` / `tags`）SSOT = `yzr-llm-wiki-management` page-templates.md「共有 frontmatter 段」
+字段**语义**写法（怎么写好 `title` / `description` / `tags`）SSOT = `yzr-llm-wiki-management` page-templates.md#共有-frontmatter-段
 
 ## A8. 命名约束
 

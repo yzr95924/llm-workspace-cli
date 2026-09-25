@@ -51,9 +51,9 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version --apply --json
 行为：默认 dry-run（只打印报告，不动文件）；`--apply` 以 stdout JSON 输出 upgrade
 plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_actions[]`）；
 标记冲突页 → agent 跳过 + 转人工；**互斥模式**，不写 log 条目。
-完整 agent 修复路径见 [SKILL.md「Upgrade」](../SKILL.md)；
+完整 agent 修复路径见 [章节](../SKILL.md#upgrade升级-wiki-format)；
 迁移依据 SSOT = plan 自带的 `agent_rules[]` +
-[`upgrade-workflow.md「语义合并规则」`](upgrade-workflow.md)
+[章节](upgrade-workflow.md#语义合并规则)
 
 ## 半定性检查（agent 执行）
 
@@ -90,7 +90,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 ### 漂移点引用
 
 - 正文引用上游可变、且无机制能感知其变化的事实——按
-  [`ingest-workflow.md「正文引用的稳定性」`](ingest-workflow.md)
+  [章节](ingest-workflow.md#正文引用的稳定性漂移点规避)
   列出的漂移点逐类扫描；命中 → 按该节改写规则修，不回退 schema
 - **严重性：info**——写作质量项，agent 判断，不阻断
 
@@ -118,10 +118,10 @@ agent 整理给用户时沿用 finding 文本原文（CLI 按严重性分组输�
    「执行 `llmw wiki lint`」，按 wiki 根 AGENTS.md「写后必同步」记一条（标题以
    「验证重跑」起头并带结果，如 `验证重跑：干净`）
 4. 若启用 git，重大修复 commit 时建议加 `lint: <summary>` 前缀；裸目录树 wiki 跳过 commit 步骤
-5. **若跑 fixtures-check**——按 [`upgrade-workflow.md「职责切分」`](upgrade-workflow.md) 区分 CLI 骨架 vs agent 语义合并；
+5. **若跑 fixtures-check**——按 [章节](upgrade-workflow.md#职责切分关键三方分工) 区分 CLI 骨架 vs agent 语义合并；
    `fixtures-fix-*` 系列（anchor-schema / symlink-matches / log-format 等当前格式维护）：anchor 类
    走 `llmw wiki external add/remove/rebuild` 命令（CLI 持有 schema SSOT，参考
-   [`external-repo.md「sources: 元素类型」`](external-repo.md)）；
+   [章节](external-repo.md#sources-元素类型external-特化)）；
    log-format 等纯骨架字段按 `to_action` 字段 + schema 指针用 Edit 落
 
 ## lint 频率
@@ -141,5 +141,5 @@ agent 整理给用户时沿用 finding 文本原文（CLI 按严重性分组输�
 - **fixtures 边界**——`llmw wiki check-fixtures` 扫「约定文件」合规性；check 清单以
   `llmw wiki check-fixtures --json` 输出为准（CLI 注册表唯一真源；结构探测 + 骨架字段比对
   两类，后者读 llmw 包内字节金标准作 SSOT）。语义合并由 LLM 按
-  [`upgrade-workflow.md「语义合并规则」`](upgrade-workflow.md) 判断——CLI 不替代人；骨架漂移
+  [章节](upgrade-workflow.md#语义合并规则) 判断——CLI 不替代人；骨架漂移
   修复走 `llmw wiki upgrade --apply`（本地定制先按 `blocked_drift` 裁定）

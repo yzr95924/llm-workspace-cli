@@ -143,7 +143,7 @@ agent 留退路
 **good query 必有"是否归档"环节**——归档落点与两级归属的纪律见 `<workspace>/AGENTS.md`
 「查询 / 综合纪律」；workspace 级归档由本 skill 直接写（格式 A4），wiki 级部分转交 `yzr-llm-wiki-management`
 
-归档正文引用上游易变事实时过感知测试——规则 SSOT 见 `yzr-llm-wiki-management` 的 ingest-workflow.md「正文引用的稳定性」节
+归档正文引用上游易变事实时过感知测试——规则 SSOT 见 `yzr-llm-wiki-management` 的 ingest-workflow.md#正文引用的稳定性漂移点规避
 
 ### Link（跨 wiki 交叉引用）
 
