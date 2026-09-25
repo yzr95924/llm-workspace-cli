@@ -19,11 +19,14 @@ metadata:
 
 # LLM Wiki Management
 
-## 输入
+## 输入与输出
 
-**启动时需具备**：wiki 根（session cwd；否则 `$LLM_WIKI_ROOT` 或问用户）
+| 方向 | 内容 |
+| --- | --- |
+| 输入 | wiki 根（session cwd；否则 `$LLM_WIKI_ROOT` 或问用户） |
+| 输出 | `wiki/` 内容页（entity / concept / source / comparison / synthesis）+ `wiki/log.md` / `wiki/index.md` / `wiki/tags.md` 条目 + `MEMORY/` 条目 |
 
-## 执行原则 / 边界
+## 执行原则
 
 ### 核心原则
 
@@ -119,7 +122,7 @@ metadata:
 
 > 念头是**信号**不是违反；但**念头后仍继续** = 默认承担违反精神的责任
 
-## 工作流 / 步骤
+## 工作流
 
 ### 一次性 setup（首次使用）—— 由 workspace CLI 完成
 
@@ -131,7 +134,7 @@ metadata:
 
 1. 验证 CLI 落盘——读 `<wiki-root>/AGENTS.md` 确认主题名 + 日期替换正确；
    `wiki/index.md` / `wiki/log.md` 存在且 frontmatter 完整；`<wiki-root>/CLAUDE.md` 是薄壳
-2. 跑 orient ritual（见「执行原则 / 边界」顶部引用块）
+2. 跑 orient ritual（见「执行原则」顶部引用块）
 3. 询问用户是否做首次 ingest——若是，把第一份资料路径给 agent
 
 ### Ingest（摄取新资料）

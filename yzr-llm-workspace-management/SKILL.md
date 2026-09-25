@@ -26,17 +26,14 @@ metadata:
 写盘产物的格式契约集中在 [`ref/formats.md`](ref/formats.md)（A1-A8）——正文
 「格式 Ax」均指该文件，各流程写盘前必读对应 A 节
 
-## 输入 / 输出
+## 输入与输出
 
-### 启动时需具备的信息
+| 方向 | 内容 |
+| --- | --- |
+| 输入 | workspace 路径（`$LLMW_WORKSPACE`，或默认 `~/yzr-llm-wiki-workspace`，或交互问）；操作类型（scan / query / link / lint / upgrade，用户自然语言给出）；query 范围（仅 query，可不指定——不指定走全局 INDEX 路由） |
+| 输出 | `INDEX.md` / `STATS.md` / `cross_queries/` 归档页 / `LINT.md` / workspace `MEMORY/` 条目（格式 A2-A6） |
 
-| 信息 | 来源 | 备注 |
-| --- | --- | --- |
-| Workspace 路径 | `$LLMW_WORKSPACE`，或默认 `~/yzr-llm-wiki-workspace`，或交互问 | 环境变量未设时 CLI 走默认路径 |
-| 操作类型 | 用户自然语言 | scan / query / link / lint / upgrade |
-| Query 范围（仅 query） | 用户自然语言或显式指定 wiki 名 | 不指定走全局 INDEX 路由 |
-
-## 执行原则 / 边界
+## 执行原则
 
 ### 与 workspace CLI 的边界
 
@@ -99,13 +96,13 @@ agent 留退路
 
 > 条目来源：标「实跑观察」者为 RED transcript 实录；未标注者为通用合理化模式（红旗是低成本预警网、广撒无害；实跑捕获新借口时追加并标注）
 
-## 工作流 / 步骤
+## 工作流
 
 ### 启动检查
 
 每次进入本 skill 时：
 
-1. 定位 workspace 路径（来源链见「输入 / 输出」表）
+1. 定位 workspace 路径（来源链见「输入与输出」）
 2. 验证 `<workspace>/workspace.toml` 存在——不存在提示用户 "workspace 还没 init，跑 `llmw init` 初始化"（**不**替用户跑）
 3. **加载跨 wiki MEMORY 索引**：在 workspace 根工作时经 `<workspace>/AGENTS.md` 的
    `@MEMORY/MEMORY.md` import 自动加载；非根目录工作 / 原生读 AGENTS.md 不展开 `@` 的 agent →
