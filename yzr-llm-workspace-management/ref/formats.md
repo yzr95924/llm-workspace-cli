@@ -75,7 +75,8 @@
 
 ## A6. workspace MEMORY/
 
-- 维护方：CLI init 时创建空目录 + 写 `MEMORY/MEMORY.md` 索引占位；后续条目由 **skill** 写入 + 同步追加 MEMORY.md 索引一行。人类不写；CLI 不写
+- 维护方：CLI init 时创建空目录 + 写 `MEMORY/MEMORY.md` 索引占位；后续条目由 `yzr-memory-management` skill
+  写入 + 同步追加 MEMORY.md 索引一行。人类不写；CLI 不写
 - MEMORY 不在 INDEX.md 中强制列出（agent 私有入口）
 - **条目形式（完整 / 短）+ 何时写/不写 + 索引行格式** canonical = `<workspace>/AGENTS.md` 的「Memory 纪律」节（byte-owned 模板渲染），本文件不重复
 

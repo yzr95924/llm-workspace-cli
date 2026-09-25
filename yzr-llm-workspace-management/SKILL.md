@@ -4,14 +4,15 @@ description: |
   当用户要对多个本地 LLM wiki（yzr-llm-wiki-management 体系）的知识内容做跨 wiki 操作时
   使用本 skill——从 workspace 全局视角：跨 wiki 扫描与索引（INDEX/STATS）、跨 wiki 问答
   （路由/综合/对比）、跨 wiki 交叉引用与重复 entity 治理、workspace 级健康检查（LINT）、
-  跨 wiki 记忆（MEMORY/）、workspace format 升级。
+  workspace format 升级。
   触发："总结我所有 wiki 中关于 X" / "对比 wiki A 和 B 对 Y" / "这问题该查哪个 wiki" /
   "扫一下我的 workspace" / "统计所有 wiki 的页面数" / "workspace 健康检查" /
   "wiki A 的 X 在 B 也有，加个链接" / "升级 workspace"。只要要读、汇总、对比或治理多个
   wiki 里的内容——即使没明说 workspace 或 skill 名，也务必使用本 skill。
   不适用：单 wiki 内操作（走 yzr-llm-wiki-management）；workspace / wiki 元数据配置、
   加删 wiki、session 启停等单条 llmw 命令操作（直接跑 llmw 即可，见 llmw --help，无需
-  加载本 skill）；云端协作 wiki（Notion / Confluence / Outline 等）
+  加载本 skill）；MEMORY/ 的写入与治理（归 yzr-memory-management skill）；云端协作 wiki
+  （Notion / Confluence / Outline 等）
 metadata:
   author: Zuoru YANG
   category: knowledge-base
@@ -31,7 +32,7 @@ metadata:
 | 方向 | 内容 |
 | --- | --- |
 | 输入 | workspace 路径（`$LLMW_WORKSPACE`，或默认 `~/yzr-llm-wiki-workspace`，或交互问）；操作类型（scan / query / link / lint / upgrade，用户自然语言给出）；query 范围（仅 query，可不指定——不指定走全局 INDEX 路由） |
-| 输出 | `INDEX.md` / `STATS.md` / `cross_queries/` 归档页 / `LINT.md` / workspace `MEMORY/` 条目（格式 A2-A6） |
+| 输出 | `INDEX.md` / `STATS.md` / `cross_queries/` 归档页 / `LINT.md`（格式 A2-A5） |
 
 ## 执行原则
 
@@ -59,7 +60,7 @@ metadata:
 | `<workspace>/STATS.md` | 本 skill | scan 时聚合写 |
 | `<workspace>/cross_queries/` | 本 skill | 跨 wiki 综合问答归档 |
 | `<workspace>/LINT.md` | 本 skill | workspace 级 lint 报告 |
-| `<workspace>/MEMORY/` 中的 `*.md` + 同步 `MEMORY.md` 索引 | 本 skill | 仅跨 wiki 经验（单 wiki 经验归 `<wiki>/MEMORY/`） |
+| `<workspace>/MEMORY/` 中的 `*.md` + 同步 `MEMORY.md` 索引 | `yzr-memory-management` | 仅跨 wiki 经验（单 wiki 经验归 `<wiki>/MEMORY/`） |
 
 **违反归属 = bug**。完整归属表 + 四分表见 `<workspace>/AGENTS.md` 的「本 workspace 的边界」+「本文件本身的纪律」（含骨架所有权四分表）节（byte-owned 模板渲染）
 
@@ -185,18 +186,11 @@ agent 留退路
 
 ### Memory（跨 wiki agent 私有记忆）
 
-**触发**：在 scan / query / link / lint 过程中识别到**跨 wiki**值得沉淀的信息时主动写
-
-完整"何时写/不写" + 判别尺度 canonical = `<workspace>/AGENTS.md` 的「Memory 纪律」节（byte-owned 模板渲染），本 skill 不重复
-
-**流程**：
-
-1. 识别值得沉淀的观察 → scope 自检确认跨 wiki
-2. 判别条目形式（完整 / 短）
-3. 写入 `MEMORY/<slug>.md`（完整条目）或直接在 `MEMORY/MEMORY.md` 追加短条目一行
-4. **同步 `MEMORY.md` 索引一行**（漏写 = 下次读不到，lint `memory-not-indexed` 兜底）
-
-**不动** `<workspace>/INDEX.md` / `STATS.md` / `LINT.md` / 任何 `<wiki>/MEMORY/`
+沉淀判断与治理（体检清理 / 删除确认）归 `yzr-memory-management` skill；「何时写 / 不写」
+canonical = `<workspace>/AGENTS.md`「Memory 纪律」节（自动加载），格式 =
+[`ref/formats.md`](ref/formats.md)「A6. workspace MEMORY/」节。机械面：完整条目写
+`MEMORY/<slug>.md` + 索引挂一行，短条目直接进 `MEMORY/MEMORY.md` 索引；写记忆
+**不动** `INDEX.md` / `STATS.md` / `LINT.md`（漏挂索引由 lint `memory-not-indexed` 兜底）
 
 ### Upgrade（升级 workspace 骨架）
 

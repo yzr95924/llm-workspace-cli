@@ -15,8 +15,8 @@ metadata:
 | --- | --- | --- |
 | **用户（owner）** | 拥有 `raw/` 内容、`AGENTS.md` / `CLAUDE.md`（宪法）、git、元数据 CRUD 决策 | 不执行字节级骨架渲染 |
 | **llmw CLI** | 确定性操作唯一执行者（零 LLM 判断）：元数据 toml CRUD、骨架渲染（字节来自模板）、`check-fixtures` 探测、`upgrade` 引擎、session 启动（tmux/byobu）、model registry/overlay | 不写 `raw/` / `wiki/` 语义内容（机械 scribe 协作边除外，见 V2）；不读 `os.environ` 当 model 真相源 |
-| **agent（按 workspace skill 纪律行事）** | 跨 wiki 判断（零代码）：scan / INDEX / STATS、query 路由/合成/对比、link、workspace lint、跨 wiki MEMORY；**在场时可代跑 llmw**（读类直接执行、写类经用户确认后执行、api_key 类恒用户亲自执行） | 不写 wiki 内部（委托 wiki skill）；不手写元数据 toml（写类操作必须经 CLI，schema/原子写/唯一性约束由 CLI 保证） |
-| **agent（按 wiki skill 纪律行事）** | 单 wiki 判断（零代码）：ingest、query、单 wiki lint、单 wiki MEMORY | 不知 workspace skill 存在（DAG 单向）；不写 `raw/`（用户所有） |
+| **agent（按 workspace skill 纪律行事）** | 跨 wiki 判断（零代码）：scan / INDEX / STATS、query 路由/合成/对比、link、workspace lint；**在场时可代跑 llmw**（读类直接执行、写类经用户确认后执行、api_key 类恒用户亲自执行） | 不写 wiki 内部（委托 wiki skill）；不手写元数据 toml（写类操作必须经 CLI，schema/原子写/唯一性约束由 CLI 保证） |
+| **agent（按 wiki skill 纪律行事）** | 单 wiki 判断（零代码）：ingest、query、单 wiki lint | 不知 workspace skill 存在（DAG 单向）；不写 `raw/`（用户所有） |
 
 > **"skill"与"agent"的区分**——skill = 规则文本（被加载的 SKILL.md + ref/）；agent = 按这份规则行事的执行者。行为者永远是 agent；skill 只是哪份规则书。V2 行为者标注用 agent 而非 skill。
 
@@ -88,10 +88,13 @@ metadata:
 字节级纯函数（骨架渲染、字节比对、重渲染、纯函数落盘、元数据 CRUD）→ **CLI**（`llmw.content` 包收口所有骨架操作）。
 
 **2. 需要 LLM 判断 + 跨 wiki？**
-跨 wiki 的 scan 聚合、路由/合成/对比、link 建议、workspace lint、跨 wiki MEMORY → **workspace skill**。
+跨 wiki 的 scan 聚合、路由/合成/对比、link 建议、workspace lint → **workspace skill**。
 
 **3. 需要 LLM 判断 + 单 wiki？**
-单 wiki 的 ingest（摘要、冲突协调、页面综合）、query、lint、单 wiki MEMORY → **wiki skill**。
+单 wiki 的 ingest（摘要、冲突协调、页面综合）、query、lint → **wiki skill**。
+
+MEMORY/ 条目的沉淀判断与治理（两层皆然）→ `yzr-memory-management` skill（外部通用）；
+本仓两 skill 只留机械面指针（落盘命令 / A6 格式契约），判归时不再走 2 / 3。
 
 **4. 迁移/升级路径上的写操作？**
 格式流动期（新旧形态并存时）的写操作 → **agent**（脚本只认识当前形态，硬编码 = 探测器要同时理解新旧）。格式稳定后进 CLI。

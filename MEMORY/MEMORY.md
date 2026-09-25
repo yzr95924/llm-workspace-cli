@@ -71,6 +71,7 @@
 **SKILL 维护（2026-08-18 起同仓）**
 
 - **两 SKILL 结构已对齐 yzr-skill-creator 模板（2026-09-26）** — skill 细节目录 `references/` → `ref/`（contract gate 路径构造 + fixtures 模式 + lint rule_ref 字符串同步）；节名用规范体 `输入与输出 / 执行原则 / 工作流`（变体后缀退役）；此后 verify 基线 = 0 ERROR / 0 WARN，再出红即真问题
+- **MEMORY/ 写入与治理归 yzr-memory-management（2026-09-26 归属迁移）** — wiki / workspace 两 skill 只留机械面：完整条目 `llmw wiki write memory add` 建文件 + 索引行（workspace 无命令，直写 + 挂索引），短条目直接挂索引；沉淀判断、体检清理不进两 skill 正文；格式契约 canonical 仍是实例 AGENTS.md `MEMORY/` 节 / 「Memory 纪律」节 + fixture + A6，判归走 boundary-map 补充行
 
 - **两 SKILL 与 CLI 同仓（随 install.sh 一起分发）** — `yzr-llm-wiki-management` / `yzr-llm-workspace-management` 在本仓；install.sh 注册 `~/.agents/skills` 的 symlink 直接指向本仓、`~/.claude/skills`（存在时）建**链式 symlink 指向 `~/.agents/skills/<name>`**（uninstall.sh 的安全检查依赖这个链式形态），uninstall.sh 对称清理。
 - **规范体只陈述现状规则** — AGENTS.md 模板 / SKILL.md 正文 / 本仓 AGENTS.md 写"记什么 / 不记什么"的规则本身；历史与辩护（"旧版必填…已废止""0.x.0 起取消""schema v2 起字段迁出 X"）归 commit message + upgrade-workflow「语义合并规则」，不进规范体。逐条辩护句会让每处维护都承担同步改写的成本（2026-08-17 清理 external anchor commit 字段时踩过）

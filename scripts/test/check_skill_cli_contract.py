@@ -142,6 +142,7 @@ KEBAB_TOKEN_ALLOW = {
     "workspace-stats",
     "workspace-lint",
     "workspace-memory",
+    "yzr-memory-management",
 }
 # 面 7a 节号禁令：AGENTS.md 字面量 + ≤6 个非 word 字符（空白 / backtick / 标点）+
 # `§<数字|中文数字>`。`AGENTS.md + `[ref/external-repo.md`](...) §三` 形式

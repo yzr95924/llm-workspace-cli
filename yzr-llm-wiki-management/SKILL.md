@@ -10,7 +10,8 @@ description: |
   归档新结论——即使没提 skill 名，也务必使用本 skill。
   不适用：云端 / 团队 wiki（Notion / Confluence / Outline 等）；wiki 元数据配置、增删
   wiki、session 启停（单条 llmw 命令，直接跑即可）；跨 wiki / workspace 层操作（归
-  workspace 层 skill）；cwd 不是 wiki 根（无 `wiki_metadata.toml` + AGENTS.md 骨架）
+  workspace 层 skill）；MEMORY/ 的写入与治理（归 yzr-memory-management skill）；cwd 不是
+  wiki 根（无 `wiki_metadata.toml` + AGENTS.md 骨架）
 metadata:
   author: Zuoru YANG
   category: knowledge-base
@@ -56,9 +57,7 @@ metadata:
 4. **LLM 修改已审核页必须清 `reviewed` 戳**——每次编辑后跑 `llmw wiki write touch`；
    生命周期规则 canonical 见 [`page-templates.md「生命周期规则」`](ref/page-templates.md)；
    lint 用 `reviewed-stale` 兜底
-5. **MEMORY/ 是 LLM agent 的私有记忆**——新条目走 `llmw wiki write memory add`；只存
-   `<wiki-root>/` 一份（无副本漂移；`wiki/` 外 = publish 不外传）。写入流程见「Memory」节
-6. **tag 白名单唯一真源在 `wiki/tags.md`**——agent 遇新 tag **直接追加、不询问用户**，
+5. **tag 白名单唯一真源在 `wiki/tags.md`**——agent 遇新 tag **直接追加、不询问用户**，
    用户审计直接删；取值规则 / 解析约束详见该文件头部说明块（入口：wiki 根 `AGENTS.md`
    「tag 白名单字典」节）；finding 含义 / 修法用 `llmw wiki lint --explain=tag-not-in-taxonomy`
 
@@ -178,26 +177,10 @@ metadata:
 
 ### Memory（写入 LLM agent 持久化记忆）
 
-**触发**：在 ingest / query / lint 过程中识别到值得沉淀的信息——踩坑、用户偏好、跨文档关联
-
-**何时写**：
-
-- 遇到踩坑（例：raw/ PDF 频繁 OCR 错误，下次让用户先转格式）
-- 发现用户偏好（例：用户偏好表格化对比、不喜散文式总结）
-- 跨 ingest 关联（两 source 页指向同一论文不同章节）
-- lint 报告的 recurring pattern（每次 lint 都报某 type 缺字段）
-
-**流程摘要**（agent 主动；frontmatter 字段 / 索引同步 / 完整 vs 短条目判定的 canonical 定义 =
-wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明块）：
-
-1. 判是否值得写（试金石：能否让未来 agent 工作更顺）→ 判别条目形式：**完整**（含 why+how）→
-   `llmw wiki write memory add --slug=... --title=... [--description=...] [--tags=a,b]` 建文件 +
-   索引行，再 Edit 写正文（记录上下文 / 解决步骤 / 未来如何避免）；**短**（纯 reminder）→
-   直接 `MEMORY/MEMORY.md` 加一行索引
-2. **不**追加 log 条目 / **不**在 wiki/index.md 列出（MEMORY 不走单一入口约束）
-
-**纪律**：不删除任何 MEMORY 文件（踩坑记录沉淀）；编辑既有条目保留 `created`、只更新
-`updated`；用户想补充 → 转告 agent 写入（用户不直接编辑 MEMORY/）
+沉淀判断与治理（何时写 / 体检清理 / 删除确认）归 `yzr-memory-management` skill；wiki 侧只出
+机械面：完整条目 `llmw wiki write memory add --slug=... --title=...` 建文件 + 索引行、再
+Edit 正文；短条目直接往 `MEMORY/MEMORY.md` 挂一行索引。格式契约 canonical =
+wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明块（自动加载）
 
 ### Upgrade（升级 wiki format）
 
