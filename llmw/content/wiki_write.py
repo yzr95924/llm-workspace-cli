@@ -235,7 +235,7 @@ def cmd_index(wiki_root, args):
         else:
             out.append(line)
     if not seen_target:
-        return f"wiki/index.md 缺 `## {section}` 类别段（按 page-templates.md「index（index.md）」骨架补）", 1
+        return f"wiki/index.md 缺 `## {section}` 类别段（骨架见 page-templates.md#indexindexmd）", 1
 
     entries = [_INDEX_ENTRY_RE.match(ln) for ln in section_lines if _INDEX_ENTRY_RE.match(ln)]
     if entries:

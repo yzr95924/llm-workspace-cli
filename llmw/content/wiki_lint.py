@@ -89,7 +89,7 @@ CURRENT_WIKI_FORMAT = WIKI_FORMAT_VERSION
 # pattern key → 迁移依据（rule_ref）；修复语义自含于 plan actions 的 to_action
 LEGACY_PATTERN_KEYS = {
     # 拦内容页误用 reserved `type: memory`（MEMORY 桶合法，仅内容页误用触发）
-    "type-memory-value": "page-templates.md「共有 frontmatter 段」",
+    "type-memory-value": "page-templates.md#共有-frontmatter-段",
 }
 
 SEV_RANK = {"error": 0, "warn": 1, "info": 2}
@@ -776,7 +776,7 @@ def check_page_size(wiki_root, threshold=PAGE_SIZE_THRESHOLD):
                 rel = p.relative_to(wiki_root).as_posix()
                 findings.append(
                     f"oversized-page: {rel} 正文 {n} 行（非空），超过 {threshold} 阈值——"
-                    f"建议拆成子主题页 + cross-link（page-templates.md「Page Thresholds」）"
+                    f"建议拆成子主题页 + cross-link（page-templates.md#建页--追加--归档阈值page-thresholds）"
                 )
     return findings
 
@@ -1178,7 +1178,7 @@ _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]
             "raw/external/.symlink-anchor.toml 损坏：CLI add 拒绝覆盖损坏文件"
             "（保护手工修复现场）——备份后删除，或手工改对 TOML，再用"
             " `llmw wiki external add <target> --name=<n>` 重建 entries。"
-            "字段语义见 external-repo.md「首次接入」；schema 归 CLI 持有"
+            "字段语义见 external-repo.md#首次接入；schema 归 CLI 持有"
             "（`llmw wiki external` 子命令）"
         ),
     ),
@@ -1319,7 +1319,7 @@ def build_upgrade_plan(
             "fixtures-fix-strip-frontmatter 仅删首部 frontmatter 块，保留全文正文一字不动",
             "fixtures-fix-skeleton：按 expected（缺失骨架信号清单）补 frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段，单 Edit 可落；成长型内容（index 类别 / log 历史 / MEMORY 经验 / tag bullet）不动",
             "fixtures-fix-agents-md-resync / -agents-version：跑 `llmw wiki upgrade --apply`（CLI 重渲染 byte-owned）；本地定制先按 blocked_drift 与用户裁定搬 MEMORY/ 或丢弃",
-            "fixtures 改造与 upgrade-workflow.md「语义合并规则」配合读——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按该节判断",
+            "fixtures 改造配合 upgrade-workflow.md#语义合并规则——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按该节判断",
         ],
     }  # type: Dict[str, object]
     return plan

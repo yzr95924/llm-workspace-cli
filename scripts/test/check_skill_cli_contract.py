@@ -18,13 +18,10 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
      形式即红——口径唯一入口是 `llmw wiki lint --explain`，注册表 SSOT 在
      llmw/content/findings.py；发射点 ↔ 注册表的穷举校验在
      tests/test_findings_registry.py，不在本 gate）
-  3. rule_ref（CLI → skill，skill 域）：llmw/content/*.py + CONTRACT_MDS（skill
-     文档 / 模板 / 仓根文档）里的 `<file>.md「节名」` 指针 → 对应 skill 文件与
-     标题必须都存在。**名称锚点校验**：引用名须唯一命中一个标题（子串匹配，
-     剥 backtick / 跳过 fenced code）——命中 0 = 死指针，命中 >1 = 歧义（改引用名
-     或标题消歧）。标题编号已退役（节号随插入整体漂移）；引用侧禁回退由 7c 兜底。
-     支持形式：链接内（``[`baz.md「名」`](url)``）/ 链接后（``[`baz.md`](url)「名」``）
-     / 裸文本（``baz.md「名」``）
+  3. 锚点链接（skill 域引用 + CLI → skill 字符串）：引用一律 `[章节](file.md#slug)` 形态
+     （同文件 `](#slug)`；CLI .py 字符串与跨 skill 引用用纯文本 `file.md#slug`）。
+     校验：目标文件存在 + slug 命中该文件某标题的 GitHub slug（github-slugger@2 语义
+     移植，含重复标题 -N 后缀）。旧 `<file>.md「节名」` 邻接形态已退役，出现即红。
   4. 终态词 / JSON 字段（skill → CLI）：upgrade-workflow 提到的终态词与 plan
      字段必须在 upgrade.py / wiki_lint.py 字面量存在
     5. 裸 semver（skill + 模板 + 仓根文档）：prose 内不得出现裸版本号
@@ -44,7 +41,7 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
       - 7c skill 域节号禁令（防迁移回潮）：CONTRACT_MDS + llmw/**/*.py 中 skill
         文档字面量（8 个 basename）后 ~60 字符内出现 `§<数字|中文数字>` 即红；
         SKILL_MDS 自身出现裸 `§N` 同样红。外部规范引用豁免（`OKF §N`）。
-        引用一律 `<file>.md「节名」`，标题不再编号
+        引用一律 `[章节](file.md#slug)` 锚点，标题不再编号
       - 7d 裸「」残留节号兜底：SKILL_MDS 内引号内容以旧节号开头（`「5. x」` /
         `「四、x」`）即红——无 basename 前缀，RULE_REF_RE 与 7a/7c 均扫不到
         （2026-09 迁移曾漏网 2 处）。模板域标题仍带编号，不在此扫描
@@ -155,12 +152,12 @@ TEMPLATE_BARE_SHORTHAND_RE = re.compile(
     r"(?:^|[\s<>/`])(?:wiki|workspace)\s+§[0-9一二三四五六七八九十]+"
 )
 # 面 8 rule_ref 格式闸：.py rule_ref 字段 / to_action / finding 消息指向 skill 文档必须
-# 带 .md 扩展名——否则 gate 3 RULE_REF_RE 匹配不到等于死指针。regex 抓裸 basename
-# 后跟旧式 `§` 或新式 `「` 两种形态（token 后无 `.md`）；负向先行 `(?!\.md)` 排除
-# 已带 .md 的正确形式。不抓散文 "SKILL 目录" / "SKILL scan"（后不跟 § / 「）。
+# 带 .md 扩展名——否则面 3 的锚点/旧形态检测都匹配不到，等于死指针。regex 抓裸
+# basename 后跟 `§` / 「 / # 三种邻接（token 后无 `.md`）；负向先行 `(?!\.md)` 排除
+# 已带 .md 的正确形式。不抓散文 "SKILL 目录" / "SKILL scan"（后不跟这些符号）。
 RULE_REF_BARE_RE = re.compile(
     r"\b(SKILL|lint-workflow|page-templates|upgrade-workflow|ingest-workflow"
-    r"|query-workflow|external-repo|examples|formats)(?!\.md)(?: §[一二三四五六七八九十0-9]|[^\w\n]{0,3}「)"
+    r"|query-workflow|external-repo|examples|formats)(?!\.md)(?: §[一二三四五六七八九十0-9]|[^\w\n]{0,3}[「#])"
 )
 
 # 面 7a 的 .py 扫描域——只扫 llmw/**/*.py（排除 tests/）。tests/ 有 §N 形式的 test 输入
@@ -467,12 +464,9 @@ _BASENAMES = (
     "SKILL|upgrade-workflow|page-templates|lint-workflow|ingest-workflow"
     "|query-workflow|external-repo|examples|formats"
 )
-# 名称锚点引用（规范邻接形式）：`basename.md「节名」` / `` `basename.md`](url)「节名」 ``
-# / `` [`basename.md「节名」`](url) ``——basename 与「」之间只允许 backtick / 空白 /
-# 链接闭合，不允许夹带散文（否则「」可能属于同行的另一个文件）。
-RULE_REF_RE = re.compile(
-    r"(?P<base>(?:" + _BASENAMES + r")\.md)`?\s*(?:\]\([^)]*\)\s*)?「(?P<name>[^」]+)」"
-)
+# 旧「节名」邻接形态（已退役→ 锚点链接）：`basename.md` 后紧跟可选 backtick /
+# 链接闭合 / 空白，再接「」，出现即红。
+RULE_REF_RE = re.compile(r"(?:" + _BASENAMES + r")\.md`?\s*(?:\]\([^)]*\)\s*)?「")
 # 面 7c 节号禁令：skill 文档字面量后 ~60 字符内出现 §N（外部规范引用 OKF 豁免）。
 SKILL_REF_SECTION_RE = re.compile(
     r"(?:" + _BASENAMES + r")\.md[^\n]{0,60}(?<!OKF )§[0-9一二三四五六七八九十]+"
@@ -489,23 +483,6 @@ BARE_NUMBERED_QUOTE_RE = re.compile(
 
 
 _HEADING_RE = re.compile(r"^#{2,6}\s+(?P<title>.+?)\s*$")
-
-
-def _heading_hits(md_text, name):
-    """「名称」在标题里的命中列表（子串匹配；剥 backtick；跳过 fenced code）。"""
-    wanted = name.replace("`", "").strip()
-    hits = []
-    in_code = False
-    for lineno, line in enumerate(md_text.splitlines(), 1):
-        if line.startswith("```"):
-            in_code = not in_code
-            continue
-        if in_code:
-            continue
-        m = _HEADING_RE.match(line)
-        if m and wanted in m.group("title").replace("`", ""):
-            hits.append((lineno, m.group("title")))
-    return hits
 
 
 def _resolve_targets(fname):
@@ -527,32 +504,65 @@ def _resolve_targets(fname):
     ]
 
 
-def _check_rule_ref(fname, name, src_label, stats, errors):
-    stats["rule_refs"] += 1
-    targets = [t for t in _resolve_targets(fname) if t.is_file()]
-    if not targets:
-        errors.append("[rule_ref] {} 指向不存在的 {}".format(src_label, fname))
-        return
-    per_target = [(t, _heading_hits(_read(t), name)) for t in targets]
-    if any(len(hits) == 1 for _t, hits in per_target):
-        return
-    multi = [(t, hits) for t, hits in per_target if len(hits) > 1]
-    if multi:
+# 锚点形态：markdown 链接 ](path#slug)（path 为空 = 同文件）；纯文本 base.md#slug
+# （CLI .py 字符串与跨 skill 引用位）。
+_MD_ANCHOR_RE = re.compile(r"\]\((?P<path>[^)\s#]*)#(?P<slug>[^)\s]+)\)")
+_PLAIN_ANCHOR_RE = re.compile(
+    r"(?P<base>" + _BASENAMES + r")\.md#(?P<slug>[^\s)\]，。；、`「」（）<>\"'—]+)"
+)
+
+
+def _gh_slug(value):
+    """GitHub 标题 slug——github-slugger@2 语义在本仓字符集上的移植（实测 130 标题一致）。"""
+    v = re.sub(r"[^\w \-]", "", value.strip().lower())
+    return v.replace(" ", "-")
+
+
+def _file_slugs(md_text):
+    """文件全部标题的 slug 集；重复标题按 GitHub ToC 规则追加 -N。"""
+    slugs, in_code, seen = set(), False, {}
+    for line in md_text.splitlines():
+        if line.startswith("```"):
+            in_code = not in_code
+            continue
+        if in_code:
+            continue
+        m = _HEADING_RE.match(line)
+        if not m:
+            continue
+        base = _gh_slug(m.group("title").replace("`", ""))
+        n = seen.get(base, 0)
+        seen[base] = n + 1
+        slugs.add(base if n == 0 else "{}-{}".format(base, n))
+    return slugs
+
+
+def _check_link_anchor(md_path, path_str, slug, rel, stats, errors):
+    stats["anchors"] += 1
+    target = md_path if not path_str else (md_path.parent / path_str).resolve()
+    if not target.is_file():
         errors.append(
-            "[rule_ref-ambiguous] {} → {}「{}」命中多个标题（{}）——改引用名或标题消歧".format(
-                src_label,
-                fname,
-                name,
-                " / ".join(
-                    "{}: {}".format(t.name, " ".join("L{}".format(h[0]) for h in hits))
-                    for t, hits in multi
-                ),
-            )
+            "[anchor] {} → ({}) 目标文件不存在".format(rel, path_str + "#" + slug)
         )
         return
-    errors.append(
-        "[rule_ref-title] {} → {}「{}」标题不存在".format(src_label, fname, name)
-    )
+    slugs = _file_slugs(_read(target))
+    if slug not in slugs:
+        near = sorted(s for s in slugs if s.startswith(slug[:6]))[:3]
+        errors.append(
+            "[anchor] {} → #{} 非 {} 的标题锚点（相近候选: {}）".format(
+                rel, slug, target.name, " / ".join(near) or "无"
+            )
+        )
+
+
+def _check_plain_anchor(base, slug, rel, stats, errors):
+    stats["anchors"] += 1
+    targets = [t for t in _resolve_targets(base + ".md") if t.is_file()]
+    if not targets:
+        errors.append("[anchor] {} 指向不存在的 {}.md".format(rel, base))
+        return
+    if not any(slug in _file_slugs(_read(t)) for t in targets):
+        errors.append("[anchor] {} → {}#{} 非标题锚点".format(rel, base, slug))
 
 
 # ---------- 主流程 ----------
@@ -570,7 +580,7 @@ def main():  # pylint: disable=too-many-branches
         "cmds": 0,
         "finding_mirrors": 0,
         "finding_tokens": 0,
-        "rule_refs": 0,
+        "anchors": 0,
         "tokens": 0,
         "semver": 0,
         "landmarks": 0,
@@ -675,25 +685,33 @@ def main():  # pylint: disable=too-many-branches
                 )
     stats["finding_tokens"] = len(kebab_tokens)
 
-    # --- 3. rule_ref（CLI → skill）+ 「节名」目标标题存在性 ---
-    # 3a. llmw/content/*.py：CLI 输出字符串 / docstring / 注释 / rule_ref 字段（纯文本形式）
-    for py in sorted(CONTENT.glob("*.py")):
-        for fname, name in RULE_REF_RE.findall(_read(py)):
-            _check_rule_ref(fname, name, _rel(py), stats, errors)
-    # 3b. CONTRACT_MDS（skill 文档 / 模板 / 仓根文档）：
-    #     `basename.md「节名」`（链接内 / 链接后 / 裸文本三种形式同一 regex 覆盖）
-    for md in CONTRACT_MDS:
-        rel = _rel(md)
-        text = _read(md)
-        seen = set()
+    # --- 3. 锚点链接：](path#slug) / ](#slug) + 纯文本 base.md#slug；旧 .md「节名」= 红 ---
+
+    def _scan_anchors(path_obj, text, is_md):
+        rel = _rel(path_obj)
         for m in RULE_REF_RE.finditer(text):
-            fname = m.group("base")
-            name = m.group("name")
-            key = (fname, name)
-            if key in seen:
+            errors.append(
+                "[anchor] {} 用已退役的 .md「节名」邻接形态 → 改 [章节](file.md#slug)：{}".format(
+                    rel, m.group(0).replace("\n", " ")[:60]
+                )
+            )
+        spans = []
+        if is_md:
+            for m in _MD_ANCHOR_RE.finditer(text):
+                spans.append(m.span())
+                p = m.group("path")
+                if p.startswith(("http://", "https://", "mailto:")):
+                    continue
+                _check_link_anchor(path_obj, p, m.group("slug"), rel, stats, errors)
+        for m in _PLAIN_ANCHOR_RE.finditer(text):
+            if any(s <= m.start() < e for s, e in spans):
                 continue
-            seen.add(key)
-            _check_rule_ref(fname, name, rel, stats, errors)
+            _check_plain_anchor(m.group("base"), m.group("slug"), rel, stats, errors)
+
+    for py in sorted(CONTENT.glob("*.py")):
+        _scan_anchors(py, _read(py), is_md=False)
+    for md in CONTRACT_MDS:
+        _scan_anchors(md, _read(md), is_md=True)
 
     # --- 4. 终态词 / JSON 字段 ---
     upgrade_py = _py_src("upgrade.py")
@@ -863,13 +881,13 @@ def main():  # pylint: disable=too-many-branches
     # --- 报告 ---
     print(
         "contract (skill+templates+repo-docs → CLI): {} cmd, {} finding_mirrors, "
-        "{} finding_tokens, {} rule_refs, {} tokens, {} semver, {} landmarks, "
+        "{} finding_tokens, {} anchors, {} tokens, {} semver, {} landmarks, "
         "{} layout_tokens, {} rule_ref_fmt_checks, {} module_symbols, "
         "{} agent_text_refs".format(
             stats["cmds"],
             stats["finding_mirrors"],
             stats["finding_tokens"],
-            stats["rule_refs"],
+            stats["anchors"],
             stats["tokens"],
             stats["semver"],
             stats["landmarks"],
