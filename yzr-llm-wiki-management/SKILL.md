@@ -30,8 +30,8 @@ metadata:
 
 ### 核心原则
 
-> **操作前置（orient ritual，所有操作通用）**：每次 ingest / query / lint 启动前，**不依赖 symlink**
-> ——按以下顺序读完四件套再动手：
+> **操作前置（orient ritual，所有操作通用）**：每次 ingest / query / lint 启动前，按以下
+> 顺序读完四件套再动手：
 >
 > 1. **确认 `<wiki-root>/AGENTS.md` 已在上下文**（薄壳 `CLAUDE.md` 或原生加载，会话常驻）——
 >    拿主题名与「当前配置」表（`Wiki Format 版本` 行）；MEMORY 全文随其自动加载
@@ -51,8 +51,7 @@ metadata:
    清 `reviewed` 戳走 `write touch`、MEMORY 新条目走 `write memory add`、index 条目走
    `write index add`；格式 + 滚动窗口截断由 `write` 保证（上限见 `wiki/log.md` 头部），lint
    只兜底带外手改。**逃生舱**：命令不支持的形态手写 Edit/Write 合法——write 是默认路径不是闸门
-3. **每页必带 YAML frontmatter——新建页走 `llmw wiki write new`**（必填字段 + 推荐
-   `description`）；权威定义与例外清单见
+3. **每页必带 YAML frontmatter**（必填字段 + 推荐 `description`）；权威定义与例外清单见
    [`ref/page-templates.md「共有 frontmatter 段」`](ref/page-templates.md)
 4. **LLM 修改已审核页必须清 `reviewed` 戳**——每次编辑后跑 `llmw wiki write touch`；
    生命周期规则 canonical 见 [`page-templates.md「生命周期规则」`](ref/page-templates.md)；
