@@ -76,7 +76,7 @@ CHECK_REGISTRY = [
         "id": "memory-index-skeleton",
         "severity": "error",
         "file": "MEMORY/MEMORY.md",
-        "rule_ref": "MEMORY 产物契约（yzr-llm-workspace-management references/formats.md A6）+ upgrade 引擎",
+        "rule_ref": "MEMORY 产物契约（yzr-llm-workspace-management ref/formats.md A6）+ upgrade 引擎",
         "desc": "MEMORY/MEMORY.md 无 frontmatter + 含 H1 / 说明块 / ## 索引（成长条目不动；缺失文件按 fixtures/memory-index.txt 重建）",
     },
     {
@@ -98,7 +98,7 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": "workspace-agents-md-template.md",
         "rule_ref": "repo AGENTS.md 模板 + check-fixtures 探测",
-        "desc": "workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用（workspace-claude-md-template.md / SKILL.md / references/ / skill 名 / 阿拉伯数字 §节号；零白名单）",
+        "desc": "workspace-agents-md-template.md 不含任何指向 skill 目录的出边引用（workspace-claude-md-template.md / SKILL.md / ref/ / skill 名 / 阿拉伯数字 §节号；零白名单）",
     },
 ]
 
@@ -455,7 +455,7 @@ NEXT_SECTION_RE = re.compile(r"^\[", re.MULTILINE)
 def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
     """check#7: workspace.toml 含 SKILL scan/upgrade 读取的字段（templates_version + 各 wiki path/created_at）。
 
-    读取契约双处同改：本 check 与 skill references/formats.md「A1. workspace.toml 读取契约」
+    读取契约双处同改：本 check 与 skill ref/formats.md「A1. workspace.toml 读取契约」
     表必须一致（漂移 = gate 失效）。
     """
     out = {"passed": True, "file": "workspace.toml"}  # type: Dict[str, object]
@@ -486,7 +486,7 @@ def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) ->
 TEMPLATE_OUTBOUND_PATTERNS = (
     "workspace-claude-md-template.md",
     "SKILL.md",
-    "references/",
+    "ref/",
     "yzr-llm-workspace-management",
     "yzr-llm-wiki-management",
 )

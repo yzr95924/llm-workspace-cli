@@ -66,7 +66,7 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": "AGENTS.md",
         "rule_ref": "<wiki-root>/AGENTS.md「本文件本身的纪律」节（含骨架所有权四分表）",
-        "desc": "模板零出边引用——不得含 page-templates/lint-workflow/SKILL.md/references/yzr-llm-wiki-management/OKF/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
+        "desc": "模板零出边引用——不得含 page-templates/lint-workflow/SKILL.md/ref/yzr-llm-wiki-management/OKF/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
     },
     {
         "id": "gitignore-external-track-toml",
@@ -333,7 +333,7 @@ TEMPLATE_OUTBOUND_PATTERNS = (
     "page-templates.md",
     "lint-workflow.md",
     "SKILL.md",
-    "references/",
+    "ref/",
     "yzr-llm-wiki-management",
     "OKF",
 )

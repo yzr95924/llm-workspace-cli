@@ -296,13 +296,13 @@ class TemplateNoOutboundRefsTest(unittest.TestCase):
         )
 
     def test_skill_file_refs_detected(self):
-        text = "见 page-templates.md §一 与 lint-workflow.md §二\n且 SKILL.md、references/、yzr-llm-wiki-management、OKF 都算"
+        text = "见 page-templates.md §一 与 lint-workflow.md §二\n且 SKILL.md、ref/、yzr-llm-wiki-management、OKF 都算"
         hits = self._scan(text)
         for pat in (
             "page-templates.md",
             "lint-workflow.md",
             "SKILL.md",
-            "references/",
+            "ref/",
             "yzr-llm-wiki-management",
             "OKF",
         ):

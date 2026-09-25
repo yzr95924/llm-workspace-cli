@@ -15,7 +15,7 @@ wiki 体系每条纪律恰有一个 canonical 载体；其余位置要么不写�
 |---|---|
 | 跨文件同步触发判定（何时动 index.md / log.md） | wiki `AGENTS.md`「写入纪律」「写后必同步」条 |
 | 单文件格式 / 操作契约（怎么写、retention、解析约束） | 该 fixture 头部说明块 |
-| 工作流步骤（ingest / query / lint 的执行过程） | skill `references/*.md` |
+| 工作流步骤（ingest / query / lint 的执行过程） | skill `ref/*.md` |
 | 文件边界（路径 / 性质 / 所有权） | wiki `AGENTS.md` 各边界卡（「一、本 wiki 的边界」） |
 
 两条派生纪律（写新规则前必读，防止逐例打补丁回潮）：

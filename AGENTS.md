@@ -53,7 +53,7 @@ bash scripts/test/test_install_uninstall.sh
 > `llmw/models/` 子包已列入 `pyproject.toml` 的 `setuptools.packages`，editable 安装
 > （`pip install -e .`，CI test job 用）含完整 4 子包。**功能完整安装只用 `./scripts/install.sh`**
 > （PYTHONPATH 指向本仓）——运行期资源全部内建于 `llmw/content/templates/`，wheel 声明
-> `package-data` 后独立可用（不再依赖同仓 `yzr-llm-*/references/` 或 repo 根文件）。
+> `package-data` 后独立可用（不再依赖同仓 `yzr-llm-*/ref/` 或 repo 根文件）。
 
 ## 架构
 

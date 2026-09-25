@@ -37,7 +37,7 @@
 4. 询问用户："这段对比适合归档为 wiki/comparisons/<concept-a>-vs-<concept-b>.md 吗？"
 5. 用户同意后：
    - `llmw wiki write new --type=comparison --slug=<concept-a>-vs-<concept-b> --title=...`
-     脚手架 + 按 references/page-templates.md「comparison（对比页）」模板写正文
+     脚手架 + 按 ref/page-templates.md「comparison（对比页）」模板写正文
    - `llmw wiki write index add wiki/comparisons/<concept-a>-vs-<concept-b>.md`
    - `llmw wiki write log --op=query --title="<Concept A> vs <Concept B>"`
 ```

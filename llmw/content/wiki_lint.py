@@ -1268,7 +1268,7 @@ def build_upgrade_plan(
 ) -> Dict[str, object]:
     """legacy + fixtures 发现 → agent 可执行 plan（fixtures_actions 优先于 actions，两套都跑）。
 
-    每个 action 含 file / type / rule_ref / to_action；消费流程见 references/upgrade-workflow.md。
+    每个 action 含 file / type / rule_ref / to_action；消费流程见 ref/upgrade-workflow.md。
     """
     today = date.today().isoformat()
     actions = []  # type: List[Dict[str, object]]
@@ -1301,8 +1301,8 @@ def build_upgrade_plan(
         "from_version": current_format,
         "to_version": CURRENT_WIKI_FORMAT,
         "skill_doc": "SKILL.md（yzr-llm-wiki-management skill 根）",
-        "format_doc": "references/lint-workflow.md（yzr-llm-wiki-management skill，lint 流程与 --explain 入口）",
-        "rule_doc": "references/upgrade-workflow.md（yzr-llm-wiki-management skill）",
+        "format_doc": "ref/lint-workflow.md（yzr-llm-wiki-management skill，lint 流程与 --explain 入口）",
+        "rule_doc": "ref/upgrade-workflow.md（yzr-llm-wiki-management skill）",
         "actions": actions,
         "fixtures_actions": fixtures_actions,
         "skipped_conflicts": legacy.get("conflicts", []),  # type: ignore

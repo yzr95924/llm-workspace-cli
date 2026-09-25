@@ -144,7 +144,7 @@ KEBAB_TOKEN_ALLOW = {
     "workspace-memory",
 }
 # 面 7a 节号禁令：AGENTS.md 字面量 + ≤6 个非 word 字符（空白 / backtick / 标点）+
-# `§<数字|中文数字>`。`AGENTS.md + `[references/external-repo.md`](...) §三` 形式
+# `§<数字|中文数字>`。`AGENTS.md + `[ref/external-repo.md`](...) §三` 形式
 # 中「+ [」含 word char 路径段 → regex 不匹配（§三实指 external-repo.md，非 AGENTS.md）。
 AGENTS_SECTION_REF_RE = re.compile(r"AGENTS\.md[^\w\n]{0,6}§[0-9一二三四五六七八九十]+")
 # 面 7a 扩展：裸 "wiki §N" / "workspace §N" shorthand（缺 AGENTS.md 字面量但仍指模板节号）。
@@ -298,7 +298,7 @@ TERMINAL_TOKENS = {
     # 文档未跟随时本表查不出（如 upgrade.py 的 `growth-graft-error`），该类漂移靠人工审计
     "to_action": ("lint-workflow.md", "external-repo.md"),
     # 注：子串匹配——`actions` 会被 `fixtures_actions` 掩盖，只能抓字段整体消失，
-    # 抓不住孤立重命名；且面 4 只覆盖 references/*.md（SKILL.md 的提及扫不到）
+    # 抓不住孤立重命名；且面 4 只覆盖 ref/*.md（SKILL.md 的提及扫不到）
     "actions": ("upgrade-workflow.md", "lint-workflow.md"),
     # drift 判定的唯一判据（CLI 只对 render / gitignore-block 的 diff 设门禁）
     "gitignore-block": ("upgrade-workflow.md", "examples.md"),
@@ -508,7 +508,7 @@ def _heading_hits(md_text, name):
 
 
 def _resolve_targets(fname):
-    """引用目标候选列表。SKILL.md / references/* 两 skill 同名——候选都查（任一满足即过）。"""
+    """引用目标候选列表。SKILL.md / ref/* 两 skill 同名——候选都查（任一满足即过）。"""
     if fname == "SKILL.md":
         return [
             d / fname
@@ -518,7 +518,7 @@ def _resolve_targets(fname):
             )
         ]
     return [
-        d / "references" / fname
+        d / "ref" / fname
         for d in (
             REPO / "yzr-llm-wiki-management",
             REPO / "yzr-llm-workspace-management",
@@ -699,7 +699,7 @@ def main():  # pylint: disable=too-many-branches
     lint_py = _py_src("wiki_lint.py")
     for token, files in TERMINAL_TOKENS.items():
         for fname in files:
-            p = WIKI_SKILL / "references" / fname
+            p = WIKI_SKILL / "ref" / fname
             if not p.is_file():
                 continue
             if token in _read(p):

@@ -23,7 +23,7 @@ metadata:
 维护一个**本地多 wiki** 工作区的"全局视图"和跨 wiki 编排——单 wiki 的 ingest / query / lint 走
 `yzr-llm-wiki-management` skill
 
-写盘产物的格式契约集中在 [`references/formats.md`](references/formats.md)（A1-A8）——正文
+写盘产物的格式契约集中在 [`ref/formats.md`](ref/formats.md)（A1-A8）——正文
 「格式 Ax」均指该文件，各流程写盘前必读对应 A 节
 
 ## 输入 / 输出

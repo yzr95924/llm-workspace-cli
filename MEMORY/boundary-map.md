@@ -18,7 +18,7 @@ metadata:
 | **agent（按 workspace skill 纪律行事）** | 跨 wiki 判断（零代码）：scan / INDEX / STATS、query 路由/合成/对比、link、workspace lint、跨 wiki MEMORY；**在场时可代跑 llmw**（读类直接执行、写类经用户确认后执行、api_key 类恒用户亲自执行） | 不写 wiki 内部（委托 wiki skill）；不手写元数据 toml（写类操作必须经 CLI，schema/原子写/唯一性约束由 CLI 保证） |
 | **agent（按 wiki skill 纪律行事）** | 单 wiki 判断（零代码）：ingest、query、单 wiki lint、单 wiki MEMORY | 不知 workspace skill 存在（DAG 单向）；不写 `raw/`（用户所有） |
 
-> **"skill"与"agent"的区分**——skill = 规则文本（被加载的 SKILL.md + references/）；agent = 按这份规则行事的执行者。行为者永远是 agent；skill 只是哪份规则书。V2 行为者标注用 agent 而非 skill。
+> **"skill"与"agent"的区分**——skill = 规则文本（被加载的 SKILL.md + ref/）；agent = 按这份规则行事的执行者。行为者永远是 agent；skill 只是哪份规则书。V2 行为者标注用 agent 而非 skill。
 
 ## V2 依赖方向 DAG
 
