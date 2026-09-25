@@ -1,7 +1,7 @@
 # 产物格式契约与读取契约
 
 > 本文件承载 skill 写盘文件的格式契约（A1-A8）；运行期读取契约与实例归属见 `<workspace>/AGENTS.md`。
-> scan / query 归档 / lint / memory 各流程写盘前读对应 A 节。
+> scan / query 归档 / lint / memory 各流程写盘前读对应 A 节
 
 ## A1. workspace.toml 读取契约
 
@@ -81,12 +81,12 @@
 
 ### A6.1 MEMORY/MEMORY.md（索引）
 
-无 frontmatter（被 `<workspace>/AGENTS.md` 用 `@MEMORY/MEMORY.md` `@import` 内联加载）；正文：顶部 1 段说明 + `## 索引` 段（完整/短两条格式共存）。
+无 frontmatter（被 `<workspace>/AGENTS.md` 用 `@MEMORY/MEMORY.md` `@import` 内联加载）；正文：顶部 1 段说明 + `## 索引` 段（完整/短两条格式共存）
 
 ### A6.2 MEMORY/*.md（非 MEMORY.md）
 
 frontmatter 口径 canonical = `<workspace>/AGENTS.md` 的「Memory 纪律」节（byte-owned 模板渲染），
-本文件不重复。lint `memory-not-indexed` 兜底；不强制 inbound 链接，不在 INDEX.md 列出。
+本文件不重复。lint `memory-not-indexed` 兜底；不强制 inbound 链接，不在 INDEX.md 列出
 
 ## A7. Frontmatter 字段通用规则
 
@@ -118,13 +118,13 @@ frontmatter 口径 canonical = `<workspace>/AGENTS.md` 的「Memory 纪律」节
 | `wikis` | `cross-query` / `workspace-memory` | `cross-query` 是 / `workspace-memory` 推荐 | 涉及的 wiki 名列表 |
 | `description` | 所有 | 推荐 | 一句话 |
 
-字段**语义**写法（怎么写好 `title` / `description` / `tags`）SSOT = `yzr-llm-wiki-management` page-templates.md「共有 frontmatter 段」。
+字段**语义**写法（怎么写好 `title` / `description` / `tags`）SSOT = `yzr-llm-wiki-management` page-templates.md「共有 frontmatter 段」
 
 ## A8. 命名约束
 
 本表只承载 **skill 写盘文件**的命名约束（这些文件 CLI 不读写、无机械 gate，约束唯一承载点
 = 本节）。wiki name（`llmw wiki add` 创建时校验）与 CLI 内部标识符归 CLI；wiki 命名推荐
-风格见 `<workspace>/AGENTS.md` 的「跨 wiki 约定」节。
+风格见 `<workspace>/AGENTS.md` 的「跨 wiki 约定」节
 
 | 维度 | 规则 | 适用对象 |
 | --- | --- | --- |

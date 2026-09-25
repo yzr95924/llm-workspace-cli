@@ -2,7 +2,7 @@
 
 Ingest 把 `raw/` 里的原始资料变成 wiki 内的**摘要页** + 同步相关 entity / concept
 页 + 更新 index + 追加 log。一份资料通常涉及 **1 source 页 + 0~N entity / concept
-页 + 1 index 更新 + 1 log 条目**。
+页 + 1 index 更新 + 1 log 条目**
 
 ## 入口与触发
 
@@ -21,18 +21,22 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 输出按 reason 分类（`untracked` / `stale-raw` / `log-only-no-source-page`），各类含义与
 退出码在输出中自明。判定"已摄取"的依据 = **对应 source 页存在且 `frontmatter.sources`
-含此路径**；仅 log 有记录但 source 页缺失的视为未摄取（需重建）。
+含此路径**；仅 log 有记录但 source 页缺失的视为未摄取（需重建）
 
 ### Step 2：评估规模
 
 待摄取 < 3 → 逐份处理；≥ 3 → 走「批处理摄取」；> 20 → 先问用户"是否先处理这 5 个"，
-分多批推进。**分批按主题聚类**（同议题 / 同作者 / 同时间段优先），不按文件名随机排序。
+分多批推进。**分批按主题聚类**（同议题 / 同作者 / 同时间段优先），不按文件名随机排序
+
+### Step 2.5：与用户对齐要点（仅交互式单篇 / 少量）
+
+确认主题方向 / 重点交叉的 entity / 用户判断要保留；批处理或用户已明示方向时跳过
 
 ### Step 3：写 source 页
 
 对每个待摄取文件。**stale-raw 的关键差异**：source 页已存在 → 用 **Edit** 更新正文 +
 `updated` 改今天（`created` 保留原值），**不要** Write 覆盖、不重建 entity / concept 的
-"参考来源"段（只追加新来源）。
+"参考来源"段（只追加新来源）
 
 > **重摄取发现矛盾**——不静默覆盖，走
 > [`page-templates.md「矛盾处理 Update Policy」`](page-templates.md)
@@ -40,7 +44,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 >
 > **生命周期纪律**：被更新的 source 页若原 `reviewed: true`，编辑完跑
 > `llmw wiki write touch <page>`（自动 `updated`=现在 + 清 reviewed 戳）。细节见
-> [`page-templates.md「生命周期规则」`](page-templates.md)。
+> [`page-templates.md「生命周期规则」`](page-templates.md)
 
 1. **完整读取 raw**——PDF / 图片先做 OCR / 视觉识别
 2. **提取元数据**：标题、作者 / 来源、发布时间、URL、关键标签
@@ -85,7 +89,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 - 裸目录树 wiki 跳过此步（无版本控制）
 
 **收尾**：主动问用户"要不要查一下新内容与已有内容的联系？"（query 触发见
-[`query-workflow.md「入口与触发」`](query-workflow.md)）。
+[`query-workflow.md「入口与触发」`](query-workflow.md)）
 
 ## 批处理摄取（≥ 3 份 raw 同时摄入）
 
@@ -99,24 +103,24 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 5. **报告**——哪些是新建页 / 更新页 / 因聚合而合并
 
 > **为什么批处理**：逐份处理 N 份 raw = N 次 search + N 次 index 更新 + N 条 log，既慢又
-> 容易因中间步骤失败导致不一致；批处理把主流程收敛成一次写入，副作用面最小。
+> 容易因中间步骤失败导致不一致；批处理把主流程收敛成一次写入，副作用面最小
 
 ## 判定"是否新建 entity / concept 页"
 
-阈值 canonical 见 [`page-templates.md「建页 / 追加 / 归档阈值」`](page-templates.md)。
+阈值 canonical 见 [`page-templates.md「建页 / 追加 / 归档阈值」`](page-templates.md)
 
 **单篇 ingest 视角的套用**：本 raw 的中心主题 / 反复出现的核心概念 → 建；路过 / 类比 /
 背景提及 → 不建；已有同名 / 近义页 → 先 search 再定（写前必搜）。例：反复提到
-"self-attention" 且无页 → 建 `concepts/self-attention.md`；偶然提到一次 "GPU" → 不建。
+"self-attention" 且无页 → 建 `concepts/self-attention.md`；偶然提到一次 "GPU" → 不建
 
 ## 正文引用的稳定性（漂移点规避）
 
 写 wiki 页正文、或对话作答中引用上游事实时，先做**感知测试**：
 
 > 这条引用依据的上游事实变化时，wiki 有任何机制（lint / anchor / stale 检查）
-> 能发现吗？不能 = 漂移点——它会静默腐烂成"既成事实"，必须改写。
+> 能发现吗？不能 = 漂移点——它会静默腐烂成"既成事实"，必须改写
 
-引用精度与稳定性成反比：降精度、加锚点、打时间戳。
+引用精度与稳定性成反比：降精度、加锚点、打时间戳
 
 | 漂移点 | 反例 | 改写 |
 | --- | --- | --- |
@@ -132,7 +136,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 - **wiki/index.md 缺类别段**——补类别段（骨架见 [`page-templates.md「index（index.md）」`](page-templates.md)）
   或走 upgrade fixtures 修复
 
-> raw 不可读 / log/index 参数缺失等场景 CLI 报错自明——按提示修即可。
+> raw 不可读 / log/index 参数缺失等场景 CLI 报错自明——按提示修即可
 
 ## 反模式
 
@@ -143,4 +147,4 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ## raw/discussions/ 草稿消化（可选入口）
 
 > **完整纪律**（路径 / 谁可写 / CLI 契约三道 / 归档路径两条 / 滑坡防线）由
-> wiki 根 `AGENTS.md` 的 `raw/discussions/` 节承载——agent 自动加载必读。
+> wiki 根 `AGENTS.md` 的 `raw/discussions/` 节承载——agent 自动加载必读

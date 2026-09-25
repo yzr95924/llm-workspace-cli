@@ -1,7 +1,7 @@
 # 完整样例
 
 > 本文件是参考样例的"按需 Read"指针——SKILL.md「参考样例」段仅留一行引用到此，
-> 完整样例一律写在本文件。
+> 完整样例一律写在本文件
 
 ## 样例一：ingest 一份原始资料
 
@@ -32,8 +32,8 @@
 1. 读 wiki/index.md，找到 concepts/<concept-a>.md 和 concepts/<concept-b>.md
 2. 读两个 concept 页
 3. 综合答案，引用形式：
-   "<Concept A> 强调 <特点 1>（来源 sources/<source-a>.md）；
-   <Concept B> 强调 <特点 2>（来源 sources/<source-b>.md）..."
+   "<Concept A> 强调 <特点 1>（来源：sources/<source-a>.md）；
+   <Concept B> 强调 <特点 2>（来源：sources/<source-b>.md）..."
 4. 询问用户："这段对比适合归档为 wiki/comparisons/<concept-a>-vs-<concept-b>.md 吗？"
 5. 用户同意后：
    - `llmw wiki write new --type=comparison --slug=<concept-a>-vs-<concept-b> --title=...`
@@ -58,11 +58,12 @@
    - 1 个孤儿页：concepts/<orphan-concept>.md 未被 wiki/index.md 列出（orphan-page）
    - 1 个 `contested-page`：sources/<entity-v2>.md 与 sources/<entity-v1>.md 对某核心属性
      说法冲突、已双向标注 `contested: true`——需与用户裁定后移除标记
-   - 7 个 `pending-review`：默认未审核页面（新常态，info）
+   - 7 个 `pending-review`：默认未审核页面（info）
    - 1 个 `reviewed-stale`：sources/<reviewed-page>.md reviewed=true reviewed_at=2026-06-01 但
      updated=2026-06-25——LLM 修改后漏清 reviewed 戳，建议重新审核
-3. agent 补充半定性观察：
-   - sources/<entity-v2>.md 与 sources/<entity-v1>.md 对某核心属性的描述不一致
+3. agent 补充半定性观察（上一步已标注 contested 的那对不重复——半定性检查针对未标注矛盾）：
+   - concepts/<concept-x>.md 与 sources/<source-z>.md 对某定义的说法不一致 → 建议双方补
+     `contested: true` + `contradictions` 互指
 4. 整理成结构化报告，问用户先修哪些
 ```
 

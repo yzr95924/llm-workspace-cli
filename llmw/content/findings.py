@@ -253,7 +253,7 @@ FINDINGS = {
     ),
     "pending-review": FindingSpec(
         "info",
-        "非 log/index 页未含 `reviewed: true`（新常态，仅提示）",
+        "非 log/index 页未含 `reviewed: true`（仅提示）",
         "人工审核后 `llmw wiki write touch` 落戳；不审则忽略",
     ),
     "tag-not-in-taxonomy": FindingSpec(

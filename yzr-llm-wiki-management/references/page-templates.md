@@ -1,42 +1,42 @@
 # 页面模板
 
-按 `type` 分 5 种。**5 类内容页**共有 frontmatter 段 + 类型特定字段 + 自由正文。
+按 `type` 分 5 种。**5 类内容页**共有 frontmatter 段 + 类型特定字段 + 自由正文
 
 > **本文件是 content-owned 产物（wiki 内容页）写作纪律的 canonical**——frontmatter 字段
 > 语义 / 建页阈值 / 认知质量信号 / 矛盾处理 / 图示指引的唯一维护点（AGENTS.md 模板声明
 > 不承载写页规则）。frontmatter **生成**走 `llmw wiki write new`（5 必填自动落）；lint
 > 校验规则见 `llmw wiki lint --explain=all`（不在此镜像）。
-
+>
 > **frontmatter 写法约束**（与 `llmw wiki ingest-diff` 的轻量 YAML 解析器对齐）：仅支持单行
 > `key: value`、inline 数组 `[a, b, c]`、`- item` 列表项三种形式。**不要**用多行折叠 `>` /
-> `|`、YAML 锚点 `&` / `*`、嵌套 map——解析器会静默失败返回空 dict，后续行为未定义。
+> `|`、YAML 锚点 `&` / `*`、嵌套 map——解析器会静默失败返回空 dict，后续行为未定义
 
 ## 共有 frontmatter 段
 
 适用 5 类内容页（entities / concepts / sources / comparisons / syntheses）；**MEMORY/*.md
-规则不同**——canonical 见 `<wiki-root>/MEMORY/MEMORY.md` fixture 头部说明块。
+规则不同**——canonical 见 `<wiki-root>/MEMORY/MEMORY.md` fixture 头部说明块
 
 | 字段 | 必填性 | 语义 |
 | --- | --- | --- |
 | `title` | 必填 | 人类可读标题，不带文件扩展名 |
 | `description` | 推荐 | 一句话摘要；`index.md` 条目摘要的唯一来源（不在 index 手写第二份，防漂移） |
 | `type` | 必填 | entity / concept / source / comparison / synthesis——驱动子目录 + index 分组 + lint |
-| `tags` | 必填（可空数组） | 取值必须严格在 `wiki/tags.md` 白名单内（取值 / 解析 / 审计循环 canonical 在 fixture 头部） |
+| `tags` | 必填（可空数组） | 取值必须严格在 `wiki/tags.md` 白名单内（canonical 见其头部说明块） |
 | `created` / `updated` | 必填 | 写入用 `YYYY-MM-DD HH:MM`；lint 宽容解析 date-only / HH:MM / HH:MM:SS |
 | `reviewed` / `reviewed_at` / `contested` / `contradictions` | 可选 | 认知质量信号，见下节 |
 | 类型特定（`sources` / `compared` / `threads` / `aliases` 等） | 按类型 | 见「各类型模板」 |
 
 > 5 必填是 OKF §9 conformance 与 lint 校验的最小交集；5 类覆盖 wiki 复利的 5 种认知角色。
 > `index.md` / `log.md` 是 **reserved 文件**（自带 frontmatter，`type: index` / `type: log`
-> 仅作标记），lint 跳过——不算概念页 type。
+> 仅作标记），lint 跳过——不算概念页 type
 
 ### 可选：可信度与认知质量信号
 
 > **为什么需要**：LLM 写入的页若不标注，时间一长会被当成"既成事实"——**认知腐烂**，
 > 比断链 / 孤儿更隐蔽。`reviewed` 系 = 人工审核背书（query 优先采信、index ✓/✗）；
-> `contested` 系 = 矛盾未裁定告警（与可信度正交：可既 reviewed 又 contested）。
+> `contested` 系 = 矛盾未裁定告警（与可信度正交：可既 reviewed 又 contested）
 
-- `reviewed: true`——**仅**在为 `true` 时写。缺省 = 未审核（新常态）；与
+- `reviewed: true`——**仅**在为 `true` 时写。缺省 = 未审核；与
   `reviewed_at: <YYYY-MM-DD>` 成对出现（单独写任一字段 lint 报 warn）
 - `contested: true`——**仅**在为 `true` 时写。表示存在**尚未裁定**的矛盾主张（搭配
   `contradictions` 指向对端），供 lint 集中拎出复审
@@ -58,7 +58,7 @@ LLM 修改都让戳失效，必须**删除** `reviewed` + `reviewed_at` 回到�
 
 **何时设 `reviewed: true`**：人读完正文 + 交叉引用 + 关键 raw 资料，确认主张站得住；
 遇 `contested: true` 或 `contradictions` 非空**不**应盲目标，先裁定冲突再标。
-已审过的页被 LLM 修改后回默认未审核态，等人再次复审。
+已审过的页被 LLM 修改后回默认未审核态，等人再次复审
 
 #### 矛盾处理 Update Policy
 
@@ -77,7 +77,7 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 
 > 每类只列**路径 + 类型特定字段 + 正文骨架**（节名即契约，写入时按它落；节名按需保留 /
 > 拆分；5 必填 frontmatter 由 `llmw wiki write new` 生成）。实跑 trace 见
-> [`examples.md`](examples.md)——按需 Read。
+> [`examples.md`](examples.md)——按需 Read
 
 ### entity（实体页）
 
@@ -227,21 +227,21 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 
 > **逐段溯源（synthesis / 多源 comparison 专属）**：frontmatter `sources` 只能定位"引了
 > 哪些来源"，无法追溯"某句主张来自哪篇"。对**来源可分的断言**用标准 Markdown 脚注 `[^n]`
-> （文末 `[^n]: ...` 指向 source 页；**不要**用 pandoc 行内 `^[...]`）；纯推论无需脚注。
+> （文末 `[^n]: ...` 指向 source 页；**不要**用 pandoc 行内 `^[...]`）；纯推论无需脚注
 
 ### index（index.md）
 
 路径：`wiki/index.md`（**唯一一份**，`type: index` 是 reserved）。字节金标准在 fixture
 `index.md.txt`；条目纪律 canonical 在 fixture 头部说明块；正路走
 `llmw wiki write index add|remove`（从页 frontmatter 派生 title/description，类别段内字母序）。
-lint 口径：`llmw wiki lint --explain=index-missing` / `--explain=orphan-page`。
+lint 口径：`llmw wiki lint --explain=index-missing` / `--explain=orphan-page`
 
 ### log.md（log）
 
 路径：`wiki/log.md`（**唯一一份**，`type: log` 是 reserved）。每行格式 / op 取值 / 滚动窗口
 截断：canonical 在 fixture `log.md.txt` 头部；正路走 `llmw wiki write log`（格式 + 截断自动
 保证）；带外手改按 fixture 格式 + 手工截断。lint 口径：
-`llmw wiki lint --explain=log-format` / `--explain=log-truncation-recommended`。
+`llmw wiki lint --explain=log-format` / `--explain=log-truncation-recommended`
 
 ## 模板使用规则
 
@@ -253,7 +253,7 @@ lint 口径：`llmw wiki lint --explain=index-missing` / `--explain=orphan-page`
 ### 建页 / 追加 / 归档阈值（Page Thresholds）
 
 不是每个 entity / concept 都值得独立成页——没阈值 wiki 会被名词堆爆。
-**宁可错过一个 entity 也不要堆十个空页**——堆一千个空 entity，lint 报告会被噪声淹没。
+**宁可错过一个 entity 也不要堆十个空页**——堆一千个空 entity，lint 报告会被噪声淹没
 
 | 动作 | 触发条件 |
 | --- | --- |
@@ -266,7 +266,7 @@ lint 口径：`llmw wiki lint --explain=index-missing` / `--explain=orphan-page`
 ## 图示使用指引
 
 > advisory（建议式）——图用于压缩过程性 / 结构性内容，不强制；密度优先，图是正文的
-> 压缩，不是装饰。
+> 压缩，不是装饰
 
 - **优先配图**——交互流程 / pipeline / 状态机 / 组件-模块关系 / 层级结构；散文写这类
   内容超过 2-3 句仍绕不清时，换一张图

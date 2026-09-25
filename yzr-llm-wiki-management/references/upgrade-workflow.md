@@ -5,14 +5,14 @@
 > 说明），本文档**不重述**——重述必漂移；下文只钉 agent 据以**分支 / 定位**的名字。
 > **优先级**：边界与纪律以本文档 + wiki 根 AGENTS.md 为准；每条动作的具体改法以 plan
 > 自带的 `agent_rules[]` 为准。breaking 变更的语义合并规则落「语义合并规则」；版本演进
-> 叙事看 git log。
+> 叙事看 git log
 
 ## 触发
 
 用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / format 升级 / 是否需要 reformat"；
 或 `llmw wiki lint` 报告 `wiki-format-version-stale` / `wiki-format-version-unparsed` /
 legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的
-`Wiki Format 版本` 字段；本 workflow 处理 format 演进后的**检测 + 修复**。
+`Wiki Format 版本` 字段；本 workflow 处理 format 演进后的**检测 + 修复**
 
 ## 职责切分（**关键**——三方分工）
 
@@ -42,7 +42,7 @@ legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末�
    ```
 
    默认 dry-run。**将被丢弃的自定义 `##` 段在此以 `dropped_sections` 直接列出——这是
-   `--apply` 前唯一的可见时机**；先看计划再决定 `--apply`。
+   `--apply` 前唯一的可见时机**；先看计划再决定 `--apply`
 
 3. **裁定 drift（只有 `render` / `gitignore-block` 的 diff 触发）**：
    - CLI `--apply`（不加 `--yes`）遇这类 diff 即进 `blocked_drift`，输出未覆盖的具体 diff；
@@ -73,7 +73,7 @@ legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末�
    - 终态 `verify_failed` → 按 `verified.failures[]` 修完重跑（幂等）
    - lint 侧仍有 legacy / fixtures 现场 → 报告 + 转人工
 
-**不**调用 ingest / query（保持职责单一）；log 纪律见「职责切分」。
+**不**调用 ingest / query（保持职责单一）；log 纪律见「职责切分」
 
 ## 边界
 
@@ -87,18 +87,18 @@ legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末�
   引导升级安装
 - **不**用 workspace 级 `llmw upgrade`（聚合批量所有 wiki）替代 `llmw wiki upgrade`
 
-> 其余边界以 wiki 根 `AGENTS.md` 为准（raw 只读等全局纪律）。
+> 其余边界以 wiki 根 `AGENTS.md` 为准（raw 只读等全局纪律）
 
 ## 样例
 
-见 [`examples.md`](examples.md)（升级场景样例四）。
+见 [`examples.md`](examples.md)（升级场景样例四）
 
 ---
 
 ## 语义合并规则
 
 > CLI 不替代语义判断：本节定义**跨 entry 的语义合并**（index 重复条目 / 多 MEMORY 条目
-> 归并），agent 按规则走。
+> 归并），agent 按规则走
 
 ### wiki/index.md 条目合并
 

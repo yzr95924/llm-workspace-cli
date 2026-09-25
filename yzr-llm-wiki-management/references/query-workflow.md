@@ -1,7 +1,7 @@
 # Query 详细流程
 
 Query 是 wiki 的"消费侧"——把多份资料综合成答案，**好答案归档回 wiki** 让复利继续。
-跨页综合暴露单篇看不到的**联系** / **矛盾** / **趋势**——这是 wiki 比 RAG 多的"复利结构"。
+跨页综合暴露单篇看不到的**联系** / **矛盾** / **趋势**——这是 wiki 比 RAG 多的"复利结构"
 
 ## 入口与触发
 
@@ -58,15 +58,15 @@ Query 是 wiki 的"消费侧"——把多份资料综合成答案，**好答案�
 
 答案结构（按需组合）：
 
-1. **直接回答**——用引用形式，每条事实带 `(来源: <page path>)`；un-reviewed 页面额外标「未经人工复审」
+1. **直接回答**——用引用形式，每条事实带 `（来源：<page path>）`；un-reviewed 页面额外标「未经人工复审」
 2. **对比表**（如果是 query "A vs B" 类）——Markdown 表格，行 = 维度，列 = 对象，
    单元格用引用形式
 3. **时间线 / 演进**（如果是 query "X 的演进" 类）——按 source 页 published 排序
 4. **矛盾标注**（如果发现冲突）——不要"和稀泥"：
-   > A 说 X（来源: ...），B 说 Y（来源: ...）。这可能是定义差异 / 上下文差异 /
-   > 数据更新，建议进一步调研。
+   > A 说 X（来源：...），B 说 Y（来源：...）。这可能是定义差异 / 上下文差异 /
+   > 数据更新，建议进一步调研
 
-> 答案形态与归档的完整实跑 trace 见 [`examples.md`](examples.md) 样例二——本文件不重抄。
+> 答案形态与归档的完整实跑 trace 见 [`examples.md`](examples.md) 样例二——本文件不重抄
 
 ### Step 4：询问归档
 
@@ -80,13 +80,13 @@ Query 是 wiki 的"消费侧"——把多份资料综合成答案，**好答案�
 
 > 这段答案本质是 `<comparison / synthesis / finding>`，是否归档为
 > `wiki/comparisons/<slug>.md`（或 `wiki/syntheses/<slug>.md`）？建议标题：
-> `<title>`。
+> `<title>`
 
-用户拒绝 → 尊重，不强求，亦不追加 log（无 wiki 痕迹）；用户同意 → 走 Step 5。
+用户拒绝 → 尊重，不强求，亦不追加 log（无 wiki 痕迹）；用户同意 → 走 Step 5
 
 ### Step 5：归档 query 答案
 
-使用 [`page-templates.md「各类型模板」`](page-templates.md)的 comparison / synthesis 模板。
+使用 [`page-templates.md「各类型模板」`](page-templates.md)的 comparison / synthesis 模板
 
 - `comparison` 页：focus 在 "A vs B"，frontmatter `compared: [<path-a>, <path-b>]`（必填）
 - `synthesis` 页：focus 在 "跨多个 source 的综合洞察"，frontmatter `threads: [<主题>...]` +
@@ -116,7 +116,7 @@ Query 是 wiki 的"消费侧"——把多份资料综合成答案，**好答案�
 - **不**引用未存在于 wiki 的来源——只引用 wiki 内的页面
 - **不**绕过 source 页直接读 raw（冲突时才回 raw 复核，见 Step 2）
 
-> 其余边界以 wiki 根 `AGENTS.md` Query 纪律节为准。
+> 其余边界以 wiki 根 `AGENTS.md` Query 纪律节为准
 
 ## Query 失败的常见原因
 

@@ -7,7 +7,7 @@ Lint 让 wiki **不腐烂**——把 bookkeeping 自动化。Lint 分**两层**�
 
 **与 `llmw wiki write` 的分工**：log / index / touch / new / memory 的**正路**是
 `llmw wiki write`（产物天然合规：输出是输入的纯函数 + lint 可 round-trip 验证）；
-lint 的 deterministic 检查兜底**带外手改**（用户 / agent 手工 Edit 的场景）。
+lint 的 deterministic 检查兜底**带外手改**（用户 / agent 手工 Edit 的场景）
 
 ## 调用方式
 
@@ -18,7 +18,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all       # finding 全清单�
 ```
 
 退出码（常规）：0 = 干净；1 = 有问题（看输出）；2 = 运行错误；未捕获异常 = 3。
-`--check-version` 模式恒 0——是否需迁移看报告字段 `needs_upgrade`。
+`--check-version` 模式恒 0——是否需迁移看报告字段 `needs_upgrade`
 
 ### Deterministic 检查（CLI）
 
@@ -33,7 +33,7 @@ llmw wiki lint --explain=<finding 名>   # 单条（如 --explain=orphan-page）
 覆盖族（改 CLI 自动生效，本文不镜像明细）：format 版本一致性 / `raw/` 不可变性 /
 frontmatter 完整性 / sources 引用链 / 正文链接 / index 覆盖 / log 格式与条目数 /
 tag taxonomy / 页面体量 / 可信度信号（reviewed / contested / contradictions）/
-MEMORY 索引一致性 / external symlink ↔ anchor 关联。
+MEMORY 索引一致性 / external symlink ↔ anchor 关联
 
 ### 子命令 `--check-version`
 
@@ -53,7 +53,7 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 标记冲突页 → agent 跳过 + 转人工；**互斥模式**，不写 log 条目。
 完整 agent 修复路径见 [SKILL.md「Upgrade」](../SKILL.md)；
 迁移依据 SSOT = plan 自带的 `agent_rules[]` +
-[`upgrade-workflow.md「语义合并规则」`](upgrade-workflow.md)。
+[`upgrade-workflow.md「语义合并规则」`](upgrade-workflow.md)
 
 ## 半定性检查（agent 执行）
 
@@ -96,9 +96,8 @@ plan（含 `actions[]` / `skipped_conflicts[]` / `agent_rules[]` / `fixtures_act
 
 ## 报告格式
 
-CLI stdout 按严重性分组（组头 `[ERROR] (N)` / 缩进行为 finding 文本原文 / 末尾
-`Total: N finding(s)`）。agent 整理给用户时沿用 finding 文本原文，每条给：
-**严重性** + **类别** + **文件** + **描述**（下为整理稿示例，文本取自 CLI 输出）：
+agent 整理给用户时沿用 finding 文本原文（CLI 按严重性分组输出），每条给：
+**严重性** + **类别** + **文件** + **描述**（下为整理稿示例）：
 
 ```text
 [ERROR] orphan-page: wiki/concepts/qux.md 未在 wiki/index.md 中列出
@@ -107,7 +106,7 @@ CLI stdout 按严重性分组（组头 `[ERROR] (N)` / 缩进行为 finding 文�
 ```
 
 单个 finding 的含义 / 修法用 `llmw wiki lint --explain=<finding 名>` 现场查（注册表 SSOT，
-含 external symlink ↔ anchor 关联的全家）。
+含 external symlink ↔ anchor 关联的全家）
 
 ## lint 之后
 

@@ -1,17 +1,16 @@
 ---
 name: yzr-llm-wiki-management
 description: |
-  当用户在本地、单用户、复利型 Markdown 个人 wiki（Karpathy 'LLM owns wiki' 模式）内工作时
-  使用本 skill——覆盖：摄取 raw/ 资料（论文 / 剪藏 / 外部代码仓 symlink）、查询与跨页
-  综合 / 矛盾协调、结论归档回 wiki、孤儿 / 过期摘要 lint、format 升级。三层纪律：
-  raw/ 用户掌控 + wiki/ LLM 拥有 + AGENTS.md 单一真源。
+  当用户在本地、复利型 Markdown 个人 wiki（Karpathy 'LLM owns wiki' 模式）内工作时
+  使用本 skill——覆盖：摄取 raw/ 资料（论文 / 剪藏 / 外部代码仓）、查询与跨页
+  综合 / 矛盾协调、结论归档回 wiki、孤儿 / 过期摘要 lint、format 升级。
   触发："把这篇论文摄取进 wiki" / "wiki 里有没有 / 总结一下关于 X 的内容" / "wiki 里 A 和
   B 说法矛盾" / "把刚才的结论记进 wiki" / "扫一下 wiki 有没有孤儿页 / 过期摘要" /
   "升级 wiki / 检查 wiki 版本" / "把 X 仓库纳入 wiki"。只要用户要消化资料 / 查 wiki 沉淀 /
   归档新结论——即使没提 skill 名，也务必使用本 skill。
   不适用：云端 / 团队 wiki（Notion / Confluence / Outline 等）；wiki 元数据配置、增删
   wiki、session 启停（单条 llmw 命令，直接跑即可）；跨 wiki / workspace 层操作（归
-  workspace 层 skill）；cwd 不是 wiki 根（无 `wiki_metadata.toml` + AGENTS.md 骨架）。
+  workspace 层 skill）；cwd 不是 wiki 根（无 `wiki_metadata.toml` + AGENTS.md 骨架）
 metadata:
   author: Zuoru YANG
   category: knowledge-base
@@ -20,35 +19,9 @@ metadata:
 
 # LLM Wiki Management
 
-按 Karpathy [LLM Wiki 设计哲学](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
-维护一个**本地**、**复利累积**的知识库：用户只管读 + 提供资料 + 提问题，LLM 负责摘要、
-交叉引用、归档、簿记这些"无聊的部分"。和各类云端 wiki skill 的关键区别是
-**本地文件 + 三层纪律**——vs 云端 MCP 单层文档。
+## 输入
 
-本 skill 提供三块交付物：
-
-- **SKILL.md（本文）**——工作流路由 + 纪律的"宪法"
-- **确定性执行（归 llmw CLI）**——本 skill **零代码**：lint / fixtures 检查 / ingest 探测 /
-  机械写 / 骨架升级 / external 注册表全部收敛为 `llmw wiki` 子命令（见「工作流 / 步骤」各节）
-- **references/**——按需加载：各操作详细流程 + 页面模板 + 升级时的
-  upgrade-workflow.md「语义合并规则」；骨架模板 + fixtures（CLI 字节级比对金标准）
-  内建于 CLI 包资产（`llmw wiki check-fixtures` 探测）
-
-## 文档引用约定
-
-本 skill 全部文档中 `xxx.md「节名」` 是导航指针：`canonical 见` / `按` / `遵循` 前缀 = 操作前
-必读目标节；单独 `见` / `细节见` = 背景参考，按需读。目标节按节名 Grep 定位（标题不含编号）。
-工作流节尾的整文件指针（「详细 N 步 / 完整流程」类）= 执行该工作流前必读；样例类指针按需读。
-
-## 输入 / 输出
-
-**启动时需具备**：wiki 根（`$LLM_WIKI_ROOT` 或问用户）；主题名与 format 版本读
-`<wiki-root>/AGENTS.md` 末尾「当前配置」表；ingest 的资料必须在 `raw/` 内。
-
-**操作产物**：ingest → `wiki/sources/<slug>.md` + 同步实体 / 概念页 + index/log 同步；
-query → 对话答案（可选归档 `wiki/comparisons/` 或 `wiki/syntheses/<slug>.md`）；
-lint → stdout findings 报告 + `log.md` 一条 `lint` op 条目；upgrade → 骨架修复 + 内容页
-plan 修复（见「Upgrade」节）；setup 由 workspace CLI 完成（见「工作流 / 步骤」）。
+**启动时需具备**：wiki 根（session cwd；否则 `$LLM_WIKI_ROOT` 或问用户）
 
 ## 执行原则 / 边界
 
@@ -61,11 +34,12 @@ plan 修复（见「Upgrade」节）；setup 由 workspace CLI 完成（见「�
 >    拿主题名与「当前配置」表（`Wiki Format 版本` 行）；MEMORY 全文随其自动加载
 > 2. `Read <$LLM_WIKI_ROOT>/wiki/index.md`——有哪些页、分布在哪些类别，避免重复创建 / 漏交叉引用
 > 3. `Read <$LLM_WIKI_ROOT>/wiki/log.md`（最近 ~30 行）——看清最近活动，避免重复 ingest / 漏归档
-> 4. **`scripts/SCRIPTS.md`**（已随 AGENTS.md 自动加载；wiki 可无 scripts/）——**触发非标
->    工作流前**必须先查其分节契约（使用场景 / 调用约定 / 前置依赖）
+> 4. **`scripts/SCRIPTS.md`**（已随 AGENTS.md 自动加载；wiki 可无 scripts/）——**要跑
+>    `scripts/` 下自定义脚本前**（即操作不在 `llmw wiki` 命令与本文各工作流的覆盖面内）必须先查
+>    其分节契约（使用场景 / 调用约定 / 前置依赖）
 >
 > 四件套任一未读完不写任何 wiki 内容。100+ 页的 wiki 还应在 `wiki/` 全域
-> `Grep "<topic>"` 补一次——单看 index.md 可能漏掉 entity/concept 页之间的引用关系。
+> `Grep "<topic>"` 补一次——单看 index.md 可能漏掉 entity/concept 页之间的引用关系
 
 1. **raw/ 由用户掌控，LLM 只读**——例外以 wiki 根 `AGENTS.md`「本 wiki 的边界」为准
    （自动加载，不得外推）；接入外部仓见 [`references/external-repo.md`](references/external-repo.md)，
@@ -82,38 +56,38 @@ plan 修复（见「Upgrade」节）；setup 由 workspace CLI 完成（见「�
    lint 用 `reviewed-stale` 兜底
 5. **MEMORY/ 是 LLM agent 的私有记忆**——新条目走 `llmw wiki write memory add`；只存
    `<wiki-root>/` 一份（无副本漂移；`wiki/` 外 = publish 不外传）。写入流程见「Memory」节
-6. **tag 白名单在 `wiki/tags.md`**——取值 / 解析 / 审计循环 canonical 在 fixture
-   头部说明块（落盘即读）；lint finding 解释用 `llmw wiki lint --explain=tag-not-in-taxonomy`
+6. **tag 白名单唯一真源在 `wiki/tags.md`**——agent 遇新 tag **直接追加、不询问用户**，
+   用户审计直接删；取值规则 / 解析约束详见该文件头部说明块（入口：wiki 根 `AGENTS.md`
+   「tag 白名单字典」节）；finding 含义 / 修法用 `llmw wiki lint --explain=tag-not-in-taxonomy`
 
 ### 边界
 
 - **不**绕过 `AGENTS.md` 自创约定——若 AGENTS.md 没说的，**先问用户**再写
 
-> 其余边界纪律以 wiki 根 `AGENTS.md` 为准（自动加载，会话常驻）。
+> 其余边界纪律以 wiki 根 `AGENTS.md` 为准（自动加载，会话常驻）
 
 ### 反模式（绝对禁止）
 
 - 跨 wiki 互引但不更新对端 index（对端同步经 workspace 层 link 工作流、用户确认后执行）
 
-> 其余反模式以 wiki 根 `AGENTS.md` + [`references/external-repo.md「反模式」`](references/external-repo.md)为准。
+> 其余反模式以 wiki 根 `AGENTS.md` + [`references/external-repo.md「反模式」`](references/external-repo.md)为准
 
 ### 反合理化三件套（纪律型 skill 必带）
 
 > 本 skill 是纪律型 skill（含多条"必须 / 禁止 / 不"+"**不**" 起始段）。纪律型禁令在
-> LLM 压力下会被以各种合理化借口绕开——三件套只堵一类：**已被合理化的违反**。
-> 未被合理化的违反（直接忽略规则）属「反模式」清单的覆盖面问题，与三件套无关。
+> LLM 压力下会被以各种合理化借口绕开——三件套只堵一类：**已被合理化的违反**
 
 #### Rationalization Table
 
 > **baseline 实跑记录**：3 次 RED 运行（带纪律 / 无纪律 / 带纪律 + 用户施压）仅产出
-> 真实借口一条（下表第 1 行）+ 一处静默遗漏（缺必填 `tags`）。
+> 真实借口一条（下表第 1 行）+ 一处静默遗漏（缺必填 `tags`）
 
 | 常见借口 | 为什么是错的 | 应改做什么 |
 | --- | --- | --- |
-| "剪藏只有一句话，按'克制建页'原则和你说的小事轻办，一个资料页够了"（实跑 transcript） | 用户的"随便 / 赶时间"是态度不是豁免——写 wiki 页即触发必填字段 / 建页阈值 / log 纪律；"轻办"是拿用户情绪当省略纪律的挡箭牌（同轮还静默漏了必填 `tags` 字段） | 流程不缩水；"克制建页"判断如实执行但**向用户说明**（"本文只有一个中心主题，暂不建概念页，出现第二篇同主题再补"），字段与 log 纪律照走 |
+| "剪藏只有一句话，按'克制建页'原则和你说的小事轻办，一个资料页够了"（实跑 transcript） | 用户的"随便 / 赶时间"是态度不是豁免——写 wiki 页即触发必填字段 / 建页阈值 / log 纪律；"轻办"是拿用户情绪当省略纪律的挡箭牌（同轮还静默漏了必填 `tags` 字段） | 流程不缩水；建页阈值判断如实执行（canonical 见 [`page-templates.md「建页 / 追加 / 归档阈值」`](references/page-templates.md)）但**向用户说明**（"本文只有一个中心主题，暂不建概念页，出现第二篇同主题再补"），字段与 log 纪律照走 |
 
 > **收录纪律**：条目**只**从实跑 transcript 收录（预写借口 = 噪声）；实跑出现新借口
-> 才补入，未出现不新增。
+> 才补入，未出现不新增
 
 #### 违反字面 = 违反精神
 
@@ -124,12 +98,12 @@ plan 修复（见「Upgrade」节）；setup 由 workspace CLI 完成（见「�
 - 把"不删除 wiki 页"解释为"先把内容拷出去再 `rm` 然后写回"——**不算**绕开不删禁令，状态效果完全等同
 - 把"raw/ 由用户掌控，LLM 只读"解释为"我 `cp` 进 raw/ 后立即 `rm`，读取发生在删除前所以等于只读"——**不算**：写入发生在第一步
 
-**禁止**用"按字面 / 按精神"二选一措辞留退路。
+**禁止**用"按字面 / 按精神"二选一措辞留退路
 
 #### Red Flags（念头清单 — 出现即停）
 
 念头出现 ≠ 已违反；念头 = 警告 = 重读「核心原则 / 边界 / 反模式」三段。
-条目来源：标「实跑观察」者为 RED transcript 实录；未标注者为通用合理化模式（红旗是低成本预警网、广撒无害；实跑捕获新借口时追加并标注）。
+条目来源：标「实跑观察」者为 RED transcript 实录；未标注者为通用合理化模式（红旗是低成本预警网、广撒无害；实跑捕获新借口时追加并标注）
 
 - "用户说'随便记一下 / 赶时间 / 别太正式'——纪律可以打折了"（实跑观察）
 - "我觉得这一步对当前 case 不必要"
@@ -143,7 +117,7 @@ plan 修复（见「Upgrade」节）；setup 由 workspace CLI 完成（见「�
 - "raw 反正用户也天天改，我帮一下忙"
 - "lint 报了一堆，反正都是 warn 不算错"
 
-> 念头是**信号**不是违反；但**念头后仍继续** = 默认承担违反精神的责任。
+> 念头是**信号**不是违反；但**念头后仍继续** = 默认承担违反精神的责任
 
 ## 工作流 / 步骤
 
@@ -151,7 +125,7 @@ plan 修复（见「Upgrade」节）；setup 由 workspace CLI 完成（见「�
 
 > **职责边界**：本 skill 只管 wiki 的**成长阶段**（ingest / query / lint）；创建与删除归
 > workspace CLI（`llmw`，与本 skill 同仓），"出生形态"由 CLI 包内模板决定
-> （`llmw wiki check-fixtures` 探测）。
+> （`llmw wiki check-fixtures` 探测）
 
 **LLM agent 接管后做什么**：
 
@@ -162,51 +136,47 @@ plan 修复（见「Upgrade」节）；setup 由 workspace CLI 完成（见「�
 
 ### Ingest（摄取新资料）
 
-**触发**："把这篇摄取到 wiki" / `raw/` 有新文件 / 跑 `llmw wiki ingest-diff` 发现未摄取项。
+**触发**："把这篇摄取到 wiki" / `raw/` 有新文件 / 跑 `llmw wiki ingest-diff` 发现未摄取项
 
 **流程摘要**（agent 驱动；详细 7 步 + 批处理见
-[`references/ingest-workflow.md`](references/ingest-workflow.md)；外部代码仓接入 /
-漂移刷新 / 跨主机重建见 [`references/external-repo.md`](references/external-repo.md)）：
+[`references/ingest-workflow.md`](references/ingest-workflow.md)（执行前必读）；外部代码仓接入 /
+漂移刷新 / 跨主机重建见 [`references/external-repo.md`](references/external-repo.md)（相应操作前必读））：
 
-1. 跑 `llmw wiki ingest-diff`（日常加 `--check-stale`）找出未摄取/待重摄文件清单
-2. **单篇对一下要点**——仅交互式单篇或少量场景：确认主题方向 / 重点交叉的 entity / 用户判断要保留
-3. 对每个文件：Read 全文 → `llmw wiki write new --type=source ...` 建骨架 → Edit 写正文
-   （stale-raw **不** Write 覆盖）→ 同步 entity/concept（只 append "Sources" 段）→
-   `write index add` → `write log --op=ingest` → 编辑过的页跑 `write touch`
-4. **commit**（仅启用 git 时）：节奏由用户/agent 决定，**不**自动 commit
+1. 跑 `llmw wiki ingest-diff`（日常加 `--check-stale`）找出未摄取 / 待重摄文件清单
+2. 逐份走细节文件 7 步：对齐要点（单篇时）→ 写 source 页 → 同步 entity / concept →
+   index / log / touch 簿记 →（启用 git 时）建议 commit
 
 ### 批处理摄取（≥ 3 份 raw 同时摄入）
 
 走批处理路径而非逐份，5 步流程 + 理由 + log 标题前缀 `Bulk:` 的细节见
-[`references/ingest-workflow.md`](references/ingest-workflow.md)「批处理」节。
+[`references/ingest-workflow.md`](references/ingest-workflow.md)「批处理」节
 
 **外部代码仓作为语料**——"把 X 仓库纳入 wiki"：**不**内嵌拷仓，走 symlink 路径：
 `llmw wiki external add <target> --name=<n> [--notes=...]`（symlink + anchor 一律经 CLI 落盘）；
 随后 `llmw wiki ingest-diff` 扫描。漂移刷新 / 跨主机重建见
-[`references/external-repo.md`](references/external-repo.md)。
+[`references/external-repo.md`](references/external-repo.md)
 
 ### Query（跨页综合）
 
-**触发**："wiki 里有 X 吗" / "总结 wiki 中关于 Y 的内容" / "对比 A 和 B"。
+**触发**："wiki 里有 X 吗" / "总结 wiki 中关于 Y 的内容" / "对比 A 和 B"
 
-**流程骨架**：先看 `index.md` 定位候选 → 只读相关页（不读 raw）→ 按 `reviewed` /
-`contested` 标采信等级 → 综合（每条事实带来源引用、矛盾显式标注）→ 有"对比 / 综合 /
-发现联系"性质的答案询问归档为 `comparisons/` 或 `syntheses/` 页。详细 6 步 + 采信判定表 +
-归档脚手架见 [`references/query-workflow.md`](references/query-workflow.md)（执行前必读）。
+**流程骨架**：`index.md` 定位候选 → 只读相关页（不读 raw）→ 按 `reviewed` / `contested`
+标采信等级 → 综合 → 符合条件时询问归档为 comparison / synthesis 页。详细 6 步 + 采信判定表 +
+归档条件与脚手架见 [`references/query-workflow.md`](references/query-workflow.md)（执行前必读）
 
 ### Lint（健康检查）
 
-**触发**："lint wiki" / 定期（频率阈值见 [`lint-workflow.md「lint 频率」`](references/lint-workflow.md)）/ 大型 wiki 主动建议。
+**触发**："lint wiki" / 定期（频率阈值见 [`lint-workflow.md「lint 频率」`](references/lint-workflow.md)）/ 大型 wiki 主动建议
 
-**流程骨架**：`llmw wiki lint`（deterministic 层）→ agent 半定性检查（矛盾主张 / 缺失交叉
-引用 / 新摄取方向）→ 报告 + 询问用户先修哪些。finding 口径（含义 / severity / 修法）=
+**流程骨架**：`llmw wiki lint`（deterministic 层）→ agent 半定性检查 → 报告 + 询问用户先修
+哪些。finding 口径（含义 / severity / 修法）=
 `llmw wiki lint --explain=all`；半定性检查与频率见
 [`references/lint-workflow.md`](references/lint-workflow.md)（执行前必读）；fixtures 一致性归
-`llmw wiki check-fixtures`（常规 lint 只在 `--check-version` 时附带）。
+`llmw wiki check-fixtures`（常规 lint 只在 `--check-version` 时附带）
 
 ### Memory（写入 LLM agent 持久化记忆）
 
-**触发**：在 ingest / query / lint 过程中识别到值得沉淀的信息——踩坑、用户偏好、跨文档关联。
+**触发**：在 ingest / query / lint 过程中识别到值得沉淀的信息——踩坑、用户偏好、跨文档关联
 
 **何时写**：
 
@@ -225,18 +195,18 @@ wiki 根 `AGENTS.md` 的 `MEMORY/` 节 + fixture `memory-index.txt` 头部说明
 2. **不**追加 log 条目 / **不**在 wiki/index.md 列出（MEMORY 不走单一入口约束）
 
 **纪律**：不删除任何 MEMORY 文件（踩坑记录沉淀）；编辑既有条目保留 `created`、只更新
-`updated`；用户想补充 → 转告 agent 写入（用户不直接编辑 MEMORY/）。
+`updated`；用户想补充 → 转告 agent 写入（用户不直接编辑 MEMORY/）
 
 ### Upgrade（升级 wiki format）
 
 **触发**：用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / format 升级 / 是否需要
-reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy warn。
+reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy warn
 
 **职责**：`llmw wiki upgrade` 修骨架、`lint --check-version --apply --json` 出升级 plan、
 agent 按 plan 落内容页修复 + drift 裁定 + 语义合并。迁移期不走 `llmw wiki write`；**不**追加
 log 条目。分工细节、5 步流程与裁定细则见
-[`references/upgrade-workflow.md`](references/upgrade-workflow.md)（执行前必读）。
+[`references/upgrade-workflow.md`](references/upgrade-workflow.md)（执行前必读）
 
 ## 参考样例
 
-完整样例（ingest / query / lint / upgrade）见 [`references/examples.md`](references/examples.md)——按需 Read。
+完整样例（ingest / query / lint / upgrade）见 [`references/examples.md`](references/examples.md)——按需 Read
