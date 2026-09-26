@@ -1081,7 +1081,7 @@ _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]
         "fixtures-fix-log-format",
         lambda b: (
             f"Edit {b['file']} 不合规行：每行匹配 `^## [YYYY-MM-DD HH:MM] (ingest|query|lint|setup) | .+$`（HH:MM 可选；老 wikis date-only 仍合法，宽容解析）；"
-            "迁移期不变更 history（仅当行确属违规，才 Edit 修复格式；保留日期 + 类型 + 简介）"
+            "升级期不变更 history（仅当行确属违规，才 Edit 修复格式；保留日期 + 类型 + 简介）"
         ),
     ),
     "index-md-categories-stable": (
@@ -1158,8 +1158,8 @@ def build_upgrade_plan(
         "fixtures_actions": fixtures_actions,
         "agent_rules": [
             "AGENTS.md 是 byte-owned 禁手改：版本行与骨架均由 `llmw wiki upgrade --apply` 重渲染落地",
-            "不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）",
-            "不调 ingest / query——保持职责单一（lint --check-version 是本迁移的正路）",
+            "不写 log 条目（升级是脚本运行，不是 wiki 操作事件）",
+            "不调 ingest / query——保持职责单一（lint --check-version 是升级的正路）",
             "fixtures_actions[] 逐项修约定文件（如 .gitignore / anchor TOML）；fixtures 修复是后续内容页编辑的前置",
             "fixtures-fix-anchor-schema / -anchor-symlink-matches 各 to_action 自含修 schema / ln / 补 entry 的具体指令",
             "fixtures-fix-strip-frontmatter 仅删首部 frontmatter 块，保留全文正文一字不动",
@@ -1182,7 +1182,7 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
 
     fixtures_check = _run_fixtures_check(wiki_root)
     if not fixtures_check.get("skipped"):
-        # fixtures 不合规（error/warn）也算"待迁移"
+        # fixtures 不合规（error/warn）也算"待升级"
         f_sum = fixtures_check.get("summary", {})  # type: ignore
         if f_sum.get("error", 0) > 0 or f_sum.get("warn", 0) > 0:  # type: ignore
             needs_upgrade = True
