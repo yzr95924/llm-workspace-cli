@@ -54,8 +54,7 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
    - `verify_failed` → 按 `verified.failures[]` 修完重跑（幂等）
    - lint 侧仍有 fixtures 不合规 → 报告 + 转人工
 
-**不**调用 ingest / query（保持职责单一）。样例 trace 见
-[章节](examples.md#样例四检查-wiki-是否需要升级到最新-format)
+**不**调用 ingest / query（保持职责单一）。
 
 ## 边界
 

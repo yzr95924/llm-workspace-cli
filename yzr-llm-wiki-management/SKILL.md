@@ -82,7 +82,3 @@ wiki 主动建议。全文 `ref/lint-workflow.md`；finding 口径唯一入口 =
 `wiki-format-version-stale` / `wiki-format-version-unparsed` / fixtures 不合规。
 全文 `ref/upgrade-workflow.md`。
 **红线**：升级期不走 `llmw wiki write`；**不**追加 log 条目
-
-## 参考样例
-
-完整样例（ingest / query / lint / upgrade）见 `ref/examples.md`，按需 Read

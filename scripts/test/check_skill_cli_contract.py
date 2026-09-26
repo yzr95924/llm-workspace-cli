@@ -82,7 +82,7 @@ TEMPLATE_BARE_SHORTHAND_RE = re.compile(
 # 已带 .md 的正确形式。不抓散文 "SKILL 目录" / "SKILL scan"（后不跟这些符号）。
 RULE_REF_BARE_RE = re.compile(
     r"\b(SKILL|lint-workflow|page-templates|upgrade-workflow|ingest-workflow"
-    r"|query-workflow|external-repo|examples|formats)(?!\.md)(?: §[一二三四五六七八九十0-9]|[^\w\n]{0,3}[「#])"
+    r"|query-workflow|external-repo|formats)(?!\.md)(?: §[一二三四五六七八九十0-9]|[^\w\n]{0,3}[「#])"
 )
 
 # 面 7a 的 .py 扫描域——只扫 llmw/**/*.py（排除 tests/）。tests/ 有 §N 形式的 test 输入
@@ -207,19 +207,19 @@ def _iter_agent_texts(tree):
 
 
 TERMINAL_TOKENS = {
-    "blocked_drift": ("upgrade-workflow.md", "examples.md"),
+    "blocked_drift": ("upgrade-workflow.md",),
     "done_with_residue": ("upgrade-workflow.md",),
     "verify_failed": ("upgrade-workflow.md",),
-    "needs_upgrade": ("upgrade-workflow.md", "examples.md"),
+    "needs_upgrade": ("upgrade-workflow.md",),
     "upgrade_plan": ("upgrade-workflow.md",),
     "fixtures_actions": ("upgrade-workflow.md", "lint-workflow.md"),
-    "agent_rules": ("upgrade-workflow.md", "lint-workflow.md", "examples.md"),
+    "agent_rules": ("upgrade-workflow.md", "lint-workflow.md"),
     # plan 自述的语义字段：本文档只指路，字段词汇归 CLI（agent 按 plan 自带规则落）
     # 注：本表方向是**文档 → CLI**（文档提到才查 CLI 有无该字面量）；CLI 新增枚举值而
     # 文档未跟随时本表查不出（如 upgrade.py 的 `growth-graft-error`），该类漂移靠人工审计
     "to_action": ("lint-workflow.md", "external-repo.md"),
     # drift 判定的唯一判据（CLI 只对 render / gitignore-block 的 diff 设门禁）
-    "gitignore-block": ("upgrade-workflow.md", "examples.md"),
+    "gitignore-block": ("upgrade-workflow.md",),
     # finding 名（doc 侧分支依据）：升级触发（版本三态）/ 语义合并判定
     "wiki-format-version-stale": ("upgrade-workflow.md", "lint-workflow.md"),
     "wiki-format-version-unparsed": ("upgrade-workflow.md", "lint-workflow.md"),
@@ -410,7 +410,7 @@ def _iter_wrapped_inline(md_text):
 
 _BASENAMES = (
     "SKILL|upgrade-workflow|page-templates|lint-workflow|ingest-workflow"
-    "|query-workflow|external-repo|examples"
+    "|query-workflow|external-repo"
 )
 # 旧「节名」邻接形态（已退役→ 锚点链接）：`basename.md` 后紧跟可选 backtick /
 # 链接闭合 / 空白，再接「」，出现即红。
