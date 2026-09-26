@@ -139,8 +139,9 @@
 - 性质：LLM agent 在 ingest / query / lint 过程中沉淀的**经验、踩坑、用户偏好**——
   不是 wiki 内容、不是操作时间线，而是 agent 私有记忆（内容页、操作时间线、agent
   记忆三者的分层中的第 3 层）
-- 纪律：用户**不**直接编辑 MEMORY/（这是 agent 私有记录）；条目形式（完整 / 短条目）、
-  frontmatter 豁免、索引维护规则见 [`MEMORY/MEMORY.md`](MEMORY/MEMORY.md) 头部说明块
+- 纪律：用户**不**直接编辑 MEMORY/（这是 agent 私有记录）；条目格式（索引行 / frontmatter
+  契约）与写入口见 [`MEMORY/MEMORY.md`](MEMORY/MEMORY.md) 头部说明块；治理（记什么 / 合并 /
+  预算 / 体检）归 yzr-memory-management skill
 
 ### `scripts/` —— 本 wiki 仓的自维护脚本目录
 

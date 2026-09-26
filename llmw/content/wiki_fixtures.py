@@ -831,8 +831,8 @@ SKELETON_REGISTRY = [
         "severity": "warn",
         "wiki_path": "MEMORY/MEMORY.md",
         "rule_ref": "MEMORY/MEMORY.md fixture header (wiki 实例内直接可读)",
-        "desc": "MEMORY/MEMORY.md 含 H1（# MEMORY）+ 说明块 + ## 索引",
-        "signals": {"h1": "# MEMORY", "blockquote": True, "section_headings": ["## 索引"]},
+        "desc": "MEMORY/MEMORY.md 含 H1（# MEMORY/）+ 说明块 + ## 索引",
+        "signals": {"h1": "# MEMORY/", "blockquote": True, "section_headings": ["## 索引"]},
     },
     {
         "id": "scripts-md-skeleton",

@@ -1,23 +1,22 @@
-# MEMORY
+# MEMORY/
 
 > LLM agent 的持久化记忆索引（无 frontmatter；随 `<wiki-root>/AGENTS.md` 自动加载本文件全文，会话常驻）。
 >
-> **条目形式按事实颗粒度选**：
-> - **完整条目**——需要解释"为什么这么做"或"将来怎么用"（上下文 / 解决步骤 / 未来
->   如何避免）→ 建 `MEMORY/<slug>.md`（frontmatter **仅 `title` 必填**，`created` /
->   `updated` / `tags` / `description` optional——与 wiki 内容页 5 必填规则解耦；
->   **不写 `type`**：MEMORY 桶按路径识别，内容页那套 type 取值不适用）+ 本索引
->   加一行 `- <slug> — 一句话 → [正文](<slug>.md)`
-> - **短条目**——纯 reminder / 单一偏好 / 无需 why + how → 索引行直接
->   `- 一句话事实`，不单独建 `.md` 文件
-> - **落盘机制**：完整条目走 `llmw wiki write memory add --slug=... --title=...`（建文件 +
->   挂索引行，正文再 Edit）；短条目直接在本文件挂一行索引
-> - 两种格式可在本文件共存；lint `memory-not-indexed` 兜底"有 .md 但未索引"
+> **条目格式**（与 yzr-memory-management skill 同契约，机械判据以其 memory_lint 输出为准）：
+> - **文件条目**：需要解释"为什么 / 边界 / 证据"时建 `MEMORY/<slug>.md`，frontmatter 三件套
+>   `name`（= 文件名 slug）/ `description`（一句话摘要）/ `metadata.type`（user / feedback /
+>   project / reference 四选一），推荐 `metadata.scope`（约束对象）与 `metadata.modified`
+>   （YYYY-MM-DD）；**不写** wiki 内容页那套 `type` / `tags`。落盘走
+>   `llmw wiki write memory add --slug=... --title=... --description=... --type=...`（建文件 +
+>   挂索引行，正文再 Edit），并在本索引挂一行 `- [<标题>](<slug>.md)：<一句话摘要>`
+> - **短条目**：纯 reminder / 单一偏好 / 无需 why → 索引行直接 `- <标题>：<一句话事实>`，
+>   不单独建 `.md` 文件
+> - 条目按 `## <组名>` 分组（默认组 `## 索引`），新条目只追加到组末尾，不改写他行
 >
-> **纪律**：条目增删**只改本文件这一份**（`@import` 引用自动同步指向全文，AGENTS.md
-> 不持副本，无漂移）；用户**不**直接编辑 MEMORY/；条目**不**在 `wiki/index.md`
-> 列出、**不**要求 inbound 链接；正文按需 `Read MEMORY/<slug>.md`。
+> **纪律**：治理（记什么 / 合并 / 预算水位 / 体检）归 yzr-memory-management skill，预算数值
+> 不在本文件镜像；用户**不**直接编辑 MEMORY/；条目**不**在 `wiki/index.md` 列出、**不**要求
+> inbound 链接；手写路径先写条目文件再挂索引行（中断只留孤儿，不留死链）。
 
 ## 索引
 
-<!-- 每条一行：短横线 + slug + 一句话摘要 + 指向 <slug>.md 正文的 Markdown 链接 -->
+<!-- 文件条目：- [标题](slug.md)：一句话摘要；短条目：- 标题：一句话事实 -->
