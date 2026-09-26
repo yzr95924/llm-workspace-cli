@@ -1,8 +1,7 @@
 # Ingest 详细流程
 
-Ingest 把 `raw/` 的原始资料变成 wiki 内**摘要页** + 同步相关 entity / concept 页 + 更新
-index + 追加 log。一份资料通常涉及 **1 source 页 + 0~N entity / concept 页 + 1 index 更新 +
-1 log 条目**
+Ingest 把 `raw/` 的原始资料变成 wiki 内**摘要页**，通常一份资料涉及 **1 source 页 +
+0~N entity / concept 页 + 1 index 更新 + 1 log 条目**
 
 ## 流程详解
 
