@@ -23,9 +23,11 @@ from llmw.content.findings import severity_of as _severity_of
 from llmw.content.ingest_diff import parse_frontmatter_simple
 from llmw.content.log_format import (
     LOG_LINE_RE,
+    LOG_RETENTION_LIMIT,
     parse_date_or_datetime,
 )
 from llmw.content.page_types import (
+    REQUIRED_FRONTMATTER_FIELDS,
     TYPE_TO_SECTION,
     TYPES_DISPLAY,
     VALID_TYPES,
@@ -43,6 +45,7 @@ from llmw.content.external_anchor import load as load_anchor  # noqa: E402
 
 DISCUSSIONS_SUBDIR = "discussions"  # raw/ 下用户 + LLM 协作草稿层；与 external/ 并列的 raw/ 写权限例外
 MD_LINK_RE = re.compile(r"!?\[([^\]]*)\]\(([^)]+)\)")
+WIKILINK_RE = re.compile(r"\[\[[^\]\n]+\]\]")
 EXTERNAL_URL_RE = re.compile(r"^(https?:|mailto:|//)")
 
 # 剔 code 区再扫链接（渲染器不 linkify code 区，裸扫会误报）；等长空白替换保偏移稳定
@@ -386,7 +389,7 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
             text = p.read_text(encoding="utf-8", errors="replace")
             fm = parse_frontmatter_simple(text)
             rel = p.relative_to(wiki_root).as_posix()
-            for field in ("title", "type", "created", "updated", "tags"):
+            for field in REQUIRED_FRONTMATTER_FIELDS:
                 if field not in fm:
                     findings.append(f"missing-frontmatter: {rel} 缺 '{field}' 字段")
             t = fm.get("type")
@@ -474,7 +477,12 @@ def check_link_integrity(wiki_root: Path) -> List[str]:
             continue
         rel = p.relative_to(wiki_root).as_posix()
         text = p.read_text(encoding="utf-8", errors="replace")
-        for m in MD_LINK_RE.finditer(strip_code_regions(text)):
+        body = strip_code_regions(text)
+        for wm in WIKILINK_RE.finditer(body):
+            findings.append(
+                f"wikilink-used: {rel} 正文用了 wikilink `{wm.group(0)}`——改为相对路径链接 `[X](../<dir>/x.md)`"
+            )
+        for m in MD_LINK_RE.finditer(body):
             url = m.group(2)
             target = resolve_link(p, url)
             if target is None:
@@ -581,7 +589,6 @@ def check_log_format(wiki_root: Path) -> List[str]:
     return findings
 
 
-LOG_RETENTION_LIMIT = 50
 STALE_SUMMARY_DAYS = 90
 
 

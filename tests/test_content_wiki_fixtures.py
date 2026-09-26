@@ -17,7 +17,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from llmw.content.render import render_wiki_agents_md
+from llmw.content.render import render_wiki_agents_md, wiki_constant_mapping
 
 REPO = Path(__file__).resolve().parents[1]
 TEMPLATES_WIKI = REPO / "llmw" / "content" / "templates" / "wiki"
@@ -72,7 +72,11 @@ def _wiki_metadata(missing=None):
 # 锚点 mapping 渲染 fixtures = 原 canonical/ 字面量（canonical/ 已删，fixtures 是唯一字节金标准）。
 # SETUP_DATE 与 _wiki_metadata.created_at="2026-06-28T00:00:00Z" 派生后的 checker 渲染值一致
 # （"2026-06-28 00:00"），保证 scratch wiki 三处渲染结果字节对齐。
-FIXTURE_ANCHORS = {"TOPIC_NAME": "Test", "SETUP_DATE": "2026-06-28 00:00"}
+FIXTURE_ANCHORS = {
+    "TOPIC_NAME": "Test",
+    "SETUP_DATE": "2026-06-28 00:00",
+    **wiki_constant_mapping(),
+}
 
 
 def _fixture(name):

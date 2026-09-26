@@ -28,6 +28,8 @@ def parse_date_or_datetime(s):
 # 合法 op 集合（SSOT）——LOG_LINE_RE 与 CLI 的 --op choices 共用，新增 op 只改这里
 LOG_OPS = ("ingest", "query", "lint", "setup")
 
+LOG_RETENTION_LIMIT = 50
+
 # 时间戳：HH:MM / :SS 均可选（老 wikis 仅 date 仍合法）；全非捕获——取组只认命名组，
 # 避免嵌套可选组把位置索引带偏（见 ingest_diff 的历史 group 错位 bug）
 _LOG_TIMESTAMP = r"\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}(?::\d{2})?)?"

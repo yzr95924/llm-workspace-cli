@@ -24,6 +24,11 @@ FINDINGS = {
         "wiki/**/*.md 正文 Markdown 链接 / 图片的相对路径不指向现存文件（外部 URL 跳过）",
         "修正链接目标，或补齐被引文件",
     ),
+    "wikilink-used": FindingSpec(
+        "error",
+        "wiki 页面正文用了 wikilink `[[X]]`——本格式交叉引用只认相对路径 Markdown 链接",
+        "改为 `[X](../<dir>/<file>.md)`",
+    ),
     "external-anchor-corrupt": FindingSpec(
         "error",
         "raw/external/.symlink-anchor.toml 解析失败或 0 个有效 entry",

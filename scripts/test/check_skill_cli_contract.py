@@ -1,73 +1,8 @@
 #!/usr/bin/env python3
 """CI gate：skill ↔ CLI 外部契约一致性（语法面）。
 
-兑现「改 CLI 外部契约必同步 skill 引用」纪律的机械兜底：CLI 改子命令 / flag /
-finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 gate 红。
-语义面（行为描述如"只扫不修"）gate 管不到，靠纪律人工保证。
-
-检查面（10 类）：
-  1. 命令调用（skill + 模板 + 仓根文档 → CLI）：skill markdown / byte-owned
-     模板（llmw/content/templates 全 md + fixtures *.txt）/ 仓根 README.md 里的
-     `llmw ...` 调用，子命令路径 + flag 必须存在于
-     SSOT 树；**带值 flag 必须等号形式**（CLI 全局拒绝空格分隔，写空格形式 =
-     运行即拒的静默 drift）；**行内命令不得跨换行**（跨行 span checker 提取
-     不到）。代码块严格校验；行内 backtick 只校验第二 token 为小写命令形态
-     的片段，散文提及跳过。**有意不扫 tests/（可执行测试自带 loud failure）**。
-  2. finding 口径（skill 域）：prose 不得镜像 finding 清单（`` `name`（severity``
-     形式即红——口径唯一入口是 `llmw wiki lint --explain`，注册表 SSOT 在
-     llmw/content/findings.py；发射点 ↔ 注册表的穷举校验在
-     tests/test_findings_registry.py，不在本 gate）
-  3. 锚点链接（skill 域引用 + CLI → skill 字符串）：引用一律 `[章节](file.md#slug)` 形态
-     （同文件 `](#slug)`；CLI .py 字符串用纯文本 `file.md#slug`）。
-     校验：目标文件存在 + slug 命中该文件某标题的 GitHub slug（github-slugger@2 语义
-     移植，含重复标题 -N 后缀）。旧 `<file>.md「节名」` 邻接形态已退役，出现即红。
-  4. 终态词 / JSON 字段（skill → CLI）：upgrade-workflow 提到的终态词与 plan
-     字段必须在 upgrade.py / wiki_lint.py 字面量存在
-    5. 裸 semver（skill + 模板 + 仓根文档）：prose 内不得出现裸版本号
-      ``v?\\d+\\.\\d+\\.\\d+``（bump 版本时漏改 prose 即静默腐烂）；豁免
-      ``wiki_format_version:`` 键行（SSOT 本身）与 ``upgrade-workflow.md`` 整
-      文件（按设计它是唯一允许锚定历史版本的文件，头部规矩保证新迁移锚点只落此处）
-   6. AGENTS.md 模板依赖守卫（skill↔模板解耦）：
-      - 7a 节号禁令：CONTRACT_MDS + llmw/**/*.py 中 `AGENTS.md` 字面量后紧跟
-        `§<数字|中文数字>` 即红，`wiki 后接 §N` bare shorthand 同样红
-        （节号是模板内部编号，重排即断；引用必须用节名 / 字段名 / landmark）。
-        零误报：regex 要求 §N 与 "AGENTS.md" 字面量之间最多 6 个非 word 字符，
-        排除 `AGENTS.md + [ref.md] §二` 形式（§ 实指 ref.md）；模板自身"本文件 §N"
-        自引用用"本文件"字面量不触发——模板作者自 grep
-      - 7b landmark 存在性：skill 依赖的 AGENTS.md 模板锚点字符串（节名 / 字段名 /
-        @import 链）必须在对应模板中出现；模板改了某 landmark → CI 红，同 commit
-        更新 skill 引用 + LANDMARKS 列表
-      - 7c skill 域节号禁令（防迁移回潮）：CONTRACT_MDS + llmw/**/*.py 中 skill
-        文档字面量（SKILL + 7 个 ref basename）后 ~60 字符内出现 `§<数字|中文数字>` 即红；
-        SKILL_MDS 自身出现裸 `§N` 同样红。外部规范引用豁免（`OKF §N`）。
-        引用一律 `[章节](file.md#slug)` 锚点，标题不再编号
-      - 7d 裸「」残留节号兜底：SKILL_MDS 内引号内容以旧节号开头（`「5. x」` /
-        `「四、x」`）即红——无 basename 前缀，RULE_REF_RE 与 7a/7c 均扫不到
-        （2026-09 迁移曾漏网 2 处）。模板域标题仍带编号，不在此扫描
-   7. 布局 token（skill↔目录结构解耦）：skill markdown 里所有 `wiki/<dir>/` 形式的
-      目录路径 token，`<dir>` 必须在 llmw.content.wiki_lint.WIKI_SUBDIRS
-      （CLI SSOT）集合内。改目录名时残留旧路径被当场点名，零人工维护
-   8. rule_ref 格式闸：llmw/**/*.py 中 rule_ref 值指向 skill 文档必须带 `.md`
-      扩展名（`lint-workflow「名」` 这类缺 .md = gate 3 扫不到的死指针）
-   9. module 限定符号禁令（skill↔CLI 解耦）：SKILL_MDS 内 backtick span 命中两形态
-      之一即红——(a) `llmw.` 前缀（含多点包内路径，如 `llmw.content` /
-      `llmw.content.external_anchor._REQUIRED_FIELDS`）；(b) 单点 `模块.符号`
-      （第二段含大写，如 `wiki_lint.VALID_TYPES`）。skill 文本引 CLI 资产只用命令名 /
-      finding 名 / 裸常量名（裸常量名合规：指标类按 skill 纪律引名不引字面量），包内
-      路径写进 skill = "skill 读 CLI 代码"（「单向约束」纪律）。只扫 SKILL_MDS：
-      模板 / 仓根文档是 CLI 自身文档，引用自身常量合法。零误报——`MEMORY/MEMORY.md`
-      （斜杠）/ `page-templates.md`（第二段无大写且无 llmw. 前缀）/ `llmw wiki lint`
-      （空格命令形态）/ `LOG_RETENTION_LIMIT`（无点）均不匹配
-  10. agent 可见指令文本禁内部引用（CLI → agent 文本）：llmw/**/*.py 内 ast 键值配对 +
-      关键字实参取 `to_action` / `agent_rules` / `note` / `rule_ref` 的值，命中包路径
-      （`llmw.` / `llmw/*`）/ `module.SYMBOL`（第二段含大写）/ `包内 <路径>` /
-      `fixtures/*.txt` 即红。这 4 个键是 agent 实际执行的指令 / 溯源的指针，只能引
-      命令名 / 输出自带字段 / 实例内可读路径——引包内实现 = agent 读不到 = 不可执行
-      （面 9 管 skill→CLI 方向，本面管 CLI→agent 文本方向）。desc / argparse help
-      是 CLI 自述自身、hint 是用户排障诊断，均不在扫描范围
-
-命令表面 SSOT = llmw.cli.build_parser() 单一 argparse 树（write 子树经
-llmw.content.wiki_write.build_subparsers 组合；无模块 standalone 入口）。
+各检查面的清单、扫描域与豁免理由以文内 "# --- N" 节标签与常量注释为 canonical，
+此处不重复（顶层重复 = 第二份真相）。
 
 standalone，Python 3.7+（与项目最低支持版本对齐），stdlib only。
 用法：``python3 scripts/test/check_skill_cli_contract.py``
@@ -156,6 +91,13 @@ RULE_REF_BARE_RE = re.compile(
 PY_CONTRACT = sorted(p for p in (REPO / "llmw").rglob("*.py") if "tests" not in p.parts)
 # 面 7b 模板 landmark（依赖清单）：skill 运行期依赖的模板锚点字符串；模板改了任一
 # landmark，gate 红，同 commit 必须同步 skill 引用。
+PROSE_EXEMPTIONS = [
+    ("ref/lint-workflow.md", "**不**自动修——只报告，修由用户 / agent 决定"),
+    ("SKILL.md", "格式 + 滚动窗口截断由 `write` 保证，lint 只兜底带外手改"),
+    ("ref/upgrade-workflow.md", "**CLI `llmw wiki upgrade`（骨架修复者）**：修骨架"),
+    ("ref/ingest-workflow.md", "含义与退出码\n输出自明"),
+]
+
 WIKI_TEMPLATE_LANDMARKS = [
     "当前配置",
     "Wiki Format 版本",
@@ -301,8 +243,36 @@ def _src_text():
     return "\n".join(_read(p) for p in sorted(CONTENT.glob("*.py")))
 
 
-def _py_src(name):
-    return _read(CONTENT / name)
+def _lits(path):
+    """源码字符串常量拼接（docstring 除外）——面 2b / 面 4 的值域对账源。
+
+    注释与 docstring 里的死 token 不得参与对账：否则常量改名后，
+    旧名靠文内残留续命，prose 死引用扫不出来。
+    """
+    try:
+        tree = ast.parse(_read(path))
+    except SyntaxError:
+        return ""
+    doc_ids = set()
+    holders = [tree] + [
+        n for n in ast.walk(tree) if isinstance(n, (ast.ClassDef, ast.FunctionDef))
+    ]
+    for n in holders:
+        body = getattr(n, "body", None)
+        if (
+            body
+            and isinstance(body[0], ast.Expr)
+            and _str_const(body[0].value) is not None
+        ):
+            doc_ids.add(id(body[0].value))
+    parts = []
+    for n in ast.walk(tree):
+        if id(n) in doc_ids:
+            continue
+        s = _str_const(n)
+        if s is not None:
+            parts.append(s)
+    return "\n".join(parts)
 
 
 # ---------- 1. 命令调用（skill → CLI） ----------
@@ -560,6 +530,8 @@ def main():  # pylint: disable=too-many-branches
         "rule_ref_checks": 0,
         "module_symbols": 0,
         "agent_text_refs": 0,
+        "enum_pins": 0,
+        "exemptions": 0,
     }
 
     # --- 1. 命令调用（含风格检查：带值 flag 必须等号形式；含跨行断命令检查）---
@@ -636,7 +608,7 @@ def main():  # pylint: disable=too-many-branches
     import llmw.content.findings as _findings_mod  # pylint: disable=import-outside-toplevel
 
     registry_names = set(_findings_mod.FINDINGS)
-    cli_src_all = "\n".join(_read(p) for p in PY_CONTRACT)
+    cli_src_all = "\n".join(_lits(p) for p in PY_CONTRACT)
     kebab_tokens = set()
     for md in SKILL_MDS:
         rel = _rel(md)
@@ -686,8 +658,8 @@ def main():  # pylint: disable=too-many-branches
         _scan_anchors(md, _read(md), is_md=True)
 
     # --- 4. 终态词 / JSON 字段 ---
-    upgrade_py = _py_src("upgrade.py")
-    lint_py = _py_src("wiki_lint.py")
+    upgrade_py = _lits(CONTENT / "upgrade.py")
+    lint_py = _lits(CONTENT / "wiki_lint.py")
     for token, files in TERMINAL_TOKENS.items():
         for fname in files:
             p = WIKI_SKILL / "ref" / fname
@@ -841,12 +813,72 @@ def main():  # pylint: disable=too-many-branches
                     )
                 )
 
+    # --- 11. 枚举 coverage（CLI SSOT → skill 文档） ---
+    import llmw.content.ingest_diff as _ingest_diff_mod  # pylint: disable=import-outside-toplevel
+    import llmw.content.page_types as _page_types_mod  # pylint: disable=import-outside-toplevel
+
+    _iw = _read(WIKI_SKILL / "ref" / "ingest-workflow.md")
+    for _reason in _ingest_diff_mod.REASONS:
+        stats["enum_pins"] += 1
+        if _reason not in _iw:
+            errors.append(
+                "[enum-cov] ingest-workflow.md 未提及 reason `{}`（REASONS SSOT 新增 / 改名须同 commit 同步）".format(
+                    _reason
+                )
+            )
+    for _doc in (WIKI_SKILL / "SKILL.md", WIKI_SKILL / "ref" / "page-templates.md"):
+        stats["enum_pins"] += 1
+        if _page_types_mod.TYPES_DISPLAY not in _read(_doc):
+            errors.append(
+                "[enum-cov] {} 缺类型枚举 `{}`".format(
+                    _rel(_doc), _page_types_mod.TYPES_DISPLAY
+                )
+            )
+    _req_rows = re.findall(
+        r"^\|\s*(`[^|]+`(?:\s*/\s*`[^`]+`)*)\s*\|\s*必填",
+        _read(WIKI_SKILL / "ref" / "page-templates.md"),
+        re.MULTILINE,
+    )
+    _doc_required = set()
+    for _cell in _req_rows:
+        _doc_required.update(re.findall(r"`([a-z_]+)`", _cell))
+    stats["enum_pins"] += 1
+    if _doc_required != set(_page_types_mod.REQUIRED_FRONTMATTER_FIELDS):
+        errors.append(
+            "[enum-cov] page-templates.md 必填表 {} != REQUIRED_FRONTMATTER_FIELDS {}".format(
+                sorted(_doc_required),
+                sorted(_page_types_mod.REQUIRED_FRONTMATTER_FIELDS),
+            )
+        )
+    # byte-owned 模板侧：「写入纪律」加粗 op 名 ⊆ LOG_OPS
+    from llmw.content import log_format as _lf_mod  # pylint: disable=import-outside-toplevel
+
+    _tmpl_ops = set(re.findall(r"\*\*([a-z]+)\*\*＝", wiki_tpl_text))
+    for _op in _tmpl_ops:
+        stats["enum_pins"] += 1
+        if _op not in _lf_mod.LOG_OPS:
+            errors.append(
+                "[enum-cov] AGENTS.md 模板写入纪律提及 op `{}` 不在 LOG_OPS {}".format(
+                    _op, _lf_mod.LOG_OPS
+                )
+            )
+
+    # --- 12. 语义断言豁免登记（锚点存在性） ---
+    for _ex_file, _ex_anchor in PROSE_EXEMPTIONS:
+        stats["exemptions"] += 1
+        if _ex_anchor not in _read(WIKI_SKILL / _ex_file):
+            errors.append(
+                "[exemption] {} 豁免锚点失效：`{}`（断言改写 / 删除须同 commit 更新登记）".format(
+                    _ex_file, _ex_anchor[:50]
+                )
+            )
+
     # --- 报告 ---
     print(
         "contract (skill+templates+repo-docs → CLI): {} cmd, {} finding_mirrors, "
         "{} finding_tokens, {} anchors, {} tokens, {} semver, {} landmarks, "
         "{} layout_tokens, {} rule_ref_fmt_checks, {} module_symbols, "
-        "{} agent_text_refs".format(
+        "{} agent_text_refs, {} enum_pins, {} exemptions".format(
             stats["cmds"],
             stats["finding_mirrors"],
             stats["finding_tokens"],
@@ -858,6 +890,8 @@ def main():  # pylint: disable=too-many-branches
             stats["rule_ref_checks"],
             stats["module_symbols"],
             stats["agent_text_refs"],
+            stats["enum_pins"],
+            stats["exemptions"],
         )
     )
     if errors:

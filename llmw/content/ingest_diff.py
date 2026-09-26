@@ -2,9 +2,7 @@
 """ingest_diff — 找出 raw/ 里需要 LLM 关注的文件（`llmw wiki ingest-diff`）。
 
 "已摄取"判定 = source 页 frontmatter.sources ∪ log.md ingest 记录（新条目 raw 路径
-精确命中 / 老条目标题 slug 归一化兜底）。三类输出：
-untracked（未摄取）/ stale-raw（--check-stale：raw mtime 晚于 source updated）/
-log-only-no-source-page（log 有记录但 source 页缺失）。
+精确命中 / 老条目标题 slug 归一化兜底）。
 
 stdout 保持纯路径（--json / --relative 可换格式）；计数总结走 stderr。退出码 0/1/2。
 """
@@ -92,6 +90,11 @@ def parse_frontmatter_simple(text: str) -> Dict:
 
 
 INGEST_GLOBS = ("*.md", "*.markdown", "*.txt")
+
+REASON_UNTRACKED = "untracked"
+REASON_STALE_RAW = "stale-raw"
+REASON_LOG_ONLY_NO_SOURCE_PAGE = "log-only-no-source-page"
+REASONS = (REASON_UNTRACKED, REASON_STALE_RAW, REASON_LOG_ONLY_NO_SOURCE_PAGE)
 
 
 def collect_raw_files(raw_root: Path) -> List[Path]:
@@ -212,15 +215,15 @@ def run(wiki_root: Path, *, as_json: bool = False, relative: bool = False, check
             if check_stale:
                 for sp in src_map[rel_to_root]:
                     if raw_newer_than_source(p, sp):
-                        pending.append((p, "stale-raw"))
+                        pending.append((p, REASON_STALE_RAW))
                         break
             continue
         stem = p.stem
         # 新条目 raw 路径精确命中；老条目（无路径）走标题 slug 归一化兜底（启发式）
         if rel_to_root in log_raw_paths or _slugify(stem) in log_title_slugs:
-            pending.append((p, "log-only-no-source-page"))
+            pending.append((p, REASON_LOG_ONLY_NO_SOURCE_PAGE))
             continue
-        pending.append((p, "untracked"))
+        pending.append((p, REASON_UNTRACKED))
 
     if as_json:
         out = []
@@ -253,13 +256,13 @@ def run(wiki_root: Path, *, as_json: bool = False, relative: bool = False, check
             counts[reason] = counts.get(reason, 0) + 1
         parts = [f"{c} {r}" for r, c in counts.items()]
         print("Summary: {}".format(", ".join(parts)), file=sys.stderr)
-        if counts.get("stale-raw"):
+        if counts.get(REASON_STALE_RAW):
             print(
-                "（stale-raw = raw 被用户更新过、需重新摄取；对应 source 页已存在，ingest 时走 Edit 而非 Write）",
+                f"（{REASON_STALE_RAW} = raw 被用户更新过、需重新摄取；对应 source 页已存在，ingest 时走 Edit 而非 Write）",
                 file=sys.stderr,
             )
 
-    log_only = [pr for pr in pending if pr[1] == "log-only-no-source-page"]
+    log_only = [pr for pr in pending if pr[1] == REASON_LOG_ONLY_NO_SOURCE_PAGE]
     if log_only and not as_json:
         print(file=sys.stderr)
         print(

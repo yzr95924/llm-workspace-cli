@@ -6,4 +6,4 @@
 """
 
 __version__ = "0.1.0"
-WIKI_FORMAT_VERSION = "0.43.8"
+WIKI_FORMAT_VERSION = "0.44.0"

@@ -26,7 +26,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ### Step 2：评估规模
 
 < 3 份逐份处理；≥ 3 份走 [章节](#批处理摄取-3-份-raw-同时摄入)；> 20 份先问用户"是否先处理
-这 5 个"、分多批推进。**分批按主题聚类**（同议题 / 同作者 / 同时间段优先），不按文件名随机排
+这 5 个"、分多批推进（数字均为经验建议阈值，非 CLI 强制）。**分批按主题聚类**（同议题 / 同作者 / 同时间段优先），不按文件名随机排
 
 ### Step 2.5：与用户对齐要点（仅交互式单篇 / 少量）
 
@@ -45,7 +45,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 4. **脚手架**：`llmw wiki write new --type=source --slug=... --title=... --sources=raw/...`
    （自动落必填 frontmatter + H1，slug 校验 + 拒覆盖）→ Edit 写正文，骨架见
    [章节](page-templates.md#source资料页)：
-   - 摘要（200-500 字）——核心论点 / 关键数据 / 与本 wiki 其他资料的关系
+   - 摘要（建议 200-500 字）——核心论点 / 关键数据 / 与本 wiki 其他资料的关系
    - 关键引用（可独立成段的引文 / 数字 / 结论）
    - cross-refs——相关 entity / concept / source 页
    - 正文含交互流 / 架构关系时优先配图，判定见

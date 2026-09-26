@@ -104,7 +104,7 @@
 
 ### `wiki/` —— LLM 拥有的复利资产
 
-- 路径：`<wiki-root>/wiki/{entities,concepts,sources,comparisons,syntheses}/`
+- 路径：`<wiki-root>/wiki/{{WIKI_SUBDIRS_GLOB}}/`
 - 性质：LLM 生成的相互链接的 Markdown 文件
 - 纪律：
   - 用户**不写** wiki 页面（编辑 AGENTS.md 除外）

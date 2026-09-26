@@ -6,6 +6,8 @@
 # 顺序 = 展示顺序（--explain / 错误文案按此罗列），非字母序
 CONTENT_TYPES = ("entity", "concept", "source", "comparison", "synthesis")
 
+REQUIRED_FRONTMATTER_FIELDS = ("title", "type", "created", "updated", "tags")
+
 TYPE_TO_DIR = {
     "entity": "entities",
     "concept": "concepts",

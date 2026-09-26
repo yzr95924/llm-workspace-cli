@@ -12,12 +12,11 @@ updated: {{SETUP_DATE}}
 > 见 [`../AGENTS.md`](../AGENTS.md)「写入纪律」「写后必同步」条。正路走
 > `llmw wiki write log`（格式 + 滚动窗口截断自动保证），带外手改按下列格式并手工截断。
 >
-> **格式**：`## [YYYY-MM-DD HH:MM] <op> | <title>`（op ∈ `ingest` / `query` / `lint` /
-> `setup`；日期也接受 `YYYY-MM-DD`）。`ingest` 可追加第三段
+> **格式**：`## [YYYY-MM-DD HH:MM] <op> | <title>`（op ∈ {{LOG_OPS}}；日期也接受 `YYYY-MM-DD`）。`ingest` 可追加第三段
 > `| <raw 相对路径>`（wiki 根相对、`raw/` 起头；`write log --raw` 自动落）。
 > `setup` 首条由 llmw CLI 初始化时写入；格式不符
 > 会被 `llmw wiki lint` 报告。标题简洁、不超过一行；URL / 详细摘要写在对应页面里。
 >
-> **滚动窗口**：条目数 > 50 时删最旧的保最近 50 条（本文件 frontmatter 不动）。
+> **滚动窗口**：条目数 > {{LOG_RETENTION_LIMIT}} 时删最旧的保最近 {{LOG_RETENTION_LIMIT}} 条（本文件 frontmatter 不动）。
 
 ## [{{SETUP_DATE}}] setup | Initial scaffold by llmw CLI

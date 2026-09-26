@@ -20,7 +20,7 @@ python3 -m llmw --help                            # 免安装直接跑 CLI
 
 | 改了什么 | 跑什么 |
 | --- | --- |
-| CLI 子命令 / flag / finding / rule_ref，或 SKILL 文本 | `python3 scripts/test/check_skill_cli_contract.py` |
+| CLI 子命令 / flag / finding / reason 等枚举 / rule_ref / 语义断言豁免，或 SKILL 文本 | `python3 scripts/test/check_skill_cli_contract.py` |
 | `llmw/content/templates/`（模板或 fixtures） | `python3 scripts/test/smoke_fixtures.py` |
 | `scripts/install.sh` / `uninstall.sh` | `bash scripts/test/test_install_uninstall.sh`（临时 HOME 隔离） |
 | `WIKI_FORMAT_VERSION`（`llmw/__init__.py`） | 必须与 SKILL.md frontmatter 同 commit（smoke_fixtures 比对） |

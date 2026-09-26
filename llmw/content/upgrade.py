@@ -1,11 +1,9 @@
 """llmw.content.upgrade — wiki 骨架升级引擎（`llmw wiki upgrade`）。
 
 确定性执行：byte-owned 重渲染 + growth 段嫁接 + legacy 路径表 + 版本钉写回 + 自检。
-幂等，任意中间态可重跑。终态 JSON（--json 恒可用，agent 判定依据）：
-
-    status: done | done_with_residue | blocked_drift | dry_run | verify_failed | error
-    current_format = wiki AGENTS.md 版本钉（解析失败 = null，如实上报）；target = 包内常量。
-
+幂等，任意中间态可重跑。终态 JSON（--json 恒可用，agent 判定依据）。
+current_format = wiki AGENTS.md 版本钉（解析失败 = null，如实上报，不冒充包内常量）；
+target = 包内常量。
 退出码：0 = done / done_with_residue；1 = blocked_drift；2 = 输入错 / 自验失败（幂等可重跑）。
 变量 SSOT = metadata toml + 版本常量（不从旧文件反提取）。
 """
@@ -210,11 +208,11 @@ def _render_fixture(fixture_name: str) -> str:
 def _apply_substitute(text: str, *, topic: str, setup_date: str) -> str:
     # 占位符替换失败（模板漂移）→ _substitute 直接抛 SetupFailed，不吞错回退
     # （否则带 {{TOPIC_NAME}} 的原始 fixture 会被写进用户 wiki）。
-    return _render._substitute(text, {"TOPIC_NAME": topic, "SETUP_DATE": setup_date})
+    return _render._substitute(text, {"TOPIC_NAME": topic, "SETUP_DATE": setup_date, **_render.wiki_constant_mapping()})
 
 
 def plan_resync(wiki_root: Path, *, meta: Dict[str, str]) -> List[Dict[str, object]]:
-    """计算 resync 计划（不写盘）。action: render / growth-graft / create / gitignore-block。"""
+    """计算 resync 计划（不写盘）。"""
     plan = []  # type: List[Dict[str, object]]
     topic = meta["topic"]
     # SETUP_DATE: UTC created_at → "YYYY-MM-DD HH:MM" (replace "T" with space, take first 16 chars)

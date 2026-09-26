@@ -13,7 +13,7 @@ from pathlib import Path
 
 from llmw.content.external_anchor import SOURCE_NAME_RE
 from llmw.content.ingest_diff import parse_frontmatter_simple
-from llmw.content.log_format import LOG_LINE_RE, LOG_OPS
+from llmw.content.log_format import LOG_LINE_RE, LOG_OPS, LOG_RETENTION_LIMIT
 from llmw.content.page_types import (
     CONTENT_TYPES,
     TYPE_TO_DIR,
@@ -21,7 +21,6 @@ from llmw.content.page_types import (
 )
 from llmw.content.wiki_lint import (
     CURRENT_WIKI_FORMAT,
-    LOG_RETENTION_LIMIT,
     parse_format_version,
 )
 from llmw.fsutil import atomic_write

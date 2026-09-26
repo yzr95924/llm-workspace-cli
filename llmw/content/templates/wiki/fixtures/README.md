@@ -28,8 +28,9 @@ wiki 体系每条纪律恰有一个 canonical 载体；其余位置要么不写�
 ## 用法
 
 CLI 把 fixtures 视为**带占位符的字节模板**：用用户传入的 mapping
-（`TOPIC_NAME` / `SETUP_DATE`）替换占位符后落盘。CLI 自身不做字节比对——完整 gate 走
-`scripts/test/smoke_fixtures.py`（CI 跑 real `llmw init` + `llmw wiki add` 后用
+（`TOPIC_NAME` / `SETUP_DATE`）+ 行为常量 mapping（`render.wiki_constant_mapping()`，
+派生自 `log_format.py` / `page_types.py`）替换占位符后落盘。CLI 自身不做字节比对——完整
+gate 走 `scripts/test/smoke_fixtures.py`（CI 跑 real `llmw init` + `llmw wiki add` 后用
 `llmw wiki check-fixtures` 探测器断言 0 error）。
 
 > **注**：`scripts.md.txt` / `memory-index.txt` / `tags.md.txt` 是**无占位符**（直接落盘，
@@ -65,6 +66,9 @@ fixtures 是**带占位符的字节模板**(而非渲染后的字面量)：
 
 - 主题名占位符：`{{TOPIC_NAME}}`
 - 日期占位符：`{{SETUP_DATE}}`
+- 行为常量占位符（值 SSOT = `log_format.py` / `page_types.py`，prose 禁手抄数字 / 枚举）：
+  `{{LOG_OPS}}` 与 `{{LOG_RETENTION_LIMIT}}`（log.md.txt）、`{{INDEX_SECTIONS}}`（index.md.txt）——
+  经 `render.wiki_constant_mapping()` 注入，改常量 = 常量文件改 = 字节变 = bump format 版本
 - `.gitignore` / `wiki/tags.md` / `scripts.md.txt` / `memory-index.txt` 无占位符，直接落盘
   （形态一致——无 frontmatter、纯 Markdown；`tags.md.txt` 与 `memory-index.txt` 属于
   wiki 根级文件，不带 wiki 名占位）
@@ -92,6 +96,7 @@ CLI 必须替换的占位符：
 | `{{SETUP_DATE}}` | 当天日期 `YYYY-MM-DD HH:MM` | AGENTS.md |
 | `{{WIKI_FORMAT_VERSION}}` | CLI 当前兼容的 wiki format 版本 | AGENTS.md 末尾「当前配置」表（薄壳不持版本） |
 | `{{CLI_VERSION}}` | CLI 自身版本号 | AGENTS.md |
+| `{{WIKI_SUBDIRS_GLOB}}` | `{entities,concepts,...}` 五子目录花括号形态（`page_types.WIKI_SUBDIRS`） | AGENTS.md「wiki/」边界卡 |
 
 CLI 替换后做内容级验证（不能用 fixture 字节比对）：
 
