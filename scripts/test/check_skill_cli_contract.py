@@ -863,6 +863,21 @@ def main():  # pylint: disable=too-many-branches
                 )
             )
 
+    # env 契约变量名钉住（同族非枚举）：cli 兜底读 / enter 注入 / SKILL.md 输入行三方
+    # 引用同一变量名——ref/ 命令示例与裸命令定位全靠它，rename 是接口契约变更，须三方同 commit。
+    _env = "LLM_WIKI_ROOT"
+    for _label, _p in (
+        ("cli 兜底读", REPO / "llmw" / "cli.py"),
+        ("enter 注入", REPO / "llmw" / "wiki" / "enter.py"),
+        ("SKILL.md 输入行", WIKI_SKILL / "SKILL.md"),
+    ):
+        stats["enum_pins"] += 1
+        if _env not in _read(_p):
+            errors.append(
+                "[env-cov] {}（{}）缺 `{}`——env 变量名是 CLI ↔ skill 接口契约，"
+                "rename 须三方同 commit 同步".format(_label, _rel(_p), _env)
+            )
+
     # --- 12. 语义断言豁免登记（锚点存在性） ---
     for _ex_file, _ex_anchor in PROSE_EXEMPTIONS:
         stats["exemptions"] += 1
