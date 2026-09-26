@@ -22,31 +22,29 @@ metadata:
 
 | 方向 | 内容 |
 | --- | --- |
-| 输入 | wiki 根（session cwd；否则 `$LLM_WIKI_ROOT` 或问用户）——本文路径均相对 wiki 根 |
+| 输入 | wiki 根 = session cwd（否则 `$LLM_WIKI_ROOT` 或问用户）；正文路径相对 wiki 根，`ref/` 相对 skill 目录 |
 | 输出 | `wiki/` 内容页（entity / concept / source / comparison / synthesis）+ `wiki/log.md` / `wiki/index.md` / `wiki/tags.md` 条目 |
 
 ## 执行原则
 
 ### 核心原则
 
-**操作前置（orient ritual，所有操作通用）**——每次 ingest / query / lint 启动前按序读完
-四件套，任一未读完不写任何 wiki 内容：
+**先对齐现状再动笔（orient ritual，所有操作通用）**——每次 ingest / query / lint 启动前
+按序读完四件套，任一未读完不写任何 wiki 内容：
 
 1. **确认 wiki 根 `AGENTS.md` 已在上下文**——拿主题名与「当前配置」表的 `Wiki Format
    版本` 行；MEMORY 全文随其自动加载
-2. `Read wiki/index.md`——有哪些页、分布在哪些类别，避免重复创建 / 漏交叉引用
-3. `Read wiki/log.md`（最近 ~30 行）——看清最近活动，避免重复 ingest / 漏归档
-4. `Read scripts/SCRIPTS.md`（已随 AGENTS.md 自动加载；wiki 可无 scripts/）——跑
-   `scripts/` 下自定义脚本（即操作不在 `llmw wiki` 命令与本文各工作流覆盖面内）前，
-   必须先查其分节契约（使用场景 / 调用约定 / 前置依赖）
+2. `Read wiki/index.md`——有哪些页、归哪些类，避免重复创建 / 漏交叉引用
+3. `Read wiki/log.md`（最近 ~30 行）——最近活动，避免重复 ingest / 漏归档
+4. `scripts/SCRIPTS.md`（随 AGENTS.md 自动加载；wiki 可无 scripts/）——跑 `scripts/`
+   自定义脚本前先查其分节契约
 
-100+ 页的 wiki 还应在 `wiki/` 全域 `Grep "<topic>"` 补一次——单看 index.md 可能漏掉
-entity / concept 页之间的引用关系
+100+ 页的 wiki 加一次 `wiki/` 全域 `Grep "<topic>"`——补 index.md 看不全的页间引用
 
-**写操作正路 = `llmw wiki write` 系列**——log 追加走 `write log`、新建页走 `write new`、
-清 `reviewed` 戳走 `write touch`、MEMORY 新条目走 `write memory add`、index 条目走
-`write index add`；格式 + 滚动窗口截断由 `write` 保证，lint 只兜底带外手改。**逃生舱**：
-命令不支持的形态手写 Edit/Write 合法——write 是默认路径不是闸门
+**机械归 CLI，语义归 agent**——写操作正路 = `llmw wiki write` 系列（适用 ingest / query / lint；
+upgrade 迁移期豁免，红线见下方 Upgrade 节）：格式 + 滚动窗口截断由 `write` 保证，lint 只兜底带外手改。
+建不建页 / 怎么综合 / 矛盾怎么裁是语义判断——没有命令替你判断，也不因用户"随便 / 赶时间"而省略。
+**逃生舱**：命令不支持的形态手写 Edit/Write 合法——write 是默认路径不是闸门
 
 ### 边界
 
