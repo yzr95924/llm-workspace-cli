@@ -9,11 +9,8 @@ agent 主导三项判断（CLI 帮不上）：
 
 - **命名**：`--name` 必须 kebab-case 短名，agent 与用户共同决定（如 `linux-kernel` /
   `ray`）
-- **target 路径**：推荐 `~/src/<name>` home-relative 形式（跨主机重建友好，rebuild 自动回写
-  此形式）
+- **target 路径**：推荐 `~/src/<name>` home-relative 形式（跨主机重建友好）
 - **notes 文本**：可选，agent 自由写（机械 scribe 入 anchor）
-
-命令：`llmw wiki external add <target> --name=<n> [--notes=...]`（target 必须已存在）
 
 ## sources: 元素类型
 
@@ -23,13 +20,8 @@ agent 主导三项判断（CLI 帮不上）：
 
 ## 跨主机重建
 
-```bash
-llmw wiki external rebuild --yes                                  # 同 home 布局直接重建
-llmw wiki external rebuild --target=linux=/home/new/src/linux --yes  # 跨 home 布局（可重复）
-```
-
-rebuild 会按 entry 状态自动选动作并打印计划，按打印出的计划执行；完成后 `llmw wiki lint`
-的 external-* findings 应为 0
+命令与 `--target` / `--yes` 形式见 wiki 根 `AGENTS.md` `raw/external/` 节；完成后
+`llmw wiki lint` 的 external-* findings 应为 0
 
 ## 漂移刷新
 
