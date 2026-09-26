@@ -2,14 +2,13 @@
 
 按 `type` 分 5 种。**5 类内容页**共有 frontmatter 段 + 类型特定字段 + 自由正文
 
-> **本文件是 content-owned 产物（wiki 内容页）写作纪律的 canonical**——frontmatter 字段
-> 语义 / 建页阈值 / 认知质量信号 / 矛盾处理 / 图示指引的唯一维护点（AGENTS.md 模板声明
-> 不承载写页规则）。frontmatter **生成**走 `llmw wiki write new`（5 必填自动落）；lint
-> 校验规则见 `llmw wiki lint --explain=all`（不在此镜像）。
->
-> **frontmatter 写法约束**（与 `llmw wiki ingest-diff` 的轻量 YAML 解析器对齐）：仅支持单行
-> `key: value`、inline 数组 `[a, b, c]`、`- item` 列表项三种形式。**不要**用多行折叠 `>` /
-> `|`、YAML 锚点 `&` / `*`、嵌套 map——解析器会静默失败返回空 dict，后续行为未定义
+**本文件 = content-owned 页写作纪律的 canonical**（frontmatter 字段语义 / 建页阈值 /
+认知质量信号 / 矛盾处理 / 图示指引，AGENTS.md 模板不承载写页规则）；lint 校验规则以
+`llmw wiki lint --explain=all` 为准，不在此镜像
+
+**frontmatter 写法约束**（对齐 `llmw wiki ingest-diff` 的轻量 YAML 解析器）：仅支持单行
+`key: value`、inline 数组 `[a, b, c]`、`- item` 列表项三种形式。**不要**用多行折叠 `>` /
+`|`、YAML 锚点 `&` / `*`、嵌套 map——解析器会静默失败返回空 dict
 
 ## 共有 frontmatter 段
 
@@ -26,15 +25,15 @@
 | `reviewed` / `reviewed_at` / `contested` / `contradictions` | 可选 | 认知质量信号，见下节 |
 | 类型特定（`sources` / `compared` / `threads` / `aliases` 等） | 按类型 | 见 [章节](#各类型模板) |
 
-> 5 必填是 OKF §9 conformance 与 lint 校验的最小交集；5 类覆盖 wiki 复利的 5 种认知角色。
-> `index.md` / `log.md` 是 **reserved 文件**（自带 frontmatter，`type: index` / `type: log`
-> 仅作标记），lint 跳过——不算概念页 type
+5 必填 = OKF §9 conformance 与 lint 校验的最小交集。`index.md` / `log.md` 是
+**reserved 文件**（自带 frontmatter，`type: index` / `type: log` 仅作标记），lint 跳过——
+不算概念页 type
 
 ### 可选：可信度与认知质量信号
 
-> **为什么需要**：LLM 写入的页若不标注，时间一长会被当成"既成事实"——**认知腐烂**，
-> 比断链 / 孤儿更隐蔽。`reviewed` 系 = 人工审核背书（query 优先采信、index ✓/✗）；
-> `contested` 系 = 矛盾未裁定告警（与可信度正交：可既 reviewed 又 contested）
+**为什么需要**：LLM 写入的页若不标注，时间一长会被当成"既成事实"——**认知腐烂**，
+比断链 / 孤儿更隐蔽。`reviewed` 系 = 人工审核背书（query 优先采信、index ✓/✗）；
+`contested` 系 = 矛盾未裁定告警（与可信度正交：可既 reviewed 又 contested）
 
 - `reviewed: true`——**仅**在为 `true` 时写。缺省 = 未审核；与
   `reviewed_at: <YYYY-MM-DD>` 成对出现（单独写任一字段 lint 报 warn）
@@ -75,9 +74,9 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 
 ## 各类型模板
 
-> 每类只列**路径 + 类型特定字段 + 正文骨架**（节名即契约，写入时按它落；节名按需保留 /
-> 拆分；5 必填 frontmatter 由 `llmw wiki write new` 生成）。实跑 trace 见
-> `examples.md`——按需 Read
+每类只列**路径 + 类型特定字段 + 正文骨架**（节名即契约，写入时按它落；节名按需保留 /
+拆分；5 必填 frontmatter 由 `llmw wiki write new` 生成）。实跑 trace 见
+`examples.md`——按需 Read
 
 ### entity（实体页）
 
@@ -225,9 +224,9 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 * 列在 frontmatter `sources` 字段
 ```
 
-> **逐段溯源（synthesis / 多源 comparison 专属）**：frontmatter `sources` 只能定位"引了
-> 哪些来源"，无法追溯"某句主张来自哪篇"。对**来源可分的断言**用标准 Markdown 脚注 `[^n]`
-> （文末 `[^n]: ...` 指向 source 页；**不要**用 pandoc 行内 `^[...]`）；纯推论无需脚注
+**逐段溯源（synthesis / 多源 comparison 专属）**：frontmatter `sources` 只能定位"引了
+哪些来源"，无法追溯"某句主张来自哪篇"。对**来源可分的断言**用标准 Markdown 脚注 `[^n]`
+（文末 `[^n]: ...` 指向 source 页；**不要**用 pandoc 行内 `^[...]`）；纯推论无需脚注
 
 ### index（index.md）
 
@@ -265,8 +264,8 @@ lint 口径：`llmw wiki lint --explain=index-missing` / `--explain=orphan-page`
 
 ## 图示使用指引
 
-> advisory（建议式）——图用于压缩过程性 / 结构性内容，不强制；密度优先，图是正文的
-> 压缩，不是装饰
+advisory（建议式）——图用于压缩过程性 / 结构性内容，不强制；密度优先，图是正文的
+压缩，不是装饰
 
 - **优先配图**——交互流程 / pipeline / 状态机 / 组件-模块关系 / 层级结构；散文写这类
   内容超过 2-3 句仍绕不清时，换一张图

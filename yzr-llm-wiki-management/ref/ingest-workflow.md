@@ -1,8 +1,8 @@
 # Ingest 详细流程
 
-Ingest 把 `raw/` 里的原始资料变成 wiki 内的**摘要页** + 同步相关 entity / concept
-页 + 更新 index + 追加 log。一份资料通常涉及 **1 source 页 + 0~N entity / concept
-页 + 1 index 更新 + 1 log 条目**
+Ingest 把 `raw/` 的原始资料变成 wiki 内**摘要页** + 同步相关 entity / concept 页 + 更新
+index + 追加 log。一份资料通常涉及 **1 source 页 + 0~N entity / concept 页 + 1 index 更新 +
+1 log 条目**
 
 ## 入口与触发
 
@@ -19,14 +19,14 @@ Ingest 把 `raw/` 里的原始资料变成 wiki 内的**摘要页** + 同步相�
 llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ```
 
-输出按 reason 分类（`untracked` / `stale-raw` / `log-only-no-source-page`），各类含义与
-退出码在输出中自明。判定"已摄取"的依据 = **对应 source 页存在且 `frontmatter.sources`
-含此路径**；仅 log 有记录但 source 页缺失的视为未摄取（需重建）
+输出按 reason 分类（`untracked` / `stale-raw` / `log-only-no-source-page`），含义与退出码
+输出自明。判定"已摄取" = **对应 source 页存在且 `frontmatter.sources` 含此路径**；仅 log
+有记录但 source 页缺失 = 未摄取（需重建）
 
 ### Step 2：评估规模
 
-待摄取 < 3 → 逐份处理；≥ 3 → 走 [章节](#批处理摄取-3-份-raw-同时摄入)；> 20 → 先问用户"是否先处理这 5 个"，
-分多批推进。**分批按主题聚类**（同议题 / 同作者 / 同时间段优先），不按文件名随机排序
+< 3 份逐份处理；≥ 3 份走 [章节](#批处理摄取-3-份-raw-同时摄入)；> 20 份先问用户"是否先处理
+这 5 个"、分多批推进。**分批按主题聚类**（同议题 / 同作者 / 同时间段优先），不按文件名随机排
 
 ### Step 2.5：与用户对齐要点（仅交互式单篇 / 少量）
 
@@ -34,17 +34,10 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ### Step 3：写 source 页
 
-对每个待摄取文件。**stale-raw 的关键差异**：source 页已存在 → 用 **Edit** 更新正文 +
-`updated` 改今天（`created` 保留原值），**不要** Write 覆盖、不重建 entity / concept 的
-"参考来源"段（只追加新来源）
+**stale-raw 差异**：source 页已存在 → 用 **Edit** 更新正文 + `updated` 改今天（`created`
+保留原值），**不要** Write 覆盖、不重建"参考来源"段（只追加新来源）
 
-> **重摄取发现矛盾**——不静默覆盖，走
-> [章节](page-templates.md#矛盾处理-update-policy)
-> （双方 `contested: true` + `contradictions` 互指）。这是 `contested` 信号最常见的产生时机。
->
-> **生命周期纪律**：被更新的 source 页若原 `reviewed: true`，编辑完跑
-> `llmw wiki write touch <page>`（自动 `updated`=现在 + 清 reviewed 戳）。细节见
-> [章节](page-templates.md#生命周期规则)
+对每个待摄取文件：
 
 1. **完整读取 raw**——PDF / 图片先做 OCR / 视觉识别
 2. **提取元数据**：标题、作者 / 来源、发布时间、URL、关键标签
@@ -60,7 +53,13 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
    - `created`：全新文件设 today；stale-raw 重摄取保留原值
    - 可选认知质量信号：确属矛盾未裁定时才标 `contested: true`（语义见
      [章节](page-templates.md#可选可信度与认知质量信号)）
-5. **决策点：是否新建 entity / concept 页**——见 [章节](#判定是否新建-entity--concept-页)
+5. **重摄取发现矛盾**——不静默覆盖，走
+   [章节](page-templates.md#矛盾处理-update-policy)（双方 `contested: true` +
+   `contradictions` 互指）；这是 `contested` 信号最常见的产生时机
+6. **生命周期**：被改的 source 页若原 `reviewed: true`，编辑完跑
+   `llmw wiki write touch <page>`（自动 `updated` + 清 reviewed 戳，见
+   [章节](page-templates.md#生命周期规则)）
+7. **是否新建 entity / concept 页**——见 [章节](#判定是否新建-entity--concept-页)
 
 ### Step 4：同步 entity / concept 页
 
@@ -79,31 +78,30 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 - `llmw wiki write log --op=ingest --title="<source 页 title>" --raw="raw/<相对路径>"`——
   格式 + 滚动窗口截断自动保证；`--raw` 记录被摄取文件（wiki 根相对、`raw/` 起头，
   是 `ingest-diff` 判定 log-only-no-source-page 的精确依据）
-- 一次 ingest 多个文件 → `--title` 与 `--raw` 重复且按序配对（每条对应一个 source 页）；
-  批处理走 `--bulk`（见下，bulk 行不记路径）
+- 一次 ingest 多个文件 → `--title` 与 `--raw` 重复且按序配对；批处理走 `--bulk`（bulk 行不记路径）
 
 ### Step 7：建议 commit（启用 git 时）
 
 - commit message：`ingest: <title>` 或 `ingest: <N> files from raw/articles/`；agent
   提示用户："wiki 已更新，建议 commit。要我帮你 commit 吗？"
-- 裸目录树 wiki 跳过此步（无版本控制）
+- 裸目录树 wiki 跳过此步
 
 **收尾**：主动问用户"要不要查一下新内容与已有内容的联系？"（query 触发见
 [章节](query-workflow.md#入口与触发)）
 
 ## 批处理摄取（≥ 3 份 raw 同时摄入）
 
+**为什么批处理**：逐份处理 N 份 = N 次 search + N 次 index 更新 + N 条 log，既慢又易因中间
+步骤失败导致不一致；批处理把主流程收敛成一次写入，副作用面最小
+
 1. **Read 所有 raw**——先列清单，再并行 Read
 2. **聚合 entity / concept**——跨所有 raw 找候选，**去重合并**（同一概念只对应一个 wiki 页）
 3. **一次 search**——用 Grep 一次搜完全部候选名称（不要 N 次）；产出"已存在 / 待新建"两栏
-4. **一次写入**——按序成片落：source 页（按主题聚类顺序写，便于交叉引用）→ entity /
-   concept 页（先建新、再更新旧的——追加"参考来源"段）→ index（所有页写完后集中补，
-   每页一次 `write index add`）→ log（`write log --op=ingest --bulk --topic="<主题概览>"
-   --count=<N>` 一条，不逐文件追加，避免 log 被一次 ingest 撑爆）
+4. **一次写入**——按序成片落：source 页（按主题聚类顺序，便于交叉引用）→ entity / concept
+   页（先建新、再追加旧的"参考来源"段）→ index（所有页写完后集中补，每页一次
+   `write index add`）→ log（`write log --op=ingest --bulk --topic="<主题概览>" --count=<N>`
+   一条，不逐文件追加，避免 log 被一次 ingest 撑爆）
 5. **报告**——哪些是新建页 / 更新页 / 因聚合而合并
-
-> **为什么批处理**：逐份处理 N 份 raw = N 次 search + N 次 index 更新 + N 条 log，既慢又
-> 容易因中间步骤失败导致不一致；批处理把主流程收敛成一次写入，副作用面最小
 
 ## 判定"是否新建 entity / concept 页"
 
@@ -115,10 +113,9 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## 正文引用的稳定性（漂移点规避）
 
-写 wiki 页正文、或对话作答中引用上游事实时，先做**感知测试**：
-
-> 这条引用依据的上游事实变化时，wiki 有任何机制（lint / anchor / stale 检查）
-> 能发现吗？不能 = 漂移点——它会静默腐烂成"既成事实"，必须改写
+写 wiki 页正文、或对话作答中引用上游事实时，先做**感知测试**：这条引用依据的上游事实
+变化时，wiki 有任何机制（lint / anchor / stale 检查）能发现吗？不能 = 漂移点——它会静默
+腐烂成"既成事实"，必须改写
 
 引用精度与稳定性成反比：降精度、加锚点、打时间戳
 
@@ -130,21 +127,17 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 | 完整枚举 | 全参数清单 | 代表性例子 + "完整清单见来源"；清单属来源不属 wiki |
 | 归属信息 | "由张三维护" | 引角色不引人名 |
 
-## Ingest 失败的常见原因
-
-- **已存在同名 source 页**——用 Edit 更新而不是 Write 覆盖（`llmw wiki write new` 拒覆盖）
-- **wiki/index.md 缺类别段**——补类别段（骨架见 [章节](page-templates.md#indexindexmd)）
-  或走 upgrade fixtures 修复
-
-> raw 不可读 / log/index 参数缺失等场景 CLI 报错自明——按提示修即可
-
 ## 反模式
 
 - 一份资料写 5 个 source 页（粒度过细）——按"主题"分，不是按"raw 文件 1:1"
 - source 页只复制 raw 内容——必须消化、提炼、加 cross-refs
 - 跨主题的 entity 混在一起——本 skill 假设一个 wiki 一个主题；跨主题用不同的 wiki
+- 已存在同名 source 页时用 Write 覆盖——改用 Edit（`llmw wiki write new` 本就拒覆盖）
+- `wiki/index.md` 缺类别段——补类别段（骨架见 [章节](page-templates.md#indexindexmd)）或走
+  upgrade fixtures 修复
+- raw 不可读 / log/index 参数缺失等场景 CLI 报错自明——按提示修即可
 
 ## raw/discussions/ 草稿消化（可选入口）
 
-> **完整纪律**（路径 / 谁可写 / CLI 契约三道 / 归档路径两条 / 滑坡防线）由
-> wiki 根 `AGENTS.md` 的 `raw/discussions/` 节承载——agent 自动加载必读
+完整纪律（路径 / 谁可写 / CLI 契约三道 / 归档路径两条 / 滑坡防线）由 wiki 根 `AGENTS.md`
+的 `raw/discussions/` 节承载——agent 自动加载必读
