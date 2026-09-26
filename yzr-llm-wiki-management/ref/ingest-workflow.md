@@ -25,7 +25,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ### Step 2：评估规模
 
-待摄取 < 3 → 逐份处理；≥ 3 → 走「批处理摄取」；> 20 → 先问用户"是否先处理这 5 个"，
+待摄取 < 3 → 逐份处理；≥ 3 → 走 [章节](#批处理摄取-3-份-raw-同时摄入)；> 20 → 先问用户"是否先处理这 5 个"，
 分多批推进。**分批按主题聚类**（同议题 / 同作者 / 同时间段优先），不按文件名随机排序
 
 ### Step 2.5：与用户对齐要点（仅交互式单篇 / 少量）
@@ -60,7 +60,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
    - `created`：全新文件设 today；stale-raw 重摄取保留原值
    - 可选认知质量信号：确属矛盾未裁定时才标 `contested: true`（语义见
      [章节](page-templates.md#可选可信度与认知质量信号)）
-5. **决策点：是否新建 entity / concept 页**——见「判定"是否新建 entity / concept 页"」
+5. **决策点：是否新建 entity / concept 页**——见 [章节](#判定是否新建-entity--concept-页)
 
 ### Step 4：同步 entity / concept 页
 

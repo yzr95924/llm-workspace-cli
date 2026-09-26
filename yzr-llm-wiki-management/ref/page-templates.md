@@ -24,7 +24,7 @@
 | `tags` | 必填（可空数组） | 取值必须严格在 `wiki/tags.md` 白名单内（canonical 见其头部说明块） |
 | `created` / `updated` | 必填 | 写入用 `YYYY-MM-DD HH:MM`；lint 宽容解析 date-only / HH:MM / HH:MM:SS |
 | `reviewed` / `reviewed_at` / `contested` / `contradictions` | 可选 | 认知质量信号，见下节 |
-| 类型特定（`sources` / `compared` / `threads` / `aliases` 等） | 按类型 | 见「各类型模板」 |
+| 类型特定（`sources` / `compared` / `threads` / `aliases` 等） | 按类型 | 见 [章节](#各类型模板) |
 
 > 5 必填是 OKF §9 conformance 与 lint 校验的最小交集；5 类覆盖 wiki 复利的 5 种认知角色。
 > `index.md` / `log.md` 是 **reserved 文件**（自带 frontmatter，`type: index` / `type: log`
@@ -77,7 +77,7 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 
 > 每类只列**路径 + 类型特定字段 + 正文骨架**（节名即契约，写入时按它落；节名按需保留 /
 > 拆分；5 必填 frontmatter 由 `llmw wiki write new` 生成）。实跑 trace 见
-> [`examples.md`](examples.md)——按需 Read
+> `examples.md`——按需 Read
 
 ### entity（实体页）
 
@@ -138,7 +138,7 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 ### source（资料页）
 
 路径：`wiki/sources/<slug>.md`；类型字段：`sources`（必填——raw/ 现存路径，
-**不得指向 `raw/discussions/`**，草稿非真相源，见 [`ingest-workflow.md`](ingest-workflow.md)）、
+**不得指向 `raw/discussions/`**，草稿非真相源，见 `ingest-workflow.md`）、
 `authors` / `published` / `url` / `venue`（可选）
 
 ```markdown
@@ -271,7 +271,7 @@ lint 口径：`llmw wiki lint --explain=index-missing` / `--explain=orphan-page`
 - **优先配图**——交互流程 / pipeline / 状态机 / 组件-模块关系 / 层级结构；散文写这类
   内容超过 2-3 句仍绕不清时，换一张图
 - **不配图**——静态定义、简单枚举、单点结论；一页一般 ≤ 2 图（超了先自问是否该拆页，
-  阈值见「建页 / 追加 / 归档阈值」）
+  阈值见 [章节](#建页--追加--归档阈值page-thresholds)）
 - **mermaid 为默认**（`flowchart` / `sequenceDiagram`）——中文标签无碍，GitHub 网页 /
   md-to-html 均可渲染；**源码本身保持可读**：短标签、线性流、节点 ≤ ~12，超了就拆图或退回文字
 - **ASCII 图仅限**目录树 / 纯英文短标签结构（围栏用 `text`）——**禁止中文标签进

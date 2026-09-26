@@ -4,7 +4,7 @@
 > plan 的 **per-action 字段词汇与执行顺序**由 CLI 输出自带（`agent_rules[]` + 各 action
 > 说明），本文档**不重述**——重述必漂移；下文只钉 agent 据以**分支 / 定位**的名字。
 > **优先级**：边界与纪律以本文档 + wiki 根 AGENTS.md 为准；每条动作的具体改法以 plan
-> 自带的 `agent_rules[]` 为准。breaking 变更的语义合并规则落「语义合并规则」；版本演进
+> 自带的 `agent_rules[]` 为准。breaking 变更的语义合并规则落 [章节](#语义合并规则)；版本演进
 > 叙事看 git log
 
 ## 触发
@@ -20,14 +20,14 @@ legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末�
   AGENTS.md「骨架所有权四分表」）+ legacy paths 移动。**旧文件里新骨架没有的自定义 `##`
   段会被丢弃**——dry-run 以 `dropped_sections` 列出、写盘后记入 `residue[]`；`render` /
   `gitignore-block` 类 diff 需 `--yes`，否则停于 `blocked_drift`。终态 `status` 由人读输出
-  与 `--json` 均给出，分支处置见「流程」第 5 步
+  与 `--json` 均给出，分支处置见 [章节](#流程agent-驱动5-步) 第 5 步
 - **lint `--check-version --apply --json` 的 plan**（内容页 legacy + 约定文件）：stdout 输出
   `upgrade_plan`，含两条并行数组（内容页 `actions[]` / 约定文件 `fixtures_actions[]`）；
   **执行顺序与每条动作的具体改法由 plan 自带的 `agent_rules[]` + 各 action 说明给出**。
   lint 的 `--apply` 只输出 plan、**不落盘**（与 `upgrade --apply` 相反，后者写盘）——
   改动由 agent 用 Edit/Write 落
 - **agent 职责**：(1) drift 裁定（blocked_drift 时与用户决定本地定制搬 MEMORY/ 还是丢弃）
-  (2) 按 plan 落 legacy / fixtures 修复 (3)「语义合并规则」语义合并（index 重复 / MEMORY 归并）
+  (2) 按 plan 落 legacy / fixtures 修复 (3) [章节](#语义合并规则) 语义合并（index 重复 / MEMORY 归并）
 - **迁移期不走 `llmw wiki write`**——机械写命令只认识当前形态
 - **不**追加 log 条目——迁移不是 wiki 操作事件
 
@@ -60,7 +60,7 @@ legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末�
 
    - 报告 `needs_upgrade` / legacy pattern groups / fixtures 不合规项
    - 版本行缺失 / 无法解析（`wiki-format-version-unparsed`）→ 跑 `upgrade --apply`
-     恢复钉版（CLI 重渲染 AGENTS.md）；wiki 版本比 llmw 支持版本新（`-ahead`）→ 不动 wiki，见「边界」
+     恢复钉版（CLI 重渲染 AGENTS.md）；wiki 版本比 llmw 支持版本新（`-ahead`）→ 不动 wiki，见 [章节](#边界)
    - 若 legacy / fixtures 有现场 → `--apply --json` 拿 `upgrade_plan`，按 plan 自带规则
      （`agent_rules[]` + 各 action 说明）用 Edit 落
    - **跳过 `skipped_conflicts[]`**——永不自动覆盖人工决策
@@ -73,7 +73,7 @@ legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末�
    - 终态 `verify_failed` → 按 `verified.failures[]` 修完重跑（幂等）
    - lint 侧仍有 legacy / fixtures 现场 → 报告 + 转人工
 
-**不**调用 ingest / query（保持职责单一）；log 纪律见「职责切分」
+**不**调用 ingest / query（保持职责单一）；log 纪律见 [章节](#职责切分关键三方分工)
 
 ## 边界
 
@@ -90,7 +90,7 @@ legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末�
 
 ## 样例
 
-见 [`examples.md`](examples.md)（升级场景样例四）
+见 `examples.md`（升级场景样例四）
 
 ---
 

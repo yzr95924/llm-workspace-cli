@@ -3,7 +3,7 @@
 Lint 让 wiki **不腐烂**——把 bookkeeping 自动化。Lint 分**两层**：
 
 1. **Deterministic**（CLI 检查，可程序化）——`llmw wiki lint` 执行
-2. **Semi-qualitative**（agent 检查，需理解语义）——本文件「半定性检查」节
+2. **Semi-qualitative**（agent 检查，需理解语义）——本文件 [章节](#半定性检查agent-执行) 节
 
 **与 `llmw wiki write` 的分工**：log / index / touch / new / memory 的**正路**是
 `llmw wiki write`（产物天然合规：输出是输入的纯函数 + lint 可 round-trip 验证）；

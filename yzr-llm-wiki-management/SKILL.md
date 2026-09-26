@@ -74,7 +74,7 @@ metadata:
 
 #### 违反字面 = 违反精神
 
-任何对「核心原则 / 边界」两段禁令的"看起来不同但效果一致"绕法都算违反——最常见的三种：
+任何对 [章节](#核心原则) / [章节](#边界) 两段禁令的"看起来不同但效果一致"绕法都算违反——最常见的三种：
 
 - 把 `llmw wiki write` 能做的写操作改用手写 `Edit` / `Write` 完成，再声称走了逃生舱——**不算**：
   逃生舱只覆盖命令不支持的形态，默认路径只有 `llmw wiki write` 系列
@@ -85,7 +85,7 @@ metadata:
 
 #### Red Flags（念头清单 — 出现即停）
 
-念头出现 ≠ 已违反；念头 = 警告 = 重读「核心原则 / 边界」两段。
+念头出现 ≠ 已违反；念头 = 警告 = 重读 [章节](#核心原则) / [章节](#边界) 两段。
 条目来源：标「实跑观察」者为 RED transcript 实录；未标注者为通用合理化模式（红旗是低成本预警网、广撒无害；实跑捕获新借口时追加并标注）
 
 - "用户说'随便记一下 / 赶时间 / 别太正式'——纪律可以打折了"（实跑观察）
@@ -109,8 +109,8 @@ metadata:
 **触发**："把这篇摄取到 wiki" / `raw/` 有新文件 / 跑 `llmw wiki ingest-diff` 发现未摄取项
 
 **流程预告**：识别 → 对齐要点 → source 页 → entity / concept 同步 → index / log 簿记 →
-commit，全文见 [`ref/ingest-workflow.md`](ref/ingest-workflow.md)（执行前必读）；外部代码仓
-接入 / 漂移刷新 / 跨主机重建见 [`ref/external-repo.md`](ref/external-repo.md)（相应操作前必读）
+commit，全文见 `ref/ingest-workflow.md`（执行前必读）；外部代码仓
+接入 / 漂移刷新 / 跨主机重建见 `ref/external-repo.md`（相应操作前必读）
 
 ### 批处理摄取（≥ 3 份 raw 同时摄入）
 
@@ -120,21 +120,21 @@ commit，全文见 [`ref/ingest-workflow.md`](ref/ingest-workflow.md)（执行�
 **外部代码仓作为语料**——"把 X 仓库纳入 wiki"：**不**内嵌拷仓，走 symlink 路径：
 `llmw wiki external add <target> --name=<n> [--notes=...]`（symlink + anchor 一律经 CLI 落盘）；
 随后 `llmw wiki ingest-diff` 扫描。漂移刷新 / 跨主机重建见
-[`ref/external-repo.md`](ref/external-repo.md)
+`ref/external-repo.md`
 
 ### Query（跨页综合）
 
 **触发**："wiki 里有 X 吗" / "总结 wiki 中关于 Y 的内容" / "对比 A 和 B"
 
 **流程预告**：`index.md` 定位 → 只读相关页（不读 raw）→ `reviewed` / `contested` 采信分级
-→ 综合 → 符合条件时询问归档，全文见 [`ref/query-workflow.md`](ref/query-workflow.md)（执行前必读）
+→ 综合 → 符合条件时询问归档，全文见 `ref/query-workflow.md`（执行前必读）
 
 ### Lint（健康检查）
 
 **触发**："lint wiki" / 定期（频率阈值见 [章节](ref/lint-workflow.md#lint-频率)）/ 大型 wiki 主动建议
 
 **流程预告**：`llmw wiki lint`（deterministic）→ agent 半定性 → 报告 + 询问用户先修哪些，
-全文见 [`ref/lint-workflow.md`](ref/lint-workflow.md)（执行前必读）；finding 口径（含义 /
+全文见 `ref/lint-workflow.md`（执行前必读）；finding 口径（含义 /
 severity / 修法）= `llmw wiki lint --explain=all`；fixtures 一致性归
 `llmw wiki check-fixtures`（常规 lint 只在 `--check-version` 时附带）
 
@@ -144,8 +144,8 @@ severity / 修法）= `llmw wiki lint --explain=all`；fixtures 一致性归
 reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy warn
 
 **红线**：迁移期不走 `llmw wiki write`；**不**追加 log 条目。三方职责、流程与裁定细则见
-[`ref/upgrade-workflow.md`](ref/upgrade-workflow.md)（执行前必读）
+`ref/upgrade-workflow.md`（执行前必读）
 
 ## 参考样例
 
-完整样例（ingest / query / lint / upgrade）见 [`ref/examples.md`](ref/examples.md)——按需 Read
+完整样例（ingest / query / lint / upgrade）见 `ref/examples.md`——按需 Read
