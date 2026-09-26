@@ -58,19 +58,19 @@ upgrade 迁移期豁免，红线见下方 Upgrade 节）：格式 + 滚动窗口
 
 ## 工作流
 
-各 workflow 执行前必读对应文档——本节只做路由与防起步错误，流程步骤以文档为准。
+各 workflow 执行前必读对应文档——本节只做路由与防起步错误，流程步骤以文档为准
 
 ### Ingest（摄取新资料）
 
-**触发**："把这篇摄取到 wiki" / `raw/` 有新文件 / 跑 `llmw wiki ingest-diff` 发现未摄取项
-——全文 `ref/ingest-workflow.md`；≥ 3 份 raw 同时摄入走批处理路径——
+**触发**："把这篇摄取到 wiki" / `raw/` 有新文件 / 跑 `llmw wiki ingest-diff` 发现未摄取项 /
+用户定期批量（cron / 习惯）——全文 `ref/ingest-workflow.md`；≥ 3 份 raw 同时摄入走批处理路径——
 [章节](ref/ingest-workflow.md#批处理摄取-3-份-raw-同时摄入)。"把 X 仓库纳入 wiki"走
 `ref/external-repo.md`：**不**内嵌拷仓，symlink + anchor 经 CLI 落盘
 
 ### Query（跨页综合）
 
-**触发**："wiki 里有 X 吗" / "总结 wiki 中关于 Y 的内容" / "对比 A 和 B"——全文
-`ref/query-workflow.md`
+**触发**："wiki 里有 X 吗" / "总结 wiki 中关于 Y 的内容" / "对比 A 和 B"；隐式——ingest
+收尾 agent 主动建议查新内容联系——全文 `ref/query-workflow.md`
 
 ### Lint（健康检查）
 
@@ -80,8 +80,9 @@ wiki 主动建议——全文 `ref/lint-workflow.md`；finding 口径唯一入�
 
 ### Upgrade（升级 wiki format）
 
-**触发**："升级 wiki / 迁移 / format 升级 / 是否需要 reformat"；或 `llmw wiki lint`
-报告 `wiki-format-version-stale` / legacy warn——全文 `ref/upgrade-workflow.md`。
+**触发**："升级 wiki / 迁移 / format 升级 / 是否需要 reformat"；或 `llmw wiki lint` 报告
+`wiki-format-version-stale` / `wiki-format-version-unparsed` / legacy 或 fixtures 不合规
+——全文 `ref/upgrade-workflow.md`。
 **红线**：迁移期不走 `llmw wiki write`；**不**追加 log 条目
 
 ## 参考样例

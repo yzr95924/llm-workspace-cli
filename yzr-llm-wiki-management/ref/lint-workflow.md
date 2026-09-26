@@ -47,7 +47,7 @@ agent 修复路径见 [章节](../SKILL.md#upgrade升级-wiki-format)；迁移�
 
 ## 半定性检查（agent 执行）
 
-跑完 deterministic 后 agent 再做以下检查——**仅 wiki < 200 页时人工做**，更大规模需
+跑完 deterministic 后 agent 再做以下检查——**仅 wiki < 200 页时人工做**（经验阈值），更大规模需
 LLM-based 自动检查：
 
 - **矛盾主张**（warning）——同一概念 / 实体在 ≥ 2 页被矛盾方式描述且**未标** `contested`
@@ -85,7 +85,7 @@ LLM-based 自动检查：
 
 ## lint 频率
 
-- 小 wiki（< 50 页）每月 1 次；中（50-200）每 2 周；大（> 200）每周，可写 cron
+- 小 wiki（< 50 页）每月 1 次；中（50-200）每 2 周；大（> 200）每周，可写 cron（经验建议阈值）
 - 重大 ingest 后跑一次（可能引入新 entity / 断链）
 - 跨 format 升级后首跑 fixtures-check，验证约定文件已切到新字节形态
 

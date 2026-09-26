@@ -256,7 +256,7 @@ lint 口径：`llmw wiki lint --explain=index-missing` / `--explain=orphan-page`
 
 | 动作 | 触发条件 |
 | --- | --- |
-| **新建 entity / concept 页** | 该 entity / concept 在 ≥ 2 个 source 页中被提到 **或** 是某 source 页的中心主题 |
+| **新建 entity / concept 页** | 该 entity / concept 在 ≥ 2 个 source 页中被提到（经验阈值）**或** 是某 source 页的中心主题 |
 | **追加到已有页** | source 页提到一个已被覆盖的 entity / concept——追加"参考来源"段即可（不重写） |
 | **不创建页** | 路过提及（脚注 / 一次出现的名字）、领域外的细节、与本 wiki 主题无关 |
 | **拆分页** | 单页正文超过阈值——阈值与拆分建议见 lint `oversized-page` finding（触发时输出自带）；拆成子主题 + cross-link |

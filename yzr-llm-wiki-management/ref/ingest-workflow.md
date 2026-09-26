@@ -4,12 +4,6 @@ Ingest 把 `raw/` 的原始资料变成 wiki 内**摘要页** + 同步相关 ent
 index + 追加 log。一份资料通常涉及 **1 source 页 + 0~N entity / concept 页 + 1 index 更新 +
 1 log 条目**
 
-## 入口与触发
-
-- **主动**：用户说"摄取 X 到 wiki" / "把 raw/articles/ 这批都摄取一下"
-- **被动**：`llmw wiki ingest-diff` 列出未摄取项，用户问"这些是不是要 ingest"
-- **定期**：用户设 cron / 习惯（如每周把 `raw/articles/` 新增全部 ingest）
-
 ## 流程详解
 
 ### Step 1：识别需要摄取的文件
@@ -86,8 +80,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
   提示用户："wiki 已更新，建议 commit。要我帮你 commit 吗？"
 - 裸目录树 wiki 跳过此步
 
-**收尾**：主动问用户"要不要查一下新内容与已有内容的联系？"（query 触发见
-[章节](query-workflow.md#入口与触发)）
+**收尾**：主动问用户"要不要查一下新内容与已有内容的联系？"（query 流程见
+[章节](query-workflow.md#流程详解)）
 
 ## 批处理摄取（≥ 3 份 raw 同时摄入）
 

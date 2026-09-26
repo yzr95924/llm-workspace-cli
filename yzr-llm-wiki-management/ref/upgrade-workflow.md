@@ -5,12 +5,6 @@
 漂移）。版本钉在 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 字段；
 breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本演进叙事看 git log
 
-## 触发
-
-用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / format 升级 / 是否需要 reformat"；
-或 `llmw wiki lint` 报告 `wiki-format-version-stale` / `wiki-format-version-unparsed` /
-legacy 或 fixtures 不合规报告。本 workflow 处理 format 演进后的**检测 + 修复**
-
 ## 职责切分（**关键**——三方分工）
 
 - **CLI `llmw wiki upgrade`（骨架修复者）**：修骨架（四类所有权，canonical 见 wiki 根
