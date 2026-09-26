@@ -30,7 +30,8 @@ python3 -m llmw --help                            # 免安装直接跑 CLI
 - **代码不创作内容语义**：确定性操作（骨架渲染 / 注册表变换 / 机械 scribe）全部收口在
   `llmw/content/`；`raw/`、`wiki/` 下的语义写入归 skill 在 session 内执行。唯一例外：
   `raw/external/` 的 anchor + symlink（经 `llmw wiki external` 子命令）。
-- **单向约束**：SKILL 文本不引 CLI 包内符号（`llmw.content.xxx` / `module.SYMBOL` 形态），只引命令名 / finding 名——gate 面 9 判红。
+- **单向约束**：SKILL 文本不引 CLI 包内符号（`llmw.content.xxx` / `module.SYMBOL` 形态），对 CLI 的感知以接口契约为限——
+  只引命令名 / finding 名 / 输出字段值（如 ingest-diff 的 reason）；gate 面 9 判红。
 - 命令面 SSOT = `llmw.cli.build_parser()` 单一 argparse 树。**新增子命令须手动同步
   `completions/` 三件套**（bash / fish / zsh，`tests/test_completions_sync.py` 守护，
   历史漂移过数月）。
@@ -39,6 +40,24 @@ python3 -m llmw --help                            # 免安装直接跑 CLI
 - finding 口径唯一入口 = `llmw wiki lint --explain`（注册表 `llmw/content/findings.py`）；skill prose 不得镜像 severity 清单。
 - 元数据 toml 的 schema 校验全在 store 层（workspace / wiki / models 各自 store 的 validate）；manager 不重复校验。
 - api_key 打印必过 `llmw/models/redact.py` 出口；model 配置不读环境变量（禁止 `os.environ.get("ANTHROPIC_*")` 类读取）。
+
+## 架构边界与演进原则
+
+三载体按传播成本分工（重 → 轻）；新规则 / 新功能放能承载它的最轻载体：
+
+- `llmw/content/`：机械判定 + 行为常量 SSOT + 骨架字节所有权（发版全局生效）
+- wiki 模板 + fixtures：常驻纪律内核 + 出生字节（改动 = format bump + 逐实例 upgrade）
+- `yzr-llm-*/` skill：工作流 + 写页语义（改文档即生效，不碰实例字节）
+
+演进判据：
+
+1. 能机械判定的做成 lint / write，不写成文档规则
+2. 强制值（改动影响代码行为）只存 CLI 常量；模板 / fixture 用 `{{占位符}}` 消费；skill 对值零感知——写路径走命令，
+   带外手改读实例文件说明块；文档确需出现值（如 SKILL.md frontmatter 版本，属 CI 绊线）必须 gate 钉住，禁止手抄
+3. 建议值（不影响代码行为）留在文档并标「建议」，不得事后升级为 lint 检查
+4. write 子命令三居一才加：格式多字段 / 滚动窗口类不变量 / 高频
+5. 仅模板 / fixture 字节变才 bump `WIKI_FORMAT_VERSION`
+6. 无法机器校验的跨载体断言登记 gate 豁免清单，禁止沉默的未钉住
 
 ## 工具链硬约束
 
