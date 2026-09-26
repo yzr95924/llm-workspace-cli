@@ -8,3 +8,4 @@ AGENTS.md 用单行 `@MEMORY/MEMORY.md` 引入本文件（host 自动展开则�
 
 - 根级指令文件保持极简：2026-09-26 删 251 行旧 AGENTS.md 与全部 MEMORY/ 后重建紧凑版；扩写 AGENTS.md / 新增长记忆前先向用户提议
 - 测试优先级低：手动 smoke + CI 冒烟为主，agent 不主动加测试代码（用户 2026-09-26 确认仍有效）
+- commit / push 每次单独明示允许："按计划执行 / 彻底解决"这类总授权**不**构成 commit 许可，改动完成先摊 diff 供用户 review；2026-09-26 agent 按上一轮授权惯性直接 commit 被纠正（"所有的 commit 都要经过我允许，我需要 review"）
