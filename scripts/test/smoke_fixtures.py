@@ -27,7 +27,7 @@ REPO = Path(__file__).resolve().parents[2]
 def _check_format_version_alignment():
     """版本门：SKILL.md frontmatter *_format_version 必须 == llmw 包内常量。
 
-    读 SKILL.md frontmatter 与 llmw.WIKI_FORMAT_VERSION 比对，不一致即 exit 1。这是 [[format-version-bump-single-repo]] 的机械 gate（纪律升级为 gate）。
+    读 SKILL.md frontmatter 与 llmw.WIKI_FORMAT_VERSION 比对，不一致即 exit 1。这是版本对齐纪律的机械 gate（纪律升级为 gate）。
     """
     sys.path.insert(0, str(REPO))
     import llmw
@@ -62,7 +62,7 @@ def _check_format_version_alignment():
         for d in drifts:
             sys.stderr.write(f"  {d}\n")
         sys.stderr.write(
-            "修复：按 MEMORY/format-version-bump-single-repo.md 同 commit 改 SKILL.md frontmatter + llmw/__init__.py 常量\n"
+            "修复：同 commit 改 SKILL.md frontmatter + llmw/__init__.py 常量\n"
         )
         raise SystemExit(1)
     print("[OK] format 版本对齐：SKILL.md frontmatter == llmw 包内常量")

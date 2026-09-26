@@ -13,7 +13,7 @@ from llmw.errors import OverlayFileUnparseable
 from llmw.fsutil import atomic_write, chmod_600, load_json_optional
 from llmw.models.store import ModelEntry
 
-# 习惯级 env key（非用户可配；增删改一律改本常量，见 MEMORY/overlay-habit-template.md）
+# 习惯级 env key（非用户可配；增删改一律改本常量）
 _HABIT_TEMPLATE: Dict[str, str] = {
     # 隐私: 关闭非必要流量（无遥测）
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",

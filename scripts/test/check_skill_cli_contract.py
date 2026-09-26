@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """CI gate：skill ↔ CLI 外部契约一致性（语法面）。
 
-兑现 MEMORY「改 CLI 外部契约必同步 skill 引用」的机械兜底：CLI 改子命令 / flag /
+兑现「改 CLI 外部契约必同步 skill 引用」纪律的机械兜底：CLI 改子命令 / flag /
 finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 gate 红。
 语义面（行为描述如"只扫不修"）gate 管不到，靠纪律人工保证。
 
 检查面（10 类）：
   1. 命令调用（skill + 模板 + 仓根文档 → CLI）：skill markdown / byte-owned
-     模板（llmw/content/templates 全 md + fixtures *.txt）/ 仓根 AGENTS.md +
-     CLAUDE.md + README.md 里的 `llmw ...` 调用，子命令路径 + flag 必须存在于
+     模板（llmw/content/templates 全 md + fixtures *.txt）/ 仓根 README.md 里的
+     `llmw ...` 调用，子命令路径 + flag 必须存在于
      SSOT 树；**带值 flag 必须等号形式**（CLI 全局拒绝空格分隔，写空格形式 =
      运行即拒的静默 drift）；**行内命令不得跨换行**（跨行 span checker 提取
      不到）。代码块严格校验；行内 backtick 只校验第二 token 为小写命令形态
-     的片段，散文提及跳过。**有意不扫 MEMORY/（含历史命令与反例，必误报）
-     与 tests/（可执行测试自带 loud failure）**。
+     的片段，散文提及跳过。**有意不扫 tests/（可执行测试自带 loud failure）**。
   2. finding 口径（skill 域）：prose 不得镜像 finding 清单（`` `name`（severity``
      形式即红——口径唯一入口是 `llmw wiki lint --explain`，注册表 SSOT 在
      llmw/content/findings.py；发射点 ↔ 注册表的穷举校验在
@@ -55,7 +54,7 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
       `llmw.content.external_anchor._REQUIRED_FIELDS`）；(b) 单点 `模块.符号`
       （第二段含大写，如 `wiki_lint.VALID_TYPES`）。skill 文本引 CLI 资产只用命令名 /
       finding 名 / 裸常量名（裸常量名合规：指标类按 skill 纪律引名不引字面量），包内
-      路径写进 skill = "skill 读 CLI 代码"（boundary-map「单向约束」）。只扫 SKILL_MDS：
+      路径写进 skill = "skill 读 CLI 代码"（「单向约束」纪律）。只扫 SKILL_MDS：
       模板 / 仓根文档是 CLI 自身文档，引用自身常量合法。零误报——`MEMORY/MEMORY.md`
       （斜杠）/ `page-templates.md`（第二段无大写且无 llmw. 前缀）/ `llmw wiki lint`
       （空格命令形态）/ `LOG_RETENTION_LIMIT`（无点）均不匹配
@@ -93,14 +92,14 @@ TEMPLATES = CONTENT / "templates"
 # finding 的文档真源，rule_ref 的目标是 skill 文件，升级终态词只定义在 skill 工作流里。
 SKILL_MDS = sorted([p for p in WIKI_SKILL.rglob("*.md")])
 
-# 面 1（命令 + 风格 + 跨行）扫全仓命令面。有意排除 MEMORY/（历史命令 + 反例
-# 必误报）与 tests/（可执行测试自带 loud failure）。templates 既含 byte-owned
+# 面 1（命令 + 风格 + 跨行）扫全仓命令面。有意排除 tests/（可执行测试自带 loud
+# failure）。templates 既含 byte-owned
 # 模板 md 也含 *.txt 内容 fixtures（都含 llmw 命令）。
 CONTRACT_MDS = sorted(
     set(SKILL_MDS)
     | set(TEMPLATES.rglob("*.md"))
     | set(TEMPLATES.rglob("*.txt"))
-    | {REPO / "AGENTS.md", REPO / "CLAUDE.md", REPO / "README.md"}
+    | {REPO / "README.md"}
 )
 
 FENCE_RE = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.DOTALL)
@@ -174,7 +173,7 @@ LAYOUT_TOKEN_RE = re.compile(r"(?:^|[\s<>/])wiki/([a-z][a-z0-9]*)/")
 # 面 9 module 限定符号禁令：抓两种"包内路径 / 符号"形态——
 #   (a) `llmw.` 前缀（含多点：llmw.content / llmw.content.external_anchor._REQUIRED_FIELDS）
 #   (b) 单点 ident.IDENT（第二段含大写：wiki_lint.VALID_TYPES）
-# boundary-map「单向约束」：skill 文本不读 CLI 代码，只用命令名 / finding 名 / 裸常量名。
+# 「单向约束」：skill 文本不读 CLI 代码，只用命令名 / finding 名 / 裸常量名。
 # 只扫 SKILL_MDS；模板 / 仓根文档是 CLI 自身文档，引用自身常量合法（如 fixtures/README.md
 # 的 llmw.WIKI_FORMAT_VERSION）。零误报：MEMORY/MEMORY.md（斜杠）/
 # page-templates.md（第二段无大写）llmw wiki lint（空格命令形态）均不匹配。
@@ -184,7 +183,7 @@ MODULE_SYMBOL_RE = re.compile(
 
 # 面 10 agent 可见指令文本禁内部引用：CLI 输出的执行指令（to_action / agent_rules /
 # note / rule_ref）只能引 (a) 命令名 (b) 输出自带字段 (c) 实例内可读路径——
-# agent 读不到 CLI 代码（boundary-map「单向约束」），引包内实现 = 不可执行指令。
+# agent 读不到 CLI 代码（「单向约束」），引包内实现 = 不可执行指令。
 # ast 键值配对 + 关键字实参精确取这 4 个键的值（递归 List / f-string），不用行窗口启发式。
 # 不扫 desc / argparse help（CLI 自述自身合法）；不扫 hint（错误诊断文本，安装完整性
 # 路径对用户排障合法；真执行指令应落 to_action / agent_rules）。
@@ -819,7 +818,7 @@ def main():  # pylint: disable=too-many-branches
                 errors.append(
                     "[module-symbol] {}:{} :: skill prose 引 CLI 包内符号 `{}`——"
                     "skill 文本不读 CLI 代码，只用命令名 / finding 名 / 裸常量名"
-                    "（boundary-map「单向约束」：CLI 重构不能让 skill 失效）".format(
+                    "（「单向约束」：CLI 重构不能让 skill 失效）".format(
                         rel, lineno, m.group(1)
                     )
                 )
@@ -837,7 +836,7 @@ def main():  # pylint: disable=too-many-branches
                 errors.append(
                     "[agent-text-ref] {}:{} :: agent 可见指令 `{}` 引 CLI 内部资产 `{}`——"
                     "只能引命令名 / 输出自带字段 / 实例内可读路径"
-                    "（boundary-map「单向约束」：agent 读不到包内实现）".format(
+                    "（「单向约束」：agent 读不到包内实现）".format(
                         rel, lineno, key, m.group(0)
                     )
                 )

@@ -110,4 +110,4 @@ llmw config set enter_cli claude   # 切换；llmw config unset enter_cli 回退
 - `llmw/` — Python 包：`cli.py` / `config.py` / `backends.py` / `errors.py` / `fsutil.py` + `content/` / `wiki/` / `workspace/` / `models/` 子包（`content/` 为最大子包：模板 + 探测器 + fixtures + lint/write/upgrade 等内容层命令实现；可执行入口 = install.sh wrapper 或 `python -m llmw`）
 - `scripts/` — install / uninstall 脚本及其集成测试
 - `yzr-llm-wiki-management/` — SKILL（纯 markdown：SKILL.md + ref/；运行期模板与探测器已内建 `llmw/content/`，随仓分发）
-- `MEMORY/` / `doc/` / `tests/` — 项目记忆 / 设计文档 / pytest（CI 跑 ruff + pytest，py3.7 / py3.11）
+- `doc/` / `tests/` — 设计文档 / pytest（CI 跑 ruff + pytest，py3.7 / py3.11）
