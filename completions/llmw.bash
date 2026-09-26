@@ -73,7 +73,7 @@ _llmw() {
     local COMMON="--workspace= --json --debug --quiet -q"
     local TOP="init config list status model wiki"
     local WIKI_ACTS="add remove rename show config enter stop lint check-fixtures upgrade ingest-diff write external"
-    local WIKI_WRITE_ACTS="log index touch new memory"
+    local WIKI_WRITE_ACTS="log index touch new"
     local WIKI_EXTERNAL_ACTS="add remove list rebuild"
     local WIKI_LINT_SEVERITY="error warn info all"
     local WIKI_WRITE_LOG_OPS="ingest query lint setup"
@@ -298,7 +298,6 @@ _llmw() {
                                 ;;
                                 touch)  COMPREPLY=($(compgen -W "$COMMON" -- "$cur")) ;;
                                 new)    COMPREPLY=($(compgen -W "--type= --slug= --title= --description= --tags= --sources= $COMMON" -- "$cur")) ;;
-                                memory) COMPREPLY=($(compgen -W "--slug= --title= --description= --type= --scope= --index-line= $COMMON" -- "$cur")) ;;
                             esac
                         fi
                         ;;

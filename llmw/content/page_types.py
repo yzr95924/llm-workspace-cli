@@ -26,9 +26,6 @@ TYPE_TO_SECTION = {
 
 WIKI_SUBDIRS = tuple(TYPE_TO_DIR[t] for t in CONTENT_TYPES)
 
-# MEMORY 扩展值：不属内容页类型，仅供 lint 兼容既有页（MEMORY 分桶按路径，不写 type）
-MEMORY_TYPE_ALIASES = ("memory", "memory-entry")
-
-VALID_TYPES = frozenset(CONTENT_TYPES) | frozenset(MEMORY_TYPE_ALIASES)
+VALID_TYPES = frozenset(CONTENT_TYPES)
 
 TYPES_DISPLAY = " / ".join(CONTENT_TYPES)

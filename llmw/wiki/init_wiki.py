@@ -1,4 +1,4 @@
-"""wiki 仓初始化：把"出生形态"落盘（8 件产物 + 目录树 + .gitkeep）。
+"""wiki 仓初始化：把"出生形态"落盘（7 件产物 + 目录树 + .gitkeep）。
 
 只做编排；模板渲染统一走 llmw.content.render（变量 SSOT = metadata + 版本常量）。
 字节金标准 gate 在 scripts/test/smoke_fixtures.py。git 红线：CLI 绝不碰 git，
@@ -25,19 +25,18 @@ _CONTENT_SUBDIRS = sorted(WIKI_SUBDIRS)
 # 预建对 git 不可见（接入外部仓时按需建）
 _RAW_SUBDIRS = ["articles", "assets", "discussions"]
 
-# 需 .gitkeep 占位的空目录（MEMORY/ 与 scripts/ 各有真实索引文件，不需要占位）
+# 需 .gitkeep 占位的空目录（scripts/ 有真实索引文件，不需要占位）
 _GITKEEP_DIRS = [Path("wiki") / d for d in _CONTENT_SUBDIRS] + [
     Path("raw") / d for d in _RAW_SUBDIRS
 ]
 
 
 def check_not_initialized(wiki_dir: Path) -> None:
-    """6 份产物任一已存在 → 拒绝覆盖（须在 mkdir 前调用，避免半成品目录）。"""
+    """5 份产物任一已存在 → 拒绝覆盖（须在 mkdir 前调用，避免半成品目录）。"""
     files = [
         wiki_dir / "AGENTS.md",
         wiki_dir / "CLAUDE.md",
         wiki_dir / "wiki" / "index.md",
-        wiki_dir / "MEMORY" / "MEMORY.md",
         wiki_dir / "wiki" / "tags.md",
         wiki_dir / "scripts" / "SCRIPTS.md",
     ]
@@ -85,7 +84,6 @@ def render_and_write(
     log_md = render_wiki_log_md(topic=topic, setup_date=today)
 
     try:
-        memory_md = (fixtures / "memory-index.txt").read_text(encoding="utf-8")
         tags_md = (fixtures / "tags.md.txt").read_text(encoding="utf-8")
         scripts_md = (fixtures / "scripts.md.txt").read_text(encoding="utf-8")
         gitignore = (fixtures / "gitignore.txt").read_text(encoding="utf-8")
@@ -98,7 +96,6 @@ def render_and_write(
     for d in (
         [wiki_dir / "raw" / x for x in _RAW_SUBDIRS]
         + [wiki_dir / "wiki" / x for x in _CONTENT_SUBDIRS]
-        + [wiki_dir / "MEMORY"]
         + [wiki_dir / "scripts"]
     ):
         d.mkdir(parents=True, exist_ok=True)
@@ -116,7 +113,6 @@ def render_and_write(
         atomic_write(wiki_dir / ".gitignore", gitignore)
         atomic_write(wiki_dir / "wiki" / "index.md", index_md)
         atomic_write(wiki_dir / "wiki" / "log.md", log_md)
-        atomic_write(wiki_dir / "MEMORY" / "MEMORY.md", memory_md)
         atomic_write(wiki_dir / "wiki" / "tags.md", tags_md)
         atomic_write(wiki_dir / "scripts" / "SCRIPTS.md", scripts_md)
     except OSError as e:

@@ -19,6 +19,14 @@ from llmw.content._check_common import (
 from llmw.content._check_common import (
     compare_semver as _compare_semver,
 )
+
+# kebab-case 正则与 external 子目录 / anchor 文件名常量 SSOT 在 external_anchor（lint 仅消费）
+from llmw.content.external_anchor import (
+    ANCHOR_FILENAME,
+    EXTERNAL_SUBDIR,
+    SOURCE_NAME_RE,
+)
+from llmw.content.external_anchor import load as load_anchor
 from llmw.content.findings import severity_of as _severity_of
 from llmw.content.ingest_diff import parse_frontmatter_simple
 from llmw.content.log_format import (
@@ -29,19 +37,9 @@ from llmw.content.log_format import (
 from llmw.content.page_types import (
     REQUIRED_FRONTMATTER_FIELDS,
     TYPE_TO_SECTION,
-    TYPES_DISPLAY,
     VALID_TYPES,
     WIKI_SUBDIRS,
 )
-
-MEMORY_SUBDIR = "MEMORY"
-# kebab-case 正则与 external 子目录 / anchor 文件名常量 SSOT 在 external_anchor（lint 仅消费）
-from llmw.content.external_anchor import (  # noqa: E402
-    ANCHOR_FILENAME,
-    EXTERNAL_SUBDIR,
-    SOURCE_NAME_RE,
-)
-from llmw.content.external_anchor import load as load_anchor  # noqa: E402
 
 DISCUSSIONS_SUBDIR = "discussions"  # raw/ 下用户 + LLM 协作草稿层；与 external/ 并列的 raw/ 写权限例外
 MD_LINK_RE = re.compile(r"!?\[([^\]]*)\]\(([^)]+)\)")
@@ -89,14 +87,6 @@ from llmw import WIKI_FORMAT_VERSION  # noqa: E402
 
 CURRENT_WIKI_FORMAT = WIKI_FORMAT_VERSION
 
-# pattern key → 迁移依据（rule_ref）；修复语义自含于 plan actions 的 to_action
-LEGACY_PATTERN_KEYS = {
-    # 拦内容页误用 reserved `type: memory`（MEMORY 桶合法，仅内容页误用触发）
-    "type-memory-value": "page-templates.md#共有-frontmatter-段",
-    # MEMORY 条目旧格式（frontmatter 顶层 `title`，未迁 `name` + `description` + `metadata.type` 三件套）
-    "memory-entry-legacy-format": "MEMORY/MEMORY.md fixture header (wiki 实例内直接可读)",
-}
-
 SEV_RANK = {"error": 0, "warn": 1, "info": 2}
 
 
@@ -104,12 +94,16 @@ def is_external_url(url: str) -> bool:
     return bool(EXTERNAL_URL_RE.match(url.strip()))
 
 
+# find_md_files 桶键全集：内容子目录 + index/log 伪桶
+PAGE_BUCKETS = WIKI_SUBDIRS + ("index", "log")
+
+
 def find_md_files(wiki_root: Path) -> Dict[str, List[Path]]:
-    """收集 wiki/**/*.md 与 MEMORY/*.md，按子目录分桶（memory 桶不强制 index 覆盖）。
+    """收集 wiki/**/*.md，按子目录分桶。
 
     桶键推导自 page_types.WIKI_SUBDIRS（新增内容类型不 KeyError）。
     """
-    out = {sub: [] for sub in WIKI_SUBDIRS + ("index", "log", "memory")}  # type: Dict[str, List[Path]]
+    out = {sub: [] for sub in PAGE_BUCKETS}  # type: Dict[str, List[Path]]
     wiki_dir = wiki_root / "wiki"
     if not wiki_dir.is_dir():
         return out
@@ -118,10 +112,6 @@ def find_md_files(wiki_root: Path) -> Dict[str, List[Path]]:
         if d.is_dir():
             for p in sorted(d.glob("*.md")):
                 out[sub].append(p)
-    mem_dir = wiki_root / MEMORY_SUBDIR
-    if mem_dir.is_dir():
-        for p in sorted(mem_dir.glob("*.md")):
-            out["memory"].append(p)
     out["index"].append(wiki_dir / "index.md")
     out["log"].append(wiki_dir / "log.md")
     return out
@@ -376,8 +366,6 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
 
     校验口径（canonical = finding 注册表 llmw.content.findings）：
     - wiki 内容页：必填 frontmatter 字段 + 推荐 description
-    - MEMORY/*.md 条目：字段契约归记忆治理侧（yzr-memory-management 的 memory_lint），
-      wiki lint 不校验条目 frontmatter 字段（索引一致性走 check_memory_index）
     """
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
@@ -411,7 +399,7 @@ def check_frontmatter_structure(wiki_root: Path) -> List[str]:
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
     candidates = []  # type: List[Path]
-    for sub in WIKI_SUBDIRS + ("index", "log", "memory"):
+    for sub in PAGE_BUCKETS:
         candidates.extend(pages[sub])
     for p in candidates:
         if not p.is_file():
@@ -454,7 +442,7 @@ def check_link_integrity(wiki_root: Path) -> List[str]:
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
     all_pages = []
-    for sub in WIKI_SUBDIRS + ("index", "log", "memory"):
+    for sub in PAGE_BUCKETS:
         all_pages.extend(pages[sub])
     for p in all_pages:
         if not p.is_file():
@@ -671,7 +659,6 @@ def check_tag_taxonomy(wiki_root: Path) -> List[str]:
     target_pages = []  # type: List[Path]
     for sub in WIKI_SUBDIRS:
         target_pages.extend(pages[sub])
-    # MEMORY/*.md 不进白名单校验：agent 私有记忆，tag 不共享用户面 taxonomy
     for p in target_pages:
         if not p.is_file():
             continue
@@ -693,10 +680,10 @@ def check_tag_taxonomy(wiki_root: Path) -> List[str]:
 
 
 def check_filename_kebab(wiki_root: Path) -> List[str]:
-    """文件名 kebab-case（MEMORY.md 索引除外）。"""
+    """文件名 kebab-case。"""
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
-    for sub in WIKI_SUBDIRS + ("index", "log"):
+    for sub in PAGE_BUCKETS:
         for p in pages[sub]:
             stem = p.stem
             if not SOURCE_NAME_RE.match(stem):
@@ -704,15 +691,6 @@ def check_filename_kebab(wiki_root: Path) -> List[str]:
                 findings.append(
                     f"filename-not-kebab: {rel} 文件名 '{p.name}' 应使用 kebab-case（小写字母 + 数字 + 短横线）"
                 )
-    for p in pages["memory"]:
-        if p.name == "MEMORY.md" and p.parent.name == MEMORY_SUBDIR:
-            continue
-        stem = p.stem
-        if not SOURCE_NAME_RE.match(stem):
-            rel = p.relative_to(wiki_root).as_posix()
-            findings.append(
-                f"filename-not-kebab: {rel} 文件名 '{p.name}' 应使用 kebab-case（小写字母 + 数字 + 短横线）"
-            )
     return findings
 
 
@@ -753,7 +731,7 @@ def _strip_frontmatter_body(text):
 
 
 def check_page_size(wiki_root, threshold=PAGE_SIZE_THRESHOLD):
-    """正文非空行数超阈值的内容页（MEMORY 无上限）。"""
+    """正文非空行数超阈值的内容页。"""
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
     for sub in WIKI_SUBDIRS:
@@ -782,7 +760,6 @@ def check_quality_signals(wiki_root):
     target_pages = []  # type: List[Path]
     for sub in WIKI_SUBDIRS:
         target_pages.extend(pages[sub])
-    # MEMORY 是 agent 私有记忆，不进 reviewed 校验（字段仍可写，只是不兜底报告）
     # contradictions 对端映射：page_rel -> 已解析对端集合（对称性检查用）
     contra_out = {}  # type: Dict[str, Set[str]]
     for p in target_pages:
@@ -939,51 +916,6 @@ def _check_index_review_badges(wiki_root):
     return findings
 
 
-def check_memory_index(wiki_root: Path) -> List[str]:
-    """MEMORY.md 索引 ↔ MEMORY/*.md 双向一致性。
-
-    经验条目须在 MEMORY.md 索引列一行（AGENTS.md `@import` 加载依赖）；反向 dangling 也查。
-    短条目（`- 一句话事实`）无链接文件，不算 dangling；MEMORY.md 缺失时静默跳过。
-    """
-    findings = []  # type: List[str]
-    mem_dir = wiki_root / MEMORY_SUBDIR
-    memory_index = mem_dir / "MEMORY.md"
-    if not memory_index.is_file():
-        return findings
-    indexed = set()  # type: Set[str]
-    mem_dir_resolved = mem_dir.resolve()
-    try:
-        text = memory_index.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return findings
-    for m in MD_LINK_RE.finditer(strip_code_regions(text)):
-        target = resolve_link(memory_index, m.group(2))
-        if target is None:
-            continue
-        try:
-            target.relative_to(mem_dir_resolved)
-        except ValueError:
-            continue
-        if target.is_file():
-            indexed.add(target.name)
-        else:
-            findings.append(
-                f"memory-index-dangling: MEMORY/MEMORY.md 索引指向 "
-                f"{target.relative_to(wiki_root).as_posix()}，但该文件不存在"
-            )
-    for p in sorted(mem_dir.glob("*.md")):
-        if p.name == "MEMORY.md":
-            continue
-        if p.name not in indexed:
-            rel = p.relative_to(wiki_root).as_posix()
-            findings.append(
-                f"memory-not-indexed: {rel} 未在 MEMORY/MEMORY.md 索引中列出；"
-                f"该条目下次会话读不到 "
-                f"（追加一行：- <slug> — <一句话> → [正文](<slug>.md)）"
-            )
-    return findings
-
-
 def check_related_links(wiki_root: Path) -> List[str]:
     """frontmatter `related` / `compared` 路径引用（文件不存在 → warn）。
 
@@ -1093,63 +1025,6 @@ def _run_fixtures_check(wiki_root: Path) -> Dict[str, object]:
         return {"skipped": True, "reason": f"fixtures check exec failed: {e}"}
 
 
-def _has_type_memory(page_rel: str, text: str) -> bool:
-    """内容页是否误用 `type: memory`（该值仅 MEMORY 桶合法；本函数只扫内容页）。"""
-    if page_rel.startswith("MEMORY/"):
-        return False
-
-    m = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
-    if not m:
-        return False
-    for line in m.group(1).splitlines():
-        if re.match(r"^\s*type:\s*memory\s*$", line):
-            return True
-    return False
-
-
-def _is_legacy_memory_entry(page_rel: str, text: str) -> bool:
-    """MEMORY 条目是否旧格式（frontmatter 顶层 `title` 在而 `name` 不在）。
-
-    新格式 = `name` / `description` / `metadata.*` 三件套（0.45.0 起）；旧格式 =
-    `title` / `created` / `updated`。只认确定性信号；frontmatter 解析失败的条目
-    不在此判（归记忆治理侧 memory_lint 报）。
-    """
-    if not page_rel.startswith("MEMORY/"):
-        return False
-    fm = parse_frontmatter_simple(text)
-    return "title" in fm and "name" not in fm
-
-
-def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
-    """扫 legacy 现场：{"patterns": {key: [...]}, "conflicts": [...]}（供 plan / --json 复用）。"""
-    pages = find_md_files(wiki_root)
-    out = {
-        "patterns": {k: [] for k in LEGACY_PATTERN_KEYS},  # type: Dict[str, List[Dict[str, object]]]
-        "conflicts": [],  # type: List[Dict[str, str]]
-    }  # type: Dict[str, object]
-
-    candidates = []  # type: List[Path]
-    for sub in WIKI_SUBDIRS:
-        candidates.extend(pages[sub])
-    for p in pages["memory"]:
-        if p.name == "MEMORY.md" and p.parent.name == MEMORY_SUBDIR:
-            continue
-        candidates.append(p)
-
-    for p in candidates:
-        if not p.is_file():
-            continue
-        text = p.read_text(encoding="utf-8", errors="replace")
-        rel = p.relative_to(wiki_root).as_posix()
-
-        if _has_type_memory(rel, text):
-            out["patterns"]["type-memory-value"].append({"file": rel, "conflict": False})  # type: ignore
-        if _is_legacy_memory_entry(rel, text):
-            out["patterns"]["memory-entry-legacy-format"].append({"file": rel, "conflict": False})  # type: ignore
-
-    return out
-
-
 # fixtures-check 失败项 → (type, to_action) 表；新增 check 加一行即可，骨架类后缀自动命中
 _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]] = {
     "gitignore-external-track-toml": (
@@ -1174,8 +1049,7 @@ _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]
         lambda b: (
             "跑 `llmw wiki upgrade --apply`：CLI 全量重渲染 AGENTS.md（byte-owned，"
             "「当前配置」表四变量保留 wiki 现值）。若本地定制 diff 进 blocked_drift："
-            "逐条列给用户裁定——搬 MEMORY/（一行事实写 MEMORY/MEMORY.md 索引短条目；"
-            "含 why 的建 `MEMORY/<slug>.md` 完整条目）或丢弃，裁定完加 `--yes` 重跑"
+            "逐条列给用户裁定——搬 MEMORY/（由 yzr-memory-management skill 收纳）或丢弃，裁定完加 `--yes` 重跑"
         ),
     ),
     "symlink-anchor-toml-schema": (
@@ -1195,10 +1069,6 @@ _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]
             "symlink 有但 anchor 无 entry → 补一条 `[[entry]]` 块（含 symlink/target/captured_at/kind + 可选 git 身份字段）"
         ),
     ),
-    "memory-index-no-frontmatter": (
-        "fixtures-fix-strip-frontmatter",
-        lambda b: f"Edit {b['file']}：删除首部 `---...---` YAML frontmatter 块，保留正文",
-    ),
     "scripts-md-no-frontmatter": (
         "fixtures-fix-strip-frontmatter",
         lambda b: f"Edit {b['file']}：删除首部 `---...---` YAML frontmatter 块，保留正文",
@@ -1206,12 +1076,6 @@ _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]
     "tags-md-no-frontmatter": (
         "fixtures-fix-strip-frontmatter",
         lambda b: f"Edit {b['file']}：删除首部 `---...---` YAML frontmatter 块，保留正文",
-    ),
-    "memory-entries-indexed": (
-        "fixtures-fix-memory-index",
-        lambda b: (
-            "在 MEMORY/MEMORY.md 索引追加缺失条目（fixture 头部说明块规则）：`- [<标题>](<slug>.md)：<一句话摘要>`"
-        ),
     ),
     "log-md-format-strict": (
         "fixtures-fix-log-format",
@@ -1237,7 +1101,7 @@ _FIXTURES_SKELETON_SPEC: Tuple[str, Callable[[Dict[str, object]], str]] = (
         f"Edit {b['file']}：按本条 `expected`（缺失骨架信号清单）单 Edit 补齐——"
         "frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段"
         "（.gitignore 段可跑 `llmw wiki upgrade --apply` 由 CLI 重渲染）；"
-        "成长型内容（index 类别下条目 / log 历史 / MEMORY 经验 / tag bullet）"
+        "成长型内容（index 类别下条目 / log 历史 / tag bullet）"
         "**不动**——只补结构骨架"
     ),
 )
@@ -1268,52 +1132,17 @@ def _build_fixtures_action(fc: Dict[str, object]) -> Dict[str, object]:
 
 def build_upgrade_plan(
     current_format: Optional[str],
-    legacy: Dict[str, object],
-    fixtures_check: Optional[Dict[str, object]] = None,
+    fixtures_check: Dict[str, object],
 ) -> Dict[str, object]:
-    """legacy + fixtures 发现 → agent 可执行 plan（fixtures_actions 优先于 actions，两套都跑）。
+    """fixtures 不合规发现 → agent 可执行 plan（fixtures_actions[]）。
 
     每个 action 含 file / type / rule_ref / to_action；消费流程见 ref/upgrade-workflow.md。
     """
     today = date.today().isoformat()
-    actions = []  # type: List[Dict[str, object]]
     fixtures_actions = []  # type: List[Dict[str, object]]
 
-    for entry in legacy["patterns"]["type-memory-value"]:  # type: ignore
-        fpath = entry["file"]  # type: ignore
-        actions.append(
-            {
-                "file": fpath,
-                "type": "frontmatter-retype",
-                "rule_ref": LEGACY_PATTERN_KEYS["type-memory-value"],
-                "to_action": (
-                    f"Edit {fpath}：把 frontmatter 的 `type: memory` 按页面真实语义改为内容页类型之一"
-                    f"（{TYPES_DISPLAY}）。**不要**改成"
-                    " `memory-entry`——那是 MEMORY 桶扩展值，写进内容页语义错且不再触发本检查"
-                ),
-            }
-        )
-
-    for entry in legacy["patterns"]["memory-entry-legacy-format"]:  # type: ignore
-        fpath = entry["file"]  # type: ignore
-        actions.append(
-            {
-                "file": fpath,
-                "type": "memory-entry-migrate",
-                "rule_ref": LEGACY_PATTERN_KEYS["memory-entry-legacy-format"],
-                "to_action": (
-                    f"Edit {fpath}：frontmatter 迁新格式三件套（契约见 MEMORY/MEMORY.md 头部说明块）："
-                    f"`name`（= 文件名 slug）、`description`（一句话摘要，旧 `title` 可作来源）、"
-                    "`metadata.type`（user / feedback / project / reference 四选一，按条目性质定），"
-                    "推荐补 `metadata.scope` / `metadata.modified`，删旧 `title` / `created` / `updated`；"
-                    f"并把 MEMORY/MEMORY.md 中对应索引行改为 `- [<标题>](<slug>.md)：<摘要>`。"
-                    "合并 / 删除等治理判定归 yzr-memory-management skill；未装该 skill 时与用户裁定"
-                ),
-            }
-        )
-
     # base 字段含 expected/actual，让 agent 一眼看清"该改成什么"
-    if fixtures_check and not fixtures_check.get("skipped"):
+    if not fixtures_check.get("skipped"):
         for fc in fixtures_check.get("checks", []) or []:  # type: ignore
             if fc.get("passed") is not False:  # type: ignore
                 continue
@@ -1326,21 +1155,15 @@ def build_upgrade_plan(
         "skill_doc": "SKILL.md（yzr-llm-wiki-management skill 根）",
         "format_doc": "ref/lint-workflow.md（yzr-llm-wiki-management skill，lint 流程与 --explain 入口）",
         "rule_doc": "ref/upgrade-workflow.md（yzr-llm-wiki-management skill）",
-        "actions": actions,
         "fixtures_actions": fixtures_actions,
-        "skipped_conflicts": legacy.get("conflicts", []),  # type: ignore
         "agent_rules": [
-            "按 actions[] 顺序逐项修；每个 action 前打印依据 rule_ref",
-            "frontmatter-retype：按 action.to_action 落（内容页 `type: memory` 改内容页类型之一，不要改 `memory-entry`）",
-            "skipped_conflicts[] 永远不自动覆盖——转人工",
             "AGENTS.md / CLAUDE.md 是 byte-owned 禁手改：版本行与骨架均由 `llmw wiki upgrade --apply` 重渲染落地",
             "不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）",
             "不调 ingest / query——保持职责单一（lint --check-version 是本迁移的正路）",
-            "fixtures_actions[] 与 actions[] 平行处理——先走 fixtures_actions 修约定文件（如 .gitignore / anchor TOML）",
-            "再走 actions[] 修内容页 frontmatter / log；fixtures 修复是后续内容页编辑的前置",
+            "fixtures_actions[] 逐项修约定文件（如 .gitignore / anchor TOML）；fixtures 修复是后续内容页编辑的前置",
             "fixtures-fix-anchor-schema / -anchor-symlink-matches 各 to_action 自含修 schema / ln / 补 entry 的具体指令",
             "fixtures-fix-strip-frontmatter 仅删首部 frontmatter 块，保留全文正文一字不动",
-            "fixtures-fix-skeleton：按 expected（缺失骨架信号清单）补 frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段，单 Edit 可落；成长型内容（index 类别 / log 历史 / MEMORY 经验 / tag bullet）不动",
+            "fixtures-fix-skeleton：按 expected（缺失骨架信号清单）补 frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段，单 Edit 可落；成长型内容（index 类别 / log 历史 / tag bullet）不动",
             "fixtures-fix-agents-md-resync / -agents-version：跑 `llmw wiki upgrade --apply`（CLI 重渲染 byte-owned）；本地定制先按 blocked_drift 与用户裁定搬 MEMORY/ 或丢弃",
             "fixtures 改造配合 upgrade-workflow.md#语义合并规则——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按该节判断",
         ],
@@ -1349,18 +1172,13 @@ def build_upgrade_plan(
 
 
 def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
-    """--check-version 主入口：版本 + legacy 探测 + fixtures check。
+    """--check-version 主入口：版本 + fixtures check。
 
     默认只打印报告；--apply 把 upgrade plan 输出到 stdout（不落盘）。
     """
     current_format = parse_format_version(wiki_root)
     comparison = _compare_semver(current_format, CURRENT_WIKI_FORMAT)
-    legacy = detect_legacy_patterns(wiki_root)
-
-    total_patterns = 0
-    for entries in legacy["patterns"].values():  # type: ignore
-        total_patterns += len(entries)  # type: ignore
-    needs_upgrade = (comparison == "older") or (total_patterns > 0)
+    needs_upgrade = comparison == "older"
 
     fixtures_check = _run_fixtures_check(wiki_root)
     if not fixtures_check.get("skipped"):
@@ -1374,14 +1192,12 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
         "skill_format": CURRENT_WIKI_FORMAT,
         "comparison": comparison,
         "needs_upgrade": needs_upgrade,
-        "legacy_patterns": legacy["patterns"],  # type: ignore
-        "conflicts": legacy["conflicts"],  # type: ignore
         "fixtures_check": fixtures_check,
     }
 
     if json_mode:
         if apply:
-            plan = build_upgrade_plan(current_format, legacy, fixtures_check)
+            plan = build_upgrade_plan(current_format, fixtures_check)
             report["upgrade_plan"] = plan
         print(json.dumps(report, indent=2, ensure_ascii=False))
         return 0
@@ -1403,46 +1219,25 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
     if current_format is None:
         print("[WARN] 无法解析 <wiki-root>/AGENTS.md 末尾「当前配置」表 `Wiki Format 版本`")
         print("       请确认该行存在且格式为: | Wiki Format 版本 | 0.x.y |")
-        print("       解析失败不影响 legacy pattern 探测（下方继续输出）")
+        print("       解析失败不影响 fixtures check（下方继续输出）")
         print()
 
-    legacy_empty = total_patterns == 0 and not legacy["conflicts"]  # type: ignore
     fixtures_skipped = bool(fixtures_check.get("skipped"))
     fixtures_empty = fixtures_skipped or not any(
         c.get("passed") is False
         for c in fixtures_check.get("checks", [])  # type: ignore
     )
-    if legacy_empty and fixtures_empty:
-        print("No legacy patterns / fixtures issues found. ✓")
+    if fixtures_empty:
+        print("No fixtures issues found. ✓")
         return 0
-
-    if not legacy_empty:
-        print(f"[LEGACY] 共 {total_patterns} 处老格式现场")
-        for pattern_key, entries in legacy["patterns"].items():  # type: ignore
-            if not entries:  # type: ignore
-                continue
-            rule_ref = LEGACY_PATTERN_KEYS.get(pattern_key, "?")
-            print(f"  - {pattern_key} ({len(entries)}) → {rule_ref}")
-            for entry in entries:  # type: ignore
-                flag = " [CONFLICT]" if entry.get("conflict") else ""  # type: ignore
-                print(f"      {entry['file']}{flag}")  # type: ignore
-
-        if legacy["conflicts"]:  # type: ignore
-            print()
-            print(f"[CONFLICTS] {len(legacy['conflicts'])} 处冲突页——agent 不自动覆盖")  # type: ignore
-            for c in legacy["conflicts"]:  # type: ignore
-                print(f"  - {c['file']}: {c['reason']}")  # type: ignore
 
     _print_fixtures_check(fixtures_check, indent="")
 
     if apply:
-        plan = build_upgrade_plan(current_format, legacy, fixtures_check)
+        plan = build_upgrade_plan(current_format, fixtures_check)
         print("\n[PLAN] upgrade plan 已生成（stdout JSON 输出，agent 直接消费，不落盘）")
-        print(
-            f"       actions: {len(plan['actions'])}, skipped_conflicts: {len(plan['skipped_conflicts'])}, "  # type: ignore
-            f"fixtures_actions: {len(plan.get('fixtures_actions', []))}"  # type: ignore
-        )
-        print("       agent 按 plan.actions[] + plan.fixtures_actions[] 走 Edit/Write 修复（规则见 plan.rule_doc）")
+        print(f"       fixtures_actions: {len(plan['fixtures_actions'])}")
+        print("       agent 按 plan.fixtures_actions[] 走 Edit/Write 修复（规则见 plan.rule_doc）")
         print("--- upgrade-plan JSON begin ---")
         print(json.dumps(plan, indent=2, ensure_ascii=False))
         print("--- upgrade-plan JSON end ---")
@@ -1529,7 +1324,6 @@ def run(
     all_findings.extend(check_external_symlinks(wiki_root))
     all_findings.extend(check_page_size(wiki_root))
     all_findings.extend(check_quality_signals(wiki_root))
-    all_findings.extend(check_memory_index(wiki_root))
     all_findings.extend(check_related_links(wiki_root))
 
     if severity != "all":

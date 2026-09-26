@@ -179,7 +179,6 @@ GROWTH_FILES = {
     "wiki/index.md": "fixtures/index.md.txt",
     "wiki/log.md": "fixtures/log.md.txt",
     "wiki/tags.md": "fixtures/tags.md.txt",
-    "MEMORY/MEMORY.md": "fixtures/memory-index.txt",
     "scripts/SCRIPTS.md": "fixtures/scripts.md.txt",
 }
 GITIGNORE_REL = ".gitignore"

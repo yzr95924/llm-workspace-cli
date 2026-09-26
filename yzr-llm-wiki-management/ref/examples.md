@@ -76,5 +76,5 @@ llmw wiki write log --op=query --title="<Concept A> vs <Concept B>"
 - 第 3 步裁定后 `upgrade --apply --yes` 的**这次运行**才产出骨架终态（`done` /
   `done_with_residue`）
 - 第 4 步 `lint --check-version --apply --json` 产 `upgrade_plan`（`needs_upgrade: true` +
-  legacy 组），agent 按 plan 自带 `agent_rules[]` 用 Edit 落
+  fixtures 不合规项），agent 按 plan 自带 `agent_rules[]` 用 Edit 落
 - 第 5 步重跑 2、4：plan 为空（骨架已对齐）且 `needs_upgrade: false` → 完成

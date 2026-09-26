@@ -41,7 +41,7 @@ WIKI_ACTS = [
     "write",
     "external",
 ]
-WRITE_ACTS = ["log", "index", "touch", "new", "memory"]
+WRITE_ACTS = ["log", "index", "touch", "new"]
 EXTERNAL_ACTS = ["add", "remove", "list", "rebuild"]
 
 

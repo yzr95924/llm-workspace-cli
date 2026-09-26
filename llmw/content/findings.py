@@ -86,7 +86,7 @@ FINDINGS = {
     ),
     "missing-frontmatter": FindingSpec(
         "error",
-        "内容页缺必填 frontmatter 字段（title / type / created / updated / tags）；MEMORY/*.md 条目不查（格式契约归记忆治理侧）",
+        "内容页缺必填 frontmatter 字段（title / type / created / updated / tags）",
         "补齐缺失字段（字段契约 canonical 见各 fixture 头部）",
     ),
     "missing-sources": FindingSpec(
@@ -200,14 +200,9 @@ FINDINGS = {
         "log.md 条目数超过滚动窗口上限（完整历史靠 git）",
         "`llmw wiki write log` 写入时自动截断；或手删最旧保最近 N 条",
     ),
-    "memory-index-dangling": FindingSpec(
-        "warn",
-        "MEMORY.md 索引指向的 `<slug>.md` 不存在（短条目 `- 一句话事实` 无链接、不算）",
-        "删除该索引行，或补齐条目文件",
-    ),
     "oversized-page": FindingSpec(
         "warn",
-        "内容页正文非空行数超过阈值（阈值随 finding 文本输出；MEMORY 无上限）",
+        "内容页正文非空行数超过阈值（阈值随 finding 文本输出）",
         "拆成子主题页 + cross-link",
     ),
     "related-broken-link": FindingSpec(
@@ -251,11 +246,6 @@ FINDINGS = {
         "跑 `llmw wiki lint --check-version` 诊断，或按模板形态修表格行",
     ),
     # --- info：提示 / 审计循环，不强制 ---
-    "memory-not-indexed": FindingSpec(
-        "info",
-        "MEMORY/*.md（非 MEMORY.md）未在 MEMORY.md 索引段列出——下次会话加载后不可见",
-        "`llmw wiki write memory add` 原子追加索引行（格式 canonical 见 fixture 头部）",
-    ),
     "pending-review": FindingSpec(
         "info",
         "非 log/index 页未含 `reviewed: true`（仅提示）",

@@ -205,12 +205,11 @@ complete -c llmw -n "__llmw_subact wiki ingest-diff" -l relative     -d '输出�
 complete -c llmw -n "__llmw_subact wiki ingest-diff" -l check-stale  -d '额外检查 source 页 updated 早于 raw mtime'
 
 # ===== wiki write 子命令 =====
-set -l WIKI_WRITE_ACTS log index touch new memory
+set -l WIKI_WRITE_ACTS log index touch new
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "log"    -d '追加 log 条目'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "index"  -d '操作 index 条目'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "touch"  -d '刷新 wiki 页面的 updated 字段'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "new"    -d '创建新 wiki 内容页'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and not __fish_seen_subcommand_from $WIKI_WRITE_ACTS" -f -a "memory" -d '创建/索引 MEMORY 条目'
 
 # wiki write log: --op 有离散值 → A 类；其余 free-form（B 类）/ bool
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from log" -a "--op=ingest" -f -d 'op=ingest'
@@ -234,14 +233,6 @@ complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcomman
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--description="  -f -d '描述'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--tags="         -f -d 'tags 逗号分隔'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--sources="      -f -d 'sources (raw 路径，逗号分隔)'
-
-# wiki write memory（slug/title/description/type/scope/index-line free-form → B 类）
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--slug="        -f -d 'MEMORY 条目 slug'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--title="       -f -d '索引行标题'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--description="  -f -d '一句话摘要'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--type="         -f -d 'metadata.type（取值见 MEMORY/MEMORY.md 头部）'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--scope="        -f -d 'metadata.scope 约束对象'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--index-line="  -f -d '索引行摘要覆写'
 
 # ===== wiki external 子命令 =====
 set -l WIKI_EXTERNAL_ACTS add remove list rebuild

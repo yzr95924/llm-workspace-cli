@@ -4,8 +4,8 @@
 钉住 agent 可见契约（此前零覆盖，改动靠人工审计）：
   1. upgrade 终态 `status` 合法 + `current_format` 来自 wiki AGENTS.md 版本钉
      （不冒充 CLI 常量——曾经恒等于 WIKI_FORMAT_VERSION，字段说谎）
-  2. lint plan `actions[]` 每条含 `to_action`，且不再带自相矛盾的
-     `remove` / `add_or_modify` 机器字段（旧值默认 `memory-entry`，与 note 冲突）
+  2. lint plan `fixtures_actions[]` 每条含 `to_action` 与 severity / rule_ref
+     字段（agent 直接可执行）
   3. `agent_rules` 不含已退役动作（frontmatter-rename / file-move）与
      "不调 ingest / query / lint" 矛盾项（workflow 第 4/5 步必须跑 lint）
   4. skeleton check 的 expected/actual 语义：expected = 缺失清单（agent 照补），
@@ -34,29 +34,6 @@ import llmw  # noqa: E402
 from test_content_wiki_fixtures import _render_agents_md, build_wiki  # noqa: E402
 
 OLD_VERSION = "0.25.0"  # 真实历史版本——永远小于当前 target_format
-
-# legacy pattern ①：内容页误用 reserved `type: memory`
-TYPE_MEMORY_PAGE = """\
----
-title: X
-description: d
-type: memory
-tags: []
-created: 2026-07-21
-updated: 2026-07-21
----
-# X
-"""
-
-# legacy pattern ②：MEMORY 条目旧格式（frontmatter 顶层 `title`，未迁 `name` 三件套）
-LEGACY_MEMORY_ENTRY = """\
----
-title: "Old Tip"
-created: 2026-07-21
-updated: 2026-07-21
----
-# Old Tip
-"""
 
 LEGAL_STATUS = {
     "dry_run",
@@ -118,37 +95,24 @@ class LintPlanContractTest(unittest.TestCase):
         self.assertIsNotNone(report, "lint --apply --json 未输出 JSON")
         return report["upgrade_plan"]
 
-    def test_frontmatter_retype_carries_to_action(self):
-        """frontmatter-retype action 含 to_action；不带 remove/add_or_modify 矛盾机器字段。"""
+    def test_fixtures_actions_carry_executable_fields(self):
+        """不合规 fixtures → plan.fixtures_actions[] 每条含 to_action / severity / rule_ref。"""
         with tempfile.TemporaryDirectory() as d:
             build_wiki(d)
-            page = Path(d) / "wiki" / "concepts" / "x.md"
-            page.parent.mkdir(parents=True, exist_ok=True)
-            page.write_text(TYPE_MEMORY_PAGE, encoding="utf-8")
+            scripts = Path(d) / "scripts" / "SCRIPTS.md"
+            text = scripts.read_text(encoding="utf-8")
+            scripts.write_text("---\ntitle: Scripts\n---\n\n" + text, encoding="utf-8")
             plan = self.plan_for(d)
-            retype = [a for a in plan["actions"] if a["type"] == "frontmatter-retype"]
-            self.assertEqual(len(retype), 1, plan["actions"])
-            action = retype[0]
-            self.assertIn("to_action", action)
-            self.assertNotIn("add_or_modify", action)
-            self.assertNotIn("remove", action)
-            # to_action 给 5 类指引（agent 按页面语义裁定）
-            self.assertIn("entity", action["to_action"])
-            self.assertIn("comparison", action["to_action"])
-
-    def test_memory_entry_legacy_migrate_action(self):
-        """旧格式 MEMORY 条目 → plan 带 memory-entry-migrate action 与 rule_ref。"""
-        with tempfile.TemporaryDirectory() as d:
-            build_wiki(d)
-            entry = Path(d) / "MEMORY" / "old-tip.md"
-            entry.write_text(LEGACY_MEMORY_ENTRY, encoding="utf-8")
-            plan = self.plan_for(d)
-            migrate = [
-                a for a in plan["actions"] if a["type"] == "memory-entry-migrate"
+            strip = [
+                a
+                for a in plan["fixtures_actions"]
+                if a["type"] == "fixtures-fix-strip-frontmatter"
             ]
-            self.assertEqual(len(migrate), 1, plan["actions"])
-            self.assertIn("MEMORY/MEMORY.md", migrate[0]["rule_ref"])
-            self.assertIn("to_action", migrate[0])
+            self.assertEqual(len(strip), 1, plan["fixtures_actions"])
+            action = strip[0]
+            self.assertIn("to_action", action)
+            self.assertIn("severity", action)
+            self.assertIn("rule_ref", action)
 
     def test_agent_rules_no_retired_or_contradictory_entries(self):
         with tempfile.TemporaryDirectory() as d:
@@ -189,16 +153,14 @@ class DryRunVisibilityTest(unittest.TestCase):
 
 class SkeletonExpectedContractTest(unittest.TestCase):
     def test_expected_lists_missing_signals(self):
-        """memory-index-skeleton 失败时 expected = 缺失清单（含段标题名），actual = 计数。"""
-        bad_memory = "# MEMORY/\n\n单行，无说明块与 ## 索引\n"
+        """scripts-md-skeleton 失败时 expected = 缺失清单（含段标题名），actual = 计数。"""
+        bad_scripts = "# Scripts\n\n单行，无说明块与 ## 索引\n"
         with tempfile.TemporaryDirectory() as d:
-            build_wiki(d, memory_index=bad_memory)
+            build_wiki(d, scripts_md=bad_scripts)
             from llmw.content.wiki_fixtures import run_checks
 
             report = run_checks(Path(d), llmw.WIKI_FORMAT_VERSION)
-            chk = next(
-                c for c in report["checks"] if c["id"] == "memory-index-skeleton"
-            )
+            chk = next(c for c in report["checks"] if c["id"] == "scripts-md-skeleton")
             self.assertIs(chk["passed"], False)
             self.assertIn("## 索引", chk["expected"])
             self.assertIn("说明块", chk["expected"])

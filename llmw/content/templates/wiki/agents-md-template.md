@@ -133,16 +133,6 @@
 - 纪律：追加时机 / 取值规则 / lint 解析约束 / 用户审计循环见
   [`wiki/tags.md`](wiki/tags.md) 头部说明块
 
-### `MEMORY/` —— LLM agent 的持久化记忆
-
-- 路径：`<wiki-root>/MEMORY/`
-- 性质：LLM agent 在 ingest / query / lint 过程中沉淀的**经验、踩坑、用户偏好**——
-  不是 wiki 内容、不是操作时间线，而是 agent 私有记忆（内容页、操作时间线、agent
-  记忆三者的分层中的第 3 层）
-- 纪律：用户**不**直接编辑 MEMORY/（这是 agent 私有记录）；条目格式（索引行 / frontmatter
-  契约）与写入口见 [`MEMORY/MEMORY.md`](MEMORY/MEMORY.md) 头部说明块；治理（记什么 / 合并 /
-  预算 / 体检）归 yzr-memory-management skill
-
 ### `scripts/` —— 本 wiki 仓的自维护脚本目录
 
 - 路径：`<wiki-root>/scripts/`
@@ -166,7 +156,7 @@
      兼任"上次巡检时间"信号）。条目写法细则见 `wiki/log.md` 头部说明块
    - **此外一切动作一律不动 `index.md` / `log.md`**——纯读取、不属于上述 op 的独立
      微小编辑（git 承载）、`wiki/` 之外的任何写入（raw/ 各子树含 discussions/ 草稿与
-     external target 仓、scripts/、MEMORY/、仓外路径）。新场景自动落入本行，
+     external target 仓、scripts/、仓外路径）。新场景自动落入本行，
      无需逐例豁免；「本 wiki 的边界」各节指针均指向这里
 3. **改写而非新建**——若已有同类页，**编辑它**而不是建新的副本
 4. **重写时保留 frontmatter**——不要因为改写丢失 `type` / `tags` / `sources` 字段
@@ -221,8 +211,8 @@
 | --- | --- | --- |
 | `AGENTS.md` / `CLAUDE.md` | byte-owned（整个文件 = 模板渲染） | 禁改；自定义纪律沉淀到 `MEMORY/` |
 | `.gitignore` | block-owned（llmw managed 块内禁改） | 块外自由添加用户忽略规则 |
-| `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` | header-owned（文件头禁改） | growth 段（`##` 段体 / 条目 / tags）日常写 |
-| wiki `wiki/` 各内容页 + MEMORY 经验条目 + scripts 脚本 | content-owned | agent 拥有；`llmw wiki upgrade` 不动 |
+| `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `scripts/SCRIPTS.md` | header-owned（文件头禁改） | growth 段（`##` 段体 / 条目 / tags）日常写 |
+| wiki `wiki/` 各内容页 + scripts 脚本 | content-owned | agent 拥有；`llmw wiki upgrade` 不动 |
 
 ## 七、当前配置
 

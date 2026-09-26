@@ -12,12 +12,11 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
   段会被丢弃**：dry-run 以 `dropped_sections` 列出、写盘后记入 `residue[]`；`render` /
   `gitignore-block` 类 diff 需 `--yes`，否则停于 `blocked_drift`。growth 类只换头保条目，
   不算 drift
-- **lint plan（`--check-version --apply --json`）**：stdout 输出 `upgrade_plan`，两条并行
-  数组（内容页 `actions[]` / 约定文件 `fixtures_actions[]`）；**只输出 plan、不落盘**（与
-  `llmw wiki upgrade --apply` 相反，后者写盘），改动由 agent 用 Edit/Write 落；
-  `skipped_conflicts[]` 页跳过转人工
+- **lint plan（`--check-version --apply --json`）**：stdout 输出 `upgrade_plan`（约定文件
+  `fixtures_actions[]`）；**只输出 plan、不落盘**（与 `llmw wiki upgrade --apply` 相反，
+  后者写盘），改动由 agent 用 Edit/Write 落
 - **agent 职责**：(1) drift 裁定（`blocked_drift` 时与用户决定本地定制搬 MEMORY/ 还是丢弃）
-  (2) 按 plan 落 legacy / fixtures 修复 (3) [章节](#语义合并规则) 语义合并
+  (2) 按 plan 落 fixtures 修复 (3) [章节](#语义合并规则) 语义合并
 - **迁移期不走 `llmw wiki write`**（机械写命令只认识当前形态）；**不**追加 log 条目（迁移
   不是 wiki 操作事件）
 
@@ -36,40 +35,39 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
 
 3. **裁定 drift**（仅 `render` / `gitignore-block` 类 diff 触发）：`--apply` 不加 `--yes`
    遇这类 diff 即进 `blocked_drift` 并输出具体 diff → agent 逐条对比（本地定制 =
-   AGENTS.md / CLAUDE.md 内多出模板渲染稿的行 / 段）→ 与用户裁定**搬 MEMORY/**（一行事实写
-   MEMORY.md 索引短条目；含 why 建 `MEMORY/<slug>.md` 完整条目）或**丢弃** → 重跑
+   AGENTS.md / CLAUDE.md 内多出模板渲染稿的行 / 段）→ 与用户裁定**搬 MEMORY/**（条目
+   形态按 yzr-memory-management skill 约定）或**丢弃** → 重跑
    `llmw wiki --path=... upgrade --apply --yes` 落地
 
-4. **查内容页 legacy + 按 plan 修复**（lint 侧）：
+4. **查 fixtures 不合规 + 按 plan 修复**（lint 侧）：
 
    ```bash
    llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version
    ```
 
-   - 报告 `needs_upgrade` / legacy pattern groups / fixtures 不合规项
+   - 报告 `needs_upgrade` / fixtures 不合规项
    - 版本行缺失 / 无法解析（`wiki-format-version-unparsed`）→ 跑 `upgrade --apply` 恢复钉版
      （CLI 重渲染 AGENTS.md）；wiki 版本比 llmw 支持的新（`-ahead`）→ 不动 wiki，见
      [章节](#边界)
-   - 有 legacy / fixtures 现场 → `--apply --json` 拿 `upgrade_plan`，按 plan 自带规则用
+   - 有 fixtures 现场 → `--apply --json` 拿 `upgrade_plan`，按 plan 自带规则用
      Edit 落
 
 5. **验证**：重跑第 2、4 步命令，按终态处置：
 
-   - `done` + `needs_upgrade == false` + 无残留 legacy → 告知用户完成
+   - `done` + `needs_upgrade == false` → 告知用户完成
    - `blocked_drift` → 回第 3 步裁定
    - `done_with_residue` → 逐项读 `residue[]` 的 `note`（处置建议自带）与用户裁定；
      `content-page-transform`（解析失败）类转人工
    - `verify_failed` → 按 `verified.failures[]` 修完重跑（幂等）
-   - lint 侧仍有 legacy / fixtures 现场 → 报告 + 转人工
+   - lint 侧仍有 fixtures 不合规 → 报告 + 转人工
 
 **不**调用 ingest / query（保持职责单一）。样例 trace 见 `examples.md` 样例四
 
 ## 边界
 
 - **不**删除 wiki 内容（即便 raw 已不存在 source 页）：用 `archived: true` 替代
-- **不**做 MEMORY 治理判定：合并 / 删除 / 预算归 yzr-memory-management skill（未装时与用户
-  裁定）；迁移期允许的 MEMORY 改动仅两类，格式迁移（`memory-entry-legacy-format` 的 plan
-  action）与索引行对齐（补缺失行）
+- **不**触碰 `MEMORY/`：记忆的条目格式与治理（记什么 / 合并 / 预算 / 体检）全归
+  yzr-memory-management skill；wiki format 迁移不搬改其中文件
 - **不**手改 `wiki/log.md` / `wiki/index.md` 的 frontmatter：骨架键缺失只按 fixtures plan
   （`fixtures-fix-skeleton`）补齐
 - **不**手改 `AGENTS.md` / `CLAUDE.md`（byte-owned）：版本钉与骨架由
@@ -81,8 +79,7 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
 ## 语义合并规则
 
 CLI 不替代语义判断：本节定义 **wiki/index.md 跨条目的语义合并**。MEMORY 条目的治理
-（合并 / 删除 / 体检 / 预算）归 yzr-memory-management skill；迁移期 wiki 侧只做格式迁移
-（`memory-entry-legacy-format` plan action 的 to_action 自带改法）
+（合并 / 删除 / 体检 / 预算）归 yzr-memory-management skill，wiki format 迁移不处理
 
 **wiki/index.md 条目合并**：
 

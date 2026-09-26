@@ -2,10 +2,9 @@
 """test_content_wiki_write — llmw.content.wiki_write 端到端测试（机械字节写操作）
 
 stdlib unittest + subprocess 调真实模块（无 mock）：在 tmp 目录搭最小 scratch wiki，
-覆盖五个子命令的 round-trip 不变量——
+覆盖四个子命令的 round-trip 不变量——
 - `new` 产物必须过 wiki_lint.check_frontmatter（准入规则第 2 条：lint 可验证）
 - `log` 产物必须被 LOG_LINE_RE 解析（含截断后 frontmatter 不动）
-- `memory` 产物必须过 wiki_lint.check_memory_index（memory-not-indexed 免疫）
 - `index` 条目派生自页 frontmatter（title/description 复制防漂移）
 
 运行:
@@ -24,7 +23,6 @@ from llmw.content.log_format import LOG_LINE_RE
 from llmw.content.wiki_lint import (
     CURRENT_WIKI_FORMAT,
     check_frontmatter,
-    check_memory_index,
 )
 
 REPO = Path(__file__).resolve().parents[1]
@@ -75,21 +73,11 @@ updated: 2026-06-28 14:30
 ## [2026-06-28 14:31] ingest | Alpha Source
 """
 
-MEMORY_INDEX_SKELETON = """# MEMORY/
-
-> LLM agent 的持久化记忆索引（无 frontmatter）。
-
-## 索引
-
-- [Existing Tip](existing-tip.md)：已有条目
-"""
-
 
 def _make_wiki(root, format_version=None):
     root = Path(root)
     for sub in ("entities", "concepts", "sources", "comparisons", "syntheses"):
         (root / "wiki" / sub).mkdir(parents=True)
-    (root / "MEMORY").mkdir()
     (root / "raw" / "articles").mkdir(parents=True)
     (root / "raw" / "external").mkdir()
     ver = format_version or CURRENT_WIKI_FORMAT
@@ -99,12 +87,6 @@ def _make_wiki(root, format_version=None):
     )
     (root / "wiki" / "index.md").write_text(INDEX_SKELETON, encoding="utf-8")
     (root / "wiki" / "log.md").write_text(LOG_SKELETON, encoding="utf-8")
-    (root / "MEMORY" / "MEMORY.md").write_text(MEMORY_INDEX_SKELETON, encoding="utf-8")
-    (root / "MEMORY" / "existing-tip.md").write_text(
-        '---\nname: existing-tip\ndescription: "已有条目"\nmetadata:\n'
-        "  type: project\n  modified: 2026-06-28\n---\n",
-        encoding="utf-8",
-    )
     (root / "wiki" / "sources" / "alpha.md").write_text(
         '---\ntitle: "Alpha Source"\ndescription: "alpha 摘要"\ntype: source\n'
         "tags: [llm]\ncreated: 2026-06-28 14:30\nupdated: 2026-06-28 14:30\n"
@@ -573,8 +555,10 @@ class NewTests(unittest.TestCase):
             self.root, "new", "--type", "concept", "--slug", "Bad Slug", "--title", "X"
         )
         self.assertEqual(r.returncode, 1)
-        r2 = _run(self.root, "new", "--type", "memory", "--slug", "x", "--title", "X")
-        self.assertEqual(r2.returncode, 1)
+
+    def test_new_rejects_invalid_type(self):
+        r = _run(self.root, "new", "--type", "foo", "--slug", "x", "--title", "X")
+        self.assertEqual(r.returncode, 1)
 
     def test_new_refuses_overwrite(self):
         r = _run(
@@ -605,79 +589,6 @@ class NewTests(unittest.TestCase):
         )
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue((self.root / "wiki" / "entities" / "openai.md").is_file())
-
-
-class MemoryTests(unittest.TestCase):
-    def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory()
-        self.root = _make_wiki(self._tmp.name)
-
-    def tearDown(self):
-        self._tmp.cleanup()
-
-    def test_memory_add_roundtrip_index_clean(self):
-        r = _run(
-            self.root,
-            "memory",
-            "add",
-            "--slug",
-            "ocr-tips",
-            "--title",
-            "OCR Tips",
-            "--description",
-            "PDF 先转格式再 OCR",
-            "--type",
-            "feedback",
-        )
-        self.assertEqual(r.returncode, 0, r.stderr)
-        entry = self.root / "MEMORY" / "ocr-tips.md"
-        self.assertTrue(entry.is_file())
-        text = entry.read_text(encoding="utf-8")
-        self.assertTrue(text.startswith("---\nname: ocr-tips\n"))
-        self.assertIn('description: "PDF 先转格式再 OCR"', text)
-        self.assertIn("metadata:\n  type: feedback\n", text)
-        self.assertIn("\n  modified: ", text)
-        self.assertNotIn("\ntitle:", text)
-        index_text = (self.root / "MEMORY" / "MEMORY.md").read_text(encoding="utf-8")
-        self.assertIn("- [OCR Tips](ocr-tips.md)：PDF 先转格式再 OCR", index_text)
-        findings = check_memory_index(self.root)
-        self.assertFalse(
-            any("ocr-tips" in f for f in findings),
-            f"memory add 产物应过索引检查: {findings}",
-        )
-
-    def test_memory_missing_index(self):
-        (self.root / "MEMORY" / "MEMORY.md").unlink()
-        r = _run(
-            self.root,
-            "memory",
-            "add",
-            "--slug",
-            "x",
-            "--title",
-            "X",
-            "--description",
-            "d",
-            "--type",
-            "project",
-        )
-        self.assertEqual(r.returncode, 1)
-
-    def test_memory_bad_slug(self):
-        r = _run(
-            self.root,
-            "memory",
-            "add",
-            "--slug",
-            "Bad",
-            "--title",
-            "X",
-            "--description",
-            "d",
-            "--type",
-            "project",
-        )
-        self.assertEqual(r.returncode, 1)
 
 
 class VersionWarnTests(unittest.TestCase):

@@ -362,7 +362,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     pw_write = wiki_sub.add_parser(
         "write",
-        help="机械字节写操作（log / index / touch / new / memory）",
+        help="机械字节写操作（log / index / touch / new）",
         parents=[common],
     )
     from llmw.content.wiki_write import build_subparsers as _write_subs

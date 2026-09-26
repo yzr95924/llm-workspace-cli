@@ -1,7 +1,7 @@
 # Fixtures
 
 CLI 实现 wiki 仓时落盘的 `wiki/index.md` / `wiki/log.md` / `wiki/tags.md`
-/ `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` / `.gitignore` 六个文件的**字节金标准**。
+/ `scripts/SCRIPTS.md` / `.gitignore` 五个文件的**字节金标准**。
 各 fixture 头部说明块承载该文件的**格式 / 操作契约 canonical**
 （frontmatter / 条目格式 / retention / 解析约束），规则跟着文件落盘，实例 agent 直接读。
 跨文件的**同步触发判定**不在 fixture——家是 wiki `AGENTS.md`「写入纪律」（见下「规则分层」）。
@@ -33,7 +33,7 @@ CLI 把 fixtures 视为**带占位符的字节模板**：用用户传入的 mapp
 gate 走 `scripts/test/smoke_fixtures.py`（CI 跑 real `llmw init` + `llmw wiki add` 后用
 `llmw wiki check-fixtures` 探测器断言 0 error）。
 
-> **注**：`scripts.md.txt` / `memory-index.txt` / `tags.md.txt` 是**无占位符**（直接落盘，
+> **注**：`scripts.md.txt` / `tags.md.txt` 是**无占位符**（直接落盘，
 > fixture 即字面量）；`index.md.txt` / `log.md.txt` 带占位符（渲染后 ≠ fixture）。
 > 不要从"fixture 都带占位符"推导。
 
@@ -49,15 +49,14 @@ gate 走 `scripts/test/smoke_fixtures.py`（CI 跑 real `llmw init` + `llmw wiki
 模板承载 byte-owned 文件（`AGENTS.md` / `CLAUDE.md`）的字节权威；fixtures 承载 header-owned +
 block-owned（`.gitignore`）文件的出生字节；content-owned 由 skill 的 page-templates.md 承载。
 
-## 六个 fixture 对应的"角色"
+## 五个 fixture 对应的"角色"
 
 | fixture | CLI 何时生成 | 后续谁维护 |
 |---|---|---|
 | `index.md.txt` | init 时刻 | **LLM agent**（每次 ingest / 重写 / 归档同步） |
 | `log.md.txt` | init 时刻（首条 setup 条目） | **LLM agent**（追加三种 op 痕迹条目 + 滚动窗口截断） |
 | `tags.md.txt` | init 时刻 | **LLM agent**（按需追加 tag bullet；用户可删误判 bullet 触发 lint `tag-not-in-taxonomy` 审计循环） |
-| `memory-index.txt` | init 时刻 | **LLM agent**（追加经验条目到 MEMORY/ 下 + 同步 MEMORY.md 索引） |
-| `scripts.md.txt` | init 时刻 | **用户 + LLM agent**（添加 / 修改脚本与同步 SCRIPTS.md 段是原子动作；与 MEMORY/tags.md 同形态——无 frontmatter） |
+| `scripts.md.txt` | init 时刻 | **用户 + LLM agent**（添加 / 修改脚本与同步 SCRIPTS.md 段是原子动作；与 tags.md 同形态——无 frontmatter） |
 | `gitignore.txt` | init 时刻 | **不动**（除非用户手动调） |
 
 ## fixture 取值约定
@@ -69,8 +68,8 @@ fixtures 是**带占位符的字节模板**(而非渲染后的字面量)：
 - 行为常量占位符（值 SSOT = `log_format.py` / `page_types.py`，prose 禁手抄数字 / 枚举）：
   `{{LOG_OPS}}` 与 `{{LOG_RETENTION_LIMIT}}`（log.md.txt）、`{{INDEX_SECTIONS}}`（index.md.txt）——
   经 `render.wiki_constant_mapping()` 注入，改常量 = 常量文件改 = 字节变 = bump format 版本
-- `.gitignore` / `wiki/tags.md` / `scripts.md.txt` / `memory-index.txt` 无占位符，直接落盘
-  （形态一致——无 frontmatter、纯 Markdown；`tags.md.txt` 与 `memory-index.txt` 属于
+- `.gitignore` / `wiki/tags.md` / `scripts.md.txt` 无占位符，直接落盘
+  （形态一致——无 frontmatter、纯 Markdown；`tags.md.txt` 属于
   wiki 根级文件，不带 wiki 名占位）
 
 CLI 必须按 `mapping = {"TOPIC_NAME": <用户传入>, "SETUP_DATE": <today YYYY-MM-DD HH:MM>}` 做替换，
@@ -113,16 +112,15 @@ CI 立即红。
 ## Growth 约定（CLI 拥有 vs agent 成长）
 
 fixtures 只承载 **CLI init 时刻的骨架字节**；内容在 init 之后由 agent / skill
-按 ingest / query / lint / memory 工作流成长——成长部分**不**回写到 fixture：
+按 ingest / query / lint 工作流成长——成长部分**不**回写到 fixture：
 
 | 文件 | fixture 覆盖（骨架） | 成长内容（fixture 外） |
 |---|---|---|
 | `wiki/index.md` | frontmatter + H1 + 说明块 + 类别 H2 标题 | 类别下每篇 ingest 产出的 page bullet / 链接 |
 | `wiki/log.md` | frontmatter + 说明块 + 第一条 setup 条目 | 之后由三种 op 痕迹追加的条目 |
 | `wiki/tags.md` | H1 + 说明块（空 bullet 列表） | agent 按需追加的 tag bullet |
-| `MEMORY/MEMORY.md` | H1 + 说明块 + `## 索引` 段标题 | 索引下每条经验条目 |
 | `scripts/SCRIPTS.md` | H1 + 说明块 + `## 索引` 段标题 | 用户 / agent 追加的脚本条目 |
 | `.gitignore` | llmw 托管块 + OS / Obsidian / 临时文件段 | 用户自定义排除规则（CLI 不动） |
 
 **原则**：fixture 改 = format 改；fixture 加新骨架字段 = format 改；
-fixture 加具体 page / tag / 经验 / 脚本 = 错误（那是 agent 工作流产物，不是骨架）。
+fixture 加具体 page / tag / 脚本 = 错误（那是 agent 工作流产物，不是骨架）。

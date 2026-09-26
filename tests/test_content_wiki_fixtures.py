@@ -94,13 +94,11 @@ def build_wiki(
     index_md=None,
     log_md=None,
     tags_md=None,
-    memory_index=None,
     scripts_md=None,
 ):
     """搭 scratch wiki；缺省 = clean 合规形态，传参覆盖单件（None=默认，False=不建）。"""
     root = Path(root)
     (root / "wiki").mkdir(parents=True, exist_ok=True)
-    (root / "MEMORY").mkdir(parents=True, exist_ok=True)
     (root / "scripts").mkdir(parents=True, exist_ok=True)
     (root / "raw" / "articles").mkdir(parents=True, exist_ok=True)
     (root / "raw" / "assets").mkdir(parents=True, exist_ok=True)
@@ -129,11 +127,6 @@ def build_wiki(
     if tags_md is not False:
         (root / "wiki" / "tags.md").write_text(
             tags_md if tags_md is not None else _fixture("tags.md"), encoding="utf-8"
-        )
-    if memory_index is not False:
-        (root / "MEMORY" / "MEMORY.md").write_text(
-            memory_index if memory_index is not None else _fixture("memory-index"),
-            encoding="utf-8",
         )
     if scripts_md is not False:
         (root / "scripts" / "SCRIPTS.md").write_text(
@@ -186,7 +179,7 @@ def check_by_id(report, cid):
 
 class CleanWikiTest(unittest.TestCase):
     def test_clean_wiki_no_error(self):
-        """clean wiki：所有 check pass 或 skip（symlink ×3 + memory-entries 无条目 skip），无 error。"""
+        """clean wiki：所有 check pass 或 skip（symlink ×3），无 error。"""
         with tempfile.TemporaryDirectory() as tmp:
             build_wiki(tmp)
             code, report = run_check(tmp)
@@ -332,13 +325,13 @@ class TemplateNoOutboundRefsTest(unittest.TestCase):
 class SkeletonCheckTest(unittest.TestCase):
     """代表性骨架 / 结构 check 的反例（覆盖 SKELETON_REGISTRY 机制 + 结构 check）。"""
 
-    def test_memory_index_frontmatter_fails(self):
-        drifted = "---\ntitle: MEMORY\n---\n\n" + _fixture("memory-index")
+    def test_scripts_md_frontmatter_fails(self):
+        drifted = "---\ntitle: Scripts\n---\n\n" + _fixture("scripts.md")
         with tempfile.TemporaryDirectory() as tmp:
-            build_wiki(tmp, memory_index=drifted)
+            build_wiki(tmp, scripts_md=drifted)
             code, report = run_check(tmp)
         self.assertEqual(code, 1)
-        c = check_by_id(report, "memory-index-no-frontmatter")
+        c = check_by_id(report, "scripts-md-no-frontmatter")
         self.assertIs(c["passed"], False)
 
     def test_index_md_missing_categories_warns(self):

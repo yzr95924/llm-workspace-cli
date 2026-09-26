@@ -105,7 +105,6 @@ WIKI_TEMPLATE_LANDMARKS = [
     "@scripts/SCRIPTS.md",
     "Query 纪律",
     "raw/discussions/",
-    "### `MEMORY/`",
 ]
 # 面 8 布局 token：skill 里 `wiki/<dir>/` token，dir 必须在 WIKI_SUBDIRS 集合。
 # 前置 `[\s<>/]` 排除 wiki 名后缀（如 `huawei_storage_wiki/wiki/...` 中第一个 `wiki`
@@ -214,16 +213,12 @@ TERMINAL_TOKENS = {
     "verify_failed": ("upgrade-workflow.md",),
     "needs_upgrade": ("upgrade-workflow.md", "examples.md"),
     "upgrade_plan": ("upgrade-workflow.md",),
-    "skipped_conflicts": ("upgrade-workflow.md", "lint-workflow.md"),
     "fixtures_actions": ("upgrade-workflow.md", "lint-workflow.md"),
     "agent_rules": ("upgrade-workflow.md", "lint-workflow.md", "examples.md"),
     # plan 自述的语义字段：本文档只指路，字段词汇归 CLI（agent 按 plan 自带规则落）
     # 注：本表方向是**文档 → CLI**（文档提到才查 CLI 有无该字面量）；CLI 新增枚举值而
     # 文档未跟随时本表查不出（如 upgrade.py 的 `growth-graft-error`），该类漂移靠人工审计
     "to_action": ("lint-workflow.md", "external-repo.md"),
-    # 注：子串匹配——`actions` 会被 `fixtures_actions` 掩盖，只能抓字段整体消失，
-    # 抓不住孤立重命名；且面 4 只覆盖 ref/*.md（SKILL.md 的提及扫不到）
-    "actions": ("upgrade-workflow.md", "lint-workflow.md"),
     # drift 判定的唯一判据（CLI 只对 render / gitignore-block 的 diff 设门禁）
     "gitignore-block": ("upgrade-workflow.md", "examples.md"),
     # finding 名（doc 侧分支依据）：升级触发（版本三态）/ 语义合并判定

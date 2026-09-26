@@ -39,7 +39,6 @@ from llmw.content.render import render_wiki_agents_md
 from llmw.content.wiki_lint import (
     ANCHOR_FILENAME,
     EXTERNAL_SUBDIR,
-    MEMORY_SUBDIR,
 )
 from llmw.errors import WikiMetadataCorrupt
 from llmw.wiki import store as wiki_store
@@ -95,20 +94,6 @@ CHECK_REGISTRY = [
         "file": "wiki/index.md",
         "rule_ref": "wiki/index.md fixture header (wiki 实例内直接可读)",
         "desc": "wiki/index.md 含 {} 类别标题 ({})".format(len(TYPE_TO_SECTION), " / ".join(TYPE_TO_SECTION.values())),
-    },
-    {
-        "id": "memory-index-no-frontmatter",
-        "severity": "error",
-        "file": "MEMORY/MEMORY.md",
-        "rule_ref": "MEMORY/MEMORY.md fixture header (wiki 实例内直接可读)",
-        "desc": "MEMORY/MEMORY.md（索引）不带 YAML frontmatter（其 ## 索引 段条目随 AGENTS.md 顶部引用自动加载）",
-    },
-    {
-        "id": "memory-entries-indexed",
-        "severity": "error",
-        "file": "MEMORY/",
-        "rule_ref": "MEMORY/MEMORY.md fixture header (wiki 实例内直接可读)",
-        "desc": "MEMORY/*.md（除 MEMORY.md）每条都在 MEMORY/MEMORY.md 索引中列出",
     },
     {
         "id": "log-md-format-strict",
@@ -496,64 +481,6 @@ def check_index_md_categories(wiki_root: Path, info: Dict[str, str]) -> Dict[str
     return out
 
 
-def check_memory_index_no_frontmatter(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """MEMORY/MEMORY.md 不带 YAML frontmatter"""
-    out = {  # type: Dict[str, object]
-        "passed": True,
-        "file": f"{MEMORY_SUBDIR}/MEMORY.md",
-    }
-    text = _read_text(wiki_root / MEMORY_SUBDIR / "MEMORY.md")
-    if text is None:
-        out["passed"] = None  # type: ignore
-        out["skipped"] = "MEMORY/MEMORY.md 不存在"
-        return out
-    # YAML frontmatter = 文件首行 `---` 紧跟块再以 `---` 闭合
-    if YAML_FRONT_MATTER_RE.match(text):
-        out["passed"] = False  # type: ignore
-        out["actual"] = "文件以 `---` 起始（YAML frontmatter）"
-        out["expected"] = "无 frontmatter（索引文件）"
-        return out
-    return out
-
-
-def check_memory_entries_indexed(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """MEMORY/*.md 每条在 MEMORY.md 索引列出"""
-    out = {  # type: Dict[str, object]
-        "passed": True,
-        "file": f"{MEMORY_SUBDIR}/",
-    }
-    mem_dir = wiki_root / MEMORY_SUBDIR
-    if not mem_dir.is_dir():
-        out["passed"] = None  # type: ignore
-        out["skipped"] = "MEMORY/ 目录不存在"
-        return out
-    memory_md_text = _read_text(mem_dir / "MEMORY.md")
-    if memory_md_text is None:
-        out["passed"] = None  # type: ignore
-        out["skipped"] = "MEMORY/MEMORY.md 不存在"
-        return out
-
-    memory_entries = [p.name for p in sorted(mem_dir.glob("*.md")) if p.name != "MEMORY.md"]
-    if not memory_entries:
-        # 无经验条目 → 跳过；纯索引文件不算违规
-        out["passed"] = None  # type: ignore
-        out["skipped"] = "MEMORY/ 无经验条目"
-        return out
-
-    missing = []  # type: List[str]
-    for entry in memory_entries:
-        # 索引行匹配：以 stem 形式出现即可（链接 / slug / 路径均可）
-        stem = entry[: -len(".md")] if entry.endswith(".md") else entry
-        if (stem) not in memory_md_text:
-            missing.append(entry)
-    if missing:
-        out["passed"] = False  # type: ignore
-        out["actual"] = f"未索引: {missing}"
-        out["expected"] = "MEMORY/MEMORY.md 含 `- [slug](slug.md)` 或 slug 字面量"
-        return out
-    return out
-
-
 def check_log_md_format(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
     """wiki/log.md 每行匹配严格格式（仅 ## 一级 heading 行）"""
     out = {  # type: Dict[str, object]
@@ -827,14 +754,6 @@ SKELETON_REGISTRY = [
         "signals": {"blockquote": True},
     },
     {
-        "id": "memory-index-skeleton",
-        "severity": "warn",
-        "wiki_path": "MEMORY/MEMORY.md",
-        "rule_ref": "MEMORY/MEMORY.md fixture header (wiki 实例内直接可读)",
-        "desc": "MEMORY/MEMORY.md 含 H1（# MEMORY/）+ 说明块 + ## 索引",
-        "signals": {"h1": "# MEMORY/", "blockquote": True, "section_headings": ["## 索引"]},
-    },
-    {
         "id": "scripts-md-skeleton",
         "severity": "warn",
         "wiki_path": "scripts/SCRIPTS.md",
@@ -899,8 +818,6 @@ CHECK_FUNCTIONS = [
     ("symlink-anchor-toml-schema", check_symlink_anchor_toml_schema),
     ("symlink-anchor-toml-symlink-matches", check_symlink_anchor_toml_symlink_matches),
     ("index-md-categories-stable", check_index_md_categories),
-    ("memory-index-no-frontmatter", check_memory_index_no_frontmatter),
-    ("memory-entries-indexed", check_memory_entries_indexed),
     ("log-md-format-strict", check_log_md_format),
     ("scripts-md-no-frontmatter", check_scripts_md_no_frontmatter),
     ("tags-md-no-frontmatter", check_tags_md_no_frontmatter),

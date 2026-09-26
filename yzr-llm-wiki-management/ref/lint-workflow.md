@@ -26,13 +26,12 @@ llmw wiki lint --explain=orphan-page    # 单条
 
 检查覆盖：format 版本一致性 / `raw/` 不可变性 / frontmatter 完整性 / sources 引用链 /
 正文链接 / index 覆盖 / log 格式与条目数 / tag taxonomy / 页面体量 / 可信度信号
-（reviewed / contested / contradictions）/ MEMORY 索引一致性 / external symlink ↔ anchor 关联
+（reviewed / contested / contradictions）/ external symlink ↔ anchor 关联
 
 ### 子命令 `--check-version`
 
 扫 `<wiki-root>/AGENTS.md` 末尾"当前配置"表的 `Wiki Format 版本` 行与 CLI 常量比对 +
-扫当前格式 frontmatter 误用（`type-memory-value`：内容页误用 reserved `type: memory`，
-常规 lint 不报，修法由 plan 给出）+ 自动调 fixtures 检查：
+自动调 fixtures 检查：
 
 ```bash
 llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version --json
@@ -40,8 +39,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version --json
 llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version --apply --json
 ```
 
-行为：默认 dry-run 只打印；`--apply` 输出 plan（含 `actions[]` / `skipped_conflicts[]` /
-`agent_rules[]` / `fixtures_actions[]`），冲突页跳过转人工；**互斥模式**，不写 log。
+行为：默认 dry-run 只打印；`--apply` 输出 plan（含 `fixtures_actions[]` /
+`agent_rules[]`）；**互斥模式**，不写 log。
 agent 修复路径见 [章节](../SKILL.md#upgrade升级-wiki-format)；迁移依据 = plan 自带
 `agent_rules[]` + [章节](upgrade-workflow.md#语义合并规则)
 
@@ -69,7 +68,6 @@ LLM-based 自动检查：
 ```text
 [ERROR] orphan-page: wiki/concepts/qux.md 未在 wiki/index.md 中列出
 [WARN] reviewed-stale: wiki/concepts/<concept>.md reviewed=true reviewed_at=2026-06-15 但 updated=2026-07-01 — LLM 修改后未清 reviewed，建议重新审核
-[INFO] memory-not-indexed: MEMORY/ocr-tips.md 未在 MEMORY/MEMORY.md 索引中列出；该条目下次会话读不到（追加一行：…）
 ```
 
 ## lint 之后

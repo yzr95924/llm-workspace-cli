@@ -13,7 +13,7 @@ description: |
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  wiki_format_version: 0.45.0
+  wiki_format_version: 0.46.0
 ---
 
 # LLM Wiki Management
@@ -33,7 +33,7 @@ metadata:
 按序读完四件套，任一未读完不写任何 wiki 内容：
 
 1. **确认 wiki 根 `AGENTS.md` 已在上下文**：拿主题名与"当前配置"表的 `Wiki Format
-   版本` 行；MEMORY 全文随其自动加载
+   版本` 行；`MEMORY/`（如有）全文随其自动加载
 2. `Read wiki/index.md`：有哪些页、归哪些类，避免重复创建 / 漏交叉引用
 3. `Read wiki/log.md`（最近 ~30 行）：最近活动，避免重复 ingest / 漏归档
 4. `scripts/SCRIPTS.md`（随 AGENTS.md 自动加载；wiki 可无 scripts/）：跑 `scripts/`
@@ -81,7 +81,7 @@ wiki 主动建议。全文 `ref/lint-workflow.md`；finding 口径唯一入口 =
 ### Upgrade（升级 wiki format）
 
 **触发**："升级 wiki / 迁移 / format 升级 / 是否需要 reformat"；或 `llmw wiki lint` 报告
-`wiki-format-version-stale` / `wiki-format-version-unparsed` / legacy 或 fixtures 不合规。
+`wiki-format-version-stale` / `wiki-format-version-unparsed` / fixtures 不合规。
 全文 `ref/upgrade-workflow.md`。
 **红线**：迁移期不走 `llmw wiki write`；**不**追加 log 条目
 

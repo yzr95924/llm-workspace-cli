@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""wiki_write — 机械字节写操作（子命令 log / index / touch / new / memory）。
+"""wiki_write — 机械字节写操作（子命令 log / index / touch / new）。
 
 准入：输出字节是输入的纯函数且 lint 可验证产物；**默认路径不是闸门**——agent 遇到
 脚本不支持的形态退到 Edit/Write 不算违规。版本错位（wiki 钉定 format ≠ 当前）只警告不阻断。
@@ -345,55 +345,11 @@ def cmd_new(wiki_root, args):
     return None, 0
 
 
-# ---------- memory ----------
-
-
-def cmd_memory(wiki_root, args):
-    if not SOURCE_NAME_RE.match(args.slug):
-        return f"memory add --slug 必须是小写 kebab-case：{args.slug}", 1
-    if not args.title.strip():
-        return "memory add --title 必须非空", 1
-    if not args.description.strip():
-        return "memory add --description 必须非空（frontmatter 三件套之一，兼作索引行摘要）", 1
-    if not args.type.strip():
-        return "memory add --type 必须非空（metadata.type，取值见 MEMORY/MEMORY.md 头部契约）", 1
-    mem_dir = Path(wiki_root) / "MEMORY"
-    entry_path = mem_dir / (args.slug + ".md")
-    if entry_path.is_file():
-        return f"memory 条目已存在：{entry_path}", 1
-    index_path = mem_dir / "MEMORY.md"
-    if not index_path.is_file():
-        return "memory add 需要 MEMORY/MEMORY.md 索引存在（缺失走 fixtures-fix 补，不自动创建）", 1
-    index_text = index_path.read_text(encoding="utf-8", errors="replace")
-    if "## 索引" not in index_text:
-        return "MEMORY/MEMORY.md 缺 `## 索引` 段", 1
-
-    fm_lines = [
-        "---",
-        f"name: {args.slug}",
-        f'description: "{args.description}"',
-        "metadata:",
-        f"  type: {args.type}",
-    ]
-    if args.scope:
-        fm_lines.append(f'  scope: "{args.scope}"')
-    fm_lines.append(f"  modified: {_now()[:10]}")
-    fm_lines.append("---")
-    atomic_write(entry_path, "\n".join(fm_lines) + "\n\n")
-    if not index_text.endswith("\n"):
-        index_text += "\n"
-    summary = args.index_line.strip() or args.description
-    index_line = f"- [{args.title}]({args.slug}.md)：{summary}"
-    atomic_write(index_path, index_text + index_line + "\n")
-    print(f"已创建 MEMORY/{args.slug}.md + 追加 MEMORY.md 索引行（正文待 agent 写）", file=sys.stderr)
-    return None, 0
-
-
 # ---------- main ----------
 
 
 def build_subparsers(sub) -> None:
-    """把 log / index / touch / new / memory 挂到给定 subparsers action 上。
+    """把 log / index / touch / new 挂到给定 subparsers action 上。
 
     write 子树的 flag SSOT 在此——llmw.cli.build_parser() 经本函数组合出完整
     命令树；无独立入口（入口唯一：`llmw wiki write <sub>`）。
@@ -428,16 +384,6 @@ def build_subparsers(sub) -> None:
     p_new.add_argument("--tags", default="", help="逗号分隔 tag 列表")
     p_new.add_argument("--sources", action="append", help="raw/ 相对路径（type=source 必填，可重复）")
     p_new.set_defaults(func=cmd_new)
-
-    p_mem = sub.add_parser("memory", help="新建 MEMORY 条目 + 原子索引行")
-    p_mem.add_argument("action", choices=["add"])
-    p_mem.add_argument("--slug", required=True)
-    p_mem.add_argument("--title", required=True, help="索引行标题（`- [标题](slug.md)：摘要`）")
-    p_mem.add_argument("--description", required=True, help="一句话摘要（frontmatter 三件套之一，兼作索引行默认摘要）")
-    p_mem.add_argument("--type", required=True, help="metadata.type 条目性质分类（取值域见 MEMORY/MEMORY.md 头部契约）")
-    p_mem.add_argument("--scope", default="", help="metadata.scope 约束对象（可选，事件驱动复核用）")
-    p_mem.add_argument("--index-line", default="", help="索引行摘要覆写（默认用 --description）")
-    p_mem.set_defaults(func=cmd_memory)
 
 
 def dispatch(wiki_root, args) -> int:

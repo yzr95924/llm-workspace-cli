@@ -8,14 +8,12 @@
 
 **frontmatter 写法约束**（对齐 `llmw wiki ingest-diff` 的轻量 YAML 解析器，约束对象 = 内容页）：仅支持
 单行 `key: value`、inline 数组 `[a, b, c]`、`- item` 列表项三种形式。**不要**用多行折叠
-`>` / `|`、YAML 锚点 `&` / `*`、嵌套 map，解析器会静默失败返回空 dict。MEMORY 条目的
-`metadata:` 一层嵌套是唯一例外（wiki lint 不解析 MEMORY 字段，契约见 fixture 头部）
+`>` / `|`、YAML 锚点 `&` / `*`、嵌套 map，解析器会静默失败返回空 dict（`MEMORY/` 不在
+本工具扫描域，其条目写法归 yzr-memory-management skill）
 
 ## 共有 frontmatter 段
 
-适用 5 类内容页（entities / concepts / sources / comparisons / syntheses）；**MEMORY/*.md
-不走本节**：格式契约见 `<wiki-root>/MEMORY/MEMORY.md` 头部说明块，治理归
-yzr-memory-management skill
+适用 5 类内容页（entities / concepts / sources / comparisons / syntheses）
 
 | 字段 | 必填性 | 语义 |
 | --- | --- | --- |

@@ -385,7 +385,6 @@ _llmw_wiki() {
                         'index:操作 index 条目'
                         'touch:刷新 wiki 页面的 updated 字段'
                         'new:创建新 wiki 内容页'
-                        'memory:创建/索引 MEMORY 条目'
                     )
                     local -a w_pos=(${(f)"$(_llmw_pos_words 4)"})
                     local wact="${w_pos[1]:-}"
@@ -424,16 +423,6 @@ _llmw_wiki() {
                                     '--description=[描述]:description:' \
                                     '--tags=[tags 逗号分隔]:tags:' \
                                     '--sources=[sources (raw 路径，逗号分隔)]:sources:_files' \
-                                    "${COMMON_OPTS[@]}" && ret=0
-                                ;;
-                            memory)
-                                _arguments \
-                                    '--slug=[MEMORY 条目 slug]:slug:' \
-                                    '--title=[索引行标题]:title:' \
-                                    '--description=[一句话摘要]:description:' \
-                                    '--type=[metadata.type（取值见 MEMORY/MEMORY.md 头部）]:type:' \
-                                    '--scope=[metadata.scope 约束对象]:scope:' \
-                                    '--index-line=[索引行摘要覆写]:index_line:' \
                                     "${COMMON_OPTS[@]}" && ret=0
                                 ;;
                         esac
