@@ -429,8 +429,11 @@ _llmw_wiki() {
                             memory)
                                 _arguments \
                                     '--slug=[MEMORY 条目 slug]:slug:' \
-                                    '--title=[短名（≤30 字）]:title:' \
-                                    '--index-line=[索引行]:index_line:' \
+                                    '--title=[索引行标题]:title:' \
+                                    '--description=[一句话摘要]:description:' \
+                                    '--type=[metadata.type（取值见 MEMORY/MEMORY.md 头部）]:type:' \
+                                    '--scope=[metadata.scope 约束对象]:scope:' \
+                                    '--index-line=[索引行摘要覆写]:index_line:' \
                                     "${COMMON_OPTS[@]}" && ret=0
                                 ;;
                         esac

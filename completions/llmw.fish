@@ -235,10 +235,13 @@ complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcomman
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--tags="         -f -d 'tags 逗号分隔'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--sources="      -f -d 'sources (raw 路径，逗号分隔)'
 
-# wiki write memory（slug/title free-form → B 类；--index-line free-form）
+# wiki write memory（slug/title/description/type/scope/index-line free-form → B 类）
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--slug="        -f -d 'MEMORY 条目 slug'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--title="       -f -d '短名（≤30 字）'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--index-line="  -f -d '索引行'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--title="       -f -d '索引行标题'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--description="  -f -d '一句话摘要'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--type="         -f -d 'metadata.type（取值见 MEMORY/MEMORY.md 头部）'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--scope="        -f -d 'metadata.scope 约束对象'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from memory" -a "--index-line="  -f -d '索引行摘要覆写'
 
 # ===== wiki external 子命令 =====
 set -l WIKI_EXTERNAL_ACTS add remove list rebuild

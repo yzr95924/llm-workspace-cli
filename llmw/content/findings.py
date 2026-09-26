@@ -71,7 +71,7 @@ FINDINGS = {
     ),
     "invalid-tags": FindingSpec(
         "error",
-        "frontmatter `tags` 不是 list 类型（内容页与 MEMORY/*.md 均查）",
+        "frontmatter `tags` 不是 list 类型",
         "改为 YAML list（如 `tags: [tag-a, tag-b]`）",
     ),
     "invalid-type": FindingSpec(
@@ -86,7 +86,7 @@ FINDINGS = {
     ),
     "missing-frontmatter": FindingSpec(
         "error",
-        "内容页缺必填 frontmatter 字段（title / type / created / updated / tags）；MEMORY/*.md 仅 title 必填",
+        "内容页缺必填 frontmatter 字段（title / type / created / updated / tags）；MEMORY/*.md 条目不查（格式契约归记忆治理侧）",
         "补齐缺失字段（字段契约 canonical 见各 fixture 头部）",
     ),
     "missing-sources": FindingSpec(

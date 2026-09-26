@@ -298,7 +298,7 @@ _llmw() {
                                 ;;
                                 touch)  COMPREPLY=($(compgen -W "$COMMON" -- "$cur")) ;;
                                 new)    COMPREPLY=($(compgen -W "--type= --slug= --title= --description= --tags= --sources= $COMMON" -- "$cur")) ;;
-                                memory) COMPREPLY=($(compgen -W "--slug= --title= --index-line= $COMMON" -- "$cur")) ;;
+                                memory) COMPREPLY=($(compgen -W "--slug= --title= --description= --type= --scope= --index-line= $COMMON" -- "$cur")) ;;
                             esac
                         fi
                         ;;

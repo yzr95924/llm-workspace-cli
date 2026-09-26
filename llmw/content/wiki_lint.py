@@ -93,6 +93,8 @@ CURRENT_WIKI_FORMAT = WIKI_FORMAT_VERSION
 LEGACY_PATTERN_KEYS = {
     # 拦内容页误用 reserved `type: memory`（MEMORY 桶合法，仅内容页误用触发）
     "type-memory-value": "page-templates.md#共有-frontmatter-段",
+    # MEMORY 条目旧格式（frontmatter 顶层 `title`，未迁 `name` + `description` + `metadata.type` 三件套）
+    "memory-entry-legacy-format": "MEMORY/MEMORY.md fixture header (wiki 实例内直接可读)",
 }
 
 SEV_RANK = {"error": 0, "warn": 1, "info": 2}
@@ -372,12 +374,10 @@ def _check_sources_field(wiki_root: Path, rel: str, t: str, srcs) -> List[str]:
 def check_frontmatter(wiki_root: Path) -> List[str]:
     """frontmatter 完整性 + source/synthesis 的 sources 字段
 
-    校验口径分两类（口径 canonical = finding 注册表 llmw.content.findings）：
-    - wiki 内容页：
-      必填 frontmatter 字段 + 推荐 description
-    - MEMORY/*.md：仅 `title` 必填，其余 5 字段全 optional（frontmatter 是
-      可选 decoration；MEMORY 不在 wiki/index.md 列出、无 reviewed 概念、
-      tag 不共享 wiki taxonomy——必填字段的 rationale 对 MEMORY 多半不成立）
+    校验口径（canonical = finding 注册表 llmw.content.findings）：
+    - wiki 内容页：必填 frontmatter 字段 + 推荐 description
+    - MEMORY/*.md 条目：字段契约归记忆治理侧（yzr-memory-management 的 memory_lint），
+      wiki lint 不校验条目 frontmatter 字段（索引一致性走 check_memory_index）
     """
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
@@ -400,22 +400,6 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
                 findings.append(f"invalid-tags: {rel} tags 应为 list，当前类型不符")
             if t in ("source", "synthesis"):
                 findings.extend(_check_sources_field(wiki_root, rel, t, fm.get("sources", [])))
-    # MEMORY/*.md（除索引）：仅 title 必填；frontmatter 整体可选，有则按弱规则校验
-    for p in pages["memory"]:
-        if p.name == "MEMORY.md" and p.parent.name == MEMORY_SUBDIR:
-            continue
-        if not p.is_file():
-            continue
-        text = p.read_text(encoding="utf-8", errors="replace")
-        fm = parse_frontmatter_simple(text)
-        rel = p.relative_to(wiki_root).as_posix()
-        if "title" not in fm:
-            findings.append(f"missing-frontmatter: {rel} 缺 'title' 字段")
-        t = fm.get("type")
-        if t is not None and t not in VALID_TYPES:
-            findings.append(f"invalid-type: {rel} type='{t}' 非法；应为 {sorted(VALID_TYPES)} 之一")
-        if "tags" in fm and not isinstance(fm["tags"], list):
-            findings.append(f"invalid-tags: {rel} tags 应为 list，当前类型不符")
     return findings
 
 
@@ -1123,6 +1107,19 @@ def _has_type_memory(page_rel: str, text: str) -> bool:
     return False
 
 
+def _is_legacy_memory_entry(page_rel: str, text: str) -> bool:
+    """MEMORY 条目是否旧格式（frontmatter 顶层 `title` 在而 `name` 不在）。
+
+    新格式 = `name` / `description` / `metadata.*` 三件套（0.45.0 起）；旧格式 =
+    `title` / `created` / `updated`。只认确定性信号；frontmatter 解析失败的条目
+    不在此判（归记忆治理侧 memory_lint 报）。
+    """
+    if not page_rel.startswith("MEMORY/"):
+        return False
+    fm = parse_frontmatter_simple(text)
+    return "title" in fm and "name" not in fm
+
+
 def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
     """扫 legacy 现场：{"patterns": {key: [...]}, "conflicts": [...]}（供 plan / --json 复用）。"""
     pages = find_md_files(wiki_root)
@@ -1147,6 +1144,8 @@ def detect_legacy_patterns(wiki_root: Path) -> Dict[str, object]:
 
         if _has_type_memory(rel, text):
             out["patterns"]["type-memory-value"].append({"file": rel, "conflict": False})  # type: ignore
+        if _is_legacy_memory_entry(rel, text):
+            out["patterns"]["memory-entry-legacy-format"].append({"file": rel, "conflict": False})  # type: ignore
 
     return out
 
@@ -1211,8 +1210,7 @@ _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]
     "memory-entries-indexed": (
         "fixtures-fix-memory-index",
         lambda b: (
-            "在 MEMORY/MEMORY.md 索引追加缺失条目（fixture 头部说明块规则）："
-            "`- [<slug>](<slug>.md) — 一句话 → [正文](<slug>.md)`"
+            "在 MEMORY/MEMORY.md 索引追加缺失条目（fixture 头部说明块规则）：`- [<标题>](<slug>.md)：<一句话摘要>`"
         ),
     ),
     "log-md-format-strict": (
@@ -1292,6 +1290,24 @@ def build_upgrade_plan(
                     f"Edit {fpath}：把 frontmatter 的 `type: memory` 按页面真实语义改为内容页类型之一"
                     f"（{TYPES_DISPLAY}）。**不要**改成"
                     " `memory-entry`——那是 MEMORY 桶扩展值，写进内容页语义错且不再触发本检查"
+                ),
+            }
+        )
+
+    for entry in legacy["patterns"]["memory-entry-legacy-format"]:  # type: ignore
+        fpath = entry["file"]  # type: ignore
+        actions.append(
+            {
+                "file": fpath,
+                "type": "memory-entry-migrate",
+                "rule_ref": LEGACY_PATTERN_KEYS["memory-entry-legacy-format"],
+                "to_action": (
+                    f"Edit {fpath}：frontmatter 迁新格式三件套（契约见 MEMORY/MEMORY.md 头部说明块）："
+                    f"`name`（= 文件名 slug）、`description`（一句话摘要，旧 `title` 可作来源）、"
+                    "`metadata.type`（user / feedback / project / reference 四选一，按条目性质定），"
+                    "推荐补 `metadata.scope` / `metadata.modified`，删旧 `title` / `created` / `updated`；"
+                    f"并把 MEMORY/MEMORY.md 中对应索引行改为 `- [<标题>](<slug>.md)：<摘要>`。"
+                    "合并 / 删除等治理判定归 yzr-memory-management skill；未装该 skill 时与用户裁定"
                 ),
             }
         )

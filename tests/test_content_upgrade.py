@@ -35,7 +35,7 @@ from test_content_wiki_fixtures import _render_agents_md, build_wiki  # noqa: E4
 
 OLD_VERSION = "0.25.0"  # 真实历史版本——永远小于当前 target_format
 
-# 内容页误用 reserved `type: memory`（唯一注册的 legacy pattern `type-memory-value`）
+# legacy pattern ①：内容页误用 reserved `type: memory`
 TYPE_MEMORY_PAGE = """\
 ---
 title: X
@@ -46,6 +46,16 @@ created: 2026-07-21
 updated: 2026-07-21
 ---
 # X
+"""
+
+# legacy pattern ②：MEMORY 条目旧格式（frontmatter 顶层 `title`，未迁 `name` 三件套）
+LEGACY_MEMORY_ENTRY = """\
+---
+title: "Old Tip"
+created: 2026-07-21
+updated: 2026-07-21
+---
+# Old Tip
 """
 
 LEGAL_STATUS = {
@@ -126,6 +136,20 @@ class LintPlanContractTest(unittest.TestCase):
             self.assertIn("entity", action["to_action"])
             self.assertIn("comparison", action["to_action"])
 
+    def test_memory_entry_legacy_migrate_action(self):
+        """旧格式 MEMORY 条目 → plan 带 memory-entry-migrate action 与 rule_ref。"""
+        with tempfile.TemporaryDirectory() as d:
+            build_wiki(d)
+            entry = Path(d) / "MEMORY" / "old-tip.md"
+            entry.write_text(LEGACY_MEMORY_ENTRY, encoding="utf-8")
+            plan = self.plan_for(d)
+            migrate = [
+                a for a in plan["actions"] if a["type"] == "memory-entry-migrate"
+            ]
+            self.assertEqual(len(migrate), 1, plan["actions"])
+            self.assertIn("MEMORY/MEMORY.md", migrate[0]["rule_ref"])
+            self.assertIn("to_action", migrate[0])
+
     def test_agent_rules_no_retired_or_contradictory_entries(self):
         with tempfile.TemporaryDirectory() as d:
             build_wiki(d)
@@ -166,7 +190,7 @@ class DryRunVisibilityTest(unittest.TestCase):
 class SkeletonExpectedContractTest(unittest.TestCase):
     def test_expected_lists_missing_signals(self):
         """memory-index-skeleton 失败时 expected = 缺失清单（含段标题名），actual = 计数。"""
-        bad_memory = "# MEMORY\n\n单行，无说明块与 ## 索引\n"
+        bad_memory = "# MEMORY/\n\n单行，无说明块与 ## 索引\n"
         with tempfile.TemporaryDirectory() as d:
             build_wiki(d, memory_index=bad_memory)
             from llmw.content.wiki_fixtures import run_checks

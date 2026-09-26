@@ -75,13 +75,13 @@ updated: 2026-06-28 14:30
 ## [2026-06-28 14:31] ingest | Alpha Source
 """
 
-MEMORY_INDEX_SKELETON = """# MEMORY
+MEMORY_INDEX_SKELETON = """# MEMORY/
 
 > LLM agent 的持久化记忆索引（无 frontmatter）。
 
 ## 索引
 
-- [Existing Tip](existing-tip.md) — 已有条目
+- [Existing Tip](existing-tip.md)：已有条目
 """
 
 
@@ -101,7 +101,9 @@ def _make_wiki(root, format_version=None):
     (root / "wiki" / "log.md").write_text(LOG_SKELETON, encoding="utf-8")
     (root / "MEMORY" / "MEMORY.md").write_text(MEMORY_INDEX_SKELETON, encoding="utf-8")
     (root / "MEMORY" / "existing-tip.md").write_text(
-        '---\ntitle: "Existing Tip"\n---\n', encoding="utf-8"
+        '---\nname: existing-tip\ndescription: "已有条目"\nmetadata:\n'
+        "  type: project\n  modified: 2026-06-28\n---\n",
+        encoding="utf-8",
     )
     (root / "wiki" / "sources" / "alpha.md").write_text(
         '---\ntitle: "Alpha Source"\ndescription: "alpha 摘要"\ntype: source\n'
@@ -622,18 +624,22 @@ class MemoryTests(unittest.TestCase):
             "ocr-tips",
             "--title",
             "OCR Tips",
-            "--index-line",
-            "PDF 先转格式",
+            "--description",
+            "PDF 先转格式再 OCR",
+            "--type",
+            "feedback",
         )
         self.assertEqual(r.returncode, 0, r.stderr)
         entry = self.root / "MEMORY" / "ocr-tips.md"
         self.assertTrue(entry.is_file())
         text = entry.read_text(encoding="utf-8")
-        self.assertTrue(text.startswith('---\ntitle: "OCR Tips"\ncreated: '))
-        self.assertIn("\nupdated: ", text)
-        self.assertNotIn("\ntype:", text)
+        self.assertTrue(text.startswith("---\nname: ocr-tips\n"))
+        self.assertIn('description: "PDF 先转格式再 OCR"', text)
+        self.assertIn("metadata:\n  type: feedback\n", text)
+        self.assertIn("\n  modified: ", text)
+        self.assertNotIn("\ntitle:", text)
         index_text = (self.root / "MEMORY" / "MEMORY.md").read_text(encoding="utf-8")
-        self.assertIn("- ocr-tips — PDF 先转格式 → [正文](ocr-tips.md)", index_text)
+        self.assertIn("- [OCR Tips](ocr-tips.md)：PDF 先转格式再 OCR", index_text)
         findings = check_memory_index(self.root)
         self.assertFalse(
             any("ocr-tips" in f for f in findings),
@@ -642,11 +648,35 @@ class MemoryTests(unittest.TestCase):
 
     def test_memory_missing_index(self):
         (self.root / "MEMORY" / "MEMORY.md").unlink()
-        r = _run(self.root, "memory", "add", "--slug", "x", "--title", "X")
+        r = _run(
+            self.root,
+            "memory",
+            "add",
+            "--slug",
+            "x",
+            "--title",
+            "X",
+            "--description",
+            "d",
+            "--type",
+            "project",
+        )
         self.assertEqual(r.returncode, 1)
 
     def test_memory_bad_slug(self):
-        r = _run(self.root, "memory", "add", "--slug", "Bad", "--title", "X")
+        r = _run(
+            self.root,
+            "memory",
+            "add",
+            "--slug",
+            "Bad",
+            "--title",
+            "X",
+            "--description",
+            "d",
+            "--type",
+            "project",
+        )
         self.assertEqual(r.returncode, 1)
 
 
