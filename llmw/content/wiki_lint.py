@@ -962,7 +962,7 @@ def severity_of(finding: str) -> str:
 # ===== --check-version：纯探测（不写盘）；plan 的消费方 = upgrade-workflow.md =====
 
 # 「当前配置」表格式版本行（容忍用户编辑变体，如多余空格 / 备注尾部；semver 单独抓取）
-CLAUDE_FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\s*\|")
+FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\s*\|")
 
 
 def parse_format_version(wiki_root: Path) -> Optional[str]:
@@ -978,7 +978,7 @@ def parse_format_version(wiki_root: Path) -> Optional[str]:
     except OSError:
         return None
     for line in text.splitlines():
-        m = CLAUDE_FORMAT_ROW_RE.match(line)
+        m = FORMAT_ROW_RE.match(line)
         if not m:
             continue
         cell = m.group(1).strip()
@@ -1157,7 +1157,7 @@ def build_upgrade_plan(
         "rule_doc": "ref/upgrade-workflow.md（yzr-llm-wiki-management skill）",
         "fixtures_actions": fixtures_actions,
         "agent_rules": [
-            "AGENTS.md / CLAUDE.md 是 byte-owned 禁手改：版本行与骨架均由 `llmw wiki upgrade --apply` 重渲染落地",
+            "AGENTS.md 是 byte-owned 禁手改：版本行与骨架均由 `llmw wiki upgrade --apply` 重渲染落地",
             "不写 log 条目（迁移是脚本运行，不是 wiki 操作事件）",
             "不调 ingest / query——保持职责单一（lint --check-version 是本迁移的正路）",
             "fixtures_actions[] 逐项修约定文件（如 .gitignore / anchor TOML）；fixtures 修复是后续内容页编辑的前置",

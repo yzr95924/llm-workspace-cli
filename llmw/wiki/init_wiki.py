@@ -1,4 +1,4 @@
-"""wiki 仓初始化：把"出生形态"落盘（7 件产物 + 目录树 + .gitkeep）。
+"""wiki 仓初始化：把"出生形态"落盘（6 件产物 + 目录树 + .gitkeep）。
 
 只做编排；模板渲染统一走 llmw.content.render（变量 SSOT = metadata + 版本常量）。
 字节金标准 gate 在 scripts/test/smoke_fixtures.py。git 红线：CLI 绝不碰 git，
@@ -11,7 +11,6 @@ from llmw.config import wiki_templates_dir
 from llmw.content.page_types import WIKI_SUBDIRS
 from llmw.content.render import (
     render_wiki_agents_md,
-    render_wiki_claude_md,
     render_wiki_index_md,
     render_wiki_log_md,
 )
@@ -32,10 +31,9 @@ _GITKEEP_DIRS = [Path("wiki") / d for d in _CONTENT_SUBDIRS] + [
 
 
 def check_not_initialized(wiki_dir: Path) -> None:
-    """5 份产物任一已存在 → 拒绝覆盖（须在 mkdir 前调用，避免半成品目录）。"""
+    """4 份产物任一已存在 → 拒绝覆盖（须在 mkdir 前调用，避免半成品目录）。"""
     files = [
         wiki_dir / "AGENTS.md",
-        wiki_dir / "CLAUDE.md",
         wiki_dir / "wiki" / "index.md",
         wiki_dir / "wiki" / "tags.md",
         wiki_dir / "scripts" / "SCRIPTS.md",
@@ -72,14 +70,13 @@ def render_and_write(
             hint="检查 llmw/content/templates/wiki/fixtures/ 是否完整",
         )
 
-    # 渲染 4 份有占位符的文件（走 llmw.content.render 单一入口）
+    # 渲染 3 份有占位符的文件（走 llmw.content.render 单一入口）
     agents_md = render_wiki_agents_md(
         topic=topic,
         setup_date=today,
         cli_version=cli_version,
         format_version=format_version,
     )
-    claude_md = render_wiki_claude_md(topic=topic)
     index_md = render_wiki_index_md(topic=topic, setup_date=today)
     log_md = render_wiki_log_md(topic=topic, setup_date=today)
 
@@ -109,7 +106,6 @@ def render_and_write(
 
     try:
         atomic_write(wiki_dir / "AGENTS.md", agents_md)
-        atomic_write(wiki_dir / "CLAUDE.md", claude_md)
         atomic_write(wiki_dir / ".gitignore", gitignore)
         atomic_write(wiki_dir / "wiki" / "index.md", index_md)
         atomic_write(wiki_dir / "wiki" / "log.md", log_md)

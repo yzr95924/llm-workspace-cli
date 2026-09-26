@@ -77,14 +77,13 @@ llmw wiki --name=llm-systems remove --purge --yes
 
 `enter_cli`（`llmw config` 设置，存 `workspace_local.toml`，gitignored / 主机相关）决定 `wiki enter` 用哪个 agent CLI：
 
-| `enter_cli` | 命令 | model 解析 | overlay 交付 |
-| --- | --- | --- | --- |
-| `opencode`（默认） | `opencode <wiki>` | ✗ | `<wiki>/opencode.json`（整文件 CLI 拥有，gitignored，每次 enter 幂等渲染） |
-| `claude` | `claude --add-dir <wiki>` | ✓ | `<wiki>/.claude/settings.local.json`（Local 层 env 块） |
-| `qodercli` | `qodercli --add-dir <wiki>` | ✗ | ✗ |
+| `enter_cli` | 命令 | overlay 交付 |
+| --- | --- | --- |
+| `opencode`（默认） | `opencode <wiki>` | `<wiki>/opencode.json`（整文件 CLI 拥有，gitignored，每次 enter 幂等渲染） |
+| `qodercli` | `qodercli --add-dir <wiki>` | ✗ |
 
 ```bash
-llmw config set enter_cli claude   # 切换；llmw config unset enter_cli 回退默认
+llmw config set enter_cli qodercli   # 切换；llmw config unset enter_cli 回退默认
 ```
 
 ### 窗口模式（enter / status / stop）

@@ -65,13 +65,6 @@ def render_wiki_agents_md(*, topic: str, setup_date: str, cli_version: str, form
     )
 
 
-def render_wiki_claude_md(*, topic: str) -> str:
-    """渲染 <wiki-root>/CLAUDE.md 薄壳。"""
-    refs = wiki_templates_dir()
-    tmpl = _read_template(refs / "claude-md-template.md")
-    return _substitute(tmpl, {"TOPIC_NAME": topic})
-
-
 def render_wiki_index_md(*, topic: str, setup_date: str) -> str:
     """渲染 wiki/index.md 初始骨架。"""
     refs = wiki_templates_dir()

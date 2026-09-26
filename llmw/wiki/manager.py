@@ -558,10 +558,10 @@ def _show_collect(workspace_root: Path, name: str) -> Dict:
             )
             meta = None
 
-    claude_md_p = wiki_path / "CLAUDE.md"
+    agents_md_p = wiki_path / "AGENTS.md"
     raw_p = wiki_path / "raw"
     wiki_sub_p = wiki_path / "wiki"
-    claude_md_exists = claude_md_p.is_file()
+    agents_md_exists = agents_md_p.is_file()
     raw_count = sum(1 for _ in raw_p.rglob("*") if _.is_file()) if raw_p.is_dir() else 0
     wiki_count = (
         sum(1 for _ in wiki_sub_p.rglob("*.md") if _.is_file())
@@ -599,7 +599,7 @@ def _show_collect(workspace_root: Path, name: str) -> Dict:
         "name": name,
         "path": str(wiki_path),
         "meta": meta,
-        "claude_md_exists": claude_md_exists,
+        "agents_md_exists": agents_md_exists,
         "raw_p": raw_p,
         "wiki_sub_p": wiki_sub_p,
         "raw_count": raw_count,
@@ -632,7 +632,7 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
             "created_at": meta.created_at if meta else None,
             "last_activity": last_activity,
             "existence": {
-                "claude_md": d["claude_md_exists"],
+                "agents_md": d["agents_md_exists"],
                 "wiki_metadata_toml": meta is not None,
                 "raw_dir": d["raw_p"].is_dir(),
                 "wiki_dir": d["wiki_sub_p"].is_dir(),
@@ -659,7 +659,7 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         ("MODEL", model_line),
         ("CREATED_AT", created_line),
         ("LAST_ACTIVITY", last_activity or "-"),
-        ("CLAUDE_MD", "✓ found" if d["claude_md_exists"] else "✗ missing"),
+        ("AGENTS_MD", "✓ found" if d["agents_md_exists"] else "✗ missing"),
         ("WIKI_METADATA", "✓ found" if meta else "✗ missing"),
         (
             "RAW_DIR",

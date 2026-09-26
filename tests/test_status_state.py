@@ -31,9 +31,9 @@ def test_match_working_opencode_absent():
 
 
 def test_match_working_unregistered_backend_false():
-    # claude/qodercli 占位未配置 + 未知/无标 → 一律 False（调用方降级 unknown）
-    assert match_working("esc interrupt", "claude") is False
+    # 已注册无判据（qodercli）+ 未知 / 无标 → 一律 False（调用方降级 unknown）
     assert match_working("esc interrupt", "qodercli") is False
+    assert match_working("esc interrupt", "nonexistent") is False
     assert match_working("esc interrupt", None) is False
 
 
@@ -50,7 +50,7 @@ def test_match_waiting_exclusive_with_working():
 
 
 def test_match_waiting_unregistered_backend_false():
-    assert match_waiting("ctrl+p commands", "claude") is False
+    assert match_waiting("ctrl+p commands", "qodercli") is False
     assert match_waiting("ctrl+p commands", None) is False
 
 
@@ -89,13 +89,13 @@ def test_classify_shell_short_circuit_no_capture(monkeypatch):
 
     monkeypatch.setattr(byobu, "capture_pane_tail", boom)
     for shell in ("fish", "bash", "zsh", "sh", "dash", "ash"):
-        assert _classify_state(_state_dict(pcmd=shell, backend="claude")) == "shell"
+        assert _classify_state(_state_dict(pcmd=shell, backend="qodercli")) == "shell"
     assert calls == []  # 假活短路：零 capture 调用
 
 
 def test_classify_pcmd_case_insensitive():
     # pcmd 已由 _row_to_dict 归一为 basename；大小写不敏感
-    assert _classify_state(_state_dict(pcmd="Fish", backend="claude")) == "shell"
+    assert _classify_state(_state_dict(pcmd="Fish", backend="qodercli")) == "shell"
 
 
 def test_classify_working_via_capture(monkeypatch):
@@ -111,9 +111,9 @@ def test_classify_waiting_via_capture(monkeypatch):
 
 
 def test_classify_unknown_when_backend_unregistered(monkeypatch):
-    # claude 无模式注册 → capture 到什么都无法判 → unknown
+    # qodercli 无模式注册 → capture 到什么都无法判 → unknown
     monkeypatch.setattr(byobu, "capture_pane_tail", lambda wid: "esc interrupt")
-    assert _classify_state(_state_dict(backend="claude")) == "unknown"
+    assert _classify_state(_state_dict(backend="qodercli")) == "unknown"
 
 
 def test_classify_unknown_fallback(monkeypatch):

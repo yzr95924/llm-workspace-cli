@@ -47,7 +47,7 @@ def test_rename_happy_path(workspace_with_wiki: Path, capsys):
     assert meta.name == "bar"
 
     # 4. 原有内容保留 (copytree 验证)
-    assert (new_dir / "CLAUDE.md").read_text(encoding="utf-8") == "# foo scaffold\n"
+    assert (new_dir / "notes.txt").read_text(encoding="utf-8") == "# foo scaffold\n"
 
     # 5. 打印信息含 old → new + path
     out = capsys.readouterr().out

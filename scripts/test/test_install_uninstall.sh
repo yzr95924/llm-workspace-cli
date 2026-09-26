@@ -165,15 +165,6 @@ test_install_registers_skill_symlinks() {
     [ -L "$TMPHOME/.agents/skills/$name" ] || { echo "    FAIL: $name 不是 symlink"; exit 1; }
     [ "$(readlink "$TMPHOME/.agents/skills/$name")" = "$REPO/$name" ] || { echo "    FAIL: $name symlink 指向错误"; exit 1; }
   done
-  # .claude/skills 不存在时不建链
-  assert_not_exists "$TMPHOME/.claude/skills/yzr-llm-wiki-management"
-}
-test_install_chained_claude_links() {
-  mkdir -p "$TMPHOME/.claude/skills"
-  run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
-  [ "$INST_CODE" = 0 ] || { cat "$TMPHOME/inst.out"; exit 1; }
-  [ -L "$TMPHOME/.claude/skills/yzr-llm-wiki-management" ] || { echo "    FAIL: .claude 链缺失"; exit 1; }
-  [ "$(readlink "$TMPHOME/.claude/skills/yzr-llm-wiki-management")" = "$TMPHOME/.agents/skills/yzr-llm-wiki-management" ] || { echo "    FAIL: .claude 链指向错误"; exit 1; }
 }
 test_install_does_not_overwrite_foreign_dir() {
   mkdir -p "$TMPHOME/.agents/skills/yzr-llm-wiki-management"
@@ -211,7 +202,6 @@ TESTS=(
   test_uninstall_scans_all_candidate_rc
   test_uninstall_idempotent
   test_install_registers_skill_symlinks
-  test_install_chained_claude_links
   test_install_does_not_overwrite_foreign_dir
   test_uninstall_removes_skill_symlinks
   test_uninstall_keeps_foreign_skill_dir

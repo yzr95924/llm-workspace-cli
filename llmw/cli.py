@@ -127,7 +127,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--display-name",
         default=None,
         dest="display_name",
-        help="workspace display name (写入 AGENTS.md + CLAUDE.md; 默认 'LLM Wiki Workspace')",
+        help="workspace display name (写入 AGENTS.md; 默认 'LLM Wiki Workspace')",
     )
 
     p_config = sub.add_parser(
@@ -175,7 +175,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         dest="context_window",
-        help="模型上下文窗口大小（整数 token, 1-10000000）,claude overlay 按此推断 `[1m]` 视图",
+        help="模型上下文窗口大小（整数 token, 1-10000000）",
     )
     pm_add.add_argument("--default", action="store_true", dest="as_default")
 
@@ -255,7 +255,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     pw_enter = wiki_sub.add_parser(
         "enter",
-        help="启动 AI agent session (默认 opencode，workspace_local.toml#enter_cli 可切 claude/qodercli；在当前 tmux session 开窗口，不在 tmux 内 → 恰一个可见 session 直接开入其中，否则兜底 llm_workspace + attach)",
+        help="启动 AI agent session (默认 opencode，workspace_local.toml#enter_cli 可切 qodercli；在当前 tmux session 开窗口，不在 tmux 内 → 恰一个可见 session 直接开入其中，否则兜底 llm_workspace + attach)",
         parents=[common],
     )
     pw_enter.add_argument("--dry-run", action="store_true", dest="dry_run")

@@ -185,7 +185,7 @@ GITIGNORE_REL = ".gitignore"
 
 
 def _render_byte_owned(*, topic: str, setup_date: str) -> Dict[str, str]:
-    """byte-owned 文件渲染（AGENTS.md / CLAUDE.md）。"""
+    """byte-owned 文件渲染（AGENTS.md）。"""
     return {
         "AGENTS.md": _render.render_wiki_agents_md(
             topic=topic,
@@ -193,7 +193,6 @@ def _render_byte_owned(*, topic: str, setup_date: str) -> Dict[str, str]:
             cli_version=CLI_VERSION,
             format_version=WIKI_FORMAT_VERSION,
         ),
-        "CLAUDE.md": _render.render_wiki_claude_md(topic=topic),
     }
 
 

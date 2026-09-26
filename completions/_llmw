@@ -135,7 +135,7 @@ _llmw_config() {
         'unset:清值'
     )
     CFG_KEYS=(
-        'enter_cli:agent CLI (claude|qodercli|opencode)'
+        'enter_cli:agent CLI (qodercli|opencode)'
         'templates_version:templates 版本(只读)'
         'created_at:创建时间(只读)'
         'schema_version:schema 版本(只读)'
@@ -159,7 +159,7 @@ _llmw_config() {
                     ;;
                 set)
                     if [[ -z "${cfg_pos[2]:-}" ]]; then
-                        local -a SET_KEYS=('enter_cli:agent CLI (claude|qodercli|opencode)')
+                        local -a SET_KEYS=('enter_cli:agent CLI (qodercli|opencode)')
                         _describe -t keys 'config key' SET_KEYS && ret=0
                     fi
                     ;;

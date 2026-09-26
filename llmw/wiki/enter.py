@@ -1,6 +1,5 @@
 """wiki enter — 启动 agent session（backend 由 workspace_local.toml#enter_cli 选）。
 
-- claude：resolved model 经 Local 层 settings.local.json 交付；cmd 只 `--add-dir`。
 - opencode（默认）：不解析 model，写 opencode.json instructions 键。
 - qodercli：裸启动，只传目录。
 
@@ -12,32 +11,14 @@ import shlex
 import shutil
 import sys
 from pathlib import Path
-from types import ModuleType
 from typing import List, NamedTuple, Optional, Tuple
 
-from llmw._compat import TOMLDecodeError
 from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
-from llmw.errors import (
-    ByobuNotFound,
-    ClaudeNotFound,
-    SchemaVersionUnsupported,
-    WikiDirMissing,
-)
-from llmw.models import overlay, overlay_opencode
-from llmw.models.redact import redact_api_key
-from llmw.models.resolve import resolve_for_wiki
-from llmw.models.store import ModelEntry
+from llmw.errors import AgentNotFound, ByobuNotFound, WikiDirMissing
+from llmw.models import overlay_opencode
 from llmw.wiki import byobu
 from llmw.wiki.manager import resolve_wiki_path
-from llmw.wiki.store import load as wiki_load
 from llmw.workspace import local_store
-
-
-def _build_cmd(wiki_path: Path) -> List[str]:
-    """claude argv：只 --add-dir（自读 CLAUDE.md）；不传 --setting-sources / --system-prompt
-    （前者无必要——Local 层已稳赢 user 配置；后者会双计入）。
-    """
-    return ["claude", "--add-dir", str(wiki_path)]
 
 
 def _build_cmd_qodercli(wiki_path: Path) -> List[str]:
@@ -152,9 +133,9 @@ def _spawn(
     dry_run: bool,
     overlay_refreshed: bool = False,
 ) -> int:
-    """三 backend 共用的 spawn 收口：开窗/复用 + 打标；tmux 外按可见 session 数选路。
+    """两 backend 共用的 spawn 收口：开窗/复用 + 打标；tmux 外按可见 session 数选路。
 
-    overlay_refreshed：复用窗口时是否已写过 overlay（claude/opencode=True；qodercli=False）。
+    overlay_refreshed：复用窗口时是否已写过 overlay（opencode=True；qodercli=False）。
     """
     if dry_run:
         _print_dry_run_spawn(wiki_path, name, window_name, cmd, backend)
@@ -186,23 +167,10 @@ def _spawn(
     return 0
 
 
-class _EnterPlan(NamedTuple):
-    workspace_root: Path
-    name: str
-    wiki_path: Path
-    meta_p: Path
-    backend: str
-    ov: ModuleType
-    model: ModelEntry
-    context_file: Path
-    backend_label: str
-    cmd: List[str]
-
-
-def _warn_missing_context(name: str, claude_md: Path, meta_p: Path) -> None:
-    if not claude_md.is_file():
+def _warn_missing_context(name: str, agents_md: Path, meta_p: Path) -> None:
+    if not agents_md.is_file():
         print(
-            f"[llmw] warning: wiki '{name}' 缺少 CLAUDE.md，session 启动后将没有 schema 上下文",
+            f"[llmw] warning: wiki '{name}' 缺少 AGENTS.md，session 启动后将没有 schema 上下文",
             file=sys.stderr,
         )
     if not meta_p.is_file():
@@ -237,38 +205,10 @@ def _check_enter_env(agent_bin: str, dry_run: bool) -> None:
             hint="安装 byobu（如 apt install byobu / brew install byobu），然后重试",
         )
     if shutil.which(agent_bin) is None:
-        raise ClaudeNotFound(
+        raise AgentNotFound(
             f"{agent_bin} 不在 PATH",
             hint="安装或加到 PATH 后重试；可用 --dry-run 看命令",
         )
-
-
-def _build_enter_plan(
-    workspace_root: Path,
-    name: str,
-    wiki_path: Path,
-    meta_p: Path,
-    claude_md: Path,
-    backend: str,
-    model: ModelEntry,
-) -> _EnterPlan:
-    ov, cmd = overlay, _build_cmd(wiki_path)
-    suffix = (
-        "（默认）" if backend == DEFAULT_BACKEND else "(workspace_local.toml#enter_cli)"
-    )
-    backend_label = f"{backend} {suffix}"
-    return _EnterPlan(
-        workspace_root=workspace_root,
-        name=name,
-        wiki_path=wiki_path,
-        meta_p=meta_p,
-        backend=backend,
-        ov=ov,
-        model=model,
-        context_file=claude_md,
-        backend_label=backend_label,
-        cmd=cmd,
-    )
 
 
 def enter(
@@ -285,9 +225,9 @@ def enter(
             hint="可能被外部 rm；可 `git checkout` 恢复或重新 add",
         )
 
-    claude_md = wiki_path / "CLAUDE.md"
+    agents_md = wiki_path / "AGENTS.md"
     meta_p = wiki_path / "wiki_metadata.toml"
-    _warn_missing_context(name, claude_md, meta_p)
+    _warn_missing_context(name, agents_md, meta_p)
 
     backend, explicit = _resolve_backend(workspace_root)
     _check_enter_env(backend, dry_run)  # backend 值即 agent 二进制名
@@ -297,68 +237,21 @@ def enter(
             workspace_root,
             name,
             wiki_path,
-            claude_md,
+            agents_md,
             backend,
             _build_cmd_qodercli(wiki_path),
             dry_run,
             window_suffix,
         )
 
-    if backend == "opencode":
-        return _enter_opencode(
-            workspace_root,
-            name,
-            wiki_path,
-            claude_md,
-            dry_run,
-            window_suffix,
-            explicit,
-        )
-
-    # claude 路径：resolve → overlay → spawn（resolve 失败阻断，先于任何写盘）
-    model = resolve_for_wiki(workspace_root, name)
-    plan = _build_enter_plan(
-        workspace_root, name, wiki_path, meta_p, claude_md, backend, model
-    )
-
-    if dry_run:
-        return _enter_dry_run(plan, window_suffix)
-    return _execute_plan(plan, window_suffix)
-
-
-def _execute_plan(plan: _EnterPlan, window_suffix: Optional[str]) -> int:
-    plan.ov.apply(plan.wiki_path, plan.model)
-    return _spawn(
-        plan.wiki_path,
-        plan.name,
-        _window_name(plan.name, window_suffix),
-        plan.cmd,
-        plan.backend,
-        dry_run=False,
-        overlay_refreshed=True,
-    )
-
-
-def _enter_dry_run(plan: _EnterPlan, window_suffix: Optional[str]) -> int:
-    meta = None
-    if plan.meta_p.is_file():
-        try:
-            meta = wiki_load(plan.wiki_path)
-        except (OSError, TOMLDecodeError, SchemaVersionUnsupported) as e:
-            # 再捕一次让 dry-run 仍能打印 overlay（resolve 已捕过同类）
-            print(
-                f"[llmw] warning: 无法读取 wiki_metadata.toml: {type(e).__name__}: {e}",
-                file=sys.stderr,
-            )
-            meta = None
-    _print_dry_run_model_backends(plan, meta)
-    return _spawn(
-        plan.wiki_path,
-        plan.name,
-        _window_name(plan.name, window_suffix),
-        plan.cmd,
-        plan.backend,
-        dry_run=True,
+    return _enter_opencode(
+        workspace_root,
+        name,
+        wiki_path,
+        agents_md,
+        dry_run,
+        window_suffix,
+        explicit,
     )
 
 
@@ -366,7 +259,7 @@ def _enter_bare(
     workspace_root: Path,
     name: str,
     wiki_path: Path,
-    claude_md: Path,
+    agents_md: Path,
     backend: str,
     cmd: List[str],
     dry_run: bool,
@@ -382,17 +275,16 @@ def _enter_bare(
         print(f"[llmw] wiki:      {name} ({wiki_path})", file=sys.stdout)
         print(f"[llmw] backend:   {backend} {suffix}", file=sys.stdout)
         print(
-            f"[llmw] ({backend} 路径：跳过 overlay.apply / resolve_for_wiki；"
-            "模型由 agent 内部自由切换)",
+            f"[llmw] ({backend} 路径：跳过 overlay 写盘；模型由 agent 内部自由切换)",
             file=sys.stdout,
         )
-        if claude_md.is_file():
+        if agents_md.is_file():
             print(
-                f"[llmw] CLAUDE.md: ✓ found ({claude_md.stat().st_size} bytes)",
+                f"[llmw] AGENTS.md: ✓ found ({agents_md.stat().st_size} bytes)",
                 file=sys.stdout,
             )
         else:
-            print("[llmw] CLAUDE.md: ✗ missing", file=sys.stdout)
+            print("[llmw] AGENTS.md: ✗ missing", file=sys.stdout)
     return _spawn(
         wiki_path,
         name,
@@ -407,7 +299,7 @@ def _enter_opencode(
     workspace_root: Path,
     name: str,
     wiki_path: Path,
-    claude_md: Path,
+    agents_md: Path,
     dry_run: bool,
     window_suffix: Optional[str],
     explicit: bool,
@@ -442,13 +334,13 @@ def _enter_opencode(
                 + ")",
                 file=sys.stdout,
             )
-        if claude_md.is_file():
+        if agents_md.is_file():
             print(
-                f"[llmw] CLAUDE.md: ✓ found ({claude_md.stat().st_size} bytes)",
+                f"[llmw] AGENTS.md: ✓ found ({agents_md.stat().st_size} bytes)",
                 file=sys.stdout,
             )
         else:
-            print("[llmw] CLAUDE.md: ✗ missing", file=sys.stdout)
+            print("[llmw] AGENTS.md: ✗ missing", file=sys.stdout)
         return _spawn(
             wiki_path,
             name,
@@ -468,48 +360,6 @@ def _enter_opencode(
         dry_run=False,
         overlay_refreshed=True,
     )
-
-
-def _print_dry_run_model_backends(plan: _EnterPlan, meta) -> None:
-    """claude 路径 dry-run 打印：字段取自 ov.render(model)（不手抄，避免展示与实现漂移）。"""
-    overlay_path, would_write = plan.ov.inspect(plan.wiki_path, plan.model)
-    print(f"[llmw] workspace: {plan.workspace_root}", file=sys.stdout)
-    print(f"[llmw] wiki:      {plan.name} ({plan.wiki_path})", file=sys.stdout)
-    print(f"[llmw] backend:   {plan.backend_label}", file=sys.stdout)
-    print(
-        f"[llmw] resolved model: {plan.model.name} ({plan.model.model_id})",
-        file=sys.stdout,
-    )
-    source = "wiki override" if (meta and meta.model) else "registry default"
-    print(f"[llmw] source: {source}", file=sys.stdout)
-    tag = "(will write)" if would_write else "(up to date, skip)"
-    print(f"[llmw] overlay file: {overlay_path}  {tag}", file=sys.stdout)
-    expected = plan.ov.render(plan.model)
-    print(
-        f"[llmw]   ANTHROPIC_MODEL      = {expected['ANTHROPIC_MODEL']}",
-        file=sys.stdout,
-    )
-    print(
-        f"[llmw]   ANTHROPIC_BASE_URL   = {expected['ANTHROPIC_BASE_URL']}",
-        file=sys.stdout,
-    )
-    print(
-        f"[llmw]   ANTHROPIC_AUTH_TOKEN = {redact_api_key(expected['ANTHROPIC_AUTH_TOKEN'])}",
-        file=sys.stdout,
-    )
-    # ANTHROPIC_* 之外的 key 即 habit template（组内对齐，不与 model env 共享列）
-    habit = {k: v for k, v in expected.items() if not k.startswith("ANTHROPIC_")}
-    print("[llmw]   (habit template)", file=sys.stdout)
-    width = max(len(k) for k in habit)
-    for k, v in habit.items():
-        print(f"[llmw]     {k:{width}s} = {v}", file=sys.stdout)
-    if plan.context_file.is_file():
-        print(
-            f"[llmw] {plan.context_file.name}: ✓ found ({plan.context_file.stat().st_size} bytes)",
-            file=sys.stdout,
-        )
-    else:
-        print(f"[llmw] {plan.context_file.name}: ✗ missing", file=sys.stdout)
 
 
 def _window_name(wiki: str, window_suffix: Optional[str]) -> str:

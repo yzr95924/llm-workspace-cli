@@ -33,7 +33,7 @@ class ModelEntry:
     name: str
     base_url: str
     api_key: str
-    context_window: int  # 必填（无 fallback）：claude overlay 按此推断 `[1m]` 视图
+    context_window: int  # 必填（无 fallback），registry 元数据，供 agent / 用户参考
     is_default: bool = False
 
 

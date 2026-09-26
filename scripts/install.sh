@@ -137,18 +137,13 @@ _register_skill_link() {
   echo "已注册 skill -> $target"
 }
 
-# SKILL 随 llmw 一起分发：~/.agents/skills/ 下建指向本仓的 symlink，
-# ~/.claude/skills/ 存在时补链式 symlink（指向 .agents/skills）。与 uninstall.sh 对称。
+# SKILL 随 llmw 一起分发：~/.agents/skills/ 下建指向本仓的 symlink。与 uninstall.sh 对称。
 _install_skill_links() {
   local agent_dir="$HOME/.agents/skills"
-  local claude_dir="$HOME/.claude/skills"
   mkdir -p "$agent_dir"
   local name
   for name in yzr-llm-wiki-management; do
     _register_skill_link "$agent_dir/$name" "$repo_root/$name"
-    if [ -d "$claude_dir" ]; then
-      _register_skill_link "$claude_dir/$name" "$agent_dir/$name"
-    fi
   done
 }
 

@@ -35,7 +35,7 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
 
 3. **裁定 drift**（仅 `render` / `gitignore-block` 类 diff 触发）：`--apply` 不加 `--yes`
    遇这类 diff 即进 `blocked_drift` 并输出具体 diff → agent 逐条对比（本地定制 =
-   AGENTS.md / CLAUDE.md 内多出模板渲染稿的行 / 段）→ 与用户裁定**搬 MEMORY/**（条目
+   AGENTS.md 内多出模板渲染稿的行 / 段）→ 与用户裁定**搬 MEMORY/**（条目
    形态按 yzr-memory-management skill 约定）或**丢弃** → 重跑
    `llmw wiki --path=... upgrade --apply --yes` 落地
 
@@ -70,7 +70,7 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
   yzr-memory-management skill；wiki format 迁移不搬改其中文件
 - **不**手改 `wiki/log.md` / `wiki/index.md` 的 frontmatter：骨架键缺失只按 fixtures plan
   （`fixtures-fix-skeleton`）补齐
-- **不**手改 `AGENTS.md` / `CLAUDE.md`（byte-owned）：版本钉与骨架由
+- **不**手改 `AGENTS.md`（byte-owned）：版本钉与骨架由
   `llmw wiki upgrade --apply` 重渲染落地
 - **wiki 版本比 llmw 支持版本新**（`-ahead`）：**不**阻断、**不**改 wiki，CLI 自带 WARN
   引导升级安装

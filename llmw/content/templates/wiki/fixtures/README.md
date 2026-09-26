@@ -41,12 +41,12 @@ gate 走 `scripts/test/smoke_fixtures.py`（CI 跑 real `llmw init` + `llmw wiki
 
 | | 模板（`*-template.md`） | fixture（`*.txt`） |
 |---|---|---|
-| **形态** | 带 `{{占位符}}` 的完整文档（`AGENTS.md` / `CLAUDE.md`） | 字节模板（部分带占位符；header-owned / block-owned 文件的出生形态） |
+| **形态** | 带 `{{占位符}}` 的完整文档（`AGENTS.md`） | 字节模板（部分带占位符；header-owned / block-owned 文件的出生形态） |
 | **作用** | CLI init / upgrade 时渲染完整文件 | header-owned + block-owned 文件的出生字节金标准 |
 | **变更** | 改模板 → bump `wiki_format_version`（实例需 upgrade reconcile） | 同左（字节变化即 bump） |
 | **权威性** | 模板是字节权威（CLI 包内 SSOT） | fixture 是字节权威（CLI 包内 SSOT） |
 
-模板承载 byte-owned 文件（`AGENTS.md` / `CLAUDE.md`）的字节权威；fixtures 承载 header-owned +
+模板承载 byte-owned 文件（`AGENTS.md`）的字节权威；fixtures 承载 header-owned +
 block-owned（`.gitignore`）文件的出生字节；content-owned 由 skill 的 page-templates.md 承载。
 
 ## 五个 fixture 对应的"角色"
@@ -75,11 +75,10 @@ fixtures 是**带占位符的字节模板**(而非渲染后的字面量)：
 CLI 必须按 `mapping = {"TOPIC_NAME": <用户传入>, "SETUP_DATE": <today YYYY-MM-DD HH:MM>}` 做替换，
 **不**做替换的占位符会在落盘后被 lint 立即报错。
 
-## AGENTS.md / CLAUDE.md 占位符（不在 fixture 范围）
+## AGENTS.md 占位符（不在 fixture 范围）
 
-wiki 根有两份模板产物：**`AGENTS.md`（SSOT）** 由 CLI 拷本目录上层的 `agents-md-template.md`、
-**`CLAUDE.md`（薄壳）** 由 CLI 拷同层的 `claude-md-template.md`。两者都**不在**本目录 fixture 覆盖范围
-（fixture 只覆盖 CLI init 时刻的"成品"，AGENTS.md / CLAUDE.md 是模板替换产物）。
+wiki 根的模板产物 **`AGENTS.md`（SSOT）** 由 CLI 拷本目录上层的 `agents-md-template.md`。
+它**不在**本目录 fixture 覆盖范围（fixture 只覆盖 CLI init 时刻的"成品"，AGENTS.md 是模板替换产物）。
 
 > **注**：AGENTS.md 虽不进 fixtures 字节比对，但**有独立的运行时同步检查**——
 > `llmw wiki check-fixtures` 的 `agents-md-template-sync` 从 wiki AGENTS.md 末尾「当前配置」表提取 4 个变量值反向渲染
@@ -91,15 +90,15 @@ CLI 必须替换的占位符：
 
 | 占位符 | 替换为 | 出现在 |
 |---|---|---|
-| `{{TOPIC_NAME}}` | 用户传入的主题名 | AGENTS.md + CLAUDE.md（薄壳） |
+| `{{TOPIC_NAME}}` | 用户传入的主题名 | AGENTS.md |
 | `{{SETUP_DATE}}` | 当天日期 `YYYY-MM-DD HH:MM` | AGENTS.md |
-| `{{WIKI_FORMAT_VERSION}}` | CLI 当前兼容的 wiki format 版本 | AGENTS.md 末尾「当前配置」表（薄壳不持版本） |
+| `{{WIKI_FORMAT_VERSION}}` | CLI 当前兼容的 wiki format 版本 | AGENTS.md 末尾「当前配置」表 |
 | `{{CLI_VERSION}}` | CLI 自身版本号 | AGENTS.md |
 | `{{WIKI_SUBDIRS_GLOB}}` | `{entities,concepts,...}` 五子目录花括号形态（`page_types.WIKI_SUBDIRS`） | AGENTS.md「wiki/」边界卡 |
 
 CLI 替换后做内容级验证（不能用 fixture 字节比对）：
 
-1. AGENTS.md 的 4 个 `{{...}}` 占位符 + 薄壳 CLAUDE.md 的 `{{TOPIC_NAME}}` **全部被替换**——`grep -c '{{' AGENTS.md CLAUDE.md` 应为 0
+1. AGENTS.md 的 4 个 `{{...}}` 占位符 **全部被替换**——`grep -c '{{' AGENTS.md` 应为 0
 2. 生成的 AGENTS.md 末尾「当前配置」表 `Wiki Format 版本` 字段与 `llmw.WIKI_FORMAT_VERSION` 常量一致（SKILL.md frontmatter 由 CI gate 与常量比对）
 
 ## 字节级一致性证据

@@ -1,6 +1,6 @@
 """backend 单一真源：agent CLI 名集合 + status STATE 模式注册表（新增 agent 只改本文件）。
 
-STATE_PATTERNS：backend → 屏幕尾部文本判据（opencode 实测；claude / qodercli 暂无，
+STATE_PATTERNS：backend → 屏幕尾部文本判据（opencode 实测；qodercli 暂无，
 降级 unknown）。模式随 CLI 版本漂移，匹配不上即降级。
 """
 
@@ -15,7 +15,7 @@ class StatePatterns(NamedTuple):
     spinner: str = ""
 
 
-KNOWN_BACKENDS = frozenset({"claude", "qodercli", "opencode"})
+KNOWN_BACKENDS = frozenset({"qodercli", "opencode"})
 
 # 默认 backend 唯一真源（落盘判定 / config 文案 / enter 回退均引此）
 DEFAULT_BACKEND = "opencode"

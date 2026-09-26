@@ -209,7 +209,7 @@
 
 | 文件 | 所有权 | agent 权限 |
 | --- | --- | --- |
-| `AGENTS.md` / `CLAUDE.md` | byte-owned（整个文件 = 模板渲染） | 禁改；自定义纪律沉淀到 `MEMORY/` |
+| `AGENTS.md` | byte-owned（整个文件 = 模板渲染） | 禁改；自定义纪律沉淀到 `MEMORY/` |
 | `.gitignore` | block-owned（llmw managed 块内禁改） | 块外自由添加用户忽略规则 |
 | `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `scripts/SCRIPTS.md` | header-owned（文件头禁改） | growth 段（`##` 段体 / 条目 / tags）日常写 |
 | wiki `wiki/` 各内容页 + scripts 脚本 | content-owned | agent 拥有；`llmw wiki upgrade` 不动 |

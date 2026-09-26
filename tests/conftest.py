@@ -1,7 +1,7 @@
 """pytest 共享 fixture: 构造最小 workspace + wiki 用于 rename 测试。
 
 rename 测试只关心 workspace.toml + wiki 子目录 + wiki_metadata.toml;
-不需要 CLAUDE.md / wiki/ / raw/ 等 wiki 骨架(由 SKILL fixtures 渲染)。
+不需要 AGENTS.md / wiki/ / raw/ 等 wiki 骨架(由 SKILL fixtures 渲染)。
 因此手工构造 fixture,不依赖 init_wiki.render_and_write(避免耦合 skill 骨架)。
 """
 
@@ -32,7 +32,7 @@ def workspace_with_wiki(tmp_path: Path) -> Path:
     wiki_store.create_skeleton(foo_dir, name="foo", topic="foo")
 
     # 放一个 dummy 文件,验证 copytree 后内容保留
-    (foo_dir / "CLAUDE.md").write_text("# foo scaffold\n", encoding="utf-8")
+    (foo_dir / "notes.txt").write_text("# foo scaffold\n", encoding="utf-8")
 
     return tmp_path
 

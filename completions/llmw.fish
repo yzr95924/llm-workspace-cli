@@ -89,11 +89,11 @@ complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_sub
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from get set unset" -f -a "set"    -d '设值'
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from get set unset" -f -a "unset"  -d '清值'
 
-complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "enter_cli"        -d 'agent CLI (claude|qodercli|opencode)'
+complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "enter_cli"        -d 'agent CLI (qodercli|opencode)'
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "templates_version" -d 'templates 版本(只读)'
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "created_at"        -d '创建时间(只读)'
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "schema_version"    -d 'schema 版本(只读)'
-complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from set"       -f -a "enter_cli"        -d 'agent CLI (claude|qodercli|opencode)'
+complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from set"       -f -a "enter_cli"        -d 'agent CLI (qodercli|opencode)'
 
 # ===== model 子命令 =====
 set -l MODEL_ACTS add list show set-default unset-default remove

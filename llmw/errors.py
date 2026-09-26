@@ -39,7 +39,7 @@ class WikiExists(LlmwError):
 
 
 class WikiAlreadyInitialized(LlmwError):
-    """目标目录已含 CLAUDE.md 或 wiki/index.md,拒绝覆盖（骨架字节所有权不变量）"""
+    """目标目录已含 AGENTS.md 或 wiki/index.md,拒绝覆盖（骨架字节所有权不变量）"""
 
     exit_code = 1
     user_message = "wiki 目录已初始化"
@@ -162,7 +162,7 @@ class BackupFailed(LlmwError):
     user_message = "wiki 备份失败"
 
 
-class ClaudeNotFound(LlmwError):
+class AgentNotFound(LlmwError):
     exit_code = 2
     user_message = "agent CLI 不在 PATH"
 

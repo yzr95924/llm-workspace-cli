@@ -225,14 +225,9 @@ def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obj
         out["skipped"] = "--target-format 未提供；跳过版本对齐检查"
         return out
 
-    # 从 AGENTS.md 抓行；若 AGENTS.md 不存在，fallback CLAUDE.md（pre-0.11.0 老 wiki 兼容）
     found_version = None
-    source_file = None
-    for candidate in ("AGENTS.md", "CLAUDE.md"):
-        fpath = wiki_root / candidate
-        text = _read_text(fpath)
-        if text is None:
-            continue
+    text = _read_text(wiki_root / "AGENTS.md")
+    if text is not None:
         for line in text.splitlines():
             m = AGENTS_FORMAT_ROW_RE.match(line)
             if not m:
@@ -241,16 +236,12 @@ def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obj
             semver = SEMVER_RE.search(cell)
             if semver:
                 found_version = semver.group(0)
-                source_file = candidate
-            break
-        if found_version is not None:
             break
     if found_version is None:
         out["passed"] = False  # type: ignore
         out["actual"] = "(无法解析末尾「当前配置」表 `Wiki Format 版本` 字段)"
         out["expected"] = target_format
         return out
-    out["file"] = source_file  # type: ignore
     cmp = _compare_semver(found_version, target_format)
     if cmp != "equal":
         out["passed"] = False  # type: ignore

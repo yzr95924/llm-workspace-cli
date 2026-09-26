@@ -39,7 +39,7 @@ python3 -m llmw --help                            # 免安装直接跑 CLI
 - 新增 agent backend 只改 `llmw/backends.py`（`KNOWN_BACKENDS` + `STATE_PATTERNS`）。
 - finding 口径唯一入口 = `llmw wiki lint --explain`（注册表 `llmw/content/findings.py`）；skill prose 不得镜像 severity 清单。
 - 元数据 toml 的 schema 校验全在 store 层（workspace / wiki / models 各自 store 的 validate）；manager 不重复校验。
-- api_key 打印必过 `llmw/models/redact.py` 出口；model 配置不读环境变量（禁止 `os.environ.get("ANTHROPIC_*")` 类读取）。
+- api_key 打印必过 `llmw/models/redact.py` 出口；model 配置不读环境变量（禁止 `os.environ.get` 读取 API 配置）。
 
 ## 架构边界与演进原则
 
