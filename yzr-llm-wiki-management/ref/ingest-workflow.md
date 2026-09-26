@@ -51,22 +51,22 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ### Step 4：同步 entity / concept 页
 
-- **已有相关页**：不重写、不重排，只往 `## 参考来源 / Sources` 段末尾追加，每条新
+- **已有相关页**：不重排，只往 `## 参考来源 / Sources` 段末尾追加，每条新
   source 一行 `* [Source Title](../sources/<slug>.md) — 一句话关联点`
 - **新建页**：走 page-templates 的 entity / concept 骨架
 
 ### Step 5：更新 `wiki/index.md`
 
 - `llmw wiki write index add <page>`：CLI 从页 frontmatter 抽 title / description，
-  定位类别段 + 字母序插入（不在 index 手写摘要，防漂移）
+  定位类别段 + 字母序插入
 - 新建了 entity / concept 页后回看一遍：既有 source 页里该指向新页的 cross-ref 补上
 
 ### Step 6：追加 `log.md`
 
 - `llmw wiki write log --op=ingest --title="<source 页 title>" --raw="raw/<相对路径>"`：
-  格式与滚动窗口截断由 CLI 保证；`--raw` 记录被摄取文件（wiki 根相对、`raw/` 起头，
-  是 `ingest-diff` 判定 log-only-no-source-page 的精确依据）
-- 一次 ingest 多个文件时，`--title` 与 `--raw` 各写多次、按序配对；批处理走 `--bulk`（见下节）
+  `--raw` 记录被摄取文件（wiki 根相对、`raw/` 起头，是 `ingest-diff` 判定
+  log-only-no-source-page 的精确依据）
+- 批处理走 `--bulk`（见下节）
 
 ### Step 7：建议 commit（启用 git 时）
 
@@ -96,8 +96,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 阈值 canonical 见 [章节](page-templates.md#建页--追加--归档阈值page-thresholds)
 
 单篇 ingest 的判断：本 raw 的中心主题、反复出现的核心概念就建；路过、类比、一笔带过
-的背景不建；已有同名 / 近义页时先 search 再定。例：反复提到 self-attention 且无页，
-就建 `concepts/self-attention.md`；偶然提到一次 GPU，不建。
+的背景不建。例：反复提到 self-attention 且无页，就建
+`concepts/self-attention.md`；偶然提到一次 GPU，不建。
 
 ## 正文引用的稳定性（漂移点规避）
 
