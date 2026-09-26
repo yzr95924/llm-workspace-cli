@@ -50,19 +50,10 @@
   └── ray                          # symlink → ~/src/ray
   ```
 
-- **写路径收编（本仓唯一 `raw/` 写权限例外）**：symlink 与 anchor 的
-  创建 / 删除 / 重建**一律**走 `llmw wiki external` 子命令；LLM **不**手改
-  `.symlink-anchor.toml`：
-  - 首次接入：`llmw wiki external add <target> --name=<n> [--notes=...]`
-    ——注册 entry + 建 symlink；git 仓库自动读 `remote_url`/`branch`（非 git 也允许，
-    身份字段省略）；`target` 必须已存在
-  - 移除：`llmw wiki external remove <name>`——删 entry + 删 symlink；
-    路径若是普通文件/目录会被拒（用户资产保护）；target 仓本体永不触碰
-  - 检视：`llmw wiki external list [--json]`
-  - 跨主机重建：新机器 `git clone` wiki 仓后 symlink 全丢，跑
-    `llmw wiki external rebuild [--target=NAME=PATH ...] [--yes]` 按 anchor 重建
-    （target 不存在时按 `remote_url` clone + checkout `branch`；跨 home 布局用
-    `--target=NAME=PATH` 覆盖，anchor 回写 `~/...` 形式）
+- **写路径收编（本仓唯一 `raw/` 写权限例外）**：symlink 与 anchor 的创建 / 删除 / 重建
+  **一律**走 `llmw wiki external` 子命令（add / remove / list / rebuild，签名与行为见
+  `llmw wiki external --help`），target 仓本体永不触碰；新机器 `git clone` 后跑
+  `llmw wiki external rebuild` 按 anchor 恢复 symlink；LLM **不**手改 `.symlink-anchor.toml`
 - anchor / symlink 漂移（缺 anchor、解析失败、孤儿 symlink、target 失效、子目录
   布局、target 与 symlink 解析不一致）由 `llmw wiki lint` 机械探测，check 名以 lint
   输出为准
