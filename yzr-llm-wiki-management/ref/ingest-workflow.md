@@ -13,7 +13,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ```
 
 输出按 reason 分类（`untracked` / `stale-raw` / `log-only-no-source-page`），含义与退出码
-输出自明；流程其他环节报错（raw 不可读 / log、index 参数缺失）同样按 CLI 提示修即可。
+输出自明。
 
 ### Step 2：评估规模
 
@@ -36,16 +36,13 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 1. **完整读取 raw**：PDF / 图片先做 OCR / 视觉识别
 2. **提取元数据**：标题、作者 / 来源、发布时间、URL、关键标签
 3. **生成 slug**：kebab-case 短标题（例 `attention-is-all-you-need`）
-4. **脚手架**：`llmw wiki write new --type=source --slug=... --title=... --sources=raw/...`
-   （自动落必填 frontmatter + H1，slug 校验 + 拒覆盖），然后 Edit 写正文；节结构与字段
-   （含元数据落点、摘要写法）以 [章节](page-templates.md#source资料页) 为准。
+4. **脚手架**：`llmw wiki write new --type=source --slug=... --title=... --sources=raw/...`，
+   然后 Edit 写正文；节结构与字段（含元数据落点、摘要写法）以
+   [章节](page-templates.md#source资料页) 为准。
    正文含交互流 / 架构关系时优先配图，判定见 [章节](page-templates.md#图示使用指引)
 5. **发现矛盾**：重摄取时冒出与既有页冲突的说法，不静默覆盖，走
-   [章节](page-templates.md#矛盾处理-update-policy)（双方 `contested: true` +
-   `contradictions` 互指）；`contested` 只在确属矛盾未裁定时标（语义见
-   [章节](page-templates.md#可选可信度与认知质量信号)）
-6. **生命周期**：编辑过 source 页就跑 `llmw wiki write touch <page>`（自动把 `updated`
-   置今天、删 `reviewed` / `reviewed_at` 戳），不要手工改 `updated`，见
+   [章节](page-templates.md#矛盾处理-update-policy)
+6. **生命周期**：编辑过 source 页就跑 `llmw wiki write touch <page>`，见
    [章节](page-templates.md#生命周期规则)
 7. **是否新建 entity / concept 页**：见 [章节](#判定是否新建-entity--concept-页)
 
@@ -57,8 +54,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ### Step 5：更新 `wiki/index.md`
 
-- `llmw wiki write index add <page>`：CLI 从页 frontmatter 抽 title / description，
-  定位类别段 + 字母序插入
+- `llmw wiki write index add <page>`
 - 新建了 entity / concept 页后回看一遍：既有 source 页里该指向新页的 cross-ref 补上
 
 ### Step 6：追加 `log.md`
@@ -70,17 +66,12 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ### Step 7：建议 commit（启用 git 时）
 
-- commit message：`ingest: <title>` 或 `ingest: <N> files from raw/articles/`；agent
-  提示用户："wiki 已更新，建议 commit。要我帮你 commit 吗？"
+- commit message：`ingest: <title>` 或 `ingest: <N> files from raw/articles/`；提示用户 commit
 - 裸目录树 wiki 跳过此步
 
-**收尾**：主动问用户"要不要查一下新内容与已有内容的联系？"（query 流程见
-[章节](query-workflow.md#流程详解)）
+**收尾**：主动建议用户做一次关联查询（query 流程见 [章节](query-workflow.md#流程详解)）
 
 ## 批处理摄取（≥ 3 份 raw 同时摄入）
-
-逐份走 N 遍要付 N 次 search、N 次 index 更新、N 条 log，慢，中途失败还容易留下改了一半
-的不一致状态。批处理把整批资料一次做完：
 
 1. **读所有 raw**：先列清单，再并行读全文
 2. **聚合 entity / concept**：跨所有 raw 找候选并去重（同一概念只对应一个 wiki 页）

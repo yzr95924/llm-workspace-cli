@@ -5,12 +5,11 @@
 
 ## 首次接入
 
-agent 主导三项判断（CLI 帮不上）：
+三项**取值**由 agent 与用户定（形态校验与归一化归 CLI，报错自明）：
 
-- **命名**：`--name` 必须 kebab-case 短名，agent 与用户共同决定（如 `linux-kernel` /
-  `ray`）
-- **target 路径**：推荐 `~/src/<name>` home-relative 形式（跨主机重建友好）
-- **notes 文本**：可选，agent 自由写（机械 scribe 入 anchor）
+- **命名**：短名由 agent 与用户共同决定（如 `linux-kernel` / `ray`）
+- **target 路径**：推荐 `~/src/<name>`（跨主机重建友好）
+- **notes 文本**：可选，agent 自由写
 
 ## sources: 元素类型
 
