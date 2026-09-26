@@ -1,8 +1,6 @@
 """argparse 顶层 + 全局 flag + 子命令分派"""
 
 import argparse
-import io
-import json
 import os
 import sys
 from pathlib import Path
@@ -161,39 +159,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--tmux",
         action="store_true",
         help="输出单行 ●N（运行中窗口数），存在 dead 窗口时后缀 ✗M；供 byobu 状态条集成",
-    )
-
-    p_check_fixtures = sub.add_parser(
-        "check-fixtures",
-        help="workspace 级 fixtures 一致性检查（升级专用探测；dry-run）",
-        parents=[common],
-    )
-    p_check_fixtures.add_argument(
-        "--target-format",
-        default=None,
-        help="目标 workspace format 版本（缺省读 llmw.WORKSPACE_FORMAT_VERSION 包内常量）",
-    )
-    p_check_fixtures.add_argument(
-        "--list-rules",
-        action="store_true",
-        help="内省：输出规则清单（不扫描文件）；与 --json 联用具机器可读输出",
-    )
-
-    p_upgrade = sub.add_parser(
-        "upgrade",
-        help="升级 workspace 骨架 + 所有 wiki 骨架（默认 dry-run）",
-        parents=[common],
-    )
-    p_upgrade.add_argument(
-        "--apply",
-        action="store_true",
-        help="显式写盘（覆盖 dry-run 默认）；diff 非空时还需 --yes",
-    )
-    p_upgrade.add_argument(
-        "--yes",
-        "-y",
-        action="store_true",
-        help="确认覆盖 drift diff（自定义内容先搬 MEMORY/）",
     )
 
     # ===== model registry =====
@@ -550,116 +515,6 @@ def _cmd_wiki_content(args) -> int:
     raise InternalError(f"未处理的内容子命令: {wa}")
 
 
-def _capture_output(fn):
-    """捕获 fn 的 stdout / stderr，返 (rc, text)（upgrade 聚合需要分片文本再统一编排）。"""
-    buf = io.StringIO()
-    old_stdout, old_stderr = sys.stdout, sys.stderr
-    try:
-        sys.stdout = buf
-        sys.stderr = buf
-        rc = fn()
-    finally:
-        sys.stdout, sys.stderr = old_stdout, old_stderr
-    return rc, buf.getvalue()
-
-
-def _cmd_upgrade(args, ws_root: Path) -> int:
-    """`llmw upgrade`：workspace 骨架 + 逐 wiki 聚合两段式（默认 dry-run）。"""
-    from llmw.content import upgrade as _upgrade
-    from llmw.content import upgrade_workspace as _ws_upgrade
-    from llmw.workspace import store as _ws_store
-
-    dry_run = not _flag(args, "apply")
-    yes = _flag(args, "yes")
-    as_json = _flag(args, "json")
-
-    # Phase 1: workspace 骨架
-    ws_rc, ws_out_raw = _capture_output(
-        lambda: _ws_upgrade.run_workspace_upgrade(
-            ws_root, dry_run=dry_run, yes=yes, as_json=as_json
-        )
-    )
-    worst_rc = ws_rc
-
-    # workspace 阶段 JSON（as_json 时）解析一次，供聚合输出复用
-    ws_result_obj = None
-    if as_json and ws_out_raw.strip():
-        try:
-            ws_result_obj = json.loads(ws_out_raw)
-        except ValueError:
-            ws_result_obj = None
-
-    # Phase 2: 逐 wiki
-    try:
-        ws_toml = _ws_store.load(ws_root)
-        wikis = getattr(ws_toml, "wikis", {}) or {}
-    except Exception as exc:
-        # 加载失败：workspace 骨架升级可能还在跑，记为 load_failed、不阻断收尾
-        aggregated_wikis = [
-            {
-                "status": "load_failed",
-                "hint": f"workspace.toml 加载失败：{exc}",
-            }
-        ]
-        if not as_json:
-            print(
-                f"\n[llmw] warn: workspace.toml 加载失败：{exc}",
-                file=sys.stderr,
-            )
-    else:
-        aggregated_wikis = []  # type: list
-        for wiki_name, entry in wikis.items():
-            wiki_root = (ws_root / getattr(entry, "path", "")).resolve()
-            if not wiki_root.is_dir():
-                aggregated_wikis.append(
-                    {
-                        "wiki": wiki_name,
-                        "status": "not_found",
-                        "hint": f"{wiki_root} 不存在",
-                    }
-                )
-                worst_rc = max(worst_rc, 2)
-                continue
-            rc, out = _capture_output(
-                lambda wr=wiki_root: _upgrade.run_upgrade(
-                    wr, dry_run=dry_run, yes=yes, as_json=as_json
-                )
-            )
-            aggregated_wikis.append({"wiki": wiki_name, "output": out, "exit": rc})
-            worst_rc = max(worst_rc, rc)
-
-    _emit_upgrade_aggregate(ws_out_raw, ws_result_obj, ws_rc, aggregated_wikis, as_json)
-    return worst_rc
-
-
-def _emit_upgrade_aggregate(
-    ws_out_raw, ws_result_obj, ws_rc, aggregated_wikis, as_json: bool
-) -> None:
-    """`llmw upgrade` 聚合输出：JSON = {workspace, wikis[]}；人读 = 分节拼接。"""
-    if as_json:
-        out = (
-            {"workspace": ws_result_obj}
-            if ws_result_obj is not None
-            else {"workspace": {"raw": ws_out_raw}}
-        )
-        out["wikis"] = aggregated_wikis
-        print(json.dumps(out, indent=2, ensure_ascii=False))
-        return
-    print("=== workspace ===")
-    print(ws_out_raw.rstrip())
-    if ws_rc:
-        print(f"[exit {ws_rc}]")
-    for item in aggregated_wikis:
-        if item.get("status") in ("not_found", "load_failed"):
-            print(f"\n=== {item.get('wiki', '(workspace)')} ===")
-            print(f"[{item['status']}] {item.get('hint', '')}")
-            continue
-        print(f"\n=== {item['wiki']} ===")
-        print(item.get("output", "").rstrip())
-        if item.get("exit"):
-            print(f"[exit {item['exit']}]")
-
-
 def main(argv=None) -> int:
     argv = list(argv) if argv is not None else sys.argv[1:]
     parser = build_parser()
@@ -685,27 +540,10 @@ def main(argv=None) -> int:
         if args.command == "wiki" and args.wiki_action in _WIKI_CONTENT_ACTIONS:
             return _cmd_wiki_content(args)
 
-        # 下列命令需要先解析 workspace_root；--list-rules 自包含（无需 workspace）先拦截
-        if args.command == "check-fixtures" and _flag(args, "list_rules"):
-            from llmw.content import workspace_fixtures
-
-            return workspace_fixtures.list_rules(as_json=_flag(args, "json"))
-
+        # 下列命令需要先解析 workspace_root
         from llmw.config import resolve_workspace_root
 
         ws_root = resolve_workspace_root(_flag(args, "workspace"))
-
-        if args.command == "check-fixtures":
-            from llmw.content import workspace_fixtures
-
-            return workspace_fixtures.run(
-                ws_root,
-                as_json=_flag(args, "json"),
-                target_format=args.target_format,
-            )
-
-        if args.command == "upgrade":
-            return _cmd_upgrade(args, ws_root)
 
         if args.command == "config":
             from llmw.workspace.manager import (

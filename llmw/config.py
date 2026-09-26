@@ -40,9 +40,5 @@ def wiki_templates_dir() -> Path:
     return CONTENT_DIR / "templates" / "wiki"
 
 
-def workspace_templates_dir() -> Path:
-    return CONTENT_DIR / "templates" / "workspace"
-
-
 def metadata_templates_dir() -> Path:
     return CONTENT_DIR / "templates" / "metadata"

@@ -85,7 +85,6 @@ legacy 或 fixtures 不合规报告。版本钉在 `<wiki-root>/AGENTS.md` 末�
   `llmw wiki upgrade --apply` 重渲染落地
 - **wiki 版本比 llmw 支持版本新**（`-ahead`）：**不**阻断、**不**改 wiki——CLI 自带 WARN
   引导升级安装
-- **不**用 workspace 级 `llmw upgrade`（聚合批量所有 wiki）替代 `llmw wiki upgrade`
 
 > 其余边界以 wiki 根 `AGENTS.md` 为准（raw 只读等全局纪律）
 

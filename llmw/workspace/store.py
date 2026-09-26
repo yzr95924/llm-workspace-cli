@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict
 
-from llmw import WORKSPACE_FORMAT_VERSION, WIKI_FORMAT_VERSION
 from llmw._compat import toml_loads, toml_dump
 from llmw.errors import SchemaVersionUnsupported
 from llmw.fsutil import atomic_write, now_iso8601
@@ -31,7 +30,6 @@ class WorkspaceToml:
 
     schema_version: int
     created_at: str
-    templates_version: str = "1"
     wikis: Dict[str, WikiEntry] = field(default_factory=dict)
 
 
@@ -60,7 +58,6 @@ def load(workspace_root: Path) -> WorkspaceToml:
     return WorkspaceToml(
         schema_version=sv,
         created_at=raw.get("created_at", ""),
-        templates_version=raw.get("templates_version", "1"),
         wikis=wikis,
     )
 
@@ -71,7 +68,6 @@ def save(workspace_root: Path, ws: WorkspaceToml) -> None:
     data = {
         "schema_version": ws.schema_version,
         "created_at": ws.created_at,
-        "templates_version": ws.templates_version,
     }
 
     if ws.wikis:
@@ -89,13 +85,9 @@ def save(workspace_root: Path, ws: WorkspaceToml) -> None:
 
 
 def create_skeleton(workspace_root: Path) -> WorkspaceToml:
-    """生成空 workspace.toml；templates_version 编码双 format 版本（upgrade / scan 比对用）。"""
+    """生成空 workspace.toml。"""
     ws = WorkspaceToml(
-        schema_version=SCHEMA_VERSION_SUPPORTED,
-        created_at=now_iso8601(),
-        templates_version=(
-            f"workspace_format={WORKSPACE_FORMAT_VERSION}; wiki_format={WIKI_FORMAT_VERSION}"
-        ),
+        schema_version=SCHEMA_VERSION_SUPPORTED, created_at=now_iso8601()
     )
     save(workspace_root, ws)
     return ws

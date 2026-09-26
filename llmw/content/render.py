@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Dict
 
-from llmw.config import wiki_templates_dir, workspace_templates_dir
+from llmw.config import wiki_templates_dir
 from llmw.errors import SetupFailed
 
 
@@ -75,25 +75,3 @@ def render_wiki_log_md(*, topic: str, setup_date: str) -> str:
 
 
 # ===== workspace side =====
-
-
-def render_workspace_agents_md(*, display_name: str, setup_date: str, cli_version: str, format_version: str) -> str:
-    """渲染 <workspace>/AGENTS.md。"""
-    refs = workspace_templates_dir()
-    tmpl = _read_template(refs / "workspace-agents-md-template.md")
-    return _substitute(
-        tmpl,
-        {
-            "WORKSPACE_DISPLAY_NAME": display_name,
-            "SETUP_DATE": setup_date,
-            "CLI_VERSION": cli_version,
-            "WORKSPACE_FORMAT_VERSION": format_version,
-        },
-    )
-
-
-def render_workspace_claude_md(*, display_name: str) -> str:
-    """渲染 <workspace>/CLAUDE.md 薄壳。"""
-    refs = workspace_templates_dir()
-    tmpl = _read_template(refs / "workspace-claude-md-template.md")
-    return _substitute(tmpl, {"WORKSPACE_DISPLAY_NAME": display_name})

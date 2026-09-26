@@ -30,7 +30,7 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
       文件（按设计它是唯一允许锚定历史版本的文件，头部规矩保证新迁移锚点只落此处）
    6. AGENTS.md 模板依赖守卫（skill↔模板解耦）：
       - 7a 节号禁令：CONTRACT_MDS + llmw/**/*.py 中 `AGENTS.md` 字面量后紧跟
-        `§<数字|中文数字>` 即红，`(wiki|workspace) 后接 §N` bare shorthand 同样红
+        `§<数字|中文数字>` 即红，`wiki 后接 §N` bare shorthand 同样红
         （节号是模板内部编号，重排即断；引用必须用节名 / 字段名 / landmark）。
         零误报：regex 要求 §N 与 "AGENTS.md" 字面量之间最多 6 个非 word 字符，
         排除 `AGENTS.md + [ref.md] §二` 形式（§ 实指 ref.md）；模板自身"本文件 §N"
@@ -137,11 +137,11 @@ KEBAB_TOKEN_ALLOW = {
 # `§<数字|中文数字>`。`AGENTS.md + `[ref/external-repo.md`](...) §三` 形式
 # 中「+ [」含 word char 路径段 → regex 不匹配（§三实指 external-repo.md，非 AGENTS.md）。
 AGENTS_SECTION_REF_RE = re.compile(r"AGENTS\.md[^\w\n]{0,6}§[0-9一二三四五六七八九十]+")
-# 面 7a 扩展：裸 "wiki §N" / "workspace §N" shorthand（缺 AGENTS.md 字面量但仍指模板节号）。
+# 面 7a 扩展：裸 "wiki §N" shorthand（缺 AGENTS.md 字面量但仍指模板节号）。
 # 前置 (?:^|[\s<>/`]) 排除 wiki 名后缀（如 `huawei_storage_wiki/wiki/` 中第一个 wiki
 # 前接 word char 不匹配）。
 TEMPLATE_BARE_SHORTHAND_RE = re.compile(
-    r"(?:^|[\s<>/`])(?:wiki|workspace)\s+§[0-9一二三四五六七八九十]+"
+    r"(?:^|[\s<>/`])wiki\s+§[0-9一二三四五六七八九十]+"
 )
 # 面 8 rule_ref 格式闸：.py rule_ref 字段 / to_action / finding 消息指向 skill 文档必须
 # 带 .md 扩展名——否则面 3 的锚点/旧形态检测都匹配不到，等于死指针。regex 抓裸
@@ -165,13 +165,6 @@ WIKI_TEMPLATE_LANDMARKS = [
     "Query 纪律",
     "raw/discussions/",
     "### `MEMORY/`",
-]
-WORKSPACE_TEMPLATE_LANDMARKS = [
-    "当前配置",
-    "Workspace Format 版本",
-    "@MEMORY/MEMORY.md",
-    "跨 wiki 约定",
-    "Memory 纪律",
 ]
 # 面 8 布局 token：skill 里 `wiki/<dir>/` token，dir 必须在 WIKI_SUBDIRS 集合。
 # 前置 `[\s<>/]` 排除 wiki 名后缀（如 `huawei_storage_wiki/wiki/...` 中第一个 `wiki`
@@ -710,9 +703,7 @@ def main():  # pylint: disable=too-many-branches
 
     # --- 6. AGENTS.md 模板依赖守卫 ---
     WIKI_TEMPLATE = TEMPLATES / "wiki" / "agents-md-template.md"
-    WORKSPACE_TEMPLATE = TEMPLATES / "workspace" / "workspace-agents-md-template.md"
     wiki_tpl_text = _read(WIKI_TEMPLATE) if WIKI_TEMPLATE.is_file() else ""
-    ws_tpl_text = _read(WORKSPACE_TEMPLATE) if WORKSPACE_TEMPLATE.is_file() else ""
 
     # 6a 节号禁令：CONTRACT_MDS + llmw/**/*.py 中 AGENTS.md 字面量紧邻 §N /
     # "wiki §N" / "workspace §N" bare shorthand → 红
@@ -726,7 +717,7 @@ def main():  # pylint: disable=too-many-branches
             )
         if TEMPLATE_BARE_SHORTHAND_RE.search(line):
             errors.append(
-                "[template-shorthand] {}:{} :: 裸 `wiki §N` / `workspace §N` shorthand"
+                "[template-shorthand] {}:{} :: 裸 `wiki §N` shorthand"
                 "（模板内重组即断）→ 改用「节名」形式：{}".format(
                     rel, lineno, line.strip()[:80]
                 )
@@ -782,13 +773,6 @@ def main():  # pylint: disable=too-many-branches
         if landmark not in wiki_tpl_text:
             errors.append(
                 "[landmark] wiki AGENTS.md 模板缺 landmark `{}`（skill 依赖它，"
-                "模板改了须同 commit 同步 skill 引用）".format(landmark)
-            )
-    for landmark in WORKSPACE_TEMPLATE_LANDMARKS:
-        stats["landmarks"] += 1
-        if landmark not in ws_tpl_text:
-            errors.append(
-                "[landmark] workspace AGENTS.md 模板缺 landmark `{}`（skill 依赖它，"
                 "模板改了须同 commit 同步 skill 引用）".format(landmark)
             )
 

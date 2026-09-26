@@ -205,7 +205,7 @@
 ## 六、本文件本身的纪律
 
 - **本文件由 llmw CLI 渲染拥有（byte-owned）——禁手改**：手改会被 `agents-md-template-sync`
-  check 判 drift、`llmw upgrade --apply` 按最新模板**全量重渲染**覆盖——「当前配置」表 4 个
+  check 判 drift、`llmw wiki upgrade --apply` 按最新模板**全量重渲染**覆盖——「当前配置」表 4 个
   per-wiki 字段（主题 / 创建日期 / CLI 版本 / Wiki Format 版本）是仅有的本地内容，升级时保留
   现值；自定义纪律沉淀去 `MEMORY/`（经顶部引用自动加载，会话常驻）
 - 本文件是 schema，**不是 wiki 内容**——不要往里塞 wiki 主题相关的笔记

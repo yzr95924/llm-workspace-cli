@@ -117,7 +117,7 @@ llmw.cli (argparse + 分派)
     `agents-md-template.md` / `claude-md-template.md` / `fixtures/*.txt`
     作为字节金标准，占位符替换后落盘；
     不复制 SKILL 运行时纪律（ingest / lint），只承担"出生形态"。SKILL 升级时 CLI 自动获益
-    （字节一致性 gate 走 `scripts/test/smoke_fixtures.py` 调 `llmw [wiki] check-fixtures` 探测器，
+    （字节一致性 gate 走 `scripts/test/smoke_fixtures.py` 调 `llmw wiki check-fixtures` 探测器，
     CI fixtures-smoke job 执行）。
 3. **overlay 交付走 Local 层文件（仅 claude 路径）**——model 真相源是 `workspace_models.toml`，
    不依赖环境变量（[[model-ops-no-env-vars]]）。claude 路径 `wiki enter` 用 `resolve_for_wiki`
@@ -142,7 +142,7 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 | `llmw.cli` | argparse + 全局 flag + 分派 | 不含业务逻辑 |
 | `llmw.backends` | backend 单一真源：`KNOWN_BACKENDS`（enter_cli 白名单 / 打标 / 校验共用）+ `STATE_PATTERNS`（status 的 STATE 模式注册表）+ `match_working`/`match_waiting`；加新 agent 只改此文件 | 不写盘、不做 tmux IO |
 | `llmw.config` | workspace 路径解析、SKILL 脚本路径、模板目录定位 | 不解析 workspace.toml |
-| `llmw.content` | **所有**确定性操作单仓收口：`render.py`（骨架渲染单一入口）/ `upgrade.py` + `upgrade_workspace.py`（升级引擎 + 3 终态）/ `wiki_fixtures.py` + `workspace_fixtures.py`（规则注册表 + 探测器，共享脚手架在 `_check_common.py`）/ `findings.py`（lint finding 注册表 SSOT：名 / severity / 含义 / 修法，`lint --explain=NAME` 输出）/ `page_types.py`（内容页 type ↔ 子目录 ↔ index 类别段 SSOT）/ 内容层命令 `wiki_lint.py` / `ingest_diff.py` / `wiki_write.py` / `external_anchor.py` / `log_format.py`（log 行正则 + 日期解析 SSOT）/ `legacy_paths.toml`（数据）。变量 SSOT = metadata toml + `__version__` 常量；不从旧文件反提取变量 | 不写 `raw/` / `wiki/` 语义内容（红线例外见项目定位）；不调用 LLM；不读用户 git 状态；不写元数据 toml（`store` 负责） |
+| `llmw.content` | **所有**确定性操作单仓收口：`render.py`（骨架渲染单一入口）/ `upgrade.py`（升级引擎 + 3 终态）/ `wiki_fixtures.py`（规则注册表 + 探测器，共享脚手架在 `_check_common.py`）/ `findings.py`（lint finding 注册表 SSOT：名 / severity / 含义 / 修法，`lint --explain=NAME` 输出）/ `page_types.py`（内容页 type ↔ 子目录 ↔ index 类别段 SSOT）/ 内容层命令 `wiki_lint.py` / `ingest_diff.py` / `wiki_write.py` / `external_anchor.py` / `log_format.py`（log 行正则 + 日期解析 SSOT）/ `legacy_paths.toml`（数据）。变量 SSOT = metadata toml + `__version__` 常量；不从旧文件反提取变量 | 不写 `raw/` / `wiki/` 语义内容（红线例外见项目定位）；不调用 LLM；不读用户 git 状态；不写元数据 toml（`store` 负责） |
 | `llmw.errors` | 自定义异常（按 exit_code 1/2/3 分层） | — |
 | `llmw.fsutil` | 原子写（tmp + fsync + rename）、ISO8601 时间 | — |
 | `llmw._compat` | tomllib (3.11+) / tomli (<3.11) 兼容层 + 手写 toml dump | — |
@@ -164,15 +164,15 @@ api_key redact 见「开发注意事项」；字节一致性 gate 见 `fixtures/
 
 ### 骨架所有权四分表（本仓视角）
 
-本仓（llmw CLI）维护的"骨架文件"按所有权分 4 档；`llmw upgrade --apply` / `llmw wiki upgrade --apply`
-的行为差异即按此分类。
+本仓（llmw CLI）维护的"骨架文件"按所有权分 4 档；`llmw wiki upgrade --apply` 的行为
+差异即按此分类。
 
 | 档 | CLI 维护的文件 | `check-fixtures` 行为 | `upgrade --apply` 行为 |
 | --- | --- | --- | --- |
-| **byte-owned** | `<wiki>/AGENTS.md` / `<wiki>/CLAUDE.md` / `<workspace>/AGENTS.md` / `<workspace>/CLAUDE.md` | render-compare：必须与包内 `llmw/content/templates/*-template.md` 渲染稿字节一致 | 按模板全量重渲染 |
-| **block-owned** | `<workspace>/.gitignore` 的 llmw managed 块 | 块内 3 规则必须齐全（`gitignore-skeleton` check） | 仅替换 managed 块，块外用户自定义规则不动 |
+| **byte-owned** | `<wiki>/AGENTS.md` / `<wiki>/CLAUDE.md` | render-compare：必须与包内 `llmw/content/templates/*-template.md` 渲染稿字节一致 | 按模板全量重渲染 |
+| **block-owned** | `<wiki>/.gitignore` 的 llmw managed 块 + `raw/external/*` 排除对 | 排除 + anchor 跟踪规则齐全（`gitignore-external-track-toml` check） | 仅替换 managed 块，块外用户自定义规则不动 |
 | **header-owned** | `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `MEMORY/MEMORY.md` / `scripts/SCRIPTS.md` | frontmatter 必填键 + H1 + 说明块 + ## 段头（各 `*-skeleton` check） | 换头 + 段嫁接保留 growth 条目 |
-| **content-owned** | wiki 内容页 + MEMORY 经验条目 + scripts 脚本正文 + 跨 wiki 综合产物 | 不查（归 agent / skill） | 不动 |
+| **content-owned** | wiki 内容页 + MEMORY 经验条目 + scripts 脚本正文 | 不查（归 agent / skill） | 不动 |
 
 ### 全局 flag 与退出码
 

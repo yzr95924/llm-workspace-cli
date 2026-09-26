@@ -53,15 +53,13 @@ end
 
 # 通用 / 顶级
 set -l COMMON -l workspace -l json -l debug -l quiet -s q
-set -l TOP_CMDS init config list status check-fixtures upgrade model wiki -l help -l version
+set -l TOP_CMDS init config list status model wiki -l help -l version
 
 # ===== 顶层 =====
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "init"            -d '初始化 workspace'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "config"          -d 'workspace.toml 读写'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "list"            -d '列出 wiki'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "status"          -d '查看运行中的 wiki agent session'
-complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "check-fixtures"  -d '骨架探测器（检查 AGENTS.md / fixtures / legacy 一致性）'
-complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "upgrade"         -d 'workspace 升级引擎'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "model"           -d 'workspace model registry'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "wiki"            -d 'wiki 子命令'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -l help         -d '显示帮助'
@@ -85,13 +83,6 @@ complete -c llmw -n "__fish_seen_subcommand_from list; and not __fish_seen_subco
 # status 子命令 flag（--tmux 是 bool）
 complete -c llmw -n "__fish_seen_subcommand_from status" -l tmux -d '输出单行 ●N [✗M]（供状态条集成）'
 
-# check-fixtures 子命令（--target-format free-form → B 类；--list-rules bool）
-complete -c llmw -n "__fish_seen_subcommand_from check-fixtures; and not __fish_seen_subcommand_from wiki" -a "--target-format=" -f -d '目标 format 版本（缺省读 llmw.WORKSPACE_FORMAT_VERSION）'
-complete -c llmw -n "__fish_seen_subcommand_from check-fixtures; and not __fish_seen_subcommand_from wiki" -l list-rules         -d '列出所有 detector 规则（不跑检查）'
-
-# upgrade 子命令（--apply / --yes bool）
-complete -c llmw -n "__fish_seen_subcommand_from upgrade; and not __fish_seen_subcommand_from wiki" -l apply -d 'dry-run 模式变 apply 模式（写文件；TTY 默认 dry-run）'
-complete -c llmw -n "__fish_seen_subcommand_from upgrade; and not __fish_seen_subcommand_from wiki" -l yes -s y -d '跳过 TTY 二次确认'
 
 # ===== config 子命令（顶层 config: not seen wiki 防止漏入 wiki config 上下文）=====
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from get set unset" -f -a "get"    -d '取值'
@@ -201,7 +192,7 @@ complete -c llmw -n "__llmw_subact wiki lint" -l no-git              -d '跳过 
 complete -c llmw -n "__llmw_subact wiki lint" -l check-version       -d '扫 format 版本 + legacy 现场（互斥模式）'
 complete -c llmw -n "__llmw_subact wiki lint" -l apply               -d '与 --check-version 联用：stdout JSON 输出 upgrade plan'
 
-# wiki check-fixtures（同顶层版本；free-form target-format + list-rules bool）
+# wiki check-fixtures（free-form target-format + list-rules bool）
 complete -c llmw -n "__llmw_subact wiki check-fixtures" -a "--target-format=" -f -d '目标 format 版本'
 complete -c llmw -n "__llmw_subact wiki check-fixtures" -l list-rules         -d '列出 detector 规则（不跑检查）'
 

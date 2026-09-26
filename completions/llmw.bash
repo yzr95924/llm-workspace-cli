@@ -71,7 +71,7 @@ _llmw() {
     }
 
     local COMMON="--workspace= --json --debug --quiet -q"
-    local TOP="init config list status check-fixtures upgrade model wiki"
+    local TOP="init config list status model wiki"
     local WIKI_ACTS="add remove rename show config enter stop lint check-fixtures upgrade ingest-diff write external"
     local WIKI_WRITE_ACTS="log index touch new memory"
     local WIKI_EXTERNAL_ACTS="add remove list rebuild"
@@ -140,12 +140,6 @@ _llmw() {
             ;;
         status)
             COMPREPLY=($(compgen -W "--tmux $COMMON" -- "$cur"))
-            ;;
-        check-fixtures)
-            COMPREPLY=($(compgen -W "--target-format= --list-rules $COMMON" -- "$cur"))
-            ;;
-        upgrade)
-            COMPREPLY=($(compgen -W "--apply --yes -y $COMMON" -- "$cur"))
             ;;
         config)
             if [ -z "$sub_action" ]; then

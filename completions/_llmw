@@ -33,8 +33,6 @@ _llmw() {
         'config:workspace.toml 读写'
         'list:列出 wiki'
         'status:查看运行中的 wiki agent session'
-        'check-fixtures:骨架探测器（检查 AGENTS.md / fixtures / legacy 一致性）'
-        'upgrade:workspace 升级引擎'
         'model:workspace model registry'
         'wiki:wiki 子命令'
     )
@@ -112,18 +110,6 @@ _llmw() {
                 status)
                     _arguments \
                         '--tmux[输出单行 ●N [✗M]（供状态条集成）]' \
-                        "${COMMON_OPTS[@]}" && ret=0
-                    ;;
-                check-fixtures)
-                    _arguments \
-                        '--target-format=[目标 format 版本（缺省读 llmw.WORKSPACE_FORMAT_VERSION）]:target_format:' \
-                        '--list-rules[列出所有 detector 规则（不跑检查）]' \
-                        "${COMMON_OPTS[@]}" && ret=0
-                    ;;
-                upgrade)
-                    _arguments \
-                        '--apply[dry-run 模式变 apply 模式（写文件；TTY 默认 dry-run）]' \
-                        '(--yes -y)'{--yes,-y}'[跳过 TTY 二次确认]' \
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;
                 config)

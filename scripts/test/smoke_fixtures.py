@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""CI smoke gate：fresh llmw init + wiki → 两探测器 → 断言结构合规。
+"""CI smoke gate：fresh llmw init + wiki → wiki 探测器 → 断言结构合规。
 
 兑现 [[check-fixtures-as-executable-truth]]：CLI 改坏骨架 / fixtures 同步漂移
 都让本 gate 红。双向覆盖。
 
-断言策略：两探测器所有 error 级 check passed=True（允许 skipped/null）。
+断言策略：探测器所有 error 级 check passed=True（允许 skipped/null）。
 版本常量 llmw.WIKI_FORMAT_VERSION 与 wiki SKILL.md frontmatter 的
 wiki_format_version 由本 gate 比对，漂移即挂。
 
@@ -27,8 +27,7 @@ REPO = Path(__file__).resolve().parents[2]
 def _check_format_version_alignment():
     """版本门：SKILL.md frontmatter *_format_version 必须 == llmw 包内常量。
 
-    读 SKILL.md frontmatter 与 llmw.WIKI_FORMAT_VERSION / WORKSPACE_FORMAT_VERSION 比对；
-    任一不一致即 exit 1。这是 [[format-version-bump-single-repo]] 的机械 gate（纪律升级为 gate）。
+    读 SKILL.md frontmatter 与 llmw.WIKI_FORMAT_VERSION 比对，不一致即 exit 1。这是 [[format-version-bump-single-repo]] 的机械 gate（纪律升级为 gate）。
     """
     sys.path.insert(0, str(REPO))
     import llmw
@@ -155,23 +154,18 @@ def main():
             ]
         )
 
-        # 两探测器：workspace 级 + wiki 级（走 llmw.content 命令面，--path 直传 wiki 根）
-        ws_data = _assert_all_error_pass(
-            ["--workspace=" + str(ws), "check-fixtures", "--json"], "workspace"
-        )
+        # wiki 探测器（走 llmw.content 命令面，--path 直传 wiki 根）
         wiki_data = _assert_all_error_pass(
             ["wiki", "--path=" + str(ws / "w"), "check-fixtures", "--json"], "wiki"
         )
 
-        # 显式确认两条读取契约 check（E1/E2）落地且 pass——SKILL 读取契约自洽对接
-        for check_id, data in [
-            ("workspace-toml-reads-satisfied", ws_data),
-            ("wiki-metadata-reads-satisfied", wiki_data),
-        ]:
-            ids = {c["id"]: c.get("passed") for c in data["checks"]}
-            if ids.get(check_id) is not True:
-                raise SystemExit(f"FAIL: {check_id} check 未 pass/缺失: {ids}")
-        print("[OK] 读取契约 check（E1/E2）passed=True")
+        # 显式确认读取契约 check（E2）落地且 pass——SKILL 读取契约自洽对接
+        ids = {c["id"]: c.get("passed") for c in wiki_data["checks"]}
+        if ids.get("wiki-metadata-reads-satisfied") is not True:
+            raise SystemExit(
+                f"FAIL: wiki-metadata-reads-satisfied check 未 pass/缺失: {ids}"
+            )
+        print("[OK] 读取契约 check（E2）passed=True")
 
     print("\nsmoke gate PASS")
 

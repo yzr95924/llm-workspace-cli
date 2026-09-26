@@ -23,8 +23,6 @@ TOP_CMDS = [
     "config",
     "list",
     "status",
-    "check-fixtures",
-    "upgrade",
     "model",
     "wiki",
 ]

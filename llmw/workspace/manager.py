@@ -5,11 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from llmw import WORKSPACE_FORMAT_VERSION, __version__
 from llmw._compat import TOMLDecodeError
 from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
-from llmw.config import workspace_templates_dir
-from llmw.content.render import render_workspace_agents_md, render_workspace_claude_md
 from llmw.errors import (
     InvalidConfigKey,
     KeyNotUnsettable,
@@ -18,20 +15,16 @@ from llmw.errors import (
     ModelNotInRegistry,
     RegistryMissing,
     SchemaVersionUnsupported,
-    SetupFailed,
-    SkillMissing,
     WikiDirMissing,
     WikiNotFound,
     WorkspaceExists,
 )
-from llmw.fsutil import atomic_write
 from llmw.workspace import store as ws_store
 from llmw.workspace.gitignore import ensure_workspace_gitignore
 
 # config KEY 白名单: name -> (can_set, can_unset, type)
 CONFIG_KEYS = {
     "enter_cli": (True, True, str),  # → workspace_local.toml；白名单见 _check_enter_cli
-    "templates_version": (False, False, str),  # 只读, workspace.toml
     "created_at": (False, False, str),  # 只读, workspace.toml
     "schema_version": (False, False, int),  # 只读, workspace.toml
 }
@@ -66,86 +59,6 @@ def _is_effectively_empty(path: Path) -> bool:
     return all(entry.name in ignored for entry in path.iterdir())
 
 
-def _write_workspace_agents_md(
-    workspace_root: Path, display_name: str, setup_date: str
-) -> None:
-    """渲染生成 <workspace>/AGENTS.md；已存在拒绝覆盖（schema 归用户）。"""
-    agents_md = workspace_root / "AGENTS.md"
-    if agents_md.exists():
-        raise WorkspaceExists(
-            f"{agents_md} 已存在；拒绝覆盖",
-            hint="AGENTS.md 是 workspace schema（用户所有），若需更新请手动编辑",
-        )
-
-    # 模板渲染（模板缺失 / 占位符异常由 render 层抛 SetupFailed）
-    rendered = render_workspace_agents_md(
-        display_name=display_name,
-        setup_date=setup_date,
-        cli_version=__version__,
-        format_version=WORKSPACE_FORMAT_VERSION,
-    )
-
-    try:
-        atomic_write(agents_md, rendered)
-    except OSError as e:
-        raise SetupFailed(
-            f"写入 workspace AGENTS.md 失败: {e.filename or e.strerror}",
-            hint="检查磁盘空间 + 目录权限",
-        )
-
-
-def _write_workspace_claude_md(workspace_root: Path, display_name: str) -> None:
-    """渲染生成 <workspace>/CLAUDE.md 薄壳（仅替换 display_name）；已存在拒绝覆盖。"""
-    claude_md = workspace_root / "CLAUDE.md"
-    if claude_md.exists():
-        raise WorkspaceExists(
-            f"{claude_md} 已存在；拒绝覆盖",
-            hint="CLAUDE.md 是 workspace schema 薄壳（用户所有），若需更新请手动编辑",
-        )
-
-    # 模板渲染（模板缺失 / 占位符异常由 render 层抛 SetupFailed）
-    rendered = render_workspace_claude_md(display_name=display_name)
-
-    try:
-        atomic_write(claude_md, rendered)
-    except OSError as e:
-        raise SetupFailed(
-            f"写入 workspace CLAUDE.md 失败: {e.filename or e.strerror}",
-            hint="检查磁盘空间 + 目录权限",
-        )
-
-
-def _write_workspace_memory_index(workspace_root: Path) -> None:
-    """拷贝 fixtures/memory-index.txt → MEMORY/MEMORY.md（已存在则跳过——agent 私有记忆不覆盖）。"""
-    target = workspace_root / "MEMORY" / "MEMORY.md"
-    if target.exists():
-        # idempotent: 已存在即跳过;由 skill 在 cross-wiki MEMORY 工作时维护
-        return
-
-    refs = workspace_templates_dir()
-    if not refs.is_dir():
-        raise SkillMissing(
-            f"找不到包内 templates/workspace/ 目录: {refs}",
-            hint="检查 llmw/content/templates/workspace/ 是否完整（editable 安装或 wheel 打包缺失）",
-        )
-    try:
-        content = (refs / "fixtures" / "memory-index.txt").read_text(encoding="utf-8")
-    except OSError as e:
-        raise SetupFailed(
-            f"读取 workspace MEMORY.md fixture 失败: {e.filename}",
-            hint="检查 llmw/content/templates/workspace/fixtures/ 是否完整",
-        )
-
-    (workspace_root / "MEMORY").mkdir(parents=True, exist_ok=True)
-    try:
-        atomic_write(target, content)
-    except OSError as e:
-        raise SetupFailed(
-            f"写入 workspace MEMORY.md 失败: {e.filename or e.strerror}",
-            hint="检查磁盘空间 + 目录权限",
-        )
-
-
 def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
     """初始化 workspace 根；git 由用户自理（CLI 不碰 git；git 空仓允许直接 init）。"""
     path = path.resolve()
@@ -158,7 +71,7 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
     else:
         path.mkdir(parents=True)
 
-    ws = ws_store.create_skeleton(path)
+    ws_store.create_skeleton(path)
 
     # .gitignore 无条件生成（便于后续补 git）；registry 空骨架落盘（save 内置 chmod 600）
     ensure_workspace_gitignore(path)
@@ -169,13 +82,6 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
     )
 
     save_models(path, create_models_skeleton())
-
-    # 先 AGENTS.md 后 CLAUDE.md；setup_date 派生自 created_at（与 checker 同源）
-    setup_date = (ws.created_at or "")[:10]
-    _write_workspace_agents_md(path, display_name, setup_date=setup_date)
-    _write_workspace_claude_md(path, display_name)
-
-    _write_workspace_memory_index(path)
 
     print(f"[llmw] workspace 已初始化于 {path}", file=sys.stdout)
     print(
@@ -218,7 +124,6 @@ def config_get(workspace_root: Path, key: Optional[str]) -> None:
         else:
             print(f"# enter_cli: <unset> (= {DEFAULT_BACKEND})")
         print(f"created_at = {ws.created_at}")
-        print(f"templates_version = {ws.templates_version}")
         print(f"schema_version = {ws.schema_version}")
         wikis = list(ws.wikis.keys())
         if wikis:
