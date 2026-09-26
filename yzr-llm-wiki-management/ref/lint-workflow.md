@@ -11,7 +11,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 ```
 
 遇到版本漂移 finding（`wiki-format-version-*`）→ `lint --check-version` 取报告，走
-[升级章](../SKILL.md#upgrade升级-wiki-format)
+[章节](../SKILL.md#upgrade升级-wiki-format)
 
 ## 半定性检查（agent 执行）
 
