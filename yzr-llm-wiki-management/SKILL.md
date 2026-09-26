@@ -58,42 +58,31 @@ upgrade 迁移期豁免，红线见下方 Upgrade 节）：格式 + 滚动窗口
 
 ## 工作流
 
+各 workflow 执行前必读对应文档——本节只做路由与防起步错误，流程步骤以文档为准。
+
 ### Ingest（摄取新资料）
 
 **触发**："把这篇摄取到 wiki" / `raw/` 有新文件 / 跑 `llmw wiki ingest-diff` 发现未摄取项
-
-**外部代码仓作为语料**（"把 X 仓库纳入 wiki"）：**不**内嵌拷仓，走 symlink 路径——
-`llmw wiki external add <target> --name=<n> [--notes=...]`（symlink + anchor 一律经 CLI
-落盘）→ `llmw wiki ingest-diff` 扫描；接入决策 / 漂移刷新 / 跨主机重建见
-`ref/external-repo.md`（相应操作前必读）
-
-**流程预告**：识别 → 对齐要点 → source 页 → entity / concept 同步 → index / log 簿记 →
-commit，全文见 `ref/ingest-workflow.md`（执行前必读）；≥ 3 份 raw 同时摄入走批处理路径——
-[章节](ref/ingest-workflow.md#批处理摄取-3-份-raw-同时摄入)
+——全文 `ref/ingest-workflow.md`；≥ 3 份 raw 同时摄入走批处理路径——
+[章节](ref/ingest-workflow.md#批处理摄取-3-份-raw-同时摄入)。"把 X 仓库纳入 wiki"走
+`ref/external-repo.md`：**不**内嵌拷仓，symlink + anchor 经 CLI 落盘
 
 ### Query（跨页综合）
 
-**触发**："wiki 里有 X 吗" / "总结 wiki 中关于 Y 的内容" / "对比 A 和 B"
-
-**流程预告**：`index.md` 定位 → 只读相关页（不读 raw）→ `reviewed` / `contested` 采信分级
-→ 综合 → 符合条件时询问归档，全文见 `ref/query-workflow.md`（执行前必读）
+**触发**："wiki 里有 X 吗" / "总结 wiki 中关于 Y 的内容" / "对比 A 和 B"——全文
+`ref/query-workflow.md`
 
 ### Lint（健康检查）
 
-**触发**："lint wiki" / 定期（频率阈值见 [章节](ref/lint-workflow.md#lint-频率)）/ 大型 wiki 主动建议
-
-**流程预告**：`llmw wiki lint`（deterministic）→ agent 半定性 → 报告 + 询问用户先修哪些，
-全文见 `ref/lint-workflow.md`（执行前必读）；finding 口径（含义 / severity / 修法）=
-`llmw wiki lint --explain=all`；fixtures 一致性归 `llmw wiki check-fixtures`（常规 lint
-只在 `--check-version` 时附带）
+**触发**："lint wiki" / 定期（频率阈值见 [章节](ref/lint-workflow.md#lint-频率)）/ 大型
+wiki 主动建议——全文 `ref/lint-workflow.md`；finding 口径唯一入口 =
+`llmw wiki lint --explain=all`（本文不镜像 severity 清单）
 
 ### Upgrade（升级 wiki format）
 
-**触发**：用户说"升级 wiki / 迁移 / 检查 wiki 版本 / 老格式 / format 升级 / 是否需要
-reformat"；或 `llmw wiki lint` 报告 `wiki-format-version-stale` / legacy warn
-
-**红线**：迁移期不走 `llmw wiki write`；**不**追加 log 条目。三方职责、流程与裁定细则见
-`ref/upgrade-workflow.md`（执行前必读）
+**触发**："升级 wiki / 迁移 / format 升级 / 是否需要 reformat"；或 `llmw wiki lint`
+报告 `wiki-format-version-stale` / legacy warn——全文 `ref/upgrade-workflow.md`。
+**红线**：迁移期不走 `llmw wiki write`；**不**追加 log 条目
 
 ## 参考样例
 
