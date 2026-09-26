@@ -99,6 +99,8 @@ llmw config set enter_cli qodercli   # 切换；llmw config unset enter_cli 回�
 | 2 | 环境错误（byobu-tmux / agent CLI 不在 PATH 等） |
 | 3 | 内部错误（未捕获异常） |
 
+`wiki lint` 例外：0 = 干净，1 = 有 findings，2 = 运行错误（wiki 不存在等）。
+
 ## 注意事项
 
 - 需 byobu（tmux backend）且 **tmux ≥ 2.7**（软性下限，本机实测 3.4）。
