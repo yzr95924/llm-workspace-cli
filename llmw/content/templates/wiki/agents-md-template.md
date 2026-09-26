@@ -177,7 +177,7 @@
 
 1. **`llmw wiki lint` 检查 deterministic 部分**——检查集与 finding 口径以 `llmw wiki lint`
    输出 / `--explain` 为准（本文件不枚举）
-2. **agent 检查半定性部分**——矛盾、缺失交叉引用、过期主张、漂移点引用
+2. **agent 检查半定性部分**——清单与方法见维护本 wiki 的 skill 的 lint-workflow「半定性检查」节
 3. **修 lint 不要回退 schema**——若 lint 报告与本文件冲突，**先讨论用户**再决定
 4. **版本漂移响应**——lint / write / check-fixtures 报版本漂移
    （`wiki-format-version-stale` / `agents-md-template-sync` drift / legacy warn）时，
