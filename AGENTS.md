@@ -38,6 +38,8 @@ python3 -m llmw --help                            # 免安装直接跑 CLI
 - 带值 flag 一律 `--flag=VALUE` 等号形式（CLI 全局拒绝空格分隔；文档中的示例同样要求）。
 - 新增 agent backend 只改 `llmw/backends.py`（`KNOWN_BACKENDS` + `STATE_PATTERNS`）。
 - finding 口径唯一入口 = `llmw wiki lint --explain`（注册表 `llmw/content/findings.py`）；skill prose 不得镜像 severity 清单。
+- **运行时输出 = 契约面**：`--help` / stderr / findings `to_action` / plan 字段被 skill prose 信赖为自明（prose 不复述）；
+  改这些文案 = 改契约，须同步 grep skill 侧"自明 / 按输出行动"依赖句。
 - 元数据 toml 的 schema 校验全在 store 层（workspace / wiki / models 各自 store 的 validate）；manager 不重复校验。
 - api_key 打印必过 `llmw/models/redact.py` 出口；model 配置不读环境变量（禁止 `os.environ.get` 读取 API 配置）。
 
@@ -58,6 +60,8 @@ python3 -m llmw --help                            # 免安装直接跑 CLI
 4. write 子命令三居一才加：格式多字段 / 滚动窗口类不变量 / 高频
 5. 仅模板 / fixture 字节变才 bump `WIKI_FORMAT_VERSION`
 6. 无法机器校验的跨载体断言登记 gate 豁免清单，禁止沉默的未钉住
+7. 未钉住的跨载体重复无机械防线，靠人肉审计兜底：新增 / 改动子命令、报错文案、模板节后，对受影响 skill ref 逐段
+   审计 vs 模板 / fixture 头部 / `--help` / 运行时输出，复述即删、改裸指针
 
 ## 工具链硬约束
 

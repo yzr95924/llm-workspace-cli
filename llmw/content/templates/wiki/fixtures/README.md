@@ -17,6 +17,7 @@ wiki 体系每条纪律恰有一个 canonical 载体；其余位置要么不写�
 | 单文件格式 / 操作契约（怎么写、retention、解析约束） | 该 fixture 头部说明块 |
 | 工作流步骤（ingest / query / lint 的执行过程） | skill `ref/*.md` |
 | 文件边界（路径 / 性质 / 所有权） | wiki `AGENTS.md` 各边界卡（「一、本 wiki 的边界」） |
+| 命令签名 / flag / 机制行为 | CLI `--help` 与运行时输出（stderr / `to_action` / plan 字段） |
 
 两条派生纪律（写新规则前必读，防止逐例打补丁回潮）：
 
@@ -24,6 +25,9 @@ wiki 体系每条纪律恰有一个 canonical 载体；其余位置要么不写�
   新场景自动落入通则；禁止为个案加豁免 / 许可句
 - **fixture 只承载骨架契约**：跨文件触发判定与成长内容不进 fixture 头部——
   头部写"触发判定见 AGENTS.md …"的指针即可
+- **机制住运行时**：命令签名 / flag / 行为细节只写在 `--help` / stderr / plan 输出；模板与
+  skill 写裸指针或动作前必须已知的前置（如"target 必须已存在"走 stderr 自明则不写）；
+  复述句是漂移源，按 AGENTS.md 演进判据第 7 条的重复审计清
 
 ## 用法
 
