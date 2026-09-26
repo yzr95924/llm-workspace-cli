@@ -92,7 +92,7 @@ FINDINGS = {
     "missing-sources": FindingSpec(
         "error",
         "source / synthesis 页缺 `sources` 字段或为空",
-        "补 `sources:`（wiki 根相对 raw/ 路径；synthesis 可指 wiki 内页）",
+        "补 `sources:`（source 页指 wiki 根相对 raw/ 现存路径；synthesis 页指 wiki 内页）",
     ),
     "orphan-page": FindingSpec(
         "error",
