@@ -3,11 +3,8 @@
 > 这是本 wiki 的**纪律配置**——给维护本 wiki 的 LLM 看的"工作守则"。你（即 LLM）
 > 必须在每次操作前先读这份文件；任何对 wiki 的写入都必须符合这里规定的边界。
 >
-> **本文件（`AGENTS.md`）是本 wiki 纪律的单一真源（SSOT）**——工具无关。由 llmw CLI 在初始化时
-> 按其包内官方模板渲染生成（模板随 CLI 分发，不在本 wiki 内）；后续可由用户编辑，**但**
-> 任何与本 skill 的核心原则冲突的修改都视为"非标准配置"，skill 行为不再保证一致。
-> **本 wiki 特有的纪律 / 偏好请沉淀到 `MEMORY/`**，不要写进本文件——
-> 模板升级时本文件按 CLI 最新模板**全量重渲染**，本地修改一律不保留。
+> **本文件（`AGENTS.md`）是本 wiki 纪律的单一真源（SSOT）**——工具无关；渲染所有权与
+> 升级重渲染规则见「本文件本身的纪律」节；**本 wiki 特有的纪律 / 偏好请沉淀到 `MEMORY/`**。
 >
 > 下方 `@path` 行声明本文件的**必读上下文**（随本文件自动加载，会话常驻——支持 `@import`
 > 的环境内联展开；其他环境由外部配置注入等价内容）。
@@ -33,8 +30,8 @@
     会按 mtime vs source 页 `updated` 标记这类待重新摄取的文件
   - raw 文件路径是 wiki 内 source 页的 `sources` 字段的"永久引用"——改名会断链
   - raw/ 的内容是真相之源；wiki 摘要如与 raw 矛盾，**以 raw 为准**
-  - raw/ 进 git（本 wiki 的 `.gitignore` 不排除 `raw/`）；空目录在 init 时由 CLI 放 `.gitkeep` 占位（
-    `raw/articles/` + `raw/assets/`），后续真实文件由用户 `git add`（与 wiki/ 行为一致）
+  - raw/ 进 git（本 wiki 的 `.gitignore` 不排除 `raw/`）；空目录在 init 时由 CLI 放
+    `.gitkeep` 占位，后续真实文件由用户 `git add`（与 wiki/ 行为一致）
 - **所有 git 操作由用户触发**（红线）——LLM agent **不**主动 `git init` /
   `git add` / `git commit` / `git config` / `git symbolic-ref`；用户看到 wiki 落盘后自行决定是否 init git
 
@@ -77,10 +74,8 @@
   代码改动后的 wiki 同步走**既有通道**（用户确认 → 受影响 source 页重 ingest）
 - LLM **不**编辑 `raw/external/` 之外的 `raw/` 子树（articles / papers / assets /
   clippings 等仍"LLM 只读"；`discussions/` 是另一处写权限例外——见下节）
-- `.gitignore` 配置：已排好 `raw/external/*` 排除但保留 `.symlink-anchor.toml`——
-  跨机器 clone 时通过 anchor 立即知道"这本来指着哪"；新主机跑
-  `llmw wiki external rebuild` 即按 anchor `remote_url` + `branch` 自动重建
-  （clone target 不在时）+ 重 ingest 受影响 source 页
+- `.gitignore` 已排除 `raw/external/*`（symlink 不随 git 走）、保留 `.symlink-anchor.toml`
+  （anchor 随仓走，供上节 `rebuild` 定位"这本来指着哪"）
 
 #### `raw/discussions/` —— 协作草稿层（用户 + LLM 双方可写）
 
@@ -145,8 +140,7 @@
   不是 wiki 内容、不是操作时间线，而是 agent 私有记忆（内容页、操作时间线、agent
   记忆三者的分层中的第 3 层）
 - 纪律：用户**不**直接编辑 MEMORY/（这是 agent 私有记录）；条目形式（完整 / 短条目）、
-  frontmatter 豁免、索引维护规则见 [`MEMORY/MEMORY.md`](MEMORY/MEMORY.md) 头部说明块；
-  写每条**只改 `MEMORY/MEMORY.md`** 这一份
+  frontmatter 豁免、索引维护规则见 [`MEMORY/MEMORY.md`](MEMORY/MEMORY.md) 头部说明块
 
 ### `scripts/` —— 本 wiki 仓的自维护脚本目录
 
@@ -199,26 +193,23 @@
 
 ## 五、Lint 纪律
 
-1. **`llmw wiki lint` 检查 deterministic 部分**——raw/ 不可变性、frontmatter、index 覆盖、断链、log 格式
+1. **`llmw wiki lint` 检查 deterministic 部分**——检查集与 finding 口径以 `llmw wiki lint`
+   输出 / `--explain` 为准（本文件不枚举）
 2. **agent 检查半定性部分**——矛盾、缺失交叉引用、过期主张、漂移点引用
 3. **修 lint 不要回退 schema**——若 lint 报告与本文件冲突，**先讨论用户**再决定
 4. **版本漂移响应**——lint / write / check-fixtures 报版本漂移
    （`wiki-format-version-stale` / `agents-md-template-sync` drift / legacy warn）时，
-   **不回退 schema、不手改对齐**；告知用户并走升级流程：`llmw check-fixtures` 取
-   plan → 按 upgrade-workflow 走 Edit/Write 修复 → 改本文件末尾「当前配置」表的 `Wiki Format 版本` 字段（其余由模板
-   重渲染）
+   **不回退 schema、不手改对齐**；告知用户，升级流程细则见维护本 wiki 的 skill 的
+   upgrade-workflow 文档
 
 ## 六、本文件本身的纪律
 
-- **本文件由 llmw CLI 渲染拥有（byte-owned）——禁手改**。自定义纪律沉淀去 `MEMORY/`
-   （经顶部引用自动加载，会话常驻）；手改会被
-  `agents-md-template-sync` check 判 drift、`llmw upgrade --apply`
-  重渲染覆盖（「当前配置」表里 4 个 per-wiki 字段由 upgrade 自动保留现值）。
+- **本文件由 llmw CLI 渲染拥有（byte-owned）——禁手改**：手改会被 `agents-md-template-sync`
+  check 判 drift、`llmw upgrade --apply` 按最新模板**全量重渲染**覆盖——「当前配置」表 4 个
+  per-wiki 字段（主题 / 创建日期 / CLI 版本 / Wiki Format 版本）是仅有的本地内容，升级时保留
+  现值；自定义纪律沉淀去 `MEMORY/`（经顶部引用自动加载，会话常驻）
 - 本文件是 schema，**不是 wiki 内容**——不要往里塞 wiki 主题相关的笔记
 - 改本文件 = 改 skill 行为 = 大事；先和用户确认
-- **模板升级时本文件按 CLI 最新模板全量重渲染**（本 wiki 的健康检查强制这一条；本地定制先沉淀 `MEMORY/`，
-  详见顶部说明）——「当前配置」四行变量
-  （主题 / 创建日期 / CLI 版本 / Wiki Format 版本）是仅有的 per-wiki 内容，升级时保留
 - 若 wiki 启用 git，每次改建议 commit 并加清晰的 commit message；未启用 git 跳过此步
 
 ### 骨架所有权四分表（wiki 侧文件归属）
