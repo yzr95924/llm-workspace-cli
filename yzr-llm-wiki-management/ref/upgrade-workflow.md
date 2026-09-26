@@ -1,15 +1,15 @@
 # Upgrade（升级 wiki format）详细流程
 
 **优先级裁定**：边界与纪律以本文档 + wiki 根 `AGENTS.md` 为准；每条动作的具体改法与执行
-顺序以 plan 自带的 `agent_rules[]` + 各 action 说明为准（CLI 输出真源，本文不重述——重述必
-漂移）。版本钉在 `<wiki-root>/AGENTS.md` 末尾「当前配置」表的 `Wiki Format 版本` 字段；
+顺序以 plan 自带的 `agent_rules[]` + 各 action 说明为准（CLI 输出真源，本文不重述，重述必
+漂移）。版本钉在 `<wiki-root>/AGENTS.md` 末尾"当前配置"表的 `Wiki Format 版本` 字段；
 breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本演进叙事看 git log
 
-## 职责切分（**关键**——三方分工）
+## 职责切分（**关键**：三方分工）
 
 - **CLI `llmw wiki upgrade`（骨架修复者）**：修骨架（四类所有权，canonical 见 wiki 根
-  `AGENTS.md`「骨架所有权四分表」）+ legacy paths 移动。**旧文件里新骨架没有的自定义 `##`
-  段会被丢弃**——dry-run 以 `dropped_sections` 列出、写盘后记入 `residue[]`；`render` /
+  `AGENTS.md`"骨架所有权四分表"）+ legacy paths 移动。**旧文件里新骨架没有的自定义 `##`
+  段会被丢弃**：dry-run 以 `dropped_sections` 列出、写盘后记入 `residue[]`；`render` /
   `gitignore-block` 类 diff 需 `--yes`，否则停于 `blocked_drift`。growth 类只换头保条目，
   不算 drift
 - **lint plan（`--check-version --apply --json`）**：stdout 输出 `upgrade_plan`，两条并行
@@ -31,7 +31,7 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
    llmw wiki --path="$LLM_WIKI_ROOT" upgrade
    ```
 
-   默认 dry-run。**将被丢弃的自定义 `##` 段在此以 `dropped_sections` 直接列出——这是
+   默认 dry-run。**将被丢弃的自定义 `##` 段在此以 `dropped_sections` 直接列出，这是
    `--apply` 前唯一的可见时机**；先看计划再决定 `--apply`
 
 3. **裁定 drift**（仅 `render` / `gitignore-block` 类 diff 触发）：`--apply` 不加 `--yes`
@@ -66,13 +66,13 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
 
 ## 边界
 
-- **不**删除 wiki 内容（即便 raw 已不存在 source 页）——用 `archived: true` 替代
-- **不**改 MEMORY 条目内容——迁移期唯一允许的 `MEMORY.md` 改动是索引行对齐（补缺失行）
-- **不**手改 `wiki/log.md` / `wiki/index.md` 的 frontmatter——骨架键缺失只按 fixtures plan
+- **不**删除 wiki 内容（即便 raw 已不存在 source 页）：用 `archived: true` 替代
+- **不**改 MEMORY 条目内容：迁移期唯一允许的 `MEMORY.md` 改动是索引行对齐（补缺失行）
+- **不**手改 `wiki/log.md` / `wiki/index.md` 的 frontmatter：骨架键缺失只按 fixtures plan
   （`fixtures-fix-skeleton`）补齐
-- **不**手改 `AGENTS.md` / `CLAUDE.md`（byte-owned）——版本钉与骨架由
+- **不**手改 `AGENTS.md` / `CLAUDE.md`（byte-owned）：版本钉与骨架由
   `llmw wiki upgrade --apply` 重渲染落地
-- **wiki 版本比 llmw 支持版本新**（`-ahead`）：**不**阻断、**不**改 wiki——CLI 自带 WARN
+- **wiki 版本比 llmw 支持版本新**（`-ahead`）：**不**阻断、**不**改 wiki，CLI 自带 WARN
   引导升级安装
 - 其余边界以 wiki 根 `AGENTS.md` 为准（raw 只读等全局纪律）
 
@@ -84,7 +84,7 @@ CLI 不替代语义判断：本节定义**跨 entry 的语义合并**（index �
 
 - 同 `<relative-path>` link 但多条目出现 → 留信息最完整的一条（优先级：含 `✓ reviewed
   <date>` badge 最新 reviewed_at > 含 `description` 摘要 > `updated` 最新者），余删
-- 同 `<title>` 但不同 `<relative-path>` → lint 报 `duplicate-title`，**转人工裁定**——是
+- 同 `<title>` 但不同 `<relative-path>` → lint 报 `duplicate-title`，**转人工裁定**：是
   entity 重命名（保留新路径合并到老）还是概念拆页（重命名其一）由人决定
 - 老 wiki 缺标准类别 → 缺失 H2 由 fixtures plan（`fixtures-fix-skeleton`）补齐（缺哪些类别
   见 plan `expected`）；agent 在新 H2 下加一行 `<!-- agent: TODO 归类旧页 -->` 占位提醒归类
@@ -93,10 +93,10 @@ CLI 不替代语义判断：本节定义**跨 entry 的语义合并**（index �
 
 - 两条 entries 描述同一 case（grep 可判定）→ 留更新日期晚者，旧 entry 文末追加
   `# superseded by <new-slug>`，**不**删除（踩坑记录沉淀价值大）
-- 或合并为一条多 bullet（`- 原因: ... / - 解法: ... / - 验证: ...`）——短经验优先合并，
+- 或合并为一条多 bullet（`- 原因: ... / - 解法: ... / - 验证: ...`），短经验优先合并，
   长经验（> 30 行）优先 supersede
 - 无论哪种，**必须**同步 `MEMORY/MEMORY.md` 索引一行：合并后删旧 slug 行加新行；supersede
   后旧 slug 行保留但加 supersede 提示
 
 **wiki/log.md 迁移期不改**：不合并 / 不截断 / 不改格式，原样搬（即使超过日常保留上限也不在
-迁移期截断——截断是日常运行期行为，`llmw wiki write log` 自动生效）；仅新增行不合规时修
+迁移期截断，截断是日常运行期行为，`llmw wiki write log` 自动生效）；仅新增行不合规时修

@@ -1,6 +1,6 @@
 # 完整样例
 
-四个流程各一条实跑 trace——只录「工作流文件里看不到的增量」：真实命令行的完整参数形态、
+四个流程各一条实跑 trace，只录"工作流文件里看不到的增量"：真实命令行的完整参数形态、
 CLI 输出与报告的实际样子。步骤序列本身不重述，见各 workflow 文件
 
 ## 样例一：ingest 一份原始资料
@@ -46,7 +46,7 @@ llmw wiki write log --op=query --title="<Concept A> vs <Concept B>"
 
 ## 样例三：lint 发现腐烂迹象
 
-**用户指令**："lint 一下这个 wiki"——`llmw wiki --path=~/wiki/llm-systems lint`，CLI 输出的
+**用户指令**："lint 一下这个 wiki"（`llmw wiki --path=~/wiki/llm-systems lint`），CLI 输出的
 真实形态（报告即按此整理给用户）：
 
 ```text
@@ -56,21 +56,21 @@ llmw wiki write log --op=query --title="<Concept A> vs <Concept B>"
 [INFO] 5 个 source 页 updated 超过 stale 阈值（阈值随 finding 文本输出）
 [ERROR] orphan-page：concepts/<orphan-concept>.md 未被 wiki/index.md 列出
 [WARN] contested-page：sources/<entity-v2>.md 与 sources/<entity-v1>.md 对某核心属性
-       说法冲突、已双向标注 contested: true——需与用户裁定后移除标记
+       说法冲突、已双向标注 contested: true，需与用户裁定后移除标记
 [INFO] 7 个 pending-review：默认未审核页面
 [WARN] reviewed-stale：sources/<reviewed-page>.md reviewed=true reviewed_at=2026-06-01
-       但 updated=2026-06-25——LLM 修改后漏清 reviewed 戳，建议重新审核
+       但 updated=2026-06-25，LLM 修改后漏清 reviewed 戳，建议重新审核
 ```
 
 随后 agent 补半定性观察：`concepts/<concept-x>.md` 与 `sources/<source-z>.md` 对某定义说法
-不一致（上例已标 contested 的那对不重复报——半定性只抓未标注矛盾）→ 建议双方补
+不一致（上例已标 contested 的那对不重复报，半定性只抓未标注矛盾）→ 建议双方补
 `contested: true` + `contradictions` 互指。整理成报告，问用户先修哪些
 
 ## 样例四：检查 wiki 是否需要升级到最新 format
 
 **用户指令**："我这个 wiki 是去年搭的，老格式了，能不能升级到最新 format"
 
-与 upgrade-workflow 5 步的对应只有一处增量——**终态出现的时机**：
+与 upgrade-workflow 5 步的对应只有一处增量，即**终态出现的时机**：
 
 - 第 2 步 dry-run 列出 `dropped_sections`（`--apply` 前唯一可见时机）
 - 第 3 步裁定后 `upgrade --apply --yes` 的**这次运行**才产出骨架终态（`done` /

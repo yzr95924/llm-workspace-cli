@@ -92,7 +92,7 @@ PY_CONTRACT = sorted(p for p in (REPO / "llmw").rglob("*.py") if "tests" not in 
 # 面 7b 模板 landmark（依赖清单）：skill 运行期依赖的模板锚点字符串；模板改了任一
 # landmark，gate 红，同 commit 必须同步 skill 引用。
 PROSE_EXEMPTIONS = [
-    ("ref/lint-workflow.md", "**不**自动修——只报告，修由用户 / agent 决定"),
+    ("ref/lint-workflow.md", "**不**自动修，只报告，修由用户 / agent 决定"),
     ("SKILL.md", "格式 + 滚动窗口截断由 `write` 保证，lint 只兜底带外手改"),
     ("ref/upgrade-workflow.md", "**CLI `llmw wiki upgrade`（骨架修复者）**：修骨架"),
     ("ref/ingest-workflow.md", "含义与退出码\n输出自明"),

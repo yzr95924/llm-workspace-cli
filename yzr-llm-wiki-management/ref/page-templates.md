@@ -8,43 +8,43 @@
 
 **frontmatter 写法约束**（对齐 `llmw wiki ingest-diff` 的轻量 YAML 解析器）：仅支持单行
 `key: value`、inline 数组 `[a, b, c]`、`- item` 列表项三种形式。**不要**用多行折叠 `>` /
-`|`、YAML 锚点 `&` / `*`、嵌套 map——解析器会静默失败返回空 dict
+`|`、YAML 锚点 `&` / `*`、嵌套 map，解析器会静默失败返回空 dict
 
 ## 共有 frontmatter 段
 
 适用 5 类内容页（entities / concepts / sources / comparisons / syntheses）；**MEMORY/*.md
-规则不同**——canonical 见 `<wiki-root>/MEMORY/MEMORY.md` fixture 头部说明块
+规则不同**：canonical 见 `<wiki-root>/MEMORY/MEMORY.md` fixture 头部说明块
 
 | 字段 | 必填性 | 语义 |
 | --- | --- | --- |
 | `title` | 必填 | 人类可读标题，不带文件扩展名 |
 | `description` | 推荐 | 一句话摘要；`index.md` 条目摘要的唯一来源（不在 index 手写第二份，防漂移） |
-| `type` | 必填 | entity / concept / source / comparison / synthesis——驱动子目录 + index 分组 + lint |
+| `type` | 必填 | entity / concept / source / comparison / synthesis，驱动子目录 + index 分组 + lint |
 | `tags` | 必填（可空数组） | 取值必须严格在 `wiki/tags.md` 白名单内（canonical 见其头部说明块） |
 | `created` / `updated` | 必填 | 写入用 `YYYY-MM-DD HH:MM`；lint 宽容解析 date-only / HH:MM / HH:MM:SS |
 | `reviewed` / `reviewed_at` / `contested` / `contradictions` | 可选 | 认知质量信号，见下节 |
 | 类型特定（`sources` / `compared` / `threads` / `aliases` 等） | 按类型 | 见 [章节](#各类型模板) |
 
 5 必填 = OKF §9 conformance 与 lint 校验的最小交集。`index.md` / `log.md` 是
-**reserved 文件**（自带 frontmatter，`type: index` / `type: log` 仅作标记），lint 跳过——
+**reserved 文件**（自带 frontmatter，`type: index` / `type: log` 仅作标记），lint 跳过，
 不算概念页 type
 
 ### 可选：可信度与认知质量信号
 
-**为什么需要**：LLM 写入的页若不标注，时间一长会被当成"既成事实"——**认知腐烂**，
+**为什么需要**：LLM 写入的页若不标注，时间一长会被当成"既成事实"，即**认知腐烂**，
 比断链 / 孤儿更隐蔽。`reviewed` 系 = 人工审核背书（query 优先采信、index ✓/✗）；
 `contested` 系 = 矛盾未裁定告警（与可信度正交：可既 reviewed 又 contested）
 
-- `reviewed: true`——**仅**在为 `true` 时写。缺省 = 未审核；与
+- `reviewed: true`：**仅**在为 `true` 时写。缺省 = 未审核；与
   `reviewed_at: <YYYY-MM-DD>` 成对出现（单独写任一字段 lint 报 warn）
-- `contested: true`——**仅**在为 `true` 时写。表示存在**尚未裁定**的矛盾主张（搭配
+- `contested: true`：**仅**在为 `true` 时写。表示存在**尚未裁定**的矛盾主张（搭配
   `contradictions` 指向对端），供 lint 集中拎出复审
-- `contradictions: [<wiki 页路径>]`——与本页主张冲突的页数组。**双向标注**（A 标 B，
+- `contradictions: [<wiki 页路径>]`：与本页主张冲突的页数组。**双向标注**（A 标 B，
   B 也标 A；lint 检查对称性）
 
 #### 生命周期规则
 
-`reviewed: true` 是"我对这一刻的内容背书"的快照，**不是永久标签**——任何对页面正文的
+`reviewed: true` 是"我对这一刻的内容背书"的快照，**不是永久标签**，任何对页面正文的
 LLM 修改都让戳失效，必须**删除** `reviewed` + `reviewed_at` 回到默认未审核态，由人重新审
 （漏清戳由 lint `reviewed-stale` 兜底）。判定表：
 
@@ -63,20 +63,20 @@ LLM 修改都让戳失效，必须**删除** `reviewed` + `reviewed_at` 回到�
 
 ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 
-1. **先看日期**——更新的来源一般覆盖旧的；但若旧来源更权威（如官方技术报告 vs 博客），
+1. **先看日期**：更新的来源一般覆盖旧的；但若旧来源更权威（如官方技术报告 vs 博客），
    保留两者并进入第 2 步
-2. **判定是否真矛盾**——版本差异（同一对象 v1 vs v2 的某属性）、上下文差异（不同评测
+2. **判定是否真矛盾**：版本差异（同一对象 v1 vs v2 的某属性）、上下文差异（不同评测
    条件）不算矛盾，加注明即可；确属矛盾进入第 3 步
-3. **显式记录两种说法**——页面正文写出 A 说 X（来源 + 日期）、B 说 Y（来源 + 日期），
+3. **显式记录两种说法**：页面正文写出 A 说 X（来源 + 日期）、B 说 Y（来源 + 日期），
    不要"和稀泥"挑一个；双方 frontmatter 都设 `contested: true` + `contradictions` 互指
-4. **等 lint 复审**——下次 lint 会把 `contested` 页拎出来；与用户一起裁定后移除
+4. **等 lint 复审**：下次 lint 会把 `contested` 页拎出来；与用户一起裁定后移除
    `contested`（如该页已审核，按生命周期规则判断是否需重新审）
 
 ## 各类型模板
 
 每类只列**路径 + 类型特定字段 + 正文骨架**（节名即契约，写入时按它落；节名按需保留 /
 拆分；5 必填 frontmatter 由 `llmw wiki write new` 生成）。实跑 trace 见
-`examples.md`——按需 Read
+`examples.md`，按需 Read
 
 ### entity（实体页）
 
@@ -136,7 +136,7 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 
 ### source（资料页）
 
-路径：`wiki/sources/<slug>.md`；类型字段：`sources`（必填——raw/ 现存路径，
+路径：`wiki/sources/<slug>.md`；类型字段：`sources`（必填，raw/ 现存路径，
 **不得指向 `raw/discussions/`**，草稿非真相源，见 `ingest-workflow.md`）、
 `authors` / `published` / `url` / `venue`（可选）
 
@@ -244,40 +244,40 @@ lint 口径：`llmw wiki lint --explain=index-missing` / `--explain=orphan-page`
 
 ## 模板使用规则
 
-1. **新建**——走 `llmw wiki write new`（frontmatter 5 必填自动落）；正文按上节骨架写
-2. **修改**——保留 frontmatter 全部字段；`updated` 改当天日期
-3. **重写**——若 `type` / `sources` 等关键字段需要变，**先和用户确认**
-4. **归档 query 答案**——按答案性质选 `comparison`（对比）或 `synthesis`（综合）
+1. **新建**：走 `llmw wiki write new`（frontmatter 5 必填自动落）；正文按上节骨架写
+2. **修改**：保留 frontmatter 全部字段；`updated` 改当天日期
+3. **重写**：若 `type` / `sources` 等关键字段需要变，**先和用户确认**
+4. **归档 query 答案**：按答案性质选 `comparison`（对比）或 `synthesis`（综合）
 
 ### 建页 / 追加 / 归档阈值（Page Thresholds）
 
-不是每个 entity / concept 都值得独立成页——没阈值 wiki 会被名词堆爆。
-**宁可错过一个 entity 也不要堆十个空页**——堆一千个空 entity，lint 报告会被噪声淹没
+不是每个 entity / concept 都值得独立成页，没阈值 wiki 会被名词堆爆。
+**宁可错过一个 entity 也不要堆十个空页**，堆一千个空 entity，lint 报告会被噪声淹没
 
 | 动作 | 触发条件 |
 | --- | --- |
 | **新建 entity / concept 页** | 该 entity / concept 在 ≥ 2 个 source 页中被提到（经验阈值）**或** 是某 source 页的中心主题 |
-| **追加到已有页** | source 页提到一个已被覆盖的 entity / concept——追加"参考来源"段即可（不重写） |
+| **追加到已有页** | source 页提到一个已被覆盖的 entity / concept，追加"参考来源"段即可（不重写） |
 | **不创建页** | 路过提及（脚注 / 一次出现的名字）、领域外的细节、与本 wiki 主题无关 |
-| **拆分页** | 单页正文超过阈值——阈值与拆分建议见 lint `oversized-page` finding（触发时输出自带）；拆成子主题 + cross-link |
-| **归档页** | 内容被完全取代 / 主题域变化——加 `archived: true`、从 `index.md` 移除 |
+| **拆分页** | 单页正文超过阈值，阈值与拆分建议见 lint `oversized-page` finding（触发时输出自带）；拆成子主题 + cross-link |
+| **归档页** | 内容被完全取代 / 主题域变化，加 `archived: true`、从 `index.md` 移除 |
 
-**页不物理删除**——生命周期终点是上表「归档页」，不是 `rm`
+**页不物理删除**，生命周期终点是上表"归档页"，不是 `rm`
 
 ## 图示使用指引
 
-advisory（建议式）——图用于压缩过程性 / 结构性内容，不强制；密度优先，图是正文的
+advisory（建议式），图用于压缩过程性 / 结构性内容，不强制；密度优先，图是正文的
 压缩，不是装饰
 
-- **优先配图**——交互流程 / pipeline / 状态机 / 组件-模块关系 / 层级结构；散文写这类
+- **优先配图**：交互流程 / pipeline / 状态机 / 组件-模块关系 / 层级结构；散文写这类
   内容超过 2-3 句仍绕不清时，换一张图
-- **不配图**——静态定义、简单枚举、单点结论；一页一般 ≤ 2 图（超了先自问是否该拆页，
+- **不配图**：静态定义、简单枚举、单点结论；一页一般 ≤ 2 图（超了先自问是否该拆页，
   阈值见 [章节](#建页--追加--归档阈值page-thresholds)）
-- **mermaid 为默认**（`flowchart` / `sequenceDiagram`）——中文标签无碍，GitHub 网页 /
+- **mermaid 为默认**（`flowchart` / `sequenceDiagram`）：中文标签无碍，GitHub 网页 /
   md-to-html 均可渲染；**源码本身保持可读**：短标签、线性流、节点 ≤ ~12，超了就拆图或退回文字
-- **ASCII 图仅限**目录树 / 纯英文短标签结构（围栏用 `text`）——**禁止中文标签进
+- **ASCII 图仅限**目录树 / 纯英文短标签结构（围栏用 `text`），**禁止中文标签进
   ASCII 框**：LLM 数中英混排显示宽度几乎必错，对齐必崩
-- **表格仍是对比类内容首选**；LaTeX 公式照旧；**不用二进制图片**——检索 / diff /
+- **表格仍是对比类内容首选**；LaTeX 公式照旧；**不用二进制图片**，检索 / diff /
   可移植性三损（wiki 的文本性是一等约束）
-- **维护**——图是主张的一部分，改主张必同步改图（stale / `reviewed` 判定对图与文字一视
-  同仁）；**关键结论在图外保留文字**——agent 靠 grep 检索，图里的信息等于不存在
+- **维护**：图是主张的一部分，改主张必同步改图（stale / `reviewed` 判定对图与文字一视
+  同仁）；**关键结论在图外保留文字**，agent 靠 grep 检索，图里的信息等于不存在
