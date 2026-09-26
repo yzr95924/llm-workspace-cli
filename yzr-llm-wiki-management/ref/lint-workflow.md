@@ -1,7 +1,7 @@
 # Lint 详细流程
 
-Lint 让 wiki **不腐烂**，簿记自动化。分两层：**Deterministic** = `llmw wiki lint` 执行，
-**Semi-qualitative** = agent 执行，见 [章节](#半定性检查agent-执行)。
+Lint 让 wiki **不腐烂**。分两层：deterministic = `llmw wiki lint` 执行，semi-qualitative =
+agent 执行，见 [章节](#半定性检查agent-执行)
 
 ## 调用方式
 
@@ -11,16 +11,16 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 ```
 
 遇到版本漂移 finding（`wiki-format-version-*`）→ `lint --check-version` 取报告，走
-[升级章](../SKILL.md#upgrade升级-wiki-format)；迁移依据 = plan 自带 `agent_rules[]` +
-[章节](upgrade-workflow.md#语义合并规则)
+[升级章](../SKILL.md#upgrade升级-wiki-format)
 
 ## 半定性检查（agent 执行）
 
-跑完 deterministic 后 agent 再做以下检查（**仅 wiki < 200 页时人工做**，经验阈值）：
+跑完 deterministic 后 agent 再做以下检查（**仅 wiki < 200 页时人工做**，经验阈值；
+> 200 页后语义矛盾 / 缺链无人工兜底，靠 ingest 时撞见走矛盾处置）：
 
 - **矛盾主张**（warning）：同一概念 / 实体在 ≥ 2 页被矛盾方式描述且**未标** `contested`
-  （已标注的归 deterministic）；grep 概念关键词 + 读上下文，发现后建议双方标注，
-  处置见 [章节](page-templates.md#矛盾处理-update-policy)
+  （已标注的归 deterministic）；grep 概念关键词 + 读上下文，发现后列入修复建议，
+  处置按 [章节](page-templates.md#矛盾处理-update-policy)
 - **缺失交叉引用**（info）：概念 X 出现在正文但没链到 `concepts/x.md`
 - **缺失 entity / concept 页**（info）：重要概念（≥ 3 个 source 页出现）无独立页；
   grep 候选词统计出现次数
