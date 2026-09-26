@@ -67,7 +67,9 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
 ## 边界
 
 - **不**删除 wiki 内容（即便 raw 已不存在 source 页）：用 `archived: true` 替代
-- **不**改 MEMORY 条目内容：迁移期唯一允许的 `MEMORY.md` 改动是索引行对齐（补缺失行）
+- **不**做 MEMORY 治理判定：合并 / 删除 / 预算归 yzr-memory-management skill（未装时与用户
+  裁定）；迁移期允许的 MEMORY 改动仅两类，格式迁移（`memory-entry-legacy-format` 的 plan
+  action）与索引行对齐（补缺失行）
 - **不**手改 `wiki/log.md` / `wiki/index.md` 的 frontmatter：骨架键缺失只按 fixtures plan
   （`fixtures-fix-skeleton`）补齐
 - **不**手改 `AGENTS.md` / `CLAUDE.md`（byte-owned）：版本钉与骨架由
@@ -78,7 +80,9 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
 
 ## 语义合并规则
 
-CLI 不替代语义判断：本节定义**跨 entry 的语义合并**（index 重复条目 / 多 MEMORY 条目归并）
+CLI 不替代语义判断：本节定义 **wiki/index.md 跨条目的语义合并**。MEMORY 条目的治理
+（合并 / 删除 / 体检 / 预算）归 yzr-memory-management skill；迁移期 wiki 侧只做格式迁移
+（`memory-entry-legacy-format` plan action 的 to_action 自带改法）
 
 **wiki/index.md 条目合并**：
 
@@ -88,15 +92,6 @@ CLI 不替代语义判断：本节定义**跨 entry 的语义合并**（index �
   entity 重命名（保留新路径合并到老）还是概念拆页（重命名其一）由人决定
 - 老 wiki 缺标准类别 → 缺失 H2 由 fixtures plan（`fixtures-fix-skeleton`）补齐（缺哪些类别
   见 plan `expected`）；agent 在新 H2 下加一行 `<!-- agent: TODO 归类旧页 -->` 占位提醒归类
-
-**MEMORY 经验条目合并**：
-
-- 两条 entries 描述同一 case（grep 可判定）→ 留更新日期晚者，旧 entry 文末追加
-  `# superseded by <new-slug>`，**不**删除（踩坑记录沉淀价值大）
-- 或合并为一条多 bullet（`- 原因: ... / - 解法: ... / - 验证: ...`），短经验优先合并，
-  长经验（> 30 行）优先 supersede
-- 无论哪种，**必须**同步 `MEMORY/MEMORY.md` 索引一行：合并后删旧 slug 行加新行；supersede
-  后旧 slug 行保留但加 supersede 提示
 
 **wiki/log.md 迁移期不改**：不合并 / 不截断 / 不改格式，原样搬（即使超过日常保留上限也不在
 迁移期截断，截断是日常运行期行为，`llmw wiki write log` 自动生效）；仅新增行不合规时修

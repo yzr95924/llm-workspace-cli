@@ -6,14 +6,16 @@
 认知质量信号 / 矛盾处理 / 图示指引，AGENTS.md 模板不承载写页规则）；lint 校验规则以
 `llmw wiki lint --explain=all` 为准，不在此镜像
 
-**frontmatter 写法约束**（对齐 `llmw wiki ingest-diff` 的轻量 YAML 解析器）：仅支持单行
-`key: value`、inline 数组 `[a, b, c]`、`- item` 列表项三种形式。**不要**用多行折叠 `>` /
-`|`、YAML 锚点 `&` / `*`、嵌套 map，解析器会静默失败返回空 dict
+**frontmatter 写法约束**（对齐 `llmw wiki ingest-diff` 的轻量 YAML 解析器，约束对象 = 内容页）：仅支持
+单行 `key: value`、inline 数组 `[a, b, c]`、`- item` 列表项三种形式。**不要**用多行折叠
+`>` / `|`、YAML 锚点 `&` / `*`、嵌套 map，解析器会静默失败返回空 dict。MEMORY 条目的
+`metadata:` 一层嵌套是唯一例外（wiki lint 不解析 MEMORY 字段，契约见 fixture 头部）
 
 ## 共有 frontmatter 段
 
 适用 5 类内容页（entities / concepts / sources / comparisons / syntheses）；**MEMORY/*.md
-规则不同**：canonical 见 `<wiki-root>/MEMORY/MEMORY.md` fixture 头部说明块
+不走本节**：格式契约见 `<wiki-root>/MEMORY/MEMORY.md` 头部说明块，治理归
+yzr-memory-management skill
 
 | 字段 | 必填性 | 语义 |
 | --- | --- | --- |
