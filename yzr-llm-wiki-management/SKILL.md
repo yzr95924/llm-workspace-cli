@@ -45,54 +45,36 @@ metadata:
 > 四件套任一未读完不写任何 wiki 内容。100+ 页的 wiki 还应在 `wiki/` 全域
 > `Grep "<topic>"` 补一次——单看 index.md 可能漏掉 entity/concept 页之间的引用关系
 
-1. **raw/ 由用户掌控，LLM 只读**——例外以 wiki 根 `AGENTS.md`「本 wiki 的边界」为准
-   （自动加载，不得外推）；接入外部仓见 [`ref/external-repo.md`](ref/external-repo.md)，
-   草稿消化见 [章节](ref/ingest-workflow.md#rawdiscussions-草稿消化可选入口)
-2. **写操作正路 = `llmw wiki write` 系列**——log 追加走 `write log`、新建页走 `write new`、
+1. **写操作正路 = `llmw wiki write` 系列**——log 追加走 `write log`、新建页走 `write new`、
    清 `reviewed` 戳走 `write touch`、MEMORY 新条目走 `write memory add`、index 条目走
    `write index add`；格式 + 滚动窗口截断由 `write` 保证，lint 只兜底带外手改。
    **逃生舱**：命令不支持的形态手写 Edit/Write 合法——write 是默认路径不是闸门
-3. **每页必带 YAML frontmatter**（必填字段 + 推荐 `description`）；权威定义与例外清单见
-   [章节](ref/page-templates.md#共有-frontmatter-段)
-4. **LLM 修改已审核页必须清 `reviewed` 戳**——每次编辑后跑 `llmw wiki write touch`；
-   生命周期规则 canonical 见 [章节](ref/page-templates.md#生命周期规则)；
-   lint 用 `reviewed-stale` 兜底
-5. **tag 白名单唯一真源在 `wiki/tags.md`**——agent 遇新 tag **直接追加、不询问用户**，
-   用户审计直接删；取值规则 / 解析约束详见该文件头部说明块；
-   finding 含义 / 修法用 `llmw wiki lint --explain=tag-not-in-taxonomy`
 
 ### 边界
 
 - **不**绕过 `AGENTS.md` 自创约定——若 AGENTS.md 没说的，**先问用户**再写
+- **不擅自建跨 wiki xref**——由 workspace 层 link 工作流统一维护（用户确认后执行）
 
-> 其余边界纪律以 wiki 根 `AGENTS.md` 为准（自动加载，会话常驻）
-
-### 反模式（绝对禁止）
-
-- 跨 wiki 互引但不更新对端 index（对端同步经 workspace 层 link 工作流、用户确认后执行）
-
-> 其余反模式以 wiki 根 `AGENTS.md` + [章节](ref/external-repo.md#反模式)为准
+> 其余边界纪律以 wiki 根 `AGENTS.md` 为准（自动加载，会话常驻）；流程特有反模式见
+> [章节](ref/external-repo.md#反模式)
 
 ### 反合理化三件套（纪律型 skill 必带）
 
-> 本 skill 是纪律型 skill（含多条"必须 / 禁止 / 不"+"**不**" 起始段）。纪律型禁令在
-> LLM 压力下会被以各种合理化借口绕开——三件套只堵一类：**已被合理化的违反**
+> 纪律型禁令在 LLM 压力下会被合理化绕开——三件套只堵一类：**已被合理化的违反**
 
 #### Rationalization Table
-
-> **baseline 实跑记录**：3 次 RED 运行（带纪律 / 无纪律 / 带纪律 + 用户施压）仅产出
-> 真实借口一条（下表第 1 行）+ 一处静默遗漏（缺必填 `tags`）
 
 | 常见借口 | 为什么是错的 | 应改做什么 |
 | --- | --- | --- |
 | "剪藏只有一句话，按'克制建页'原则和你说的小事轻办，一个资料页够了"（实跑 transcript） | 用户的"随便 / 赶时间"是态度不是豁免——写 wiki 页即触发必填字段 / 建页阈值 / log 纪律；"轻办"是拿用户情绪当省略纪律的挡箭牌（同轮还静默漏了必填 `tags` 字段） | 流程不缩水；建页阈值判断如实执行（canonical 见 [章节](ref/page-templates.md#建页--追加--归档阈值page-thresholds)）但**向用户说明**（"本文只有一个中心主题，暂不建概念页，出现第二篇同主题再补"），字段与 log 纪律照走 |
 
-> **收录纪律**：条目**只**从实跑 transcript 收录（预写借口 = 噪声）；实跑出现新借口
-> 才补入，未出现不新增
+> **收录纪律**：条目**只**从实跑 transcript 收录（预写借口 = 噪声），实跑出现新借口才补入——
+> 3 次 RED baseline（带纪律 / 无纪律 / 带纪律 + 用户施压）仅产出下表 1 条真实借口 +
+> 1 处静默遗漏（缺必填 `tags`）
 
 #### 违反字面 = 违反精神
 
-任何对「核心原则 / 边界 / 反模式」三段禁令的"看起来不同但效果一致"绕法都算违反——最常见的三种：
+任何对「核心原则 / 边界」两段禁令的"看起来不同但效果一致"绕法都算违反——最常见的三种：
 
 - 把 `llmw wiki write` 能做的写操作改用手写 `Edit` / `Write` 完成，再声称走了逃生舱——**不算**：
   逃生舱只覆盖命令不支持的形态，默认路径只有 `llmw wiki write` 系列
@@ -103,7 +85,7 @@ metadata:
 
 #### Red Flags（念头清单 — 出现即停）
 
-念头出现 ≠ 已违反；念头 = 警告 = 重读「核心原则 / 边界 / 反模式」三段。
+念头出现 ≠ 已违反；念头 = 警告 = 重读「核心原则 / 边界」两段。
 条目来源：标「实跑观察」者为 RED transcript 实录；未标注者为通用合理化模式（红旗是低成本预警网、广撒无害；实跑捕获新借口时追加并标注）
 
 - "用户说'随便记一下 / 赶时间 / 别太正式'——纪律可以打折了"（实跑观察）
@@ -122,19 +104,6 @@ metadata:
 
 ## 工作流
 
-### 一次性 setup（首次使用）—— 由 workspace CLI 完成
-
-> **职责边界**：本 skill 只管 wiki 的**成长阶段**（ingest / query / lint）；创建与删除归
-> workspace CLI（`llmw`，与本 skill 同仓），"出生形态"由 CLI 包内模板决定
-> （`llmw wiki check-fixtures` 探测）
-
-**LLM agent 接管后做什么**：
-
-1. 验证 CLI 落盘——读 `<wiki-root>/AGENTS.md` 确认主题名 + 日期替换正确；
-   `wiki/index.md` / `wiki/log.md` 存在且 frontmatter 完整；`<wiki-root>/CLAUDE.md` 是薄壳
-2. 跑 orient ritual（见[章节](#执行原则)顶部引用块）
-3. 询问用户是否做首次 ingest——若是，把第一份资料路径给 agent
-
 ### Ingest（摄取新资料）
 
 **触发**："把这篇摄取到 wiki" / `raw/` 有新文件 / 跑 `llmw wiki ingest-diff` 发现未摄取项
@@ -145,7 +114,7 @@ commit，全文见 [`ref/ingest-workflow.md`](ref/ingest-workflow.md)（执行�
 
 ### 批处理摄取（≥ 3 份 raw 同时摄入）
 
-走批处理路径而非逐份——理由、步骤与 log 标题前缀 `Bulk:` 见
+走批处理路径而非逐份——理由与步骤见
 [章节](ref/ingest-workflow.md#批处理摄取-3-份-raw-同时摄入)
 
 **外部代码仓作为语料**——"把 X 仓库纳入 wiki"：**不**内嵌拷仓，走 symlink 路径：
