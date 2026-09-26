@@ -64,7 +64,6 @@ KEBAB_TOKEN_RE = re.compile(r"`([a-z][a-z0-9]*(?:-[a-z0-9]+)+)`")
 KEBAB_TOKEN_ALLOW = {
     "attention-is-all-you-need",
     "linux-kernel",
-    "workspace-memory",
     "yzr-memory-management",
 }
 # 面 7a 节号禁令：AGENTS.md 字面量 + ≤6 个非 word 字符（空白 / backtick / 标点）+
