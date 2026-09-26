@@ -1,6 +1,6 @@
 # llmw — Wiki Workspace CLI
 
-一个 workspace = 一个 git 仓，含多个 wiki 子目录。llmw 负责 wiki 创建、元数据与 session 启动；wiki 内容（ingest / lint / query）由 [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm-workspace-cli/tree/master/yzr-llm-wiki-management) skill 在 session 内负责，跨 wiki 操作走 `yzr-llm-workspace-management`。两个 skill 与 CLI **同仓**。
+一个 workspace = 一个 git 仓，含多个 wiki 子目录。llmw 负责 wiki 创建、元数据与 session 启动；wiki 内容（ingest / lint / query）由 [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm-workspace-cli/tree/master/yzr-llm-wiki-management) skill 在 session 内负责；跨 wiki / workspace 操作由维护 agent 按 `<workspace>/AGENTS.md` 纪律行事（无专门 skill）。SKILL 与 CLI **同仓**。
 
 ## 安装
 
@@ -10,7 +10,7 @@ cd llm-workspace-cli
 ./scripts/install.sh
 ```
 
-生成 `~/.local/bin/llmw`（wrapper 内嵌本仓库路径，用 `PYTHONPATH` 解析 `llmw` 包，**无需 pip/venv**）。同时注册 PATH / completion（bash/fish/zsh 三套）与两个 skill 的 symlink；装完 source 对应 shell rc 即可。Python 3.11+ 零第三方依赖；<3.11 需 `pip install 'tomli>=1.1'`。
+生成 `~/.local/bin/llmw`（wrapper 内嵌本仓库路径，用 `PYTHONPATH` 解析 `llmw` 包，**无需 pip/venv**）。同时注册 PATH / completion（bash/fish/zsh 三套）与 SKILL 的 symlink；装完 source 对应 shell rc 即可。Python 3.11+ 零第三方依赖；<3.11 需 `pip install 'tomli>=1.1'`。
 
 卸载（删 wrapper + PATH marker + completion + skill symlink，**不删仓库、不删 workspace 数据**）：
 
@@ -109,5 +109,5 @@ llmw config set enter_cli claude   # 切换；llmw config unset enter_cli 回退
 
 - `llmw/` — Python 包：`cli.py` / `config.py` / `backends.py` / `errors.py` / `fsutil.py` + `content/` / `wiki/` / `workspace/` / `models/` 子包（`content/` 为最大子包：模板 + 探测器 + fixtures + lint/write/upgrade 等内容层命令实现；可执行入口 = install.sh wrapper 或 `python -m llmw`）
 - `scripts/` — install / uninstall 脚本及其集成测试
-- `yzr-llm-wiki-management/` / `yzr-llm-workspace-management/` — 两 skill（纯 markdown：SKILL.md + ref/；运行期模板与探测器已内建 `llmw/content/`，随仓分发）
+- `yzr-llm-wiki-management/` — SKILL（纯 markdown：SKILL.md + ref/；运行期模板与探测器已内建 `llmw/content/`，随仓分发）
 - `MEMORY/` / `doc/` / `tests/` — 项目记忆 / 设计文档 / pytest（CI 跑 ruff + pytest，py3.7 / py3.11）

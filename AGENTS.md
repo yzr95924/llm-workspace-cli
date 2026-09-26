@@ -25,7 +25,7 @@ This file provides guidance to AI coding agents when working with code in this r
 ### 安装 / 卸载
 
 ```bash
-./scripts/install.sh        # 生成 ~/.local/bin/llmw（PYTHONPATH 指向本仓库），按需注册 PATH；注册两个 SKILL 的 symlink 到 ~/.agents/skills（~/.claude/skills 存在时补链）
+./scripts/install.sh        # 生成 ~/.local/bin/llmw（PYTHONPATH 指向本仓库），按需注册 PATH；注册 SKILL 的 symlink 到 ~/.agents/skills（~/.claude/skills 存在时补链）
 ./scripts/uninstall.sh      # 逆操作：删 wrapper + 清所有候选 rc 的 PATH marker 块 + 删 skill symlink
 ```
 

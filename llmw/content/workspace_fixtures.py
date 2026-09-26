@@ -55,7 +55,7 @@ CHECK_REGISTRY = [
         "id": "agents-md-template-sync",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "SKILL.md#upgrade升级-workspace-骨架",
+        "rule_ref": "workspace 根 AGENTS.md「本文件本身的纪律」节 + upgrade 引擎",
         "desc": "AGENTS.md 与 CLI 渲染稿字节一致（「当前配置」四变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
@@ -69,14 +69,14 @@ CHECK_REGISTRY = [
         "id": "gitignore-skeleton",
         "severity": "error",
         "file": ".gitignore",
-        "rule_ref": "SKILL.md#upgrade升级-workspace-骨架",
+        "rule_ref": "workspace 根 AGENTS.md「本文件本身的纪律」节 + upgrade 引擎",
         "desc": ".gitignore 段结构齐全：llmw 托管块（标记 + 3 规则）+ OS/编辑器 + Obsidian + 临时文件段各 ≥1 规则（容忍段内删规则）",
     },
     {
         "id": "memory-index-skeleton",
         "severity": "error",
         "file": "MEMORY/MEMORY.md",
-        "rule_ref": "MEMORY 产物契约（yzr-llm-workspace-management ref/formats.md#a6-workspace-memory）+ upgrade 引擎",
+        "rule_ref": "MEMORY 产物契约（workspace 根 AGENTS.md「Memory 纪律」节）+ upgrade 引擎",
         "desc": "MEMORY/MEMORY.md 无 frontmatter + 含 H1 / 说明块 / ## 索引（成长条目不动；缺失文件按 fixtures/memory-index.txt 重建）",
     },
     {
@@ -453,11 +453,7 @@ NEXT_SECTION_RE = re.compile(r"^\[", re.MULTILINE)
 
 
 def check_workspace_toml_reads_satisfied(ws_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """check#7: workspace.toml 含 SKILL scan/upgrade 读取的字段（templates_version + 各 wiki path/created_at）。
-
-    读取契约双处同改：本 check 与 skill ref/formats.md#a1-workspacetoml-读取契约
-    表必须一致（漂移 = gate 失效）。
-    """
+    """check#7: workspace.toml 含 scan/upgrade 读取的字段（templates_version + 各 wiki path/created_at）。"""
     out = {"passed": True, "file": "workspace.toml"}  # type: Dict[str, object]
     text = _read_text(ws_root / "workspace.toml")
     if text is None:

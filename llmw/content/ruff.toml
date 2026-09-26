@@ -1,4 +1,4 @@
-# llmw/content — 原两 skill scripts/ 迁入后的本地 ruff 配置。
+# llmw/content — 原 skill scripts/ 迁入后的本地 ruff 配置。
 # 保持 120 行宽 + 严格规则族，避免对 6500 行既有代码
 # 产生无意义 reflow，也不牺牲 lint 严格度（仓根默认只开 E4/E7/E9/F）。
 # SKILL 目录无 .py（脚本零代码重构后全入此包），无需局部 ruff 覆盖。

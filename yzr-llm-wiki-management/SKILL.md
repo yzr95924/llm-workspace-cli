@@ -9,8 +9,8 @@ description: |
   "升级 wiki / 检查 wiki 版本" / "把 X 仓库纳入 wiki"。只要用户要消化资料 / 查 wiki 沉淀 /
   归档新结论——即使没提 skill 名，也务必使用本 skill。
   不适用：云端 / 团队 wiki（Notion / Confluence / Outline 等）；wiki 元数据配置、增删
-  wiki、session 启停（单条 llmw 命令，直接跑即可）；跨 wiki / workspace 层操作（归
-  workspace 层 skill）；MEMORY/ 的写入与治理（归 yzr-memory-management skill）；cwd 不是
+  wiki、session 启停（单条 llmw 命令，直接跑即可）；跨 wiki / workspace 层操作（无专门
+  skill，按用户指示处理）；MEMORY/ 的写入与治理（归 yzr-memory-management skill）；cwd 不是
   wiki 根（无 `wiki_metadata.toml` + AGENTS.md 骨架）
 metadata:
   author: Zuoru YANG
@@ -53,7 +53,7 @@ metadata:
 ### 边界
 
 - **不**绕过 `AGENTS.md` 自创约定——若 AGENTS.md 没说的，**先问用户**再写
-- **不擅自建跨 wiki xref**——由 workspace 层 link 工作流统一维护（用户确认后执行）
+- **不擅自建跨 wiki xref**——确有需要先报用户裁决
 
 > 其余边界纪律以 wiki 根 `AGENTS.md` 为准（自动加载，会话常驻）；流程特有反模式见
 > [章节](ref/external-repo.md#反模式)

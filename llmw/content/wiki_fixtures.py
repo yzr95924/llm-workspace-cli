@@ -616,7 +616,7 @@ def check_tags_md_no_frontmatter(wiki_root: Path, info: Dict[str, str]) -> Dict[
     return result
 
 
-# 读取契约 co-location：这 6 字段 = workspace skill scan 读 wiki_metadata.toml 的字段子集。
+# 读取契约 co-location：这 6 字段 = 跨 wiki scan 读 wiki_metadata.toml 的字段子集。
 # SKILL 将来新读某字段，必须同步加到这里——清单完整（wiki-metadata-reads-satisfied
 # 检查）才有效（清单漂移 = check 不报警 = gate 失效）。
 WIKI_METADATA_REQUIRED_FIELDS = ("name", "topic", "display_name", "description", "tags", "created_at")

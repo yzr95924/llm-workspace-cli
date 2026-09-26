@@ -161,7 +161,7 @@ test_uninstall_idempotent() {
 test_install_registers_skill_symlinks() {
   run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
   [ "$INST_CODE" = 0 ] || { cat "$TMPHOME/inst.out"; exit 1; }
-  for name in yzr-llm-wiki-management yzr-llm-workspace-management; do
+  for name in yzr-llm-wiki-management; do
     [ -L "$TMPHOME/.agents/skills/$name" ] || { echo "    FAIL: $name 不是 symlink"; exit 1; }
     [ "$(readlink "$TMPHOME/.agents/skills/$name")" = "$REPO/$name" ] || { echo "    FAIL: $name symlink 指向错误"; exit 1; }
   done
@@ -187,7 +187,6 @@ test_uninstall_removes_skill_symlinks() {
   run_install /bin/zsh "$PYDIR:/usr/bin:/bin"
   run_uninstall "$PYDIR:/usr/bin:/bin"
   assert_not_exists "$TMPHOME/.agents/skills/yzr-llm-wiki-management"
-  assert_not_exists "$TMPHOME/.agents/skills/yzr-llm-workspace-management"
 }
 test_uninstall_keeps_foreign_skill_dir() {
   mkdir -p "$TMPHOME/.agents/skills/yzr-llm-wiki-management"

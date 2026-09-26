@@ -19,7 +19,7 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
      llmw/content/findings.py；发射点 ↔ 注册表的穷举校验在
      tests/test_findings_registry.py，不在本 gate）
   3. 锚点链接（skill 域引用 + CLI → skill 字符串）：引用一律 `[章节](file.md#slug)` 形态
-     （同文件 `](#slug)`；CLI .py 字符串与跨 skill 引用用纯文本 `file.md#slug`）。
+     （同文件 `](#slug)`；CLI .py 字符串用纯文本 `file.md#slug`）。
      校验：目标文件存在 + slug 命中该文件某标题的 GitHub slug（github-slugger@2 语义
      移植，含重复标题 -N 后缀）。旧 `<file>.md「节名」` 邻接形态已退役，出现即红。
   4. 终态词 / JSON 字段（skill → CLI）：upgrade-workflow 提到的终态词与 plan
@@ -39,7 +39,7 @@ finding 名 / JSON 字段 / rule_ref 指针，而 skill 文本未同步 → 本 
         @import 链）必须在对应模板中出现；模板改了某 landmark → CI 红，同 commit
         更新 skill 引用 + LANDMARKS 列表
       - 7c skill 域节号禁令（防迁移回潮）：CONTRACT_MDS + llmw/**/*.py 中 skill
-        文档字面量（8 个 basename）后 ~60 字符内出现 `§<数字|中文数字>` 即红；
+        文档字面量（SKILL + 7 个 ref basename）后 ~60 字符内出现 `§<数字|中文数字>` 即红；
         SKILL_MDS 自身出现裸 `§N` 同样红。外部规范引用豁免（`OKF §N`）。
         引用一律 `[章节](file.md#slug)` 锚点，标题不再编号
       - 7d 裸「」残留节号兜底：SKILL_MDS 内引号内容以旧节号开头（`「5. x」` /
@@ -91,10 +91,7 @@ TEMPLATES = CONTENT / "templates"
 
 # 面 2/3/4（finding / rule_ref / 终态词）只走 skill 域——模板 / 仓根文档不是
 # finding 的文档真源，rule_ref 的目标是 skill 文件，升级终态词只定义在 skill 工作流里。
-SKILL_MDS = sorted(
-    [p for p in WIKI_SKILL.rglob("*.md")]
-    + [p for p in (REPO / "yzr-llm-workspace-management").rglob("*.md")]
-)
+SKILL_MDS = sorted([p for p in WIKI_SKILL.rglob("*.md")])
 
 # 面 1（命令 + 风格 + 跨行）扫全仓命令面。有意排除 MEMORY/（历史命令 + 反例
 # 必误报）与 tests/（可执行测试自带 loud failure）。templates 既含 byte-owned
@@ -112,10 +109,10 @@ INLINE_CMD_RE = re.compile(r"`(llmw[^`\n]*)`")
 # 单引号内 backtick，DOTALL 让 . 匹配换行。
 WRAPPED_INLINE_RE = re.compile(r"`(llmw[^`]*?)`", re.DOTALL)
 # 裸 semver —— bump wiki_format_version 时漏改 prose 会静默腐烂（无 lint 兜底）；
-# 豁免：SKILL frontmatter 的 wiki_format_version: / workspace_format_version: 键行
-# （SSOT 本身）+ upgrade-workflow.md 整文件（按设计它是唯一允许锚定历史版本的文件）。
+# 豁免：SKILL frontmatter 的 wiki_format_version: 键行（SSOT 本身）+
+# upgrade-workflow.md 整文件（按设计它是唯一允许锚定历史版本的文件）。
 SEMVER_RE = re.compile(r"\bv?\d+\.\d+\.\d+\b")
-SEMVER_KEY_SKIP_RE = re.compile(r"^\s*(?:wiki|workspace)_format_version\s*:")
+SEMVER_KEY_SKIP_RE = re.compile(r"^\s*wiki_format_version\s*:")
 SEMVER_FILE_SKIP = {"upgrade-workflow.md"}
 # 面 2 severity 镜像模式：`` `finding-name`（error|warn|info`` = 旧 checklist 镜像格式；
 # 口径改走 `llmw wiki lint --explain` 注册表（findings.py），出现即红。
@@ -129,15 +126,10 @@ SEVERITY_MENTION_RE = re.compile(
 KEBAB_TOKEN_RE = re.compile(r"`([a-z][a-z0-9]*(?:-[a-z0-9]+)+)`")
 # 非 CLI 命名空间白名单（token 不是对 CLI 代码真源的引用，无 rename 对账对象）：
 # - 示例数据：slug / 仓名
-# - content-owned schema 值：workspace skill formats.md 的 frontmatter `type` 枚举
-#   （该文件自身是契约唯一承载点，无代码对应物）
+# - content-owned schema 值：workspace 产物 frontmatter `type` 枚举（无代码对应物）
 KEBAB_TOKEN_ALLOW = {
     "attention-is-all-you-need",
     "linux-kernel",
-    "cross-query",
-    "workspace-index",
-    "workspace-stats",
-    "workspace-lint",
     "workspace-memory",
     "yzr-memory-management",
 }
@@ -462,7 +454,7 @@ def _iter_wrapped_inline(md_text):
 
 _BASENAMES = (
     "SKILL|upgrade-workflow|page-templates|lint-workflow|ingest-workflow"
-    "|query-workflow|external-repo|examples|formats"
+    "|query-workflow|external-repo|examples"
 )
 # 旧「节名」邻接形态（已退役→ 锚点链接）：`basename.md` 后紧跟可选 backtick /
 # 链接闭合 / 空白，再接「」，出现即红。
@@ -486,22 +478,10 @@ _HEADING_RE = re.compile(r"^#{2,6}\s+(?P<title>.+?)\s*$")
 
 
 def _resolve_targets(fname):
-    """引用目标候选列表。SKILL.md / ref/* 两 skill 同名——候选都查（任一满足即过）。"""
+    """引用目标候选列表。单 skill（wiki）域内 SKILL.md / ref/* 定位。"""
     if fname == "SKILL.md":
-        return [
-            d / fname
-            for d in (
-                REPO / "yzr-llm-wiki-management",
-                REPO / "yzr-llm-workspace-management",
-            )
-        ]
-    return [
-        d / "ref" / fname
-        for d in (
-            REPO / "yzr-llm-wiki-management",
-            REPO / "yzr-llm-workspace-management",
-        )
-    ]
+        return [WIKI_SKILL / fname]
+    return [WIKI_SKILL / "ref" / fname]
 
 
 # 锚点形态：markdown 链接 ](path#slug)（path 为空 = 同文件）；纯文本 base.md#slug

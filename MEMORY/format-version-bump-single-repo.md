@@ -8,9 +8,10 @@ metadata:
 # format 版本号 bump：包内常量 + CI gate（2026-08-20 起）
 
 SSOT = `llmw/__init__.py` 的两条硬编码常量：`WIKI_FORMAT_VERSION` / `WORKSPACE_FORMAT_VERSION`。
-两 SKILL.md frontmatter 的 `wiki_format_version` / `workspace_format_version` 必须与常量一致，
-CI fixtures-smoke job（`scripts/test/smoke_fixtures.py` 的 `_check_format_version_alignment`）
-机械比对——任何不一致即挂 job。
+wiki SKILL.md frontmatter 的 `wiki_format_version` 必须与常量一致，CI fixtures-smoke job
+（`scripts/test/smoke_fixtures.py` 的 `_check_format_version_alignment`）机械比对——任何不一致即挂
+job；`WORKSPACE_FORMAT_VERSION` 无 frontmatter 载体（workspace skill 已退役），常量单源渲染进
+workspace AGENTS.md「当前配置」。
 
 **Why:** 运行时读 SKILL.md frontmatter 会让 `import llmw` 依赖 L2 skill 目录存在（违反 [[boundary-map]] 包内资源内建原则——wheel 装完依旧残）。改为包内常量后 `import llmw` 零依赖 L2，wheel 完整。CI gate 把"同 commit 改多处"的纪律升级为机械 gate。
 
@@ -33,8 +34,8 @@ CI fixtures-smoke job（`scripts/test/smoke_fixtures.py` 的 `_check_format_vers
 **判别式**：`llmw upgrade --apply` 会不会对现有实例产生超出版本行的 diff，或 lint
 会不会对旧实例产生新的 error/warn？会 → bump；不会 → 不 bump。
 
-**How to apply:** bump 流程——(1) 改 `llmw/__init__.py` 常量 + (2) 改对应 `SKILL.md`
-frontmatter 的 `*_format_version`（同 commit，顺序任意）；(3) 演进叙事写进 commit message。
+**How to apply:** bump 流程——(1) 改 `llmw/__init__.py` 常量 + (2) 改 wiki `SKILL.md`
+frontmatter 的 `wiki_format_version`（同 commit，顺序任意；workspace 侧只动常量）；(3) 演进叙事写进 commit message。
 单仓 CI 的 fixtures-smoke 直接挂。patch/minor 选型：reconcile 必需但向后相容
 （模板字节增行但字段集稳定）→ patch；实例出生形态变化或新增会让旧实例 fail 的 check
 → minor/breaking（迁移指令落 `ref/upgrade-workflow.md`「语义合并规则」）。

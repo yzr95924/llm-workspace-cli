@@ -21,7 +21,7 @@ packages = ["llmw", "llmw.workspace", "llmw.wiki", "llmw.models", "llmw.content"
 "llmw.content" = ["templates/**/*.md", "templates/**/*.md.txt", "templates/**/*.template", "templates/**/*.txt"]
 
 [tool.ruff]
-# ruff 全局配置：仓库无局部 ruff.toml（CLI 包 + 两 SKILL 目录都无 .py 残留），
+# ruff 全局配置：仓库无局部 ruff.toml（CLI 包 + SKILL 目录都无 .py 残留），
 # 统一走根配置，只锁 preview + target。
 preview = false
 target-version = "py37"

@@ -1,6 +1,6 @@
 ---
 name: boundary-map
-description: 四方（用户 / CLI / 两 skill）依赖方向 + 生命周期 + 产物归属 + 新能力判归测试；新增归属决策 / 改 skill 文档 / 模板 / CLI 指令文本时先查
+description: 四方（用户 / CLI / wiki skill / workspace 维护 agent）依赖方向 + 生命周期 + 产物归属 + 新能力判归测试；新增归属决策 / 改 skill 文档 / 模板 / CLI 指令文本时先查
 metadata:
   type: project
 ---
@@ -15,7 +15,7 @@ metadata:
 | --- | --- | --- |
 | **用户（owner）** | 拥有 `raw/` 内容、`AGENTS.md` / `CLAUDE.md`（宪法）、git、元数据 CRUD 决策 | 不执行字节级骨架渲染 |
 | **llmw CLI** | 确定性操作唯一执行者（零 LLM 判断）：元数据 toml CRUD、骨架渲染（字节来自模板）、`check-fixtures` 探测、`upgrade` 引擎、session 启动（tmux/byobu）、model registry/overlay | 不写 `raw/` / `wiki/` 语义内容（机械 scribe 协作边除外，见 V2）；不读 `os.environ` 当 model 真相源 |
-| **agent（按 workspace skill 纪律行事）** | 跨 wiki 判断（零代码）：scan / INDEX / STATS、query 路由/合成/对比、link、workspace lint；**在场时可代跑 llmw**（读类直接执行、写类经用户确认后执行、api_key 类恒用户亲自执行） | 不写 wiki 内部（委托 wiki skill）；不手写元数据 toml（写类操作必须经 CLI，schema/原子写/唯一性约束由 CLI 保证） |
+| **agent（按 `<workspace>/AGENTS.md` 纪律行事，无专门 skill）** | 跨 wiki 判断（零代码）：scan / INDEX / STATS、query 路由/合成/对比、link、workspace lint；**在场时可代跑 llmw**（读类直接执行、写类经用户确认后执行、api_key 类恒用户亲自执行） | 不写 wiki 内部（委托 wiki skill）；不手写元数据 toml（写类操作必须经 CLI，schema/原子写/唯一性约束由 CLI 保证） |
 | **agent（按 wiki skill 纪律行事）** | 单 wiki 判断（零代码）：ingest、query、单 wiki lint | 不知 workspace skill 存在（DAG 单向）；不写 `raw/`（用户所有） |
 
 > **"skill"与"agent"的区分**——skill = 规则文本（被加载的 SKILL.md + ref/）；agent = 按这份规则行事的执行者。行为者永远是 agent；skill 只是哪份规则书。V2 行为者标注用 agent 而非 skill。
@@ -23,12 +23,12 @@ metadata:
 ## V2 依赖方向 DAG
 
 ```
-            ┌───────── 两 skill 仓（纯文本）─────────┐       ┌─── llmw CLI 包（代码+资源自包含）
-            │   workspace skill                     │       │   llmw/content/templates/ 内建
-            │       │                               │       │   全部模板+fixtures 字节金标准
-            │       │ 委托单 wiki 操作              │       │   （init / upgrade / check-fixtures /
-            │       ▼                               │       │    scribe / session spawn / model）
-            │   wiki skill                          │       │
+            ┌───────── SKILL 仓（纯文本）────────┐       ┌─── llmw CLI 包（代码+资源自包含）
+            │   wiki skill                          │       │   llmw/content/templates/ 内建
+            │   （跨 wiki 工作无专门 skill：       │       │   全部模板+fixtures 字节金标准
+            │    按 `<workspace>/AGENTS.md` 纪律， │       │   （init / upgrade / check-fixtures /
+            │    单 wiki 操作委托 wiki skill）      │       │    scribe / session spawn / model）
+            │                                         │       │
             └─────▲─▲───────────────────────────────┘       │
                   │ │                                      │
      agent ───────┘ └─────── 跑 ─────────────────────────────┘
@@ -54,8 +54,8 @@ metadata:
   ——只引命令名 / 输出自带字段 / 实例内可读路径（agent 读不到 = 不可执行指令）。
   两侧机械守护：gate 面 9（skill→CLI）+ 面 10（CLI→agent 文本）
 - skill **不**解析 CLI 输出做元数据读取（直读 toml 更可靠；CLI 输出是人类的，文本可能改）
-- wiki skill **不知** workspace skill 存在（workspace → wiki 是单委托；反向会破坏 DAG）
-- **agent（workspace skill）代跑 llmw 的边界**——读/探测/升级类命令直接执行；写类（改 workspace / wiki 元数据、影响运行中 session）先给用户确认后再执行；**api_key 类命令始终由用户亲自执行**（secret 不过 agent）。不手写 toml——元数据写必须经 CLI（schema 校验 / 原子写 / 唯一性约束由 CLI 保证）。历史："让 CLI 写"曾被解读为"只告诉用户"（2026-08-21 前）；修订为"skill 在场时可代跑以闭环 UX，同时保留不手写 toml 的防线"
+- wiki skill **不知** workspace 侧存在（跨 wiki 工作对 wiki skill 是单委托；反向会破坏 DAG）
+- **agent 跨 wiki 工作时代跑 llmw 的边界**——读/探测/升级类命令直接执行；写类（改 workspace / wiki 元数据、影响运行中 session）先给用户确认后再执行；**api_key 类命令始终由用户亲自执行**（secret 不过 agent）。不手写 toml——元数据写必须经 CLI（schema 校验 / 原子写 / 唯一性约束由 CLI 保证）。历史："让 CLI 写"曾被解读为"只告诉用户"（2026-08-21 前）；修订为"skill 在场时可代跑以闭环 UX，同时保留不手写 toml 的防线"
 
 **唯一例外（协作边）**：agent 提供字节 → CLI 机械落盘（`wiki_write.py` / `ingest_diff.py`）。CLI 不审内容语义，只做 log 追加 / index 挂载 / frontmatter 校验等纯函数。字节来自 agent 即 I-1（"CLI 永不创作语义内容"）不违反。
 
@@ -64,7 +64,7 @@ metadata:
 | 阶段 | 主导方 | CLI 角色 |
 | --- | --- | --- |
 | **init** | CLI | 建目录、写骨架（字节来自包内 `llmw/content/templates/` 模板 + fixtures） |
-| **成长** | agent（两 skill 下） | 仅按需被 agent 跑 `check-fixtures` 探测一致性 |
+| **成长** | agent（wiki skill / workspace 根 AGENTS.md） | 仅按需被 agent 跑 `check-fixtures` 探测一致性 |
 | **upgrade** | agent 跑 `llmw upgrade` | CLI 引擎执行：workspace 骨架（4 类）+ 每 wiki 聚合；3 终态 JSON 输出；agent 解读并处理 `blocked_drift` |
 | **delete** | CLI | 带备份删 |
 | **元数据 CRUD** | 用户（agent 可代跑经确认的写类命令；api_key 类恒用户执行） | skill 建议 → 用户确认后代跑 / 用户直接跑 llmw；CLI 负责 schema 校验 + schema_version 自愈 |
@@ -77,7 +77,7 @@ metadata:
 
 - workspace 根文件归属 / 骨架所有权四分表 / 本仓模块边界：`AGENTS.md`（本仓）
 
-图只承载**跨方写入原则**：CLI 绝不写 INDEX / STATS / LINT / cross_queries / `MEMORY/*.md`（skill 领地）；CLI 绝不写 `raw/` / `wiki/` 语义内容（用户 + agent 领地）；skill 绝不写 `workspace.toml` / `.gitignore` / `AGENTS.md` / `CLAUDE.md`（前三 CLI / CLI 引擎升级；后两用户宪法）。
+图只承载**跨方写入原则**：CLI 绝不写 INDEX / STATS / LINT / cross_queries / `MEMORY/*.md`（agent 领地）；CLI 绝不写 `raw/` / `wiki/` 语义内容（用户 + agent 领地）；skill 绝不写 `workspace.toml` / `.gitignore` / `AGENTS.md` / `CLAUDE.md`（前三 CLI / CLI 引擎升级；后两用户宪法）。
 
 ## V5 判归测试（6 步有序，新增能力按序问）
 
@@ -88,13 +88,13 @@ metadata:
 字节级纯函数（骨架渲染、字节比对、重渲染、纯函数落盘、元数据 CRUD）→ **CLI**（`llmw.content` 包收口所有骨架操作）。
 
 **2. 需要 LLM 判断 + 跨 wiki？**
-跨 wiki 的 scan 聚合、路由/合成/对比、link 建议、workspace lint → **workspace skill**。
+跨 wiki 的 scan 聚合、路由/合成/对比、link 建议、workspace lint → **workspace 维护 agent**（按 `<workspace>/AGENTS.md` 纪律）。
 
 **3. 需要 LLM 判断 + 单 wiki？**
 单 wiki 的 ingest（摘要、冲突协调、页面综合）、query、lint → **wiki skill**。
 
 MEMORY/ 条目的沉淀判断与治理（两层皆然）→ `yzr-memory-management` skill（外部通用）；
-两 skill 正文不承载记忆工作流——落盘机制自承载于实例：wiki 走 `MEMORY/MEMORY.md` 头部说明块
+skill 正文与 workspace 模板正文不承载记忆工作流——落盘机制自承载于实例：wiki 走 `MEMORY/MEMORY.md` 头部说明块
 （fixture 声明 `write memory add`），workspace 走「Memory 纪律」节；判归时不再走 2 / 3。
 
 **4. 迁移/升级路径上的写操作？**
@@ -108,7 +108,7 @@ MEMORY/ 条目的沉淀判断与治理（两层皆然）→ `yzr-memory-manageme
 | 实例 | 判归 | 步骤 | 理由 |
 | --- | --- | --- |---|
 | `upgrade_workspace.py`（workspace 骨架升级） | CLI | 步骤 1 | render + 字节比对 + 重渲染 = 纯函数；CLI 引擎镜像 wiki 侧 `upgrade.py` |
-| `<workspace>/cross_queries/<slug>.md` 写入 | workspace skill | 步骤 3 | 跨 wiki 合成答案归档，需判断"是否值得归档""跨几 wiki" |
+| `<workspace>/cross_queries/<slug>.md` 写入 | workspace 维护 agent | 步骤 3 | 跨 wiki 合成答案归档，需判断"是否值得归档""跨几 wiki" |
 | `<wiki>/wiki/log.md` 的 `ingest-diff` 追加 | CLI scribe + agent | 协作边 | agent 出日志字节（diff 摘要），CLI 纯函数追加 + 时间戳规范化，I-1 不违反 |
 | `<wiki>/wiki/syntheses/<slug>.md` 写入 | wiki skill | 步骤 3 | 单 wiki 综合答案，需判断综合内容 |
 | `workspace_models.toml` 字段加 `is_default` | 用户跑 CLI | 步骤 5 | schema 变更，用户决策；CLI 校验唯一性约束 |

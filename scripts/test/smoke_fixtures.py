@@ -5,8 +5,8 @@
 都让本 gate 红。双向覆盖。
 
 断言策略：两探测器所有 error 级 check passed=True（允许 skipped/null）。
-版本常量（llmw.WIKI_FORMAT_VERSION / WORKSPACE_FORMAT_VERSION）与两 SKILL.md
-frontmatter 的 *_format_version 由本 gate 比对，漂移即挂。
+版本常量 llmw.WIKI_FORMAT_VERSION 与 wiki SKILL.md frontmatter 的
+wiki_format_version 由本 gate 比对，漂移即挂。
 
 standalone，Python 3.7+（与项目最低支持版本对齐）。用法：``python3 scripts/test/smoke_fixtures.py``
 """
@@ -44,11 +44,6 @@ def _check_format_version_alignment():
 
     cases = [
         ("yzr-llm-wiki-management", "wiki_format_version", llmw.WIKI_FORMAT_VERSION),
-        (
-            "yzr-llm-workspace-management",
-            "workspace_format_version",
-            llmw.WORKSPACE_FORMAT_VERSION,
-        ),
     ]
     drifts = []
     for skill_dir, key, expected in cases:
