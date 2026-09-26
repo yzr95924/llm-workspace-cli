@@ -7,11 +7,10 @@ metadata:
 
 # format 版本号 bump：包内常量 + CI gate（2026-08-20 起）
 
-SSOT = `llmw/__init__.py` 的两条硬编码常量：`WIKI_FORMAT_VERSION` / `WORKSPACE_FORMAT_VERSION`。
+SSOT = `llmw/__init__.py` 硬编码常量 `WIKI_FORMAT_VERSION`（workspace format 常量已随 workspace 宪法退役删除）。
 wiki SKILL.md frontmatter 的 `wiki_format_version` 必须与常量一致，CI fixtures-smoke job
 （`scripts/test/smoke_fixtures.py` 的 `_check_format_version_alignment`）机械比对——任何不一致即挂
-job；`WORKSPACE_FORMAT_VERSION` 无 frontmatter 载体（workspace skill 已退役），常量单源渲染进
-workspace AGENTS.md「当前配置」。
+job。
 
 **Why:** 运行时读 SKILL.md frontmatter 会让 `import llmw` 依赖 L2 skill 目录存在（违反 [[boundary-map]] 包内资源内建原则——wheel 装完依旧残）。改为包内常量后 `import llmw` 零依赖 L2，wheel 完整。CI gate 把"同 commit 改多处"的纪律升级为机械 gate。
 
@@ -31,7 +30,7 @@ workspace AGENTS.md「当前配置」。
 - format 结构 / 指针 / canonical 声明调整
 - CLI 内部重构（不改渲染字节）/ README / MEMORY 条目
 
-**判别式**：`llmw upgrade --apply` 会不会对现有实例产生超出版本行的 diff，或 lint
+**判别式**：`llmw wiki upgrade --apply` 会不会对现有实例产生超出版本行的 diff，或 lint
 会不会对旧实例产生新的 error/warn？会 → bump；不会 → 不 bump。
 
 **How to apply:** bump 流程——(1) 改 `llmw/__init__.py` 常量 + (2) 改 wiki `SKILL.md`
