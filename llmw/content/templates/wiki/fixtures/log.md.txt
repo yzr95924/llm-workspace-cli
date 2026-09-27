@@ -6,10 +6,8 @@ created: {{SETUP_DATE}}
 updated: {{SETUP_DATE}}
 ---
 
-> 完整操作历史靠 git（`git log -p -- wiki/log.md`）。
->
-> **追加纪律**：触发判定见 [`../AGENTS.md`](../AGENTS.md)「写入纪律」「写后必同步」条。
-> 正路走 `llmw wiki write log`；带外手改按下列格式并手工截断。
+> 完整操作历史靠 git（`git log -p -- wiki/log.md`）。正路走 `llmw wiki write log`；
+> 带外手改按下列格式并手工截断。
 >
 > **格式**：`## [YYYY-MM-DD HH:MM] <op> | <title>`（op ∈ {{LOG_OPS}}；日期也接受 `YYYY-MM-DD`）。`ingest` 可追加第三段
 > `| <raw 相对路径>`（wiki 根相对、`raw/` 起头）。标题简洁、不超过一行；

@@ -89,7 +89,7 @@
 
 ### `wiki/tags.md` —— tag 白名单字典
 
-- 纪律：追加时机 / 取值规则 / lint 解析约束 / 用户审计循环见
+- 纪律：追加时机 / 取值规则 / lint 解析约束见
   [`wiki/tags.md`](wiki/tags.md) 头部说明块
 
 ### `scripts/` —— 本 wiki 仓的自维护脚本目录
