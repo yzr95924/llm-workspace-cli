@@ -1,4 +1,4 @@
-"""wiki 仓初始化：把"出生形态"落盘（6 件产物 + 目录树 + .gitkeep）。
+"""wiki 仓初始化：把"出生形态"落盘（7 件产物 + 目录树 + .gitkeep）。
 
 只做编排；模板渲染统一走 llmw.content.render（变量 SSOT = metadata + 版本常量）。
 字节金标准 gate 在 scripts/test/smoke_fixtures.py。git 红线：CLI 绝不碰 git，
@@ -93,7 +93,7 @@ def render_and_write(
     for d in (
         [wiki_dir / "raw" / x for x in _RAW_SUBDIRS]
         + [wiki_dir / "wiki" / x for x in _CONTENT_SUBDIRS]
-        + [wiki_dir / "scripts"]
+        + [wiki_dir / "scripts", wiki_dir / "MEMORY"]
     ):
         d.mkdir(parents=True, exist_ok=True)
 
@@ -107,6 +107,8 @@ def render_and_write(
     try:
         atomic_write(wiki_dir / "AGENTS.md", agents_md)
         atomic_write(wiki_dir / ".gitignore", gitignore)
+        # 空文件：AGENTS.md 的 @MEMORY import 出生即有目标；内容初始化归 yzr-memory-management
+        atomic_write(wiki_dir / "MEMORY" / "MEMORY.md", "")
         atomic_write(wiki_dir / "wiki" / "index.md", index_md)
         atomic_write(wiki_dir / "wiki" / "log.md", log_md)
         atomic_write(wiki_dir / "wiki" / "tags.md", tags_md)
