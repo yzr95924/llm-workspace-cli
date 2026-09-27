@@ -608,6 +608,8 @@ def check_stale_summaries(wiki_root: Path, threshold_days: int = STALE_SUMMARY_D
     return findings
 
 
+# fixture 头部示例的"裸 bullet 才入解析"有两层偶然防护：行首 > 或反引号起头。本解析器
+# 只跳空行 / <!-- / fence，不认 blockquote；行首裸 bullet 会被 strip 反引号后入白名单，无检查兜底。
 TAXONOMY_BULLET_RE = re.compile(r"^[-*]\s+(.+)$")
 TAG_KV_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 

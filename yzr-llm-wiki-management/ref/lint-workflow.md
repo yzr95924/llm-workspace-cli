@@ -15,8 +15,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 
 ## 半定性检查（agent 执行）
 
-跑完 deterministic 后 agent 再做以下检查（**仅 wiki < 200 页时人工做**，经验阈值；
-> 200 页后语义矛盾 / 缺链无人工兜底，靠 ingest 时撞见走矛盾处置）：
+跑完 deterministic 后 agent 再做以下检查（**仅 wiki < 200 页时人工做**，经验阈值；> 200 页后语义矛盾 / 缺链无人工兜底，靠 ingest 时撞见走矛盾处置）：
 
 - **矛盾主张**（warning）：同一概念 / 实体在 ≥ 2 页被矛盾方式描述且**未标** `contested`
   （已标注的归 deterministic）；grep 概念关键词 + 读上下文，发现后列入修复建议，
