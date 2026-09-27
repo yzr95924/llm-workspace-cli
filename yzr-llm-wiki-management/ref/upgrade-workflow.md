@@ -12,8 +12,8 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
   需 `--yes`，否则停于 `blocked_drift`
 - **lint plan（`--check-version --apply --json`）**：stdout 输出 `upgrade_plan`，**只输出
   plan、不落盘**，改动由 agent 用 Edit/Write 落
-- **agent 职责**：(1) drift 裁定（Step 3） (2) 按 plan 落 fixtures 修复（Step 4）
-  (3) [章节](#语义合并规则) 语义合并
+- **agent 职责**：（1）drift 裁定（Step 3） （2）按 plan 落 fixtures 修复（Step 4）
+  （3）[章节](#语义合并规则) 语义合并
 - **升级期不走 `llmw wiki write`**（机械写命令只认识当前形态）；**不**追加 log 条目（升级
   不是 wiki 操作事件）
 
@@ -54,7 +54,7 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
    - `verify_failed` → 按 `verified.failures[]` 修完重跑（幂等）
    - lint 侧仍有 fixtures 不合规 → 报告 + 转人工
 
-**不**调用 ingest / query（保持职责单一）。
+**不**调用 ingest / query（保持职责单一）
 
 ## 边界
 

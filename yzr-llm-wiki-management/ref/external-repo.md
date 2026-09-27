@@ -26,7 +26,3 @@
 
 用户日常 `git pull` target 仓**不**触发任何自动检测，身份字段极少变化，无需刷新；"摘要是否
 过期"由用户判断，需要时重 ingest 对应 source 页（`target` 字段不动）
-
-## 反模式
-
-命令报错与 lint `to_action` 均自带修复路径，按 stderr / 输出行动即可

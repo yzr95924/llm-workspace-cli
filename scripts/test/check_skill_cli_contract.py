@@ -104,6 +104,27 @@ WIKI_TEMPLATE_LANDMARKS = [
     "@scripts/SCRIPTS.md",
     "Query 纪律",
     "raw/discussions/",
+    "写后必同步",
+    "骨架所有权四分表",
+]
+# 面 6c 模板 → skill 反向引用：字节模板（改一次 = 一次 format bump，无人顺手动）以
+# `<doc>「<节名>」` 软指 skill 文档；skill 侧可自由重构，缺此检查时两侧互相 rename
+# 只静默腐烂。doc 存在性 + 「节名」在目标文档标题内存活 + 角色指称映射文件。
+TEMPLATE_SKILL_DOC_RE = re.compile(
+    r"(ingest-workflow|lint-workflow|upgrade-workflow|query-workflow|page-templates)"
+    r"(?![\w-])"
+)
+TEMPLATE_SKILL_QUOTE_RE = re.compile(
+    r"(ingest-workflow|lint-workflow|upgrade-workflow|query-workflow|page-templates)"
+    r"「([^」]+)」"
+)
+TEMPLATE_SKILL_ROLE_REFS = [
+    ("页面模板文档", "page-templates.md"),
+]
+# 面 6d skill 侧 landmark 拼写：6b 只查模板侧存在性，管不到 skill 引用处写没写对
+# （曾出现 `Wiki Format version` 按字面 grep AGENTS.md 落空）。左 = 错误拼写，右 = 模板 canonical。
+SKILL_LANDMARK_SPELLING_BAN = [
+    ("Wiki Format version", "Wiki Format 版本"),
 ]
 # 面 8 布局 token：skill 里 `wiki/<dir>/` token，dir 必须在 WIKI_SUBDIRS 集合。
 # 前置 `[\s<>/]` 排除 wiki 名后缀（如 `huawei_storage_wiki/wiki/...` 中第一个 `wiki`
@@ -213,10 +234,8 @@ TERMINAL_TOKENS = {
     "upgrade_plan": ("upgrade-workflow.md",),
     "fixtures_actions": ("upgrade-workflow.md", "lint-workflow.md"),
     "agent_rules": ("upgrade-workflow.md", "lint-workflow.md"),
-    # plan 自述的语义字段：本文档只指路，字段词汇归 CLI（agent 按 plan 自带规则落）
     # 注：本表方向是**文档 → CLI**（文档提到才查 CLI 有无该字面量）；CLI 新增枚举值而
     # 文档未跟随时本表查不出（如 upgrade.py 的 `growth-graft-error`），该类漂移靠人工审计
-    "to_action": ("lint-workflow.md", "external-repo.md"),
     # drift 判定的唯一判据（CLI 只对 render / gitignore-block 的 diff 设门禁）
     "gitignore-block": ("upgrade-workflow.md",),
     # finding 名（doc 侧分支依据）：升级触发（版本三态）/ 语义合并判定
@@ -519,6 +538,8 @@ def main():  # pylint: disable=too-many-branches
         "tokens": 0,
         "semver": 0,
         "landmarks": 0,
+        "template_skill_refs": 0,
+        "landmark_spelling": 0,
         "layout_tokens": 0,
         "rule_ref_checks": 0,
         "module_symbols": 0,
@@ -740,6 +761,51 @@ def main():  # pylint: disable=too-many-branches
                 "模板改了须同 commit 同步 skill 引用）".format(landmark)
             )
 
+    # 6c 模板 → skill 反向引用完整性（doc 存在 / 「节名」在目标标题内存活 / 角色指称映射）
+    for m in TEMPLATE_SKILL_DOC_RE.finditer(wiki_tpl_text):
+        stats["template_skill_refs"] += 1
+        _doc = m.group(1)
+        if not (WIKI_SKILL / "ref" / (_doc + ".md")).is_file():
+            errors.append(
+                "[template-ref] AGENTS.md 模板引用 skill 文档 `{}.md` 不存在——模板"
+                "（byte-owned，改一次 = 一次 format bump）与 skill 的 rename 须同 commit 同步".format(
+                    _doc
+                )
+            )
+    for m in TEMPLATE_SKILL_QUOTE_RE.finditer(wiki_tpl_text):
+        stats["template_skill_refs"] += 1
+        _doc, _sec = m.group(1), m.group(2)
+        _p = WIKI_SKILL / "ref" / (_doc + ".md")
+        if not _p.is_file():
+            continue  # 文档缺失已由上行检查报出
+        if not any(_sec in ln for ln in _read(_p).splitlines() if ln.startswith("#")):
+            errors.append(
+                "[template-ref] AGENTS.md 模板引 skill 节 `{}`「{}」但目标标题无此节名——"
+                "skill 改节名须同 commit 同步模板".format(_doc, _sec)
+            )
+    for _phrase, _fname in TEMPLATE_SKILL_ROLE_REFS:
+        stats["template_skill_refs"] += 1
+        if _phrase not in wiki_tpl_text:
+            errors.append(
+                "[template-ref] AGENTS.md 模板缺角色指称「{}」——措辞改写须同 commit "
+                "更新本 gate 映射登记".format(_phrase)
+            )
+        elif not (WIKI_SKILL / "ref" / _fname).is_file():
+            errors.append(
+                "[template-ref] AGENTS.md 模板以「{}」指称 skill 文档但 `ref/{}` 不存在".format(
+                    _phrase, _fname
+                )
+            )
+    # 6d skill 侧 landmark 拼写（引用处须与模板 canonical 同拼写）
+    for _wrong, _right in SKILL_LANDMARK_SPELLING_BAN:
+        stats["landmark_spelling"] += 1
+        for md in SKILL_MDS:
+            if _wrong in _read(md):
+                errors.append(
+                    "[landmark-spelling] {} :: skill 引用 landmark `{}` 与模板 canonical `{}` "
+                    "不一致（按字面定位落空）".format(_rel(md), _wrong, _right)
+                )
+
     # --- 7. 布局 token（skill ↔ 目录结构） ---
     import llmw.content.wiki_lint as _wiki_lint_mod  # pylint: disable=import-outside-toplevel
 
@@ -885,7 +951,8 @@ def main():  # pylint: disable=too-many-branches
     print(
         "contract (skill+templates+repo-docs → CLI): {} cmd, {} finding_mirrors, "
         "{} finding_tokens, {} anchors, {} tokens, {} semver, {} landmarks, "
-        "{} layout_tokens, {} rule_ref_fmt_checks, {} module_symbols, "
+        "{} template_skill_refs, {} landmark_spelling, {} layout_tokens, "
+        "{} rule_ref_fmt_checks, {} module_symbols, "
         "{} agent_text_refs, {} enum_pins, {} exemptions".format(
             stats["cmds"],
             stats["finding_mirrors"],
@@ -894,6 +961,8 @@ def main():  # pylint: disable=too-many-branches
             stats["tokens"],
             stats["semver"],
             stats["landmarks"],
+            stats["template_skill_refs"],
+            stats["landmark_spelling"],
             stats["layout_tokens"],
             stats["rule_ref_checks"],
             stats["module_symbols"],

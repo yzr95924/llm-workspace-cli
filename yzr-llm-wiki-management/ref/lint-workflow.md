@@ -26,6 +26,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 - **调查方向建议**（info）：热门主题（多 source 涉及）无综合 / 对比页 = 新合成机会
 - **投放口堆积**（info）：`raw/articles/` 大量未摄取文件（跑 `llmw wiki ingest-diff` 即知），
   拖久会撑爆单次 ingest
+- **index 体积**（info）：单类别 / 总条目超 `wiki/index.md` 头部「扩容护栏」时，
+  按该说明块处置（拆段 / 建 topic-map）
 - **漂移点引用**（info，不阻断）：正文引用上游可变且无机制可感知其变化的事实，按
   [章节](ingest-workflow.md#正文引用的稳定性漂移点规避) 逐类扫描，命中按该节改写规则修
 

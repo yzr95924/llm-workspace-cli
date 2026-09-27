@@ -1,6 +1,10 @@
 # llmw — Wiki Workspace CLI
 
-一个 workspace = 一个 git 仓，含多个 wiki 子目录。llmw 负责 wiki 创建、元数据与 session 启动；wiki 内容（ingest / lint / query）由 [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm-workspace-cli/tree/master/yzr-llm-wiki-management) skill 在 session 内负责；跨 wiki / workspace 内容操作已退役（无宪法、无 skill）；workspace 仅是 wiki 的 git 仓容器。SKILL 与 CLI **同仓**。
+一个 workspace = 一个 git 仓，含多个 wiki 子目录。llmw 负责 wiki 创建、元数据与 session 启动；
+wiki 内容（ingest / lint / query）由
+[`yzr-llm-wiki-management`](https://github.com/yzr95924/llm-workspace-cli/tree/master/yzr-llm-wiki-management)
+skill 在 session 内负责；跨 wiki / workspace 内容操作已退役（无宪法、无 skill）；
+workspace 仅是 wiki 的 git 仓容器。SKILL 与 CLI **同仓**。
 
 ## 安装
 
@@ -10,7 +14,9 @@ cd llm-workspace-cli
 ./scripts/install.sh
 ```
 
-生成 `~/.local/bin/llmw`（wrapper 内嵌本仓库路径，用 `PYTHONPATH` 解析 `llmw` 包，**无需 pip/venv**）。同时注册 PATH / completion（bash/fish/zsh 三套）与 SKILL 的 symlink；装完 source 对应 shell rc 即可。Python 3.11+ 零第三方依赖；<3.11 需 `pip install 'tomli>=1.1'`。
+生成 `~/.local/bin/llmw`（wrapper 内嵌本仓库路径，用 `PYTHONPATH` 解析 `llmw` 包，**无需 pip/venv**）。
+同时注册 PATH / completion（bash/fish/zsh 三套）与 SKILL 的 symlink；装完 source 对应 shell rc 即可。
+Python 3.11+ 零第三方依赖；<3.11 需 `pip install 'tomli>=1.1'`。
 
 卸载（删 wrapper + PATH marker + completion + skill symlink，**不删仓库、不删 workspace 数据**）：
 
@@ -77,7 +83,9 @@ llmw config set enter_cli qodercli   # 切换；llmw config unset enter_cli 回�
 
 ### 窗口模式（enter / status / stop）
 
-`wiki enter` 把 agent 开成**当前 tmux session 的一个窗口**。不在 tmux 内时：恰有一个可见 session 就直接开入其中，否则兜底 `llm_workspace` session + attach。窗口名 `<wiki>-<suffix>`（suffix 默认 `main`）；**不传 `--window-suffix` 恒为复用跳转，传了才是新开并行窗口**。enter 是 fire-and-forget（窗口建成即返回 0）。
+`wiki enter` 把 agent 开成**当前 tmux session 的一个窗口**。不在 tmux 内时：恰有一个可见 session 就直接开入其中，
+否则兜底 `llm_workspace` session + attach。窗口名 `<wiki>-<suffix>`（suffix 默认 `main`）；
+**不传 `--window-suffix` 恒为复用跳转，传了才是新开并行窗口**。enter 是 fire-and-forget（窗口建成即返回 0）。
 
 ## 退出码
 
@@ -97,7 +105,9 @@ llmw config set enter_cli qodercli   # 切换；llmw config unset enter_cli 回�
 
 ## 仓库结构
 
-- `llmw/` — Python 包：`cli.py` / `config.py` / `backends.py` / `errors.py` / `fsutil.py` + `content/` / `wiki/` / `workspace/` 子包（`content/` 为最大子包：模板 + 探测器 + fixtures + lint/write/upgrade 等内容层命令实现；可执行入口 = install.sh wrapper 或 `python -m llmw`）
+- `llmw/` — Python 包：`cli.py` / `config.py` / `backends.py` / `errors.py` / `fsutil.py` +
+  `content/` / `wiki/` / `workspace/` 子包（`content/` 为最大子包：模板 + 探测器 + fixtures +
+  lint/write/upgrade 等内容层命令实现；可执行入口 = install.sh wrapper 或 `python -m llmw`）
 - `scripts/` — install / uninstall 脚本及其集成测试
 - `yzr-llm-wiki-management/` — SKILL（纯 markdown：SKILL.md + ref/；运行期模板与探测器已内建 `llmw/content/`，随仓分发）
 - `doc/` / `tests/` — 设计文档 / pytest（CI 跑 ruff + pytest，py3.7 / py3.11）

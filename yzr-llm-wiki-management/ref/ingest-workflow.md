@@ -13,13 +13,13 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ```
 
 输出按 reason 分类（`untracked` / `stale-raw` / `log-only-no-source-page`），含义与退出码
-输出自明。
+输出自明
 
 ### Step 2：评估规模
 
 < 3 份逐份处理；≥ 3 份走 [章节](#批处理摄取-3-份-raw-同时摄入)；> 20 份先按主题聚类
 （同议题 / 同作者 / 同时间段优先，不按文件名随机排），再问用户"是否先处理<主题>这 N
-份"、逐批推进（数字均为经验建议阈值，非 CLI 强制）。
+份"、逐批推进（数字均为经验建议阈值，非 CLI 强制）
 
 ### Step 2.5：与用户对齐要点
 
@@ -29,7 +29,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ### Step 3：写 source 页
 
 命中 `stale-raw` 的文件不建新页：source 页还在，用 **Edit** 更新正文（**不要** Write
-覆盖），frontmatter `sources` 只追加新路径、不重写整块。
+覆盖），frontmatter `sources` 只追加新路径、不重写整块
 
 对每个待摄取文件：
 
@@ -60,8 +60,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ### Step 6：追加 `log.md`
 
 - `llmw wiki write log --op=ingest --title="<source 页 title>" --raw="raw/<相对路径>"`：
-  `--raw` 记录被摄取文件（wiki 根相对、`raw/` 起头，是 `ingest-diff` 判定
-  log-only-no-source-page 的精确依据）
+  `--raw` 记录被摄取文件，是 `ingest-diff` 判定 log-only-no-source-page 的精确依据
 - 批处理走 `--bulk`（见下节）
 
 ### Step 7：建议 commit（启用 git 时）
@@ -86,16 +85,15 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 阈值 canonical 见 [章节](page-templates.md#建页--追加--归档阈值page-thresholds)
 
-单篇 ingest 的判断：本 raw 的中心主题、反复出现的核心概念就建；路过、类比、一笔带过
-的背景不建。例：反复提到 self-attention 且无页，就建
-`concepts/self-attention.md`；偶然提到一次 GPU，不建。
+例（单篇 ingest）：反复提到 self-attention 且无页，就建
+`concepts/self-attention.md`；偶然提到一次 GPU，不建
 
 ## 正文引用的稳定性（漂移点规避）
 
 写 wiki 页正文或对话作答引用上游事实时，先过一遍**感知测试**：上游事实变了，wiki 有
-任何机制（lint / anchor / stale 检查）能发现吗？发现不了的引用就是漂移点，必须改写。
+任何机制（lint / anchor / stale 检查）能发现吗？发现不了的引用就是漂移点，必须改写
 
-改写方向就三条：降精度、加锚点、打时间戳。
+改写方向就三条：降精度、加锚点、打时间戳
 
 | 漂移点 | 反例 | 改写 |
 | --- | --- |

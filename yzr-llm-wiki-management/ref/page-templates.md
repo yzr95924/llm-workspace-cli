@@ -61,7 +61,7 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 ## 各类型模板
 
 每类只列**路径 + 类型特定字段 + 正文骨架**（节名即契约，写入时按它落；节名按需保留 /
-拆分；5 必填 frontmatter 由 `llmw wiki write new` 生成）。
+拆分；5 必填 frontmatter 由 `llmw wiki write new` 生成）
 
 ### entity（实体页）
 
