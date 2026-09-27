@@ -226,7 +226,8 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 
 1. **新建**：走 `llmw wiki write new`；正文按上节骨架写
 2. **修改 / 重写**：`updated` 与 `reviewed` 戳归 `llmw wiki write touch`；`type` /
-   `sources` 等关键字段要变，**先和用户确认**
+   `sources` 等关键字段要变，**先和用户确认**；`title` / `description` / `type` 变更后
+   `llmw wiki write index add <page>` 同步条目，页面换路径另 `llmw wiki write index remove <旧路径>`
 3. **归档 query 答案**：按答案性质选 `comparison`（对比）或 `synthesis`（综合）
 
 ### 建页 / 追加 / 归档阈值（Page Thresholds）
