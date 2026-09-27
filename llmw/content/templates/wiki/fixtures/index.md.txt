@@ -9,9 +9,7 @@ updated: {{SETUP_DATE}}
 
 # {{TOPIC_NAME}} Wiki
 
-> 本 wiki 由 LLM 维护，用户只读 + 提供 raw 资料 + 提问题。边界纪律见
-> [`../AGENTS.md`](../AGENTS.md)；内容页类型 / frontmatter 规则由维护本 wiki 的 skill
-> 的页面模板文档承载。
+> 边界纪律见 [`../AGENTS.md`](../AGENTS.md)。
 >
 > **条目纪律**：按类别分组列出所有非 log 页面（{{INDEX_SECTIONS}}，字母序）；每条带链接 + 一句话摘要（取自页面 `description`）；
 > 同步触发判定见 [`../AGENTS.md`](../AGENTS.md)「写入纪律」「写后必同步」条。
