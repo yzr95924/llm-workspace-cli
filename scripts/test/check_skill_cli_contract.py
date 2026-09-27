@@ -114,8 +114,7 @@ LAYOUT_TOKEN_RE = re.compile(r"(?:^|[\s<>/])wiki/([a-z][a-z0-9]*)/")
 #   (a) `llmw.` 前缀（含多点：llmw.content / llmw.content.external_anchor._REQUIRED_FIELDS）
 #   (b) 单点 ident.IDENT（第二段含大写：wiki_lint.VALID_TYPES）
 # 「单向约束」：skill 文本不读 CLI 代码，只用命令名 / finding 名 / 裸常量名。
-# 只扫 SKILL_MDS；模板 / 仓根文档是 CLI 自身文档，引用自身常量合法（如 fixtures/README.md
-# 的 llmw.WIKI_FORMAT_VERSION）。零误报：MEMORY/MEMORY.md（斜杠）/
+# 只扫 SKILL_MDS；模板 / 仓根文档是 CLI 自身文档，引用自身常量合法。零误报：MEMORY/MEMORY.md（斜杠）/
 # page-templates.md（第二段无大写）llmw wiki lint（空格命令形态）均不匹配。
 MODULE_SYMBOL_RE = re.compile(
     r"`(llmw\.[^`\n]*|[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z0-9_]*[A-Z][A-Za-z0-9_]*)`"

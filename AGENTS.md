@@ -73,7 +73,6 @@ python3 -m llmw --help                            # 免安装直接跑 CLI
   不 reflow）。`ruff format .` 会按文件就近选配置，别用手动根配置格式化 content 包。
 - Markdown 行宽 ≤ 120（`.markdownlint.jsonc` MD013；表格 / 代码块豁免）。
 - skill 目录（`yzr-llm-*/`）禁 `.py` 文件（CI find 判红）；确定性代码全归 `llmw/content/`。
-- 编辑模板 / fixtures 前先读 `llmw/content/templates/wiki/fixtures/README.md` 的「规则分层」——每条纪律恰有一个 canonical 家，别处只写指针。
 
 ## 跨会话记忆（索引）
 
