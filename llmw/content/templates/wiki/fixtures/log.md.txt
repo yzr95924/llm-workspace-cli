@@ -10,7 +10,7 @@ updated: {{SETUP_DATE}}
 > 带外手改按下列格式并手工截断。
 >
 > **格式**：`## [YYYY-MM-DD HH:MM] <op> | <title>`（op ∈ {{LOG_OPS}}；日期也接受 `YYYY-MM-DD`）。`ingest` 可追加第三段
-> `| <raw 相对路径>`（wiki 根相对、`raw/` 起头）。标题简洁、不超过一行；
+> `| <raw 相对路径>`（wiki 根相对、`raw/` 起头）。标题不超过一行；
 > URL / 详细摘要写在对应页面里。
 >
 > **滚动窗口**：条目数 > {{LOG_RETENTION_LIMIT}} 时删最旧的保最近 {{LOG_RETENTION_LIMIT}} 条（本文件 frontmatter 不动）。
