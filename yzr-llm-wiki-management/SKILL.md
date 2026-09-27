@@ -13,7 +13,7 @@ description: |
 metadata:
   author: Zuoru YANG
   category: knowledge-base
-  wiki_format_version: 0.54.0
+  wiki_format_version: 0.55.0
 ---
 
 # LLM Wiki Management
@@ -37,7 +37,7 @@ metadata:
 3. `Read wiki/log.md`（最近 ~30 行）：最近活动，避免重复 ingest / 漏归档
 4. `Read scripts/SCRIPTS.md`（wiki 可无 scripts/）：跑 `scripts/` 自定义脚本前先查其分节契约
 
-100+ 页的 wiki 加一次 `wiki/` 全域 `Grep "<topic>"`，补 index.md 看不全的页间引用
+100+ 页（经验阈值）的 wiki 加一次 `wiki/` 全域 `Grep "<topic>"`，补 index.md 看不全的页间引用
 
 **机械归 CLI，语义归 agent**：写操作正路 = `llmw wiki write` 系列（适用 ingest / query / lint；
 升级期豁免，红线见下方 Upgrade 节）：格式 + 滚动窗口截断由 `write` 保证，lint 只兜底带外手改
@@ -62,7 +62,7 @@ metadata:
 
 **触发**："把这篇摄取到 wiki" / `raw/` 有新文件 / 跑 `llmw wiki ingest-diff` 发现未摄取项 /
 用户定期批量（cron / 习惯）。全文 `ref/ingest-workflow.md`；多份 raw 同时摄入走批处理路径，
-见 [章节](ref/ingest-workflow.md#批处理摄取-3-份-raw-同时摄入)。"把 X 仓库纳入 wiki"走
+见 [章节](ref/ingest-workflow.md#批处理摄取-3-份-raw-同时摄入)。外部代码仓接入走
 `ref/external-repo.md`：**不**内嵌拷仓，symlink + anchor 经 CLI 落盘
 
 ### Query（跨页综合）

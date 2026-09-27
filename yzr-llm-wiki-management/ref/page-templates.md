@@ -239,7 +239,7 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 | **新建 entity / concept 页** | 该 entity / concept 在 ≥ 2 个 source 页中被提到（经验阈值）**或** 是某 source 页的中心主题 |
 | **追加到已有页** | source 页提到一个已被覆盖的 entity / concept，追加"参考来源"段即可（不重写） |
 | **不创建页** | 路过提及（脚注 / 一次出现的名字）、领域外的细节、与本 wiki 主题无关 |
-| **拆分页** | 单页正文超过阈值，阈值与拆分建议见 lint `oversized-page` finding（触发时输出自带）；拆成子主题 + cross-link |
+| **拆分页** | 单页正文超过 lint `oversized-page` 阈值（拆分建议随触发输出自带）；拆成子主题 + cross-link |
 | **归档页** | 内容被完全取代 / 主题域变化，加 `archived: true`、从 `index.md` 移除 |
 
 **页不物理删除**，生命周期终点是上表"归档页"，不是 `rm`

@@ -28,7 +28,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 - **投放口堆积**（info）：`raw/articles/` 大量未摄取文件（跑 `llmw wiki ingest-diff` 即知），
   拖久会撑爆单次 ingest
 - **index 体积**（info）：单类别 / 总条目超 `wiki/index.md` 头部"扩容护栏"时，
-  按该说明块处置（拆段 / 建 topic-map）
+  按该说明块处置
 - **漂移点引用**（info，不阻断）：正文引用上游可变且无机制可感知其变化的事实，按
   [章节](ingest-workflow.md#正文引用的稳定性漂移点规避) 逐类扫描，命中按该节改写规则修
 
@@ -38,7 +38,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 2. 修完**重新跑 lint 验证**，不带未验的 fix 前进；重跑同样按 wiki 根 `AGENTS.md`
    "写后必同步"记 log
 3. 启用 git 时重大修复建议 `lint: <summary>` 前缀 commit；裸目录树 wiki 跳过
-4. 若跑了 fixtures-check：职责切分与 plan 消费流程见
+4. 若跑了 `check-fixtures`：职责切分与 plan 消费流程见
    [章节](upgrade-workflow.md#职责切分关键三方分工)
 
 ## lint 频率

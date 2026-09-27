@@ -43,8 +43,8 @@ index 摘要 / page title / `tags` 字段 → 必看；只命中正文 → 看�
 
 ### Step 4：询问归档
 
-**好答案必须问"是否归档"**，满足任一即问：答案本质是对比 / 综合 / 新联系；长度 > 200 字
-（经验阈值）；涉及 ≥ 3 个 source 页。问题模板："这段答案本质是 `<comparison / synthesis>`，
+**好答案必须问"是否归档"**，满足任一即问：答案本质是对比 / 综合 / 新联系；长度 > 200 字；
+涉及 ≥ 3 个 source 页（数字均为经验阈值）。问题模板："这段答案本质是 `<comparison / synthesis>`，
 是否归档为 `wiki/comparisons/<slug>.md`（或 `wiki/syntheses/<slug>.md`）？
 建议标题：`<title>`"
 
