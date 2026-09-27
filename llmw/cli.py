@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 from llmw import __version__
@@ -66,6 +67,32 @@ def _enforce_equals_form(parser, argv):
             raise SpaceFormNotAllowed(tok)
 
 
+def _equals_form_help_text(text, value_flags):
+    """帮助输出后处理：`--flag META` → `--flag=META`（只动已知带值 flag 后随 metavar 处）。
+
+    替换等长，列宽与 usage 换行不变；不命中即保持默认渲染——公开 API 的纯外观后处理，
+    Python 改版最坏后果是回退默认样式，不影响运行时判定。
+    """
+    for name in value_flags:
+        text = re.sub(re.escape(name) + r" (?=[A-Z{])", name + "=", text)
+    return text
+
+
+class _EqualsStyleArgumentParser(argparse.ArgumentParser):
+    """帮助输出对齐运行时 = 风格（见 _enforce_equals_form）。
+
+    add_subparsers 默认 parser_class=type(self)，子 parser 全树自动继承，无需逐级接线。
+    """
+
+    def format_help(self):
+        return _equals_form_help_text(super().format_help(), _collect_value_flags(self))
+
+    def format_usage(self):
+        return _equals_form_help_text(
+            super().format_usage(), _collect_value_flags(self)
+        )
+
+
 # wiki 内容层子命令：须在 workspace 解析前分派（--path 直传时不依赖 workspace）。
 # main() 的提前分派判定与 _cmd_wiki_content 的处理器集合共用此常量（单一真源，
 # 新增内容子命令只改这里 + 加一个处理器分支）。
@@ -111,7 +138,7 @@ def _common_flags() -> argparse.ArgumentParser:
 
 def build_parser() -> argparse.ArgumentParser:
     common = _common_flags()
-    parser = argparse.ArgumentParser(
+    parser = _EqualsStyleArgumentParser(
         prog="llmw",
         description="Wiki workspace CLI (manage wikis under one git repo)",
         parents=[common],
