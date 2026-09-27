@@ -31,8 +31,14 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
    `--apply` 前唯一的可见时机**；先看计划再决定 `--apply`
 
 3. **裁定 drift**（仅 `render` / `gitignore-block` 类 diff 触发）：`--apply` 不加 `--yes`
-   遇这类 diff 即进 `blocked_drift`，输出自带具体 diff 与处置指引；agent 呈给用户，
-   按输出行动
+   遇这类 diff 即进 `blocked_drift`。**可直接 `--apply --yes`，当且仅当两条同时成立**：
+
+   - (a) `dropped_sections` 为空
+   - (b) diff 删除侧每行都出自钉定版本的模板渲染，重建该渲染逐行比对（模板取自 llmw 仓
+     git 历史，`git log -S'<钉定版本>' -- llmw/__init__.py` 定位 commit）；任一行对不上
+     即不成立
+
+   任一不满足 → 停，附归因结论呈用户裁定，按裁定重跑；自行放行的，交付说明注明判据已核
 
 4. **查 fixtures 不合规 + 按 plan 修复**（lint 侧）：
 
