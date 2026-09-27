@@ -113,5 +113,4 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## raw/discussions/ 草稿消化
 
-本入口可选；完整纪律（路径 / 谁可写 / CLI 契约三道 / 归档路径两条 / 滑坡防线）由 wiki
-根 `AGENTS.md` 的 `raw/discussions/` 节承载
+本入口可选；完整纪律由 wiki 根 `AGENTS.md` 的 `raw/discussions/` 节承载
