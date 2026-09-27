@@ -516,13 +516,17 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
             "changed": changed,
             "residue": residue,
             "verified": verified,
-            "error": "自验失败（骨架已写盘；读 verified.failures[] 修完重跑，upgrade 幂等）",
+            "error": "自验失败（骨架已写盘；修完坏项重跑，upgrade 幂等）",
         }
         if as_json:
             print(json.dumps(result, indent=2, ensure_ascii=False))
         else:
             print(f"[llmw] error: {result['error']}", file=sys.stderr)
             print(f"[llmw] verified: error={verified.get('error', 0)} warn={verified.get('warn', 0)}", file=sys.stderr)
+            for f in verified.get("failures") or []:  # 定位行格式与 check-fixtures 人读输出一致
+                sev = str(f.get("severity", "")).upper()
+                print(f"[llmw]   ✗ [{sev}] {f.get('id', '')} ({f.get('file', '')})", file=sys.stderr)
+            print("[llmw] hint: 坏项期望/实际详情跑 llmw wiki check-fixtures", file=sys.stderr)
         return 2
 
     # 8. final status
