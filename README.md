@@ -26,12 +26,9 @@ cd llm-workspace-cli
 
 ```bash
 llmw init
-llmw model add --model-id=minimax-m3-1m \
-  --name="MiniMax-M3[1m]" --base-url="https://api.example.com" \
-  --api-key="sk-xxxxxxxx" --default
 llmw wiki --name=llm-systems add --topic="LLM Systems" \
   --display-name="LLM 系统研究" --description="跟踪 LLM 系统论文与博客" \
-  --tag=research --tag=llm --model=minimax-m3-1m
+  --tag=research --tag=llm
 llmw wiki --name=llm-systems enter          # 启动 agent session
 llmw wiki --name=llm-systems enter --dry-run  # 先看决策，不执行
 llmw status
@@ -52,35 +49,27 @@ llmw wiki --name=llm-systems remove --purge --yes
 | `llmw list [--tag=TAG]...` | 列出 wiki（`--tag` 可重复，AND 关系） |
 | `llmw status [--json] [--tmux]` | 一屏查看所有运行中的 session（STATE/UPTIME/IDLE 列；workspace 被删 → 孤儿清理模式） |
 
-### model registry（源数据 `workspace_models.toml`，不入 git）
-
-| 命令 | 作用 |
-| --- | --- |
-| `llmw model add --model-id=ID --name=NAME --base-url=URL --api-key=KEY [--default]` | 新增 model；`--default` 标记为默认（全局唯一） |
-| `llmw model list [--json]` / `show --model-id=ID [--json]` | 列出 / 查看（api_key 自动 redact） |
-| `llmw model set-default --model-id=ID` / `unset-default` | 设 / 清默认标记 |
-| `llmw model remove --model-id=ID [--yes\|-y]` | 删除 model 条目 |
-
 ### wiki 级
 
 | 命令 | 作用 |
 | --- | --- |
-| `llmw wiki --name=NAME add [--topic=...] [--display-name=...] [--description=...] [--tag=TAG]... [--model=MODEL_ID] [--git]` | 新建 wiki；非 TTY 下 metadata flag 全必填；`--model` 必须在 registry 中；`--git` 为残留 flag（无实际作用；CLI 不碰 git，落盘后只打印手动 hint） |
+| `llmw wiki --name=NAME add [--topic=...] [--display-name=...] [--description=...] [--tag=TAG]... [--git]` | 新建 wiki；非 TTY 下 metadata flag 全必填；`--git` 为残留 flag（无实际作用；CLI 不碰 git，落盘后只打印手动 hint） |
 | `llmw wiki --name=NAME remove [--purge] [--no-backup] [--yes\|-y]` | 移除 wiki；`--purge` 删子目录（默认备份到 `.llmw-trash/`）；`--no-backup` 跳过备份 |
 | `llmw wiki rename --old=OLD --new=NEW [--json] [--quiet]` | 重命名 wiki（3 处同步 + 冲突硬阻挡） |
-| `llmw wiki --name=NAME show [--json]` | 查看 wiki 详情（resolved model 来源 + api_key redact） |
+| `llmw wiki --name=NAME show [--json]` | 查看 wiki 详情 |
 | `llmw wiki --name=NAME config [get\|set\|unset] [KEY] [VALUE]` | 读写 `wiki_metadata.toml`；无参数 + TTY 进交互模式 |
 | `llmw wiki --name=NAME enter [--dry-run] [--window-suffix=SUFFIX]` | 启动 agent session（backend 见下；当前 tmux session 开窗，不在 tmux 内 → 兜底 attach） |
 | `llmw wiki --name=NAME stop [--window-suffix=SUFFIX] [--yes\|-y]` | 终止该 wiki 的 agent 窗口 |
 
 ### agent CLI 切换（`wiki enter` 的 backend）
 
-`enter_cli`（`llmw config` 设置，存 `workspace_local.toml`，gitignored / 主机相关）决定 `wiki enter` 用哪个 agent CLI：
+`enter_cli`（`llmw config` 设置，存 `workspace_local.toml`，gitignored / 主机相关）决定
+`wiki enter` 用哪个 agent CLI（两 backend 均以 wiki 根为工作目录，AGENTS.md 由 agent 原生加载）：
 
-| `enter_cli` | 命令 | overlay 交付 |
-| --- | --- | --- |
-| `opencode`（默认） | `opencode <wiki>` | `<wiki>/opencode.json`（整文件 CLI 拥有，gitignored，每次 enter 幂等渲染） |
-| `qodercli` | `qodercli --add-dir <wiki>` | ✗ |
+| `enter_cli` | 命令 |
+| --- | --- |
+| `opencode`（默认） | `opencode <wiki>` |
+| `qodercli` | `qodercli --add-dir <wiki>` |
 
 ```bash
 llmw config set enter_cli qodercli   # 切换；llmw config unset enter_cli 回退默认
@@ -104,11 +93,11 @@ llmw config set enter_cli qodercli   # 切换；llmw config unset enter_cli 回�
 ## 注意事项
 
 - 需 byobu（tmux backend）且 **tmux ≥ 2.7**（软性下限，本机实测 3.4）。
-- **NFS 不安全**——原子写走 `tmp + fsync + rename`，本地文件系统（ext4 / APFS）安全；`workspace_models.toml` 的 chmod 600 在 NFS 上会静默失败。
+- **NFS 不安全**——原子写走 `tmp + fsync + rename`，本地文件系统（ext4 / APFS）安全。
 
 ## 仓库结构
 
-- `llmw/` — Python 包：`cli.py` / `config.py` / `backends.py` / `errors.py` / `fsutil.py` + `content/` / `wiki/` / `workspace/` / `models/` 子包（`content/` 为最大子包：模板 + 探测器 + fixtures + lint/write/upgrade 等内容层命令实现；可执行入口 = install.sh wrapper 或 `python -m llmw`）
+- `llmw/` — Python 包：`cli.py` / `config.py` / `backends.py` / `errors.py` / `fsutil.py` + `content/` / `wiki/` / `workspace/` 子包（`content/` 为最大子包：模板 + 探测器 + fixtures + lint/write/upgrade 等内容层命令实现；可执行入口 = install.sh wrapper 或 `python -m llmw`）
 - `scripts/` — install / uninstall 脚本及其集成测试
 - `yzr-llm-wiki-management/` — SKILL（纯 markdown：SKILL.md + ref/；运行期模板与探测器已内建 `llmw/content/`，随仓分发）
 - `doc/` / `tests/` — 设计文档 / pytest（CI 跑 ruff + pytest，py3.7 / py3.11）

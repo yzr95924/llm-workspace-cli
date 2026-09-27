@@ -6,9 +6,9 @@
 # 参数风格：带值 flag 一律 `--flag=<value>`（= 连接；CLI 拒绝空格分隔的 --flag value）。
 # 带值 flag 补全分两类（核心：fish 对带值 long option 生成 `--flag=` 候选的条件是「有 -a 值候选
 # 且无 -r」——-r 会让 fish 走空格分隔语义，既不给 = 形式、又与 CLI 的 = 要求冲突）：
-#   A 类（有动态值，如 --name/--model-id/--model）：`-l flag -a "(vals)"`（无 -r），
+#   A 类（有动态值，如 --name）：`-l flag -a "(vals)"`（无 -r），
 #       fish 原生同时给 --flag 与 --flag=；= 后 <Tab> 补动态值。
-#   B 类（free-form 无动态值，如 --topic/--base-url）：`-a "--flag="`（直接给 = 候选），值手敲。
+#   B 类（free-form 无动态值，如 --topic）：`-a "--flag="`（直接给 = 候选），值手敲。
 
 # 通用: workspace 路径（--workspace= 值 或 $LLMW_WORKSPACE 或默认）
 function __llmw_workspace
@@ -37,30 +37,21 @@ function __llmw_wikis
         | sed 's/^\[wikis\.//; s/\]$//'
 end
 
-# 动态: 当前 workspace 的 model_id（直读 workspace_models.toml，不依赖 llmw 可执行文件；未初始化返回空）
-function __llmw_model_ids
-    set -l ws (__llmw_workspace)
-    [ -f "$ws/workspace_models.toml" ]; or return 0
-    grep -oE '^model_id[[:space:]]*=[[:space:]]*"[^"]+"' "$ws/workspace_models.toml" 2>/dev/null \
-        | sed -E 's/.*"([^"]+)".*/\1/'
-end
-
 # 精确：commandline 含 $argv[1]（sub）且含 $argv[2..]（action 任一）
-# 避免 __fish_seen_subcommand_from SUB ACT 的 OR 语义泄露（wiki add 与 model add 都含 "add"）
+# 避免 __fish_seen_subcommand_from SUB ACT 的 OR 语义泄露（如 wiki add 与 write index add 都含 "add"）
 function __llmw_subact
     __fish_seen_subcommand_from $argv[1]; and __fish_seen_subcommand_from $argv[2..-1]
 end
 
 # 通用 / 顶级
 set -l COMMON -l workspace -l json -l debug -l quiet -s q
-set -l TOP_CMDS init config list status model wiki -l help -l version
+set -l TOP_CMDS init config list status wiki -l help -l version
 
 # ===== 顶层 =====
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "init"            -d '初始化 workspace'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "config"          -d 'workspace.toml 读写'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "list"            -d '列出 wiki'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "status"          -d '查看运行中的 wiki agent session'
-complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "model"           -d 'workspace model registry'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -f -a "wiki"            -d 'wiki 子命令'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -l help         -d '显示帮助'
 complete -c llmw -n "not __fish_seen_subcommand_from $TOP_CMDS" -l version      -d '显示版本'
@@ -95,33 +86,6 @@ complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_sub
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "schema_version"    -d 'schema 版本(只读)'
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from set"       -f -a "enter_cli"        -d 'agent CLI (qodercli|opencode)'
 
-# ===== model 子命令 =====
-set -l MODEL_ACTS add list show set-default unset-default remove
-# ===== model 子命令（顶层 model: not seen wiki 防止漏入 wiki 上下文,
-# 尤其是 `wiki config set model` 中 "model" 作为 key 的 word）=====
-complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "add"             -d '新增 model 条目'
-complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "list"            -d '列出所有 model 条目'
-complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "show"            -d '查看单条 model'
-complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "set-default"     -d '标记默认 model'
-complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "unset-default"   -d '清空默认标记'
-complete -c llmw -n "__fish_seen_subcommand_from model; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $MODEL_ACTS" -f -a "remove"          -d '删除 model 条目'
-
-# model list / unset-default（无专属 flag；显式 scope 声明，与 bash / zsh 对应分支对齐；
-# 全局 --workspace=/--json/--debug/--quiet/-q 由文件顶部 COMMON 段兜底）
-complete -c llmw -n "__llmw_subact model list"            -f -d '列出所有 model 条目'
-complete -c llmw -n "__llmw_subact model unset-default"   -f -d '清空默认标记'
-
-# model add（全 free-form → B 类；--default 是 bool flag）
-complete -c llmw -n "__llmw_subact model add" -a "--model-id=" -f -d 'registry slug'
-complete -c llmw -n "__llmw_subact model add" -a "--name="     -f -d '网关模型名'
-complete -c llmw -n "__llmw_subact model add" -a "--base-url=" -f -d 'API base URL'
-complete -c llmw -n "__llmw_subact model add" -a "--api-key="  -f -d 'API key'
-complete -c llmw -n "__llmw_subact model add" -l default  -d '标记为默认'
-
-# model show / set-default / remove（--model-id 有动态值 → A 类，无 -r）
-complete -c llmw -n "__llmw_subact model show set-default remove" -l model-id -f -a "(__llmw_model_ids)" -d 'model_id'
-complete -c llmw -n "__llmw_subact model remove" -l yes -s y -d '跳过确认'
-
 # ===== wiki 子命令 =====
 set -l WIKI_ACTS add remove rename show config enter stop lint check-fixtures upgrade ingest-diff write external
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "add"             -d '新建 wiki'
@@ -142,12 +106,11 @@ complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subco
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -l path -f -a "(__fish_complete_directories)" -d '目标 wiki 根目录'
 
-# wiki add（topic/display-name/description/tag free-form → B 类；--model 有动态值 → A 类；--git 是 bool）
+# wiki add（topic/display-name/description/tag free-form → B 类；--git 是 bool）
 complete -c llmw -n "__llmw_subact wiki add" -a "--topic="        -f -d 'wiki 主题'
 complete -c llmw -n "__llmw_subact wiki add" -a "--display-name=" -f -d '显示名'
 complete -c llmw -n "__llmw_subact wiki add" -a "--description="  -f -d '描述'
 complete -c llmw -n "__llmw_subact wiki add" -a "--tag="          -f -d 'tag (可重复)'
-complete -c llmw -n "__llmw_subact wiki add" -l model -f -a "(__llmw_model_ids)" -d '绑定的 model_id'
 complete -c llmw -n "__llmw_subact wiki add" -l git -d 'opt-in: 初始化 git 仓'
 
 # wiki remove
@@ -168,11 +131,10 @@ complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcomman
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from config; and not __fish_seen_subcommand_from get set unset" -f -a "set"   -d '设值'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from config; and not __fish_seen_subcommand_from get set unset" -f -a "unset" -d '清值'
 
-# wiki config cfg_key（display_name / description / tags / model；cfg_action 之后）
+# wiki config cfg_key（display_name / description / tags；cfg_action 之后）
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from config; and __fish_seen_subcommand_from get set unset" -f -a "display_name" -d '显示名'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from config; and __fish_seen_subcommand_from get set unset" -f -a "description"  -d '描述'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from config; and __fish_seen_subcommand_from get set unset" -f -a "tags"         -d 'tags (可重复)'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from config; and __fish_seen_subcommand_from get set unset" -f -a "model"        -d '绑定的 model_id'
 
 # wiki enter（--dry-run bool / --window-suffix free-form → B 类；无 --name 后置 offer）
 complete -c llmw -n "__llmw_subact wiki enter" -l dry-run -d '仅打印决策不启动 agent'

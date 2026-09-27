@@ -5,11 +5,12 @@ from pathlib import Path
 
 from llmw.fsutil import atomic_write
 
-# managed block 内容（本文件 SSOT）。前 3 行为 registry + Qoder overlay secret
-# （**/.claude/settings*.json 为 legacy guard：已退役的 claude backend 曾在 wiki
-# 内写含明文 api_key 的 settings.local.json，历史实例仍需忽略保护）。后 3 行为 llmw
-# 自有扩展：workspace_local.toml（主机相关运行时）/
-# .llmw-trash/（purge 备份）/ **/opencode.json（机器本地生成，含遗留明文兜底）。
+# managed block 内容（本文件 SSOT）。三类：
+# 1) 主机相关运行时：workspace_local.toml
+# 2) llmw 自有：.llmw-trash/（purge 备份）
+# 3) legacy guard——已退役路径曾写含明文 api_key 的文件，历史实例仍需忽略保护：
+#    workspace_models.toml（旧 model registry）/**/.claude/settings*.json /
+#    **/.qoder/settings*.json / **/opencode.json（旧 enter 渲染）
 GITIGNORE_LINES = (
     "workspace_models.toml",
     "**/.claude/settings*.json",

@@ -40,8 +40,7 @@ python3 -m llmw --help                            # 免安装直接跑 CLI
 - finding 口径唯一入口 = `llmw wiki lint --explain`（注册表 `llmw/content/findings.py`）；skill prose 不得镜像 severity 清单。
 - **运行时输出 = 契约面**：`--help` / stderr / findings `to_action` / plan 字段被 skill prose 信赖为自明（prose 不复述）；
   改这些文案 = 改契约，须同步 grep skill 侧"自明 / 按输出行动"依赖句。
-- 元数据 toml 的 schema 校验全在 store 层（workspace / wiki / models 各自 store 的 validate）；manager 不重复校验。
-- api_key 打印必过 `llmw/models/redact.py` 出口；model 配置不读环境变量（禁止 `os.environ.get` 读取 API 配置）。
+- 元数据 toml 的 schema 校验全在 store 层（workspace / wiki 各自 store 的 validate）；manager 不重复校验。
 
 ## 架构边界与演进原则
 

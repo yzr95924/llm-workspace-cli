@@ -10,13 +10,7 @@ from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
 from llmw.errors import (
     InvalidConfigKey,
     KeyNotUnsettable,
-    ModelDefaultAmbiguous,
-    ModelDefaultNotSet,
-    ModelNotInRegistry,
-    RegistryMissing,
     SchemaVersionUnsupported,
-    WikiDirMissing,
-    WikiNotFound,
     WorkspaceExists,
 )
 from llmw.workspace import store as ws_store
@@ -73,15 +67,8 @@ def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
 
     ws_store.create_skeleton(path)
 
-    # .gitignore 无条件生成（便于后续补 git）；registry 空骨架落盘（save 内置 chmod 600）
+    # .gitignore 无条件生成（便于后续补 git）
     ensure_workspace_gitignore(path)
-
-    from llmw.models.store import (
-        create_skeleton as create_models_skeleton,
-        save as save_models,
-    )
-
-    save_models(path, create_models_skeleton())
 
     print(f"[llmw] workspace 已初始化于 {path}", file=sys.stdout)
     print(
@@ -251,20 +238,10 @@ def config_interactive(workspace_root: Path) -> None:
 def _gather_wiki_rows(
     workspace_root: Path, ws, tag_filter: Optional[List[str]]
 ) -> List[dict]:
-    """list 聚合：遍历 registry + 读 metadata + resolve model + last_activity。
+    """list 聚合：遍历 registry + 读 metadata + last_activity。
 
-    单 wiki 元数据损坏 → warning + 降级空值（列表不整体失败）；ws / registry 预载后循环复用。
+    单 wiki 元数据损坏 → warning + 降级空值（列表不整体失败）。
     """
-    from llmw.models.resolve import resolve_for_wiki
-    from llmw.models.store import load as registry_load
-
-    # registry 预载一次；失败 → None，resolve 内部按原语义重载并抛对应异常
-    # （循环内 except 统一降级 model_info=None）
-    try:
-        registry = registry_load(workspace_root)
-    except Exception:
-        registry = None
-
     rows = []
     for name in sorted(ws.wikis.keys()):
         entry = ws.wikis[name]
@@ -291,29 +268,6 @@ def _gather_wiki_rows(
             if not all(t in tags for t in tag_filter):
                 continue
 
-        # 通过 resolve 拿 model 来源（若失败则不阻断 list，回落 meta.model / 空值，表格显示 "-"）
-        model_info = None
-        try:
-            entry_obj = resolve_for_wiki(workspace_root, name, ws=ws, registry=registry)
-            model_info = {
-                "model_id": entry_obj.model_id,
-                "name": entry_obj.name,
-                "source": "wiki override"
-                if (meta and meta.model)
-                else "registry default",
-            }
-        except (
-            WikiNotFound,
-            WikiDirMissing,
-            ModelNotInRegistry,
-            ModelDefaultNotSet,
-            ModelDefaultAmbiguous,
-            RegistryMissing,
-            OSError,
-            TOMLDecodeError,
-        ):
-            model_info = None
-
         # last_activity: 派生自 <wiki>/wiki/log.md mtime(与 wiki show 同款派生,见 wiki/manager.py:show)
         last_activity = None
         if exists:
@@ -330,10 +284,6 @@ def _gather_wiki_rows(
                 "exists": exists,
                 "display_name": meta.display_name if meta else "",
                 "tags": list(meta.tags) if meta else [],
-                "model": model_info["model_id"]
-                if model_info
-                else (meta.model if meta else None),
-                "model_source": model_info["source"] if model_info else None,
                 "created_at": meta.created_at if meta else None,
                 "last_activity": last_activity,
             }
@@ -350,8 +300,6 @@ def _render_list_json(rows: List[dict]) -> None:
             "path": r["path"],
             "display_name": r["display_name"] or None,
             "tags": r["tags"],
-            "model": r["model"],
-            "model_source": r["model_source"],
             "wiki_dir_exists": r["exists"],
             "last_activity": r["last_activity"],
         }
@@ -400,28 +348,22 @@ def _render_list_table(rows: List[dict]) -> None:
     """
     created_cells = [_short_time(r["created_at"]) for r in rows]
     last_activity_cells = [_short_time(r["last_activity"]) for r in rows]
-    model_cells = [r["model"] or "-" for r in rows]
     name_w = max(_disp_width(r["name"]) for r in rows + [{"name": "NAME"}])
     created_w = max(_disp_width(c) for c in created_cells + ["CREATED"])
     last_activity_w = max(
         _disp_width(c) for c in last_activity_cells + ["LAST_ACTIVITY"]
     )
-    model_w = max(_disp_width(c) for c in model_cells + ["MODEL"])
     print(
         f"  {_disp_pad('NAME', name_w)}  "
         f"{_disp_pad('CREATED', created_w)}  "
-        f"{_disp_pad('LAST_ACTIVITY', last_activity_w)}  "
-        f"{_disp_pad('MODEL', model_w)}"
+        f"{_disp_pad('LAST_ACTIVITY', last_activity_w)}"
     )
-    for r, created, last_act, model_cell in zip(
-        rows, created_cells, last_activity_cells, model_cells
-    ):
+    for r, created, last_act in zip(rows, created_cells, last_activity_cells):
         prefix = "⚠ " if not r["exists"] else "  "
         print(
             f"{prefix}{_disp_pad(r['name'], name_w)}  "
             f"{_disp_pad(created, created_w)}  "
-            f"{_disp_pad(last_act, last_activity_w)}  "
-            f"{_disp_pad(model_cell, model_w)}"
+            f"{_disp_pad(last_act, last_activity_w)}"
         )
 
 

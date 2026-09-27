@@ -4,6 +4,5 @@ topic = "{{TOPIC}}"
 display_name = ""
 description = ""
 tags = []
-model = ""
 created_at = "{{NOW_ISO8601}}"
 updated_at = "{{NOW_ISO8601}}"

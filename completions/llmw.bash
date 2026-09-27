@@ -4,7 +4,7 @@
 # 由 bash-completion ≥2.0 自动加载，无需 source。
 #
 # 参数风格：带值 flag 一律 `--flag=<value>`（= 连接；CLI 拒绝空格分隔的 --flag value）。
-# 带值 flag 敲到 flag 名后 <Tab> 补 `=`，再 <Tab> 触发动态值补全（--name=*/--model-id=* 等）。
+# 带值 flag 敲到 flag 名后 <Tab> 补 `=`，再 <Tab> 触发动态值补全（--name=* 等）。
 
 _llmw() {
     local cur prev i n wi ws sub sub_action
@@ -15,7 +15,7 @@ _llmw() {
     # = 后，COMP_WORDS[COMP_CWORD] 是 "="）。规范化 cur 回 `--flag=` 形式以复用下方 --flag=*
     # 分支（返回裸 value，readline 自动附加到 = 后）。仅对带值 flag 触发，避免误伤 bool flag。
     case "$prev" in
-        --name|--model|--model-id|--workspace|--path|--topic|--display-name|--description|--tag|--tags|--base-url|--api-key|--window-suffix|--target-format|--target|--op|--title|--slug|--index-line|--count|--severity|--explain|--notes|--sources|--raw|--old|--new)
+        --name|--workspace|--path|--topic|--display-name|--description|--tag|--tags|--window-suffix|--target-format|--target|--op|--title|--slug|--index-line|--count|--severity|--explain|--notes|--sources|--raw|--old|--new)
             case "$cur" in
                 "=") cur="${prev}=" ;;
                 =*)  cur="${prev}${cur}" ;;
@@ -56,11 +56,6 @@ _llmw() {
         grep -oE '^\[wikis\.[a-z0-9_-]+\]' "$ws/workspace.toml" 2>/dev/null \
             | sed 's/^\[wikis\.//; s/\]$//'
     }
-    _llmw_model_ids() {
-        [ -f "$ws/workspace_models.toml" ] || return 0
-        grep -oE '^model_id[[:space:]]*=[[:space:]]*"[^"]+"' "$ws/workspace_models.toml" 2>/dev/null \
-            | sed -E 's/.*"([^"]+)".*/\1/'
-    }
 
     # 带值 flag 的 --x= 候选：补全后不加空格（= 后还要补值 / 路径）
     _llmw_nospace_if_eq() {
@@ -71,14 +66,13 @@ _llmw() {
     }
 
     local COMMON="--workspace= --json --debug --quiet -q"
-    local TOP="init config list status model wiki"
+    local TOP="init config list status wiki"
     local WIKI_ACTS="add remove rename show config enter stop lint check-fixtures upgrade ingest-diff write external"
     local WIKI_WRITE_ACTS="log index touch new"
     local WIKI_EXTERNAL_ACTS="add remove list rebuild"
     local WIKI_LINT_SEVERITY="error warn info all"
     local WIKI_WRITE_LOG_OPS="ingest query lint setup"
     local WIKI_WRITE_INDEX_ACTS="add remove"
-    local MODEL_ACTS="add list show set-default unset-default remove"
     local CFG_KEYS="enter_cli templates_version created_at schema_version"
 
     COMPREPLY=()
@@ -89,13 +83,12 @@ _llmw() {
     case "$cur" in
         --name=*)
             # 语境收窄：仅 sub==wiki（且非 external 子命令上下文）时补 wiki 名；
-            # sub==model（网关模型名 free-form）与 wiki external（新 kebab symlink 名
-            # free-form）语境下不污染 wiki 名候选。
+            # wiki external（新 kebab symlink 名 free-form）语境下不污染 wiki 名候选。
             local ext_seen=0
             for wi in "${COMP_WORDS[@]}"; do
                 case "$wi" in external) ext_seen=1; break;; esac
             done
-            if [[ "$sub" != "model" && ! ( "$sub" == "wiki" && "$ext_seen" -eq 1 ) ]]; then
+            if [[ ! ( "$sub" == "wiki" && "$ext_seen" -eq 1 ) ]]; then
                 COMPREPLY=($(compgen -W "$(_llmw_wikis)" -- "${cur#--name=}"))
             fi
             return 0
@@ -104,19 +97,11 @@ _llmw() {
             COMPREPLY=($(compgen -W "$(_llmw_wikis)" -- "${cur#--old=}"))
             return 0
             ;;
-        --model=*)
-            COMPREPLY=($(compgen -W "$(_llmw_model_ids)" -- "${cur#--model=}"))
-            return 0
-            ;;
-        --model-id=*)
-            COMPREPLY=($(compgen -W "$(_llmw_model_ids)" -- "${cur#--model-id=}"))
-            return 0
-            ;;
         --path=*|--workspace=*)
             COMPREPLY=($(compgen -d -- "${cur#*=}"))
             return 0
             ;;
-        --topic=*|--display-name=*|--description=*|--tag=*|--tags=*|--base-url=*|--api-key=*|--new=*|--window-suffix=*|--target-format=*|--target=*|--op=*|--title=*|--slug=*|--index-line=*|--count=*|--severity=*|--explain=*|--notes=*|--sources=*|--raw=*)
+        --topic=*|--display-name=*|--description=*|--tag=*|--tags=*|--new=*|--window-suffix=*|--target-format=*|--target=*|--op=*|--title=*|--slug=*|--index-line=*|--count=*|--severity=*|--explain=*|--notes=*|--sources=*|--raw=*)
             # 带值 flag 但值是 free-form；无候选
             COMPREPLY=()
             return 0
@@ -169,43 +154,13 @@ _llmw() {
                         esac
             fi
             ;;
-        model)
-            if [ -z "$sub_action" ]; then
-                COMPREPLY=($(compgen -W "$MODEL_ACTS $COMMON" -- "$cur"))
-            else
-                case "$sub_action" in
-                    add)
-                        COMPREPLY=($(compgen -W "--model-id= --name= --base-url= --api-key= --default $COMMON" -- "$cur"))
-                        ;;
-                    list|unset-default)
-                        COMPREPLY=($(compgen -W "$COMMON" -- "$cur"))
-                        ;;
-                    show|set-default|remove)
-                        # 看 --model-id= 已传否（= 形式；空格形式被 CLI 拒，不认）
-                        local mid_seen=0
-                        i=1
-                        while [ "$i" -lt "$COMP_CWORD" ]; do
-                            case "${COMP_WORDS[$i]}" in
-                                --model-id=*) mid_seen=1 ;;
-                            esac
-                            i=$((i + 1))
-                        done
-                        if [ "$mid_seen" -eq 1 ]; then
-                            COMPREPLY=($(compgen -W "$COMMON" -- "$cur"))
-                        else
-                            COMPREPLY=($(compgen -W "--model-id= -y --yes $COMMON" -- "$cur"))
-                        fi
-                        ;;
-                esac
-            fi
-            ;;
         wiki)
             if [ -z "$sub_action" ]; then
                 COMPREPLY=($(compgen -W "--name= --path= $WIKI_ACTS $COMMON" -- "$cur"))
             else
                 case "$sub_action" in
                     add)
-                        COMPREPLY=($(compgen -W "--topic= --display-name= --description= --tag= --model= --git $COMMON" -- "$cur"))
+                        COMPREPLY=($(compgen -W "--topic= --display-name= --description= --tag= --git $COMMON" -- "$cur"))
                         ;;
                     remove)
                         COMPREPLY=($(compgen -W "--purge --no-backup -y --yes $COMMON" -- "$cur"))
@@ -232,7 +187,7 @@ _llmw() {
                     config)
                         # wiki config 三段式：cfg_action (get/set/unset) + cfg_key + cfg_value
                         # 收集位置参数到 wiki_pos：[0]=wiki [1]=config [2]=cfg_action [3]=cfg_key
-                        local WIKI_CFG_KEYS="display_name description tags model"
+                        local WIKI_CFG_KEYS="display_name description tags"
                         local -a wiki_pos=()
                         i=1
                         while [ "$i" -lt "$COMP_CWORD" ]; do

@@ -130,19 +130,6 @@ def main():
         _llmw(
             [
                 "--workspace=" + str(ws),
-                "model",
-                "add",
-                "--model-id=m1",
-                "--name=T",
-                "--base-url=https://x.com",
-                "--api-key=k",
-                "--context-window=200000",
-                "--default",
-            ]
-        )
-        _llmw(
-            [
-                "--workspace=" + str(ws),
                 "wiki",
                 "--name=w",
                 "add",
@@ -150,7 +137,6 @@ def main():
                 "--display-name=T",
                 "--description=d",
                 "--tag=x",
-                "--model=m1",
             ]
         )
 

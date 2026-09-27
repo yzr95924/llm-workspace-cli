@@ -33,7 +33,6 @@ _llmw() {
         'config:workspace.toml 读写'
         'list:列出 wiki'
         'status:查看运行中的 wiki agent session'
-        'model:workspace model registry'
         'wiki:wiki 子命令'
     )
 
@@ -60,13 +59,6 @@ _llmw() {
         [[ -f "$ws/workspace.toml" ]] || return 0
         grep -oE '^\[wikis\.[a-z0-9_-]+\]' "$ws/workspace.toml" 2>/dev/null \
             | sed 's/^\[wikis\.//; s/\]$//'
-    }
-
-    _llmw_model_ids() {
-        local ws="$(_llmw_workspace)"
-        [[ -f "$ws/workspace_models.toml" ]] || return 0
-        grep -oE '^model_id[[:space:]]*=[[:space:]]*"[^"]+"' "$ws/workspace_models.toml" 2>/dev/null \
-            | sed -E 's/.*"([^"]+)".*/\1/'
     }
 
     # 用未 shift 的 words 预计算 workspace 路径（动态作用域 local，子函数可见）
@@ -115,9 +107,6 @@ _llmw() {
                 config)
                     _llmw_config && ret=0
                     ;;
-                model)
-                    _llmw_model && ret=0
-                    ;;
                 wiki)
                     _llmw_wiki && ret=0
                     ;;
@@ -161,67 +150,6 @@ _llmw_config() {
                     if [[ -z "${cfg_pos[2]:-}" ]]; then
                         local -a SET_KEYS=('enter_cli:agent CLI (qodercli|opencode)')
                         _describe -t keys 'config key' SET_KEYS && ret=0
-                    fi
-                    ;;
-            esac
-            ;;
-    esac
-    return ret
-}
-
-_llmw_model() {
-    local -a MODEL_ACTS
-    MODEL_ACTS=(
-        'add:新增 model 条目'
-        'list:列出所有 model 条目'
-        'show:查看单条 model'
-        'set-default:标记默认 model'
-        'unset-default:清空默认标记'
-        'remove:删除 model 条目'
-    )
-    local state ret=1
-    _arguments -C \
-        '1: :->action' \
-        '*:: :->model_args' \
-        "${COMMON_OPTS[@]}" && ret=0
-    case $state in
-        action)
-            _describe -t actions 'model action' MODEL_ACTS && ret=0
-            ;;
-        model_args)
-            local -a pos=(${(f)"$(_llmw_pos_words 2)"})
-            local act="${pos[1]:-}"
-            case $act in
-                add)
-                    _arguments \
-                        '--model-id=[registry slug]:model_id:' \
-                        '--name=[网关模型名]:name:' \
-                        '--base-url=[API base URL]:base_url:_urls' \
-                        '--api-key=[API key]:api_key:' \
-                        '--default[标记为默认]' \
-                        "${COMMON_OPTS[@]}" && ret=0
-                    ;;
-                list|unset-default)
-                    _arguments "${COMMON_OPTS[@]}" && ret=0
-                    ;;
-                show|set-default|remove)
-                    local mid_seen=0
-                    local -i i=3
-                    while (( i < CURRENT )); do
-                        case ${words[$i]} in
-                            --model-id=*) mid_seen=1;;
-                        esac
-                        (( i++ ))
-                    done
-                    if (( mid_seen )); then
-                        _arguments "${COMMON_OPTS[@]}" && ret=0
-                    else
-                        local -a RM_OPTS
-                        [[ "$act" == "remove" ]] && RM_OPTS=('(--yes -y)'{--yes,-y}'[跳过确认]')
-                        _arguments \
-                            '--model-id=[registry slug]:model_id:_llmw_model_ids' \
-                            "${RM_OPTS[@]}" \
-                            "${COMMON_OPTS[@]}" && ret=0
                     fi
                     ;;
             esac
@@ -292,7 +220,6 @@ _llmw_wiki() {
                         '--display-name=[显示名]:display_name:' \
                         '--description=[描述]:description:' \
                         '--tag=[tag (可重复)]:tag:' \
-                        '--model=[绑定的 model_id]:model_id:_llmw_model_ids' \
                         '--git[opt-in: 初始化 git 仓]' \
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;
@@ -317,7 +244,6 @@ _llmw_wiki() {
                         'display_name:显示名'
                         'description:描述'
                         'tags:tags (可重复)'
-                        'model:绑定的 model_id'
                     )
                     # 位置扫描：wiki_pos 收集 config 子命令之后的位置词
                     # pos[1]="config" 由 wiki_args 外层消费；从位置 4 起拿 cfg_action

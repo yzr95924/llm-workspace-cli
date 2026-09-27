@@ -15,7 +15,7 @@ dependencies = [
 llmw = "llmw.cli:main"
 
 [tool.setuptools]
-packages = ["llmw", "llmw.workspace", "llmw.wiki", "llmw.models", "llmw.content"]
+packages = ["llmw", "llmw.workspace", "llmw.wiki", "llmw.content"]
 
 [tool.setuptools.package-data]
 "llmw.content" = ["templates/**/*.md", "templates/**/*.md.txt", "templates/**/*.template", "templates/**/*.txt"]

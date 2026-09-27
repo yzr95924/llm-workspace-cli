@@ -17,9 +17,6 @@ from llmw.errors import (
     InvalidWikiName,
     KeyNotUnsettable,
     MissingRequiredFlag,
-    ModelDefaultAmbiguous,
-    ModelDefaultNotSet,
-    ModelNotInRegistry,
     MultipleRunningSessions,
     NoRunningSession,
     PurgeRequiresConfirmation,
@@ -29,8 +26,6 @@ from llmw.errors import (
     WikiExists,
     WikiNotFound,
 )
-from llmw.models.manager import require_model_in_registry
-from llmw.models.resolve import resolve_for_wiki
 from llmw.fsutil import now_iso8601, safe_rmtree
 from llmw.wiki import byobu, init_wiki
 from llmw.wiki import store as wiki_store
@@ -105,8 +100,8 @@ def _tags_submenu(cur_tags: List[str]) -> List[str]:
     return cur_tags
 
 
-def _interactive_fill_metadata(workspace_root, wiki_dir, meta):
-    """交互填充 display_name / description / tags / model（model 走 registry 校验）。"""
+def _interactive_fill_metadata(wiki_dir, meta):
+    """交互填充 display_name / description / tags。"""
 
     def ask(label, cur):
         suffix = " [当前: <未设置>]" if not cur else f" [当前: {cur!r}]"
@@ -124,20 +119,6 @@ def _interactive_fill_metadata(workspace_root, wiki_dir, meta):
         meta.description = v
     meta.tags = _tags_submenu(list(meta.tags))
 
-    # model（与 config set 同校验：须在 registry 中；TTY 下不阻断 add，只警告——用户可稍后 config set）
-    v = ask("model", meta.model or "")
-    if v:
-        try:
-            require_model_in_registry(workspace_root, v)
-        except (ModelNotInRegistry, ModelDefaultNotSet) as e:
-            print(
-                f"    [校验失败] {e.message}——model 字段未写入，稍后可用 "
-                f"`llmw wiki --name={meta.name} config set model=...` 补",
-                file=sys.stderr,
-            )
-        else:
-            meta.model = v
-
     meta.bump()
     wiki_store.save(wiki_dir, meta)
     print("[llmw] metadata 已写入 wiki_metadata.toml", file=sys.stdout)
@@ -150,16 +131,12 @@ def add(
     display_name: Optional[str] = None,
     description: Optional[str] = None,
     tags: Optional[List[str]] = None,
-    model: Optional[str] = None,
 ) -> Path:
     wiki_store.validate_name(name)
 
     ws = ws_store.load(workspace_root)
     if name in ws.wikis:
         raise WikiExists(f"wiki '{name}' 已存在")
-
-    if model is not None:
-        require_model_in_registry(workspace_root, model)
 
     wiki_dir = workspace_root / name
 
@@ -173,8 +150,6 @@ def add(
             missing.append("--description")
         if not tags:
             missing.append("--tag")
-        if model is None:
-            missing.append("--model")
         if missing:
             raise MissingRequiredFlag(
                 f"非 TTY 下 add 缺 metadata flag: {', '.join(missing)}",
@@ -202,7 +177,7 @@ def add(
 
     if sys.stdin.isatty():
         try:
-            _interactive_fill_metadata(workspace_root, wiki_dir, meta)
+            _interactive_fill_metadata(wiki_dir, meta)
         except (EOFError, KeyboardInterrupt):
             print("\n[llmw] 跳过剩余 metadata", file=sys.stderr)
         meta = wiki_store.load(wiki_dir)  # reload
@@ -213,8 +188,6 @@ def add(
             meta.description = description
         if tags:
             meta.tags = tags
-        if model is not None:
-            meta.model = model
         meta.bump()
         wiki_store.save(wiki_dir, meta)
 
@@ -576,25 +549,6 @@ def _show_collect(workspace_root: Path, name: str) -> Dict:
             log_md_p.stat().st_mtime, tz=timezone.utc
         ).isoformat()
 
-    final_model = None
-    model_source = None
-    try:
-        m = resolve_for_wiki(workspace_root, name)
-        final_model = m.model_id
-        model_source = "wiki override" if (meta and meta.model) else "registry default"
-    except (
-        WikiNotFound,
-        WikiDirMissing,
-        ModelNotInRegistry,
-        ModelDefaultNotSet,
-        ModelDefaultAmbiguous,
-    ):
-        # resolve 失败 → 退化：只能从 wiki_metadata.model 推断（不再有 workspace
-        # default_model 兜底——该字段已删，"默认 model" 由 registry is_default 表达）。
-        final_model = meta.model if meta else None
-        if final_model:
-            model_source = "wiki.metadata.model"
-
     return {
         "name": name,
         "path": str(wiki_path),
@@ -605,8 +559,6 @@ def _show_collect(workspace_root: Path, name: str) -> Dict:
         "raw_count": raw_count,
         "wiki_count": wiki_count,
         "last_activity": last_activity,
-        "final_model": final_model,
-        "model_source": model_source,
     }
 
 
@@ -614,8 +566,6 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
     d = _show_collect(workspace_root, name)
     meta = d["meta"]
     wiki_path = d["path"]
-    final_model = d["final_model"]
-    model_source = d["model_source"]
     last_activity = d["last_activity"]
 
     if as_json:
@@ -626,8 +576,6 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
             "display_name": meta.display_name if meta else None,
             "description": meta.description if meta else None,
             "tags": list(meta.tags) if meta else [],
-            "model": final_model,
-            "model_source": model_source,
             "schema_version": meta.schema_version if meta else None,
             "created_at": meta.created_at if meta else None,
             "last_activity": last_activity,
@@ -646,9 +594,6 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         return
 
     created_line = meta.created_at if meta else "-"
-    model_line = final_model or "-"
-    if model_source:
-        model_line += f"  (source: {model_source})"
     rows = [
         ("NAME", d["name"]),
         ("PATH", wiki_path),
@@ -656,7 +601,6 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         ("DISPLAY_NAME", meta.display_name if meta else "-"),
         ("DESCRIPTION", meta.description if meta else "-"),
         ("TAGS", ",".join(meta.tags) if meta and meta.tags else "-"),
-        ("MODEL", model_line),
         ("CREATED_AT", created_line),
         ("LAST_ACTIVITY", last_activity or "-"),
         ("AGENTS_MD", "✓ found" if d["agents_md_exists"] else "✗ missing"),
@@ -680,7 +624,6 @@ WIKI_CONFIG_KEYS = {
     "display_name": (True, True),
     "description": (True, True),
     "tags": (True, True),
-    "model": (True, True),
     # name / topic / schema_version / created_at / updated_at 全部只读
 }
 
@@ -725,9 +668,6 @@ def wiki_config_set(workspace_root: Path, name: str, key: str, value: str) -> No
         for t in new_tags:
             wiki_store.validate_tag(t)
         meta.tags = new_tags
-    elif key == "model":
-        require_model_in_registry(workspace_root, value)
-        meta.model = value
     else:
         setattr(meta, key, value)
     meta.bump()
@@ -747,8 +687,6 @@ def wiki_config_unset(workspace_root: Path, name: str, key: str) -> None:
         meta.tags = []
     elif key in ("display_name", "description"):
         setattr(meta, key, "")
-    elif key == "model":
-        meta.model = None
     meta.bump()
     wiki_store.save(wiki_dir, meta)
     print(f"✓ {key} unset", file=sys.stdout)
@@ -782,30 +720,6 @@ def wiki_config_interactive(workspace_root: Path, name: str) -> None:
         if key == "tags":
             # 子菜单与 add 交互共用（_tags_submenu），一处实现两处行为
             meta.tags = _tags_submenu(list(meta.tags))
-        elif key == "model":
-            # model 是 registry 引用, 必须校验存在; 失败则提示重试, 不退出交互
-            # （与 wiki_config_set 行为一致, 但交互式走重试而非 raise, 避免丢失已填字段）
-            while True:
-                try:
-                    new_v = input("输入新值（回车跳过 / '-' 清空）: ").strip()
-                except (EOFError, KeyboardInterrupt):
-                    print()
-                    break  # 跳过, 不改动 model
-                if new_v == "":
-                    break  # 跳过
-                if new_v == "-":
-                    meta.model = None
-                    break
-                try:
-                    require_model_in_registry(workspace_root, new_v)
-                except ModelDefaultNotSet as e:
-                    print(f"    [校验失败] {e.message}")
-                    continue
-                except ModelNotInRegistry as e:
-                    print(f"    [校验失败] {e.message}")
-                    continue
-                meta.model = new_v
-                break
         else:
             # display_name / description: 自由文本, 无校验
             try:

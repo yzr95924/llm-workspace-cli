@@ -17,13 +17,12 @@ import pytest
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASH_COMP = os.path.join(REPO, "completions", "llmw.bash")
 
-# 所有子命令（顶层 + wiki + model + write + external）用于 smoke 加载检查
+# 所有子命令（顶层 + wiki + write + external）用于 smoke 加载检查
 TOP_CMDS = [
     "init",
     "config",
     "list",
     "status",
-    "model",
     "wiki",
 ]
 WIKI_ACTS = [
@@ -143,9 +142,9 @@ class TestBashCompletionBehavior:
         assert "enter_cli" in cands
 
     def test_wiki_config_set_keys(self):
-        """wiki config set 应 offer display_name / description / tags / model。"""
+        """wiki config set 应 offer display_name / description / tags。"""
         cands = _bash_complete("llmw wiki config set ")
-        for key in ["display_name", "description", "tags", "model"]:
+        for key in ["display_name", "description", "tags"]:
             assert key in cands, f"wiki config set 缺 key: {key} (实际: {cands})"
 
     def test_workspace_config_set_with_leading_global_flag(self):
@@ -234,16 +233,6 @@ class TestBashDynamicValueCompletion:
         )
         assert "alpha" in cands, (
             f"wiki rename --old= 应动态返回 wiki 名 (实际: {cands})"
-        )
-
-    def test_model_add_name_no_wiki_leak(self, tmp_path):
-        """`model add --name=` 是网关模型名（free-form），不应漏出 wiki 名。"""
-        ws = self._setup_workspace(tmp_path, wiki_names=("alpha",))
-        cands = self._bash_complete_with_env(
-            "llmw model add --name=", {"LLMW_WORKSPACE": str(ws)}
-        )
-        assert "alpha" not in cands, (
-            f"model add --name= 不应漏出 wiki 名 (实际: {cands})"
         )
 
     def test_wiki_external_add_name_no_wiki_leak(self, tmp_path):

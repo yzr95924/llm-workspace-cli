@@ -63,7 +63,6 @@ def _wiki_metadata(missing=None):
         ("display_name", '"Test"'),
         ("description", '"d"'),
         ("tags", '["x"]'),
-        ("model", '"m1"'),
     ]
     missing = missing or set()
     return "\n".join(f"{k} = {v}" for k, v in fields if k not in missing) + "\n"

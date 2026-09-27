@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from llmw._compat import toml_loads, toml_dump
 from llmw.config import metadata_templates_dir
@@ -31,7 +31,6 @@ class WikiMetadata:
     display_name: str = ""
     description: str = ""
     tags: List[str] = field(default_factory=list)
-    model: Optional[str] = None
 
     def bump(self):
         """任何 set 后调用，更新 updated_at"""
@@ -80,7 +79,6 @@ def load(wiki_dir: Path) -> WikiMetadata:
         display_name=raw.get("display_name", ""),
         description=raw.get("description", ""),
         tags=list(raw.get("tags", [])),
-        model=raw.get("model") or None,
     )
 
 
@@ -97,8 +95,6 @@ def save(wiki_dir: Path, meta: WikiMetadata) -> None:
         "description": meta.description,
         "tags": meta.tags,
     }
-    if meta.model is not None:
-        data["model"] = meta.model
 
     import io
 

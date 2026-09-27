@@ -1,7 +1,6 @@
 """wiki enter — 启动 agent session（backend 由 workspace_local.toml#enter_cli 选）。
 
-- opencode（默认）：不解析 model，写 opencode.json instructions 键。
-- qodercli：裸启动，只传目录。
+两 backend 均裸启动只传目录；AGENTS.md（含 @import 展开）由 agent 原生加载。
 
 窗口开在当前 tmux session；tmux 外按可见 session 数选路（0/≥2 兜底 llm_workspace + attach）。
 fire-and-forget：建成返回 0；窗口原语见 byobu.py。
@@ -15,7 +14,6 @@ from typing import List, NamedTuple, Optional, Tuple
 
 from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
 from llmw.errors import AgentNotFound, ByobuNotFound, WikiDirMissing
-from llmw.models import overlay_opencode
 from llmw.wiki import byobu
 from llmw.wiki.manager import resolve_wiki_path
 from llmw.workspace import local_store
@@ -94,7 +92,6 @@ def _report_spawn_result(
     window_name: str,
     created: bool,
     collected: bool,
-    overlay_refreshed: bool = False,
 ) -> None:
     if created:
         print(
@@ -113,13 +110,8 @@ def _report_spawn_result(
                 file=sys.stdout,
             )
     else:
-        note = (
-            "；overlay 已刷新落盘，但运行中的 agent 不会重读"
-            if overlay_refreshed
-            else ""
-        )
         print(
-            f"[llmw] ✓ 复用已有窗口 '{window_name}'（agent 已在运行{note}）",
+            f"[llmw] ✓ 复用已有窗口 '{window_name}'（agent 已在运行）",
             file=sys.stdout,
         )
 
@@ -131,12 +123,8 @@ def _spawn(
     cmd: List[str],
     backend: str,
     dry_run: bool,
-    overlay_refreshed: bool = False,
 ) -> int:
-    """两 backend 共用的 spawn 收口：开窗/复用 + 打标；tmux 外按可见 session 数选路。
-
-    overlay_refreshed：复用窗口时是否已写过 overlay（opencode=True；qodercli=False）。
-    """
+    """两 backend 共用的 spawn 收口：开窗/复用 + 打标；tmux 外按可见 session 数选路。"""
     if dry_run:
         _print_dry_run_spawn(wiki_path, name, window_name, cmd, backend)
         return 0
@@ -154,7 +142,7 @@ def _spawn(
             ensure=target.ensure,
         )
     )
-    _report_spawn_result(target, window_name, created, collected, overlay_refreshed)
+    _report_spawn_result(target, window_name, created, collected)
     if target.outside:
         # 非 TTY（脚本）只建不 attach，打印 hint
         if sys.stdout.isatty():
@@ -232,50 +220,20 @@ def enter(
     backend, explicit = _resolve_backend(workspace_root)
     _check_enter_env(backend, dry_run)  # backend 值即 agent 二进制名
 
-    if backend == "qodercli":
-        return _enter_bare(
-            workspace_root,
-            name,
-            wiki_path,
-            agents_md,
-            backend,
-            _build_cmd_qodercli(wiki_path),
-            dry_run,
-            window_suffix,
-        )
-
-    return _enter_opencode(
-        workspace_root,
-        name,
-        wiki_path,
-        agents_md,
-        dry_run,
-        window_suffix,
-        explicit,
+    cmd = (
+        _build_cmd_qodercli(wiki_path)
+        if backend == "qodercli"
+        else _build_cmd_opencode(wiki_path)
     )
 
-
-def _enter_bare(
-    workspace_root: Path,
-    name: str,
-    wiki_path: Path,
-    agents_md: Path,
-    backend: str,
-    cmd: List[str],
-    dry_run: bool,
-    window_suffix: Optional[str],
-) -> int:
     if dry_run:
-        suffix = (
-            "（默认）"
-            if backend == DEFAULT_BACKEND
-            else "(workspace_local.toml#enter_cli)"
-        )
+        # backend 既可能是默认也可能是显式配置——suffix 据 explicit 如实标注来源
+        suffix = "(workspace_local.toml#enter_cli)" if explicit else "（默认）"
         print(f"[llmw] workspace: {workspace_root}", file=sys.stdout)
         print(f"[llmw] wiki:      {name} ({wiki_path})", file=sys.stdout)
         print(f"[llmw] backend:   {backend} {suffix}", file=sys.stdout)
         print(
-            f"[llmw] ({backend} 路径：跳过 overlay 写盘；模型由 agent 内部自由切换)",
+            "[llmw] (模型由 agent 内部自由切换；AGENTS.md 由 agent 原生加载)",
             file=sys.stdout,
         )
         if agents_md.is_file():
@@ -285,6 +243,7 @@ def _enter_bare(
             )
         else:
             print("[llmw] AGENTS.md: ✗ missing", file=sys.stdout)
+
     return _spawn(
         wiki_path,
         name,
@@ -292,73 +251,6 @@ def _enter_bare(
         cmd,
         backend,
         dry_run,
-    )
-
-
-def _enter_opencode(
-    workspace_root: Path,
-    name: str,
-    wiki_path: Path,
-    agents_md: Path,
-    dry_run: bool,
-    window_suffix: Optional[str],
-    explicit: bool,
-) -> int:
-    cmd = _build_cmd_opencode(wiki_path)
-    # opencode 既可能是默认也可能是显式配置——suffix 据 explicit 如实标注来源
-    suffix = "(workspace_local.toml#enter_cli)" if explicit else "（默认）"
-
-    if dry_run:
-        overlay_path, would_write = overlay_opencode.inspect(wiki_path)
-        print(f"[llmw] workspace: {workspace_root}", file=sys.stdout)
-        print(f"[llmw] wiki:      {name} ({wiki_path})", file=sys.stdout)
-        print(f"[llmw] backend:   opencode {suffix}", file=sys.stdout)
-        print(
-            "[llmw] (opencode 路径：跳过 resolve_for_wiki；模型由 agent 内部自由切换)",
-            file=sys.stdout,
-        )
-        tag = "(will write)" if would_write else "(up to date, skip)"
-        print(f"[llmw] overlay file: {overlay_path}  {tag}", file=sys.stdout)
-        effective = overlay_opencode.effective_instructions(wiki_path)
-        print(
-            "[llmw]   instructions = [" + ", ".join(effective) + "]",
-            file=sys.stdout,
-        )
-        if len(effective) < len(overlay_opencode.INSTRUCTION_FILES):
-            missing = [
-                f for f in overlay_opencode.INSTRUCTION_FILES if f not in effective
-            ]
-            print(
-                "[llmw]   (P1 过滤：下列条目在 wiki 内不存在，已剔除: "
-                + ", ".join(missing)
-                + ")",
-                file=sys.stdout,
-            )
-        if agents_md.is_file():
-            print(
-                f"[llmw] AGENTS.md: ✓ found ({agents_md.stat().st_size} bytes)",
-                file=sys.stdout,
-            )
-        else:
-            print("[llmw] AGENTS.md: ✗ missing", file=sys.stdout)
-        return _spawn(
-            wiki_path,
-            name,
-            _window_name(name, window_suffix),
-            cmd,
-            "opencode",
-            dry_run=True,
-        )
-
-    overlay_opencode.apply(wiki_path)
-    return _spawn(
-        wiki_path,
-        name,
-        _window_name(name, window_suffix),
-        cmd,
-        "opencode",
-        dry_run=False,
-        overlay_refreshed=True,
     )
 
 
