@@ -48,7 +48,7 @@ index 摘要 / page title / `tags` 字段 → 必看；只命中正文 → 看�
 是否归档为 `wiki/comparisons/<slug>.md`（或 `wiki/syntheses/<slug>.md`）？
 建议标题：`<title>`"
 
-用户拒绝 → 尊重，不强求，亦不追加 log（无 wiki 痕迹）；用户同意 → 走 Step 5
+用户拒绝 → 不强求，亦不追加 log（无 wiki 痕迹）；用户同意 → 走 Step 5
 
 ### Step 5：归档 query 答案
 

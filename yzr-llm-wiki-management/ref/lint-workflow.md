@@ -15,18 +15,19 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 
 ## 半定性检查（agent 执行）
 
-跑完 deterministic 后 agent 再做以下检查（**仅 wiki < 200 页时人工做**，经验阈值；> 200 页后语义矛盾 / 缺链无人工兜底，靠 ingest 时撞见走矛盾处置）：
+跑完 deterministic 后 agent 再做以下检查，**仅 wiki < 200 页时人工做**（经验阈值）；> 200 页后语义矛盾 / 缺链无人工兜底，靠 ingest 时撞见走矛盾处置：
 
-- **矛盾主张**（warning）：同一概念 / 实体在 ≥ 2 页被矛盾方式描述且**未标** `contested`
+- **矛盾主张**（warning）：同一概念 / 实体在 ≥ 2 页的描述互相矛盾且**未标** `contested`
   （已标注的归 deterministic）；grep 概念关键词 + 读上下文，发现后列入修复建议，
   处置按 [章节](page-templates.md#矛盾处理-update-policy)
 - **缺失交叉引用**（info）：概念 X 出现在正文但没链到 `concepts/x.md`
-- **缺失 entity / concept 页**（info）：重要概念（≥ 3 个 source 页出现）无独立页；
-  grep 候选词统计出现次数
+- **缺失 entity / concept 页**（info）：达到建页阈值（canonical 见
+  [章节](page-templates.md#建页--追加--归档阈值page-thresholds)）仍无独立页；
+  grep 候选词统计出现在几个 source 页
 - **调查方向建议**（info）：热门主题（多 source 涉及）无综合 / 对比页 = 新合成机会
 - **投放口堆积**（info）：`raw/articles/` 大量未摄取文件（跑 `llmw wiki ingest-diff` 即知），
   拖久会撑爆单次 ingest
-- **index 体积**（info）：单类别 / 总条目超 `wiki/index.md` 头部「扩容护栏」时，
+- **index 体积**（info）：单类别 / 总条目超 `wiki/index.md` 头部"扩容护栏"时，
   按该说明块处置（拆段 / 建 topic-map）
 - **漂移点引用**（info，不阻断）：正文引用上游可变且无机制可感知其变化的事实，按
   [章节](ingest-workflow.md#正文引用的稳定性漂移点规避) 逐类扫描，命中按该节改写规则修
@@ -42,7 +43,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 
 ## lint 频率
 
-- 小 wiki（< 50 页）每月 1 次；中（50-200）每 2 周；大（> 200）每周，可写 cron（经验建议阈值）
+- 小 wiki（< 50 页）每月 1 次；中（50-200）每 2 周；大（> 200）每周，可写 cron（经验阈值）
 - 重大 ingest 后跑一次（可能引入新 entity / 断链）
 
 ## lint 的边界

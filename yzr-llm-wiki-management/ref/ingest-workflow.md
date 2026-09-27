@@ -19,7 +19,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 < 3 份逐份处理；≥ 3 份走 [章节](#批处理摄取-3-份-raw-同时摄入)；> 20 份先按主题聚类
 （同议题 / 同作者 / 同时间段优先，不按文件名随机排），再问用户"是否先处理<主题>这 N
-份"、逐批推进（数字均为经验建议阈值，非 CLI 强制）
+份"、逐批推进（数字均为经验阈值，非 CLI 强制）
 
 ### Step 2.5：与用户对齐要点
 
@@ -74,7 +74,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 1. **读所有 raw**：先列清单，再并行读全文
 2. **聚合 entity / concept**：跨所有 raw 找候选并去重（同一概念只对应一个 wiki 页）
-3. **一次搜完**：用 Grep 一遍搜遍全部候选名称；产出"已存在 / 待新建"两栏
+3. **一次搜完**：用 Grep 搜全部候选名称；产出"已存在 / 待新建"两栏
 4. **一次写入**，按序成片落：source 页（按主题聚类顺序，便于交叉引用）→ entity / concept
    页（先建新、再追加旧的"参考来源"段）→ index（所有页写完后集中补，每页一次
    `write index add`）→ log（`write log --op=ingest --bulk --topic="<主题概览>" --count=<N>`

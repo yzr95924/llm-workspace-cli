@@ -35,7 +35,7 @@ metadata:
 1. **确认 wiki 根 `AGENTS.md` 已在上下文**：拿主题名与"当前配置"表的 `Wiki Format 版本` 行
 2. `Read wiki/index.md`：有哪些页、归哪些类，避免重复创建 / 漏交叉引用
 3. `Read wiki/log.md`（最近 ~30 行）：最近活动，避免重复 ingest / 漏归档
-4. `scripts/SCRIPTS.md`（wiki 可无 scripts/）：跑 `scripts/` 自定义脚本前先查其分节契约
+4. `Read scripts/SCRIPTS.md`（wiki 可无 scripts/）：跑 `scripts/` 自定义脚本前先查其分节契约
 
 100+ 页的 wiki 加一次 `wiki/` 全域 `Grep "<topic>"`，补 index.md 看不全的页间引用
 

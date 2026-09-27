@@ -7,7 +7,7 @@
 
 三项**取值**由 agent 与用户定（形态校验与归一化归 CLI，报错自明）：
 
-- **命名**：短名由 agent 与用户共同决定（如 `linux-kernel` / `ray`）
+- **命名**：短名（如 `linux-kernel` / `ray`）
 - **target 路径**：推荐 `~/src/<name>`（跨主机重建友好）
 - **notes 文本**：可选，agent 自由写
 

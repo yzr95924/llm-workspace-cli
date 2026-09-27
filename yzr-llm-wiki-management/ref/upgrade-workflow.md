@@ -75,7 +75,7 @@ CLI 不替代语义判断：本节定义 **wiki/index.md 跨条目的语义合�
 - 同 `<relative-path>` link 但多条目出现 → 留信息最完整的一条，余删。优先级：
   `✓ reviewed <date>` badge 最新 > 有 `description` 摘要 > `updated` 最新
 - 同 `<title>` 但不同 `<relative-path>` → lint 报 `duplicate-title`，**转人工裁定**：是
-  entity 重命名（保留新路径合并到老）还是概念拆页（重命名其一）
+  entity 重命名（保留新路径，老条目信息并入后删）还是概念拆页（重命名其一）
 - 老 wiki 缺标准类别 → 缺失 H2 由 fixtures plan（`fixtures-fix-skeleton`）补齐（缺哪些类别
   见 plan `expected`）；agent 在新 H2 下加一行 `<!-- agent: TODO 归类旧页 -->` 占位提醒归类
 
