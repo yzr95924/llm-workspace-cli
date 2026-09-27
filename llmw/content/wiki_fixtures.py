@@ -556,8 +556,8 @@ def check_wiki_metadata_reads_satisfied(wiki_root: Path, info: Dict[str, str]) -
     return out
 
 
-# 骨架字段级比对：信号硬编码在 SKELETON_REGISTRY（与包内 fixtures/*.txt 一致，
-# 改 fixtures 时手工同步）；只有 index.md.txt / log.md.txt 带占位符。
+# 骨架字段级比对：信号硬编码在 SKELETON_REGISTRY（与包内 fixtures/ 一致，
+# 改 fixtures 时手工同步）；只有 index.md / log.md 带占位符。
 
 
 def _fixtures_dir() -> Path:
@@ -640,9 +640,9 @@ def _check_skeleton_signals(wiki_text: str, signals: Dict[str, object]) -> List[
                 missing.append(f"缺段标题 `{s}`")
 
     if signals.get("gitignore_section_structure"):
-        fixture_text = _load_fixture_text("gitignore.txt")
+        fixture_text = _load_fixture_text("gitignore")
         if fixture_text is None:
-            missing.append("fixtures/gitignore.txt 未找到（无法比对段结构）")
+            missing.append("fixtures/gitignore 未找到（无法比对段结构）")
         else:
             expected_secs = _parse_gitignore_sections(fixture_text)
             actual_secs = _parse_gitignore_sections(wiki_text)

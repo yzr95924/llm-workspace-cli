@@ -81,9 +81,9 @@ def render_and_write(
     log_md = render_wiki_log_md(topic=topic, setup_date=today)
 
     try:
-        tags_md = (fixtures / "tags.md.txt").read_text(encoding="utf-8")
-        scripts_md = (fixtures / "scripts.md.txt").read_text(encoding="utf-8")
-        gitignore = (fixtures / "gitignore.txt").read_text(encoding="utf-8")
+        tags_md = (fixtures / "tags.md").read_text(encoding="utf-8")
+        scripts_md = (fixtures / "scripts.md").read_text(encoding="utf-8")
+        gitignore = (fixtures / "gitignore").read_text(encoding="utf-8")
     except OSError as e:
         raise SetupFailed(
             f"读取 fixture 失败: {e.filename}",

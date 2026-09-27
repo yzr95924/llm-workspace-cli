@@ -23,7 +23,7 @@ REPO = Path(__file__).resolve().parents[1]
 TEMPLATES_WIKI = REPO / "llmw" / "content" / "templates" / "wiki"
 AGENTS_TEMPLATE = (TEMPLATES_WIKI / "agents-md-template.md").read_text(encoding="utf-8")
 FIXTURES_DIR = TEMPLATES_WIKI / "fixtures"
-WIKI_GITIGNORE = (FIXTURES_DIR / "gitignore.txt").read_text(encoding="utf-8")
+WIKI_GITIGNORE = (FIXTURES_DIR / "gitignore").read_text(encoding="utf-8")
 
 OLD_VERSION = "0.25.0"  # 真实历史版本——永远小于当前 target_format
 
@@ -79,7 +79,7 @@ FIXTURE_ANCHORS = {
 
 
 def _fixture(name):
-    text = (FIXTURES_DIR / f"{name}.txt").read_text(encoding="utf-8")
+    text = (FIXTURES_DIR / name).read_text(encoding="utf-8")
     for key, value in FIXTURE_ANCHORS.items():
         text = text.replace("{{" + key + "}}", value)
     return text

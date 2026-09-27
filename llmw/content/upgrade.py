@@ -176,10 +176,10 @@ def _dropped_h2_sections(old_text: str, fixture_text: str) -> List[str]:
 
 
 GROWTH_FILES = {
-    "wiki/index.md": "fixtures/index.md.txt",
-    "wiki/log.md": "fixtures/log.md.txt",
-    "wiki/tags.md": "fixtures/tags.md.txt",
-    "scripts/SCRIPTS.md": "fixtures/scripts.md.txt",
+    "wiki/index.md": "fixtures/index.md",
+    "wiki/log.md": "fixtures/log.md",
+    "wiki/tags.md": "fixtures/tags.md",
+    "scripts/SCRIPTS.md": "fixtures/scripts.md",
 }
 GITIGNORE_REL = ".gitignore"
 

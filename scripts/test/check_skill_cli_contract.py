@@ -29,12 +29,9 @@ SKILL_MDS = sorted([p for p in WIKI_SKILL.rglob("*.md")])
 
 # 面 1（命令 + 风格 + 跨行）扫全仓命令面。有意排除 tests/（可执行测试自带 loud
 # failure）。templates 既含 byte-owned
-# 模板 md 也含 *.txt 内容 fixtures（都含 llmw 命令）。
+# 模板 md 也含内容 fixtures（都含 llmw 命令）。
 CONTRACT_MDS = sorted(
-    set(SKILL_MDS)
-    | set(TEMPLATES.rglob("*.md"))
-    | set(TEMPLATES.rglob("*.txt"))
-    | {REPO / "README.md"}
+    set(SKILL_MDS) | set(TEMPLATES.rglob("*.md")) | {REPO / "README.md"}
 )
 
 FENCE_RE = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.DOTALL)

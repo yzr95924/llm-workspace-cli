@@ -68,14 +68,14 @@ def render_wiki_agents_md(*, topic: str, setup_date: str, cli_version: str, form
 def render_wiki_index_md(*, topic: str, setup_date: str) -> str:
     """渲染 wiki/index.md 初始骨架。"""
     refs = wiki_templates_dir()
-    tmpl = _read_template(refs / "fixtures" / "index.md.txt")
+    tmpl = _read_template(refs / "fixtures" / "index.md")
     return _substitute(tmpl, {"TOPIC_NAME": topic, "SETUP_DATE": setup_date, **wiki_constant_mapping()})
 
 
 def render_wiki_log_md(*, topic: str, setup_date: str) -> str:
     """渲染 wiki/log.md 初始骨架。"""
     refs = wiki_templates_dir()
-    tmpl = _read_template(refs / "fixtures" / "log.md.txt")
+    tmpl = _read_template(refs / "fixtures" / "log.md")
     return _substitute(tmpl, {"TOPIC_NAME": topic, "SETUP_DATE": setup_date, **wiki_constant_mapping()})
 
 

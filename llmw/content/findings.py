@@ -67,7 +67,7 @@ FINDINGS = {
     "index-missing": FindingSpec(
         "error",
         "wiki/index.md 不存在（wiki 单一入口缺失）",
-        "按 fixture `index.md.txt` 形态重建，或恢复自 git 历史",
+        "按 fixture `index.md` 形态重建，或恢复自 git 历史",
     ),
     "invalid-tags": FindingSpec(
         "error",
@@ -82,7 +82,7 @@ FINDINGS = {
     "log-missing": FindingSpec(
         "error",
         "wiki/log.md 不存在",
-        "按 fixture `log.md.txt` 形态重建",
+        "按 fixture `log.md` 形态重建",
     ),
     "missing-frontmatter": FindingSpec(
         "error",

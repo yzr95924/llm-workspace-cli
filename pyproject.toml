@@ -18,7 +18,7 @@ llmw = "llmw.cli:main"
 packages = ["llmw", "llmw.workspace", "llmw.wiki", "llmw.content"]
 
 [tool.setuptools.package-data]
-"llmw.content" = ["templates/**/*.md", "templates/**/*.md.txt", "templates/**/*.template", "templates/**/*.txt"]
+"llmw.content" = ["templates/**/*.md", "templates/**/*.template", "templates/**/gitignore"]
 
 [tool.ruff]
 # ruff 全局配置：仓库无局部 ruff.toml（CLI 包 + SKILL 目录都无 .py 残留），
