@@ -1,7 +1,7 @@
 # Upgrade（升级 wiki format）详细流程
 
 **优先级裁定**：边界与纪律以本文档 + wiki 根 `AGENTS.md` 为准；每条动作的具体改法与执行
-顺序以 plan 自带的 `agent_rules[]` + 各 action 说明为准（CLI 输出真源，本文不重述，重述必
+顺序以 lint plan 自带的 `agent_rules[]` + 各 action 说明为准（CLI 输出真源，本文不重述，重述必
 漂移）。版本钉在 `<wiki-root>/AGENTS.md` 末尾"当前配置"表的 `Wiki Format 版本` 字段；
 breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本演进叙事看 git log
 
@@ -52,7 +52,14 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
    - 有 fixtures 现场 → `--apply --json` 拿 `upgrade_plan`，按 plan 自带规则用
      Edit 落
 
-5. **验证**：重跑第 2、4 步命令，按终态处置：
+5. **验证**：重跑以下两条命令（upgrade 幂等；**不**带 `--yes`——防 drift 再现被静默放行）：
+
+   ```bash
+   llmw wiki --path="$LLM_WIKI_ROOT" upgrade --apply --json
+   llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version
+   ```
+
+   按终态处置：
 
    - `done` + `needs_upgrade == false` → 告知用户完成
    - `blocked_drift` → 回第 3 步裁定
