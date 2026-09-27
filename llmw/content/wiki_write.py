@@ -169,6 +169,24 @@ def _index_link_for(rel):
     return "/".join(parts[1:])
 
 
+def _index_entry_link(line):
+    """index 条目行 → 其 link；非条目行返 None。"""
+    m = _INDEX_ENTRY_RE.match(line)
+    return m.group(2).strip() if m else None
+
+
+def _section_for_entry(lines, entry_line):
+    """entry_line 所在 `## ` 段名（首个段头之前返 None）；按内容匹配定位。"""
+    current = None
+    for ln in lines:
+        m = _SECTION_RE.match(ln.strip())
+        if m:
+            current = m.group(1).strip()
+        if ln == entry_line:
+            return current
+    return None
+
+
 def cmd_index(wiki_root, args):
     index_path = Path(wiki_root) / "wiki" / "index.md"
     if not index_path.is_file():
@@ -185,8 +203,7 @@ def cmd_index(wiki_root, args):
         out = []
         removed = False
         for line in lines:
-            m = _INDEX_ENTRY_RE.match(line)
-            if m and m.group(2).strip() == link:
+            if _index_entry_link(line) == link:
                 removed = True
                 continue
             out.append(line)
@@ -209,9 +226,15 @@ def cmd_index(wiki_root, args):
     entry = "- [{}]({}){}".format(title, link, (" — " + desc) if desc else "")
 
     lines = text.splitlines(keepends=True)
-    existing_links = {m.group(2).strip() for m in (_INDEX_ENTRY_RE.match(ln) for ln in lines) if m}
-    if link in existing_links:
-        return f"index 已存在指向 {link} 的条目，跳过", 0
+    existing = [ln for ln in lines if _index_entry_link(ln) == link]
+    if existing:
+        if (
+            len(existing) == 1
+            and existing[0].rstrip("\r\n") == entry
+            and _section_for_entry(lines, existing[0]) == section
+        ):
+            return f"index 已存在指向 {link} 的条目且与 frontmatter 一致，跳过", 0
+        lines = [ln for ln in lines if _index_entry_link(ln) != link]
 
     in_section = False
     seen_target = False
@@ -254,7 +277,13 @@ def cmd_index(wiki_root, args):
         index_path,
         "".join(out[: target_idx + 1] + section_lines + out[target_idx + 1 :]),
     )
-    print(f"已在 wiki/index.md `## {section}` 段添加 {link} 条目", file=sys.stderr)
+    if existing:
+        print(
+            f"已在 wiki/index.md `## {section}` 段按 frontmatter 刷新 {link} 条目",
+            file=sys.stderr,
+        )
+    else:
+        print(f"已在 wiki/index.md `## {section}` 段添加 {link} 条目", file=sys.stderr)
     return None, 0
 
 
@@ -367,7 +396,10 @@ def build_subparsers(sub) -> None:
     p_log.add_argument("--count", type=int, help="--bulk 用的 source 数")
     p_log.set_defaults(func=cmd_log)
 
-    p_index = sub.add_parser("index", help="增删 index.md 条目（派生自页 frontmatter）")
+    p_index = sub.add_parser(
+        "index",
+        help="增删 index.md 条目（派生自页 frontmatter；add 遇同名条目按 frontmatter 刷新）",
+    )
     p_index.add_argument("action", choices=["add", "remove"])
     p_index.add_argument("page", help="wiki/ 内页面路径，如 wiki/sources/foo.md")
     p_index.set_defaults(func=cmd_index)
