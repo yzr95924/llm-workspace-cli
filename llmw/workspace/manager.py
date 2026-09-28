@@ -53,7 +53,7 @@ def _is_effectively_empty(path: Path) -> bool:
     return all(entry.name in ignored for entry in path.iterdir())
 
 
-def init(path: Path, display_name: str = "LLM Wiki Workspace") -> Path:
+def init(path: Path) -> Path:
     """初始化 workspace 根；git 由用户自理（CLI 不碰 git；git 空仓允许直接 init）。"""
     path = path.resolve()
     if path.exists():

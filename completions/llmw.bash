@@ -118,7 +118,7 @@ _llmw() {
     # 6. 根据 sub / sub_action 分派
     case "$sub" in
         init)
-            COMPREPLY=($(compgen -W "--path= --display-name= $COMMON" -- "$cur"))
+            COMPREPLY=($(compgen -W "--path= $COMMON" -- "$cur"))
             ;;
         list)
             COMPREPLY=($(compgen -W "--tag= $COMMON" -- "$cur"))

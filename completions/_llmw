@@ -91,7 +91,6 @@ _llmw() {
                 init)
                     _arguments \
                         '--path=[workspace 路径]:path:_directories' \
-                        '--display-name=[workspace 显示名]:display_name:' \
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;
                 list)

@@ -50,7 +50,7 @@ llmw wiki --name=llm-systems remove --purge --yes
 
 | 命令 | 作用 |
 | --- | --- |
-| `llmw init [--path=PATH] [--display-name=NAME]` | 初始化 workspace；默认 `~/yzr-llm-wiki-workspace` |
+| `llmw init [--path=PATH]` | 初始化 workspace；默认 `~/yzr-llm-wiki-workspace` |
 | `llmw config [get\|set\|unset] [KEY] [VALUE]` | 读写 `workspace.toml` / `workspace_local.toml`；无参数 + TTY 进交互模式，非 TTY 打印字段列表 |
 | `llmw list [--tag=TAG]...` | 列出 wiki（`--tag` 可重复，AND 关系） |
 | `llmw status [--json] [--tmux]` | 一屏查看所有运行中的 session（STATE/UPTIME/IDLE 列；workspace 被删 → 孤儿清理模式） |

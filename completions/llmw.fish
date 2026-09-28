@@ -64,9 +64,8 @@ complete -c llmw -l json      -d '输出 JSON 格式'
 complete -c llmw -l debug     -d '打印 traceback'
 complete -c llmw -l quiet -s q -d '抑制 INFO'
 
-# init 子命令 flag（path / display-name，均 free-form → B 类）
+# init 子命令 flag（path，free-form → B 类）
 complete -c llmw -n "__fish_seen_subcommand_from init" -a "--path="         -f -d 'workspace 路径'
-complete -c llmw -n "__fish_seen_subcommand_from init" -a "--display-name=" -f -d 'workspace 显示名'
 
 # list 子命令 flag（--tag free-form → B 类；wiki external list 也含 "list",用 not seen wiki 防止漏出）
 complete -c llmw -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from wiki" -a "--tag=" -f -d '仅列出含此 tag (可重复, AND 关系)'

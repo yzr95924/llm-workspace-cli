@@ -150,12 +150,6 @@ def build_parser() -> argparse.ArgumentParser:
     # ===== workspace 级 =====
     p_init = sub.add_parser("init", help="初始化 workspace", parents=[common])
     p_init.add_argument("--path", metavar="PATH", default=None)
-    p_init.add_argument(
-        "--display-name",
-        default=None,
-        dest="display_name",
-        help="workspace display name (写入 AGENTS.md; 默认 'LLM Wiki Workspace')",
-    )
 
     p_config = sub.add_parser(
         "config",
@@ -521,10 +515,7 @@ def main(argv=None) -> int:
             from llmw.workspace.manager import init as ws_init
 
             target = Path(args.path) if args.path else DEFAULT_WORKSPACE
-            ws_init(
-                Path(target),
-                display_name=args.display_name or "LLM Wiki Workspace",
-            )
+            ws_init(Path(target))
             return 0
 
         if args.command == "status":
