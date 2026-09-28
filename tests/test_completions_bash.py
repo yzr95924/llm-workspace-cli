@@ -133,7 +133,7 @@ class TestBashCompletionBehavior:
             assert fl in cands, f"wiki lint 缺 flag: {fl} (实际: {cands})"
 
     def test_workspace_config_set_no_dead_default_model(self):
-        """default_model 已从 CONFIG_KEYS 删除（resolve 只读 is_default），set 不应 offer。"""
+        """default_model 已随 models 子系统退役从 CONFIG_KEYS 删除，set 不应 offer。"""
         cands = _bash_complete("llmw config set ")
         assert "default_model" not in cands, (
             f"config set 不应 offer 已删除的 default_model (实际: {cands})"

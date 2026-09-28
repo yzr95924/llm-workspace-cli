@@ -124,7 +124,6 @@ _llmw_config() {
     )
     CFG_KEYS=(
         'enter_cli:agent CLI (qodercli|opencode)'
-        'templates_version:templates 版本(只读)'
         'created_at:创建时间(只读)'
         'schema_version:schema 版本(只读)'
     )
@@ -219,7 +218,7 @@ _llmw_wiki() {
                         '--display-name=[显示名]:display_name:' \
                         '--description=[描述]:description:' \
                         '--tag=[tag (可重复)]:tag:' \
-                        '--git[opt-in: 初始化 git 仓]' \
+                        '--git[残留 flag（无实际作用）]' \
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;
                 remove)
@@ -245,8 +244,8 @@ _llmw_wiki() {
                         'tags:tags (可重复)'
                     )
                     # 位置扫描：wiki_pos 收集 config 子命令之后的位置词
-                    # pos[1]="config" 由 wiki_args 外层消费；从位置 4 起拿 cfg_action
-                    local -a wiki_pos=(${(f)"$(_llmw_pos_words 4)"})
+                    # words[1]="wiki" / words[2]="config" 已被外层消费；从位置 3 起拿 cfg_action
+                    local -a wiki_pos=(${(f)"$(_llmw_pos_words 3)"})
                     local cfg_action="${wiki_pos[1]:-}"
                     local cfg_key="${wiki_pos[2]:-}"
                     if [[ -z "$cfg_action" ]]; then
@@ -311,7 +310,7 @@ _llmw_wiki() {
                         'touch:刷新 wiki 页面的 updated 字段'
                         'new:创建新 wiki 内容页'
                     )
-                    local -a w_pos=(${(f)"$(_llmw_pos_words 4)"})
+                    local -a w_pos=(${(f)"$(_llmw_pos_words 3)"})
                     local wact="${w_pos[1]:-}"
                     if [[ -z "$wact" ]]; then
                         _describe -t actions 'wiki write action' WIKI_WRITE_ACTS && ret=0
@@ -347,7 +346,7 @@ _llmw_wiki() {
                                     '--title=[标题]:title:' \
                                     '--description=[描述]:description:' \
                                     '--tags=[tags 逗号分隔]:tags:' \
-                                    '--sources=[sources (raw 路径，逗号分隔)]:sources:_files' \
+                                    '--sources=[sources (raw 路径，可重复)]:sources:_files' \
                                     "${COMMON_OPTS[@]}" && ret=0
                                 ;;
                         esac
@@ -361,7 +360,7 @@ _llmw_wiki() {
                         'list:列出所有 entry + 状态'
                         'rebuild:跨主机重建（新机器跑一次）'
                     )
-                    local -a e_pos=(${(f)"$(_llmw_pos_words 4)"})
+                    local -a e_pos=(${(f)"$(_llmw_pos_words 3)"})
                     local eact="${e_pos[1]:-}"
                     if [[ -z "$eact" ]]; then
                         _describe -t actions 'wiki external action' WIKI_EXTERNAL_ACTS && ret=0

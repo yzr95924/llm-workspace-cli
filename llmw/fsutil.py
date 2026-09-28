@@ -1,7 +1,6 @@
 """文件系统原子写 + 辅助"""
 
 import hashlib
-import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,19 +44,3 @@ def safe_rmtree(path: Path) -> None:
     import shutil
 
     shutil.rmtree(path)
-
-
-def chmod_600(path: Path) -> None:
-    """chmod 600 best-effort（NFS 等静默跳过）；含 secret 文件落盘后统一走这里。"""
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
-
-
-def load_json_optional(path: Path) -> Optional[dict]:
-    """不存在 → None；JSON 非法 → ValueError（业务异常包装留给调用方）。"""
-    if not path.is_file():
-        return None
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)

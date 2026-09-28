@@ -324,7 +324,7 @@ def spawn_window(spec: SpawnSpec) -> Tuple[bool, str, bool]:
             raise WindowBackendMismatch(
                 f"窗口 '{window_name}' 正在运行其他 backend 的 agent",
                 hint="先 `llmw wiki --name=<wiki> stop` 收掉旧窗口，"
-                "或用 `--window-suffix` 开第二窗口并行",
+                "或用 `--window-suffix=SUFFIX` 开第二窗口并行",
             )
 
     wid = new_window(session, window_name, cwd, shell_cmd)

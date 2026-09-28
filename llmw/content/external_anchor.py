@@ -469,7 +469,7 @@ def cmd_rebuild(wiki_root: Path, args) -> Tuple[Optional[str], int]:
                     (
                         e,
                         "unrebuildable",
-                        f"target 不存在且无 remote_url；请用 --target {name}=PATH 或手工处理",
+                        f"target 不存在且无 remote_url；请用 --target={name}=PATH 或手工处理",
                     )
                 )
         else:
@@ -486,7 +486,7 @@ def cmd_rebuild(wiki_root: Path, args) -> Tuple[Optional[str], int]:
     if not yes:
         if not sys.stdin.isatty():
             return (
-                "非 TTY 下 rebuild 需要 --yes 确认（或先 `external list` 检视状态后用 `--target NAME=PATH` 指定",
+                "非 TTY 下 rebuild 需要 --yes 确认（或先 `external list` 检视状态后用 `--target=NAME=PATH` 指定）",
                 2,
             )
         try:

@@ -283,7 +283,7 @@ def explain(name: Optional[str] = None, as_json: bool = False) -> int:
         name = None
     if name is not None and name not in FINDINGS:
         print(f"ERROR: 未知 finding `{name}`", file=sys.stderr)
-        print(f"hint: 用 `llmw wiki lint --explain` 查看全部 {len(FINDINGS)} 条", file=sys.stderr)
+        print(f"hint: 用 `llmw wiki lint --explain=all` 查看全部 {len(FINDINGS)} 条", file=sys.stderr)
         return 1
 
     if as_json:

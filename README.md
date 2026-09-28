@@ -24,7 +24,7 @@ Python 3.11+ 零第三方依赖；<3.11 需 `pip install 'tomli>=1.1'`。
 ./scripts/uninstall.sh
 ```
 
-`pip install -e .` 只服务开发 / CI；功能完整安装只用 `install.sh`。运行期资源全部内建于 `llmw/content/templates/`，wheel 声明 `package-data` 后独立可用。
+`pip install -e .` 只服务开发 / CI；功能完整安装只用 `install.sh`。运行期资源全部内建于 `llmw/content/`，wheel 声明 `package-data` 后独立可用。
 
 ## 快速上手
 
@@ -63,7 +63,7 @@ llmw wiki --name=llm-systems remove --purge --yes
 | `llmw wiki --name=NAME remove [--purge] [--no-backup] [--yes\|-y]` | 移除 wiki；`--purge` 删子目录（默认备份到 `.llmw-trash/`）；`--no-backup` 跳过备份 |
 | `llmw wiki rename --old=OLD --new=NEW [--json] [--quiet]` | 重命名 wiki（3 处同步 + 冲突硬阻挡） |
 | `llmw wiki --name=NAME show [--json]` | 查看 wiki 详情 |
-| `llmw wiki --name=NAME config [get\|set\|unset] [KEY] [VALUE]` | 读写 `wiki_metadata.toml`；无参数 + TTY 进交互模式 |
+| `llmw wiki --name=NAME config [get\|set\|unset] [KEY] [VALUE]` | 读写 `wiki_metadata.toml`；无参数进交互模式 |
 | `llmw wiki --name=NAME enter [--dry-run] [--window-suffix=SUFFIX]` | 启动 agent session（backend 见下；当前 tmux session 开窗，不在 tmux 内 → 兜底 attach） |
 | `llmw wiki --name=NAME stop [--window-suffix=SUFFIX] [--yes\|-y]` | 终止该 wiki 的 agent 窗口 |
 
@@ -85,7 +85,7 @@ llmw config set enter_cli qodercli   # 切换；llmw config unset enter_cli 回�
 
 `wiki enter` 把 agent 开成**当前 tmux session 的一个窗口**。不在 tmux 内时：恰有一个可见 session 就直接开入其中，
 否则兜底 `llm_workspace` session + attach。窗口名 `<wiki>-<suffix>`（suffix 默认 `main`）；
-**不传 `--window-suffix` 恒为复用跳转，传了才是新开并行窗口**。enter 是 fire-and-forget（窗口建成即返回 0）。
+**同名活窗（backend 相符）复用跳转，不存在则新开**；要同 wiki 并行多窗口就传 `--window-suffix=SUFFIX`。enter 是 fire-and-forget（窗口建成即返回 0）。
 
 ## 退出码
 

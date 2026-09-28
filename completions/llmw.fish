@@ -37,10 +37,19 @@ function __llmw_wikis
         | sed 's/^\[wikis\.//; s/\]$//'
 end
 
-# 精确：commandline 含 $argv[1]（sub）且含 $argv[2..]（action 任一）
-# 避免 __fish_seen_subcommand_from SUB ACT 的 OR 语义泄露（如 wiki add 与 write index add 都含 "add"）
+# 精确：commandline 的非 flag 词序列中 sub 之后紧跟 action 之一
+# （__fish_seen_subcommand_from 的 AND 语义对嵌套词泄漏：wiki external add 同时含 wiki+add）
+# 前提：CLI 全局拒绝空格分隔 flag 值，值词不会伪装成位置词；bool flag 被 '-*' 过滤
 function __llmw_subact
-    __fish_seen_subcommand_from $argv[1]; and __fish_seen_subcommand_from $argv[2..-1]
+    set -l pos (commandline -opc | string match -rv -- '^-')
+    test (count $pos) -ge 3; or return 1
+    set -e pos[1]
+    for i in (seq (math (count $pos) - 1))
+        if test "$pos[$i]" = "$argv[1]"
+            contains -- $pos[(math $i + 1)] $argv[2..-1]; and return 0
+        end
+    end
+    return 1
 end
 
 # 通用 / 顶级
@@ -80,7 +89,6 @@ complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_sub
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from get set unset" -f -a "unset"  -d '清值'
 
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "enter_cli"        -d 'agent CLI (qodercli|opencode)'
-complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "templates_version" -d 'templates 版本(只读)'
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "created_at"        -d '创建时间(只读)'
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from get unset" -f -a "schema_version"    -d 'schema 版本(只读)'
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from set"       -f -a "enter_cli"        -d 'agent CLI (qodercli|opencode)'
@@ -110,7 +118,7 @@ complete -c llmw -n "__llmw_subact wiki add" -a "--topic="        -f -d 'wiki �
 complete -c llmw -n "__llmw_subact wiki add" -a "--display-name=" -f -d '显示名'
 complete -c llmw -n "__llmw_subact wiki add" -a "--description="  -f -d '描述'
 complete -c llmw -n "__llmw_subact wiki add" -a "--tag="          -f -d 'tag (可重复)'
-complete -c llmw -n "__llmw_subact wiki add" -l git -d 'opt-in: 初始化 git 仓'
+complete -c llmw -n "__llmw_subact wiki add" -l git -d '残留 flag（无实际作用）'
 
 # wiki remove
 complete -c llmw -n "__llmw_subact wiki remove" -l purge       -d '同时删除 wiki 子目录'
@@ -193,7 +201,7 @@ complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcomman
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--title="       -f -d '标题'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--description="  -f -d '描述'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--tags="         -f -d 'tags 逗号分隔'
-complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--sources="      -f -d 'sources (raw 路径，逗号分隔)'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from write; and __fish_seen_subcommand_from new" -a "--sources="      -f -d 'sources (raw 路径，可重复)'
 
 # ===== wiki external 子命令 =====
 set -l WIKI_EXTERNAL_ACTS add remove list rebuild

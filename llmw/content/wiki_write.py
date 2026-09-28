@@ -41,7 +41,7 @@ def _warn_version(wiki_root):
     if pinned and pinned != CURRENT_WIKI_FORMAT:
         print(
             f"[WARN] wiki 钉定 format {pinned}，与 SKILL {CURRENT_WIKI_FORMAT} 不一致——"
-            f"建议先跑 `llmw wiki lint --check-version --apply` 完成升级再写入",
+            f"建议先跑 `llmw wiki upgrade --apply` 完成升级再写入",
             file=sys.stderr,
         )
 

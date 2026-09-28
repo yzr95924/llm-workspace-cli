@@ -72,7 +72,7 @@ def init(path: Path) -> Path:
 
     print(f"[llmw] workspace 已初始化于 {path}", file=sys.stdout)
     print(
-        f"[llmw] cd {path} 后可用 `llmw wiki add <name>` 新建第一个 wiki",
+        f"[llmw] cd {path} 后可用 `llmw wiki --name=<name> add` 新建第一个 wiki",
         file=sys.stdout,
     )
     return path

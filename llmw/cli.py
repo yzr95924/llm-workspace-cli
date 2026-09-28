@@ -252,7 +252,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         dest="window_suffix",
         metavar="SUFFIX",
-        help="并行窗口后缀：拼接为 <wiki>-<suffix>（缺省 main）；传了才新开，不传恒为复用跳转",
+        help="并行窗口后缀：拼接为 <wiki>-<suffix>（缺省 main）；同名活窗复用跳转，不存在则新开",
     )
 
     pw_stop = wiki_sub.add_parser(
@@ -425,7 +425,7 @@ def _resolve_content_root(args) -> Path:
         if entry is None:
             raise WikiNotFound(
                 f"wiki '{name}' 不在 workspace 中",
-                hint="`llmw wiki add --name=NAME` 注册，或直接用 --path=DIR 指向 wiki 根目录",
+                hint="`llmw wiki --name=NAME add` 注册，或直接用 --path=DIR 指向 wiki 根目录",
             )
         return (ws_root / entry.path).resolve()
     env_root = os.environ.get("LLM_WIKI_ROOT")

@@ -15,7 +15,7 @@ _llmw() {
     # = 后，COMP_WORDS[COMP_CWORD] 是 "="）。规范化 cur 回 `--flag=` 形式以复用下方 --flag=*
     # 分支（返回裸 value，readline 自动附加到 = 后）。仅对带值 flag 触发，避免误伤 bool flag。
     case "$prev" in
-        --name|--workspace|--path|--topic|--display-name|--description|--tag|--tags|--window-suffix|--target-format|--target|--op|--title|--slug|--index-line|--count|--severity|--explain|--notes|--sources|--raw|--old|--new)
+        --name|--workspace|--path|--topic|--display-name|--description|--tag|--tags|--window-suffix|--target-format|--target|--op|--title|--slug|--count|--severity|--explain|--notes|--sources|--raw|--old|--new)
             case "$cur" in
                 "=") cur="${prev}=" ;;
                 =*)  cur="${prev}${cur}" ;;
@@ -73,7 +73,7 @@ _llmw() {
     local WIKI_LINT_SEVERITY="error warn info all"
     local WIKI_WRITE_LOG_OPS="ingest query lint setup"
     local WIKI_WRITE_INDEX_ACTS="add remove"
-    local CFG_KEYS="enter_cli templates_version created_at schema_version"
+    local CFG_KEYS="enter_cli created_at schema_version"
 
     COMPREPLY=()
 
@@ -101,7 +101,7 @@ _llmw() {
             COMPREPLY=($(compgen -d -- "${cur#*=}"))
             return 0
             ;;
-        --topic=*|--display-name=*|--description=*|--tag=*|--tags=*|--new=*|--window-suffix=*|--target-format=*|--target=*|--op=*|--title=*|--slug=*|--index-line=*|--count=*|--severity=*|--explain=*|--notes=*|--sources=*|--raw=*)
+        --topic=*|--display-name=*|--description=*|--tag=*|--tags=*|--new=*|--window-suffix=*|--target-format=*|--target=*|--op=*|--title=*|--slug=*|--count=*|--severity=*|--explain=*|--notes=*|--sources=*|--raw=*)
             # 带值 flag 但值是 free-form；无候选
             COMPREPLY=()
             return 0

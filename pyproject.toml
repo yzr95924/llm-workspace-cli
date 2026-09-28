@@ -18,10 +18,10 @@ llmw = "llmw.cli:main"
 packages = ["llmw", "llmw.workspace", "llmw.wiki", "llmw.content"]
 
 [tool.setuptools.package-data]
-"llmw.content" = ["templates/**/*.md", "templates/**/*.template", "templates/**/gitignore"]
+"llmw.content" = ["templates/**/*.md", "templates/**/*.template", "templates/**/gitignore", "legacy_paths.toml"]
 
 [tool.ruff]
-# ruff 全局配置：仓库无局部 ruff.toml（CLI 包 + SKILL 目录都无 .py 残留），
-# 统一走根配置，只锁 preview + target。
+# ruff 双配置并存（刻意）：根配置管 CLI 包 + tests（默认规则 E4/E7/E9/F）；
+# llmw/content/ruff.toml 局部覆盖该包（120 行宽 + E/W/F/I/B/UP）。
 preview = false
 target-version = "py37"

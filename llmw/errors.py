@@ -145,7 +145,7 @@ class InvalidTagValue(LlmwError):
 
 class SkillMissing(LlmwError):
     exit_code = 2
-    user_message = "SKILL 目录缺失（skill 随 CLI 同仓，仓库完整克隆即含）"
+    user_message = "CLI 包内资源缺失（templates 随包分发，完整安装即含）"
 
 
 class SetupFailed(LlmwError):

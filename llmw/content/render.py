@@ -77,6 +77,3 @@ def render_wiki_log_md(*, topic: str, setup_date: str) -> str:
     refs = wiki_templates_dir()
     tmpl = _read_template(refs / "fixtures" / "log.md")
     return _substitute(tmpl, {"TOPIC_NAME": topic, "SETUP_DATE": setup_date, **wiki_constant_mapping()})
-
-
-# ===== workspace side =====
