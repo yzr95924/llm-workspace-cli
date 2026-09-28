@@ -31,6 +31,7 @@ class WikiMetadata:
     display_name: str = ""
     description: str = ""
     tags: List[str] = field(default_factory=list)
+    agents_md_sha256: str = ""
 
     def bump(self):
         """任何 set 后调用，更新 updated_at"""
@@ -79,6 +80,7 @@ def load(wiki_dir: Path) -> WikiMetadata:
         display_name=raw.get("display_name", ""),
         description=raw.get("description", ""),
         tags=list(raw.get("tags", [])),
+        agents_md_sha256=raw.get("agents_md_sha256", ""),
     )
 
 
@@ -94,6 +96,7 @@ def save(wiki_dir: Path, meta: WikiMetadata) -> None:
         "display_name": meta.display_name,
         "description": meta.description,
         "tags": meta.tags,
+        "agents_md_sha256": meta.agents_md_sha256,
     }
 
     import io

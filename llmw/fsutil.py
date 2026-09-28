@@ -1,5 +1,6 @@
 """文件系统原子写 + 辅助"""
 
+import hashlib
 import json
 import os
 from datetime import datetime, timezone
@@ -29,6 +30,14 @@ def atomic_write(path: Path, content: str) -> None:
             except OSError:
                 pass
         raise
+
+
+def sha256_file(path: Path) -> Optional[str]:
+    """文件字节 sha256 hexdigest；不存在 / 不可读 → None。"""
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
 
 
 def safe_rmtree(path: Path) -> None:

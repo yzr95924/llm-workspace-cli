@@ -26,7 +26,7 @@ from llmw.errors import (
     WikiExists,
     WikiNotFound,
 )
-from llmw.fsutil import now_iso8601, safe_rmtree
+from llmw.fsutil import now_iso8601, safe_rmtree, sha256_file
 from llmw.wiki import byobu, init_wiki
 from llmw.wiki import store as wiki_store
 from llmw.workspace import store as ws_store
@@ -174,6 +174,7 @@ def add(
         cli_version=__version__,
         format_version=WIKI_FORMAT_VERSION,
     )
+    meta.agents_md_sha256 = sha256_file(wiki_dir / "AGENTS.md") or ""
 
     if sys.stdin.isatty():
         try:

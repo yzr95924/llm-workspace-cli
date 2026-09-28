@@ -241,6 +241,7 @@ TERMINAL_TOKENS = {
     "duplicate-title": ("upgrade-workflow.md",),
     # 唯一数据丢失路径的前置可见字段（dry-run plan / residue）
     "dropped_sections": ("upgrade-workflow.md",),
+    "agents_md_pristine": ("upgrade-workflow.md",),
 }
 
 

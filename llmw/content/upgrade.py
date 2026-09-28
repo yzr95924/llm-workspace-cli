@@ -6,6 +6,8 @@ current_format = wiki AGENTS.md 版本钉（解析失败 = null，如实上报�
 target = 包内常量。
 退出码：0 = done / done_with_residue；1 = blocked_drift；2 = 输入错 / 自验失败（幂等可重跑）。
 变量 SSOT = metadata toml + 版本常量（不从旧文件反提取）。
+指纹：add / apply 后记 AGENTS.md sha256 到 metadata `agents_md_sha256`；
+dry-run / blocked_drift 输出三态 `agents_md_pristine`（true/false/null）。
 """
 
 import difflib
@@ -21,7 +23,7 @@ from llmw.content import render as _render
 from llmw.content import wiki_fixtures
 from llmw.content._check_common import read_text as _read_text
 from llmw.content.wiki_lint import parse_format_version as _parse_format_version
-from llmw.fsutil import atomic_write
+from llmw.fsutil import atomic_write, sha256_file
 from llmw.wiki import store as wiki_store
 from llmw.workspace.gitignore import (
     GITIGNORE_LINES,
@@ -40,7 +42,31 @@ def _load_meta(wiki_root: Path) -> Optional[Dict[str, str]]:
         "name": getattr(meta, "name", "") or "",
         "topic": getattr(meta, "topic", "") or "",
         "created_at": getattr(meta, "created_at", "") or "",
+        "agents_md_sha256": getattr(meta, "agents_md_sha256", "") or "",
     }
+
+
+def _agents_md_pristine(wiki_root: Path, fingerprint: str) -> Optional[bool]:
+    """True=文件与指纹逐字节一致；False=不符（含文件缺失）；None=无指纹。"""
+    if not fingerprint:
+        return None
+    digest = sha256_file(wiki_root / "AGENTS.md")
+    if digest is None:
+        return False
+    return digest == fingerprint
+
+
+def _record_agents_md_fingerprint(wiki_root: Path) -> None:
+    """指纹恒等于当前渲染稿（apply 后文件即渲染稿）；值未变不落盘，干净 wiki 的幂等 apply 保持零写盘。"""
+    digest = sha256_file(wiki_root / "AGENTS.md")
+    if not digest:
+        return
+    meta = wiki_store.load(wiki_root)
+    if digest == meta.agents_md_sha256:
+        return
+    meta.agents_md_sha256 = digest
+    meta.bump()
+    wiki_store.save(wiki_root, meta)
 
 
 def _split_growth(text: str):
@@ -410,6 +436,7 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
 
     # 当前版本 = wiki AGENTS.md 版本钉（如实上报；解析失败 = None，不冒充 CLI 常量）
     current_format = _parse_format_version(wiki_root)
+    pristine = _agents_md_pristine(wiki_root, meta["agents_md_sha256"])
 
     # 2. preflight: 判断 blocked_drift（diff 非空 + 非 dry-run 未 --yes）
     # 注：growth-graft 保留条目，不算 drift；只有 byte-owned render + gitignore-block 算
@@ -430,6 +457,7 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
             "status": "blocked_drift",
             "current_format": current_format,
             "target_format": WIKI_FORMAT_VERSION,
+            "agents_md_pristine": pristine,
             "changed": changed_out,
             "residue": [],
             "verified": {"error": 0, "warn": 0, "pass": 0, "skip": 0},
@@ -462,6 +490,7 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
             "status": "dry_run",
             "current_format": current_format,
             "target_format": WIKI_FORMAT_VERSION,
+            "agents_md_pristine": pristine,
             "plan": plan_out,
         }
         if as_json:
@@ -482,6 +511,7 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
 
     # 4. apply resync
     changed = apply_resync(wiki_root, plan)
+    _record_agents_md_fingerprint(wiki_root)
 
     # 5. legacy paths
     legacy_changed = apply_legacy_paths(wiki_root)

@@ -24,7 +24,7 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
 2. **dry-run 看骨架计划**：
 
    ```bash
-   llmw wiki --path="$LLM_WIKI_ROOT" upgrade
+   llmw wiki --path="$LLM_WIKI_ROOT" upgrade --json
    ```
 
    默认 dry-run。**将被丢弃的自定义 `##` 段在此以 `dropped_sections` 直接列出，这是
@@ -34,9 +34,12 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
    遇这类 diff 即进 `blocked_drift`。**可直接 `--apply --yes`，当且仅当两条同时成立**：
 
    - (a) `dropped_sections` 为空
-   - (b) diff 删除侧每行都出自钉定版本的模板渲染，重建该渲染逐行比对（模板取自 llmw 仓
-     git 历史，`git log -S'<钉定版本>' -- llmw/__init__.py` 定位 commit）；任一行对不上
-     即不成立
+   - (b) AGENTS.md 未被手改——读 dry-run / `blocked_drift` 的 JSON 输出
+     `agents_md_pristine`：`true` → 成立；`false` → 疑似手改，停呈用户裁定；
+     `null` → 问用户，答未改视同成立，无法确认视同不成立
+
+   三态只裁定 AGENTS.md：`gitignore-block` diff 不适用三态——无论单独出现还是与
+   `render` 并存，其完整 diff 一并呈用户裁定。
 
    任一不满足 → 停，附归因结论呈用户裁定，按裁定重跑；自行放行的，交付说明注明判据已核
 
