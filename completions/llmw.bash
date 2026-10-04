@@ -176,9 +176,9 @@ _llmw() {
                             i=$((i + 1))
                         done
                         if [ "$old_seen" -eq 1 ]; then
-                            COMPREPLY=($(compgen -W "$COMMON" -- "$cur"))
+                            COMPREPLY=($(compgen -W "-y --yes $COMMON" -- "$cur"))
                         else
-                            COMPREPLY=($(compgen -W "--old= --new= $COMMON" -- "$cur"))
+                            COMPREPLY=($(compgen -W "--old= --new= -y --yes $COMMON" -- "$cur"))
                         fi
                         ;;
                     show)

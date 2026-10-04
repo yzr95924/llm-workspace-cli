@@ -232,6 +232,7 @@ _llmw_wiki() {
                     _arguments \
                         '--old=[当前 wiki 名]:old:_llmw_wikis' \
                         '--new=[新 wiki 名 (须符合 NAME_RE)]:new:' \
+                        '(--yes -y)'{--yes,-y}'[确认手改 AGENTS.md 覆盖重渲染]' \
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;
                 show)

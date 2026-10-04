@@ -222,13 +222,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     pw_rename = wiki_sub.add_parser(
         "rename",
-        help="重命名 wiki (目录 + workspace 索引 + metadata)",
+        help="重命名 wiki (目录 + workspace 索引 + metadata + 骨架同步)",
         parents=[common],
     )
     pw_rename.add_argument("--old", required=True, metavar="OLD", help="当前 wiki 名")
     pw_rename.add_argument(
         "--new", required=True, metavar="NEW", help="新 wiki 名 (须符合 NAME_RE)"
     )
+    pw_rename.add_argument("--yes", "-y", action="store_true")
 
     wiki_sub.add_parser("show", help="查看 wiki 详情", parents=[common])
 
@@ -602,6 +603,7 @@ def main(argv=None) -> int:
                     new=args.new,
                     as_json=_flag(args, "json"),
                     quiet=_flag(args, "quiet"),
+                    yes=args.yes,
                 )
             elif wa == "show":
                 wiki_show(ws_root, args.name, as_json=_flag(args, "json"))

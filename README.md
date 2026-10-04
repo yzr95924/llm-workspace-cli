@@ -61,7 +61,7 @@ llmw wiki --name=llm-systems remove --purge --yes
 | --- | --- |
 | `llmw wiki --name=NAME add [--topic=...] [--display-name=...] [--description=...] [--tag=TAG]... [--git]` | 新建 wiki；非 TTY 下 metadata flag 全必填；`--git` 为残留 flag（无实际作用；CLI 不碰 git，落盘后只打印手动 hint） |
 | `llmw wiki --name=NAME remove [--purge] [--no-backup] [--yes\|-y]` | 移除 wiki；`--purge` 删子目录（默认备份到 `.llmw-trash/`）；`--no-backup` 跳过备份 |
-| `llmw wiki rename --old=OLD --new=NEW [--json] [--quiet]` | 重命名 wiki（3 处同步 + 冲突硬阻挡） |
+| `llmw wiki rename --old=OLD --new=NEW [--json] [--quiet] [--yes\|-y]` | 重命名 wiki（目录 / workspace 索引 / metadata / 骨架头部 topic 全同步；活跃窗口硬阻挡，骨架手改需 `--yes` 确认覆盖） |
 | `llmw wiki --name=NAME show [--json]` | 查看 wiki 详情 |
 | `llmw wiki --name=NAME config [get\|set\|unset] [KEY] [VALUE]` | 读写 `wiki_metadata.toml`；无参数进交互模式 |
 | `llmw wiki --name=NAME enter [--dry-run] [--window-suffix=SUFFIX]` | 启动 agent session（backend 见下；当前 tmux session 开窗，不在 tmux 内 → 兜底 attach） |

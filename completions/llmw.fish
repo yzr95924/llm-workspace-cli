@@ -125,9 +125,10 @@ complete -c llmw -n "__llmw_subact wiki remove" -l purge       -d '同时删除 
 complete -c llmw -n "__llmw_subact wiki remove" -l no-backup   -d '跳过 --purge 的备份步骤'
 complete -c llmw -n "__llmw_subact wiki remove" -l yes -s y    -d '跳过确认'
 
-# wiki rename（--old 有动态值 → A 类，无 -r；--new free-form → B 类，无 -r）
+# wiki rename（--old 有动态值 → A 类，无 -r；--new free-form → B 类，无 -r；--yes bool）
 complete -c llmw -n "__llmw_subact wiki rename" -l old -f -a "(__llmw_wikis)" -d '当前 wiki 名'
 complete -c llmw -n "__llmw_subact wiki rename" -a "--new=" -f -d '新 wiki 名 (须符合 NAME_RE)'
+complete -c llmw -n "__llmw_subact wiki rename" -l yes -s y    -d '确认手改 AGENTS.md 覆盖重渲染'
 
 # wiki show（无专属 flag；COMMON 兜底）
 

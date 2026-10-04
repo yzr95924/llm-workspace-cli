@@ -9,6 +9,8 @@ from typing import Dict, List, Optional
 
 from llmw import WIKI_FORMAT_VERSION, __version__
 from llmw._compat import TOMLDecodeError
+from llmw.content import skeleton_sync
+from llmw.content.render import setup_date as render_setup_date
 from llmw.errors import (
     BackupFailed,
     ByobuCommandFailed,
@@ -20,13 +22,15 @@ from llmw.errors import (
     MultipleRunningSessions,
     NoRunningSession,
     PurgeRequiresConfirmation,
+    RenameRequiresConfirmation,
     SchemaVersionUnsupported,
     StopRequiresConfirmation,
     WikiDirMissing,
     WikiExists,
     WikiNotFound,
+    WikiSessionActive,
 )
-from llmw.fsutil import now_iso8601, safe_rmtree, sha256_file
+from llmw.fsutil import atomic_write, now_iso8601, safe_rmtree, sha256_file
 from llmw.wiki import byobu, init_wiki
 from llmw.wiki import store as wiki_store
 from llmw.workspace import store as ws_store
@@ -162,10 +166,10 @@ def add(
     # 空目录可已存在；覆盖场景已由 check_not_initialized 阻断
     wiki_dir.mkdir(parents=False, exist_ok=True)
 
-    # 先落 metadata（UTC created_at），SETUP_DATE 由其派生（与 checker 读同字段）；
-    # [:16] = YYYY-MM-DD HH:MM（字节金标准粒度）
+    # 先落 metadata（UTC created_at），SETUP_DATE 由其派生（派生口径收口 render.setup_date，
+    # 与 checker 读同字段）
     meta = wiki_store.create_skeleton(wiki_dir, name, topic)
-    setup_date = (meta.created_at or "").replace("T", " ")[:16]
+    setup_date = render_setup_date(meta.created_at)
 
     init_wiki.render_and_write(
         wiki_dir,
@@ -384,10 +388,29 @@ def _confirm_stop(name: str, wname: str, dead: bool) -> bool:
     return ans in ("y", "yes")
 
 
-def _restore_meta(meta, old: str, old_topic: str, wiki_dir: Path) -> None:
-    """rename 回滚：meta.name/topic 恢复 + save（best-effort，失败打 warning）。"""
+def _rollback_rename(
+    meta: "wiki_store.WikiMetadata",
+    old: str,
+    old_topic: str,
+    old_sha256: str,
+    plan: skeleton_sync.SkeletonSyncPlan,
+    wiki_dir: Path,
+) -> None:
+    """rename 回滚全量：骨架文件写回改前字节 + metadata（name/topic/指纹）恢复。
+
+    各步 best-effort，失败打 warning 交人工检查；空计划（topic 自定义）backups 为空即 no-op。
+    """
+    for rel, text in plan.backups.items():
+        try:
+            atomic_write(wiki_dir / rel, text)
+        except OSError as rollback_err:
+            print(
+                f"[llmw] warning: 回滚 {rel} 失败: {rollback_err}; 请手动检查",
+                file=sys.stderr,
+            )
     meta.name = old
     meta.topic = old_topic
+    meta.agents_md_sha256 = old_sha256
     try:
         wiki_store.save(wiki_dir, meta)
     except OSError as rollback_err:
@@ -398,18 +421,85 @@ def _restore_meta(meta, old: str, old_topic: str, wiki_dir: Path) -> None:
         )
 
 
+def _ensure_no_active_windows(old: str) -> None:
+    """rename 预检硬阻断：tmux 窗口带 @llmw_wiki 标，rename 后标签失联（stop/status
+    定位不到），且窗内 agent 持旧 cwd 会往 registry 不再认识的路径持续写入。"""
+    if not byobu.byobu_available():
+        return
+    active = [r for r in byobu.list_windows() if r.wiki == old]
+    if not active:
+        return
+    listing = "\n".join(
+        f"  {r.window_name}  (session {r.session}, {r.window_id})" for r in active
+    )
+    raise WikiSessionActive(
+        f"wiki '{old}' 有 {len(active)} 个 agent 窗口（含已退出残留）:\n{listing}",
+        hint=f"先运行 `llmw wiki --name={old} stop`（多窗口用 --window-suffix 消歧）再 rename",
+    )
+
+
+def _plan_skeleton_sync(
+    old_path: Path, old: str, new: str, meta: "wiki_store.WikiMetadata", yes: bool
+) -> skeleton_sync.SkeletonSyncPlan:
+    """topic 默认值 == old 时生成骨架同步计划（纯内存读）；手改偏差未 --yes 则在写盘前抛。"""
+    if meta.topic != old:
+        return skeleton_sync.empty_plan()
+    plan = skeleton_sync.plan_skeleton_sync(old_path, old, new, meta)
+    if plan.drift and not yes:
+        raise RenameRequiresConfirmation(
+            "AGENTS.md 与 CLI 渲染稿存在偏差（手改过或无指纹可比）, rename 覆盖重渲染需 --yes 确认",
+            hint="定制纪律先搬 MEMORY/, 或加 --yes 确认覆盖后重跑（已 commit 的手改可从 git 找回）",
+        )
+    return plan
+
+
+def _report_rename(
+    out: Dict,
+    writes: Dict[str, str],
+    warnings: List[str],
+    *,
+    as_json: bool,
+    quiet: bool,
+) -> None:
+    """rename 结果输出：warning 恒发 stderr（含 json/quiet，缺文件/未同步行须可见）。"""
+    for warning in warnings:
+        print(f"[llmw] warning: {warning}", file=sys.stderr)
+    if as_json:
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        return
+    main_line = f"[llmw] wiki 已重命名: {out['old']} → {out['new']}"
+    if quiet:
+        # 安静模式: 只保留主信息行, 抑制 path / topic / created_at 详情
+        print(main_line, file=sys.stdout)
+        return
+    print(main_line, file=sys.stdout)
+    print(f"[llmw]   path: {out['path']}", file=sys.stdout)
+    if out["topic_changed"]:
+        print(
+            f"[llmw]   topic: {out['topic_old']} → {out['topic_new']} (随 name 同步)",
+            file=sys.stdout,
+        )
+    print(f"[llmw]   created_at 保留: {out['created_at']}", file=sys.stdout)
+    if writes:
+        print(f"[llmw]   骨架同步: {' / '.join(writes)}", file=sys.stdout)
+
+
 def rename(
     workspace_root: Path,
     old: str,
     new: str,
     as_json: bool = False,
     quiet: bool = False,
+    yes: bool = False,
 ) -> None:
-    """rename wiki ``old`` → ``new``：3 阶段原地 rename（metadata → 目录 → workspace.toml）+ 廉价回滚。
+    """rename wiki ``old`` → ``new``：预检（注册表 / 磁盘 / 活跃窗口 / AGENTS.md 手改）+ 4 阶段事务
+    （metadata → 骨架落盘 → 目录 → workspace.toml）+ 廉价回滚。
 
-    子目录走 POSIX rename（O(1)，raw/ 零拷贝）；topic 默认值 == old 时同步。
+    子目录走 POSIX rename（O(1)，raw/ 零拷贝）；topic 默认值 == old 时，CLI 拥有的骨架字节
+    （AGENTS.md 全量重渲染 + index/log 头部 topic 行）随 rename 一并对齐。
     失败策略：每步失败都回滚到 rename 前一致状态。
-    Raises: InvalidWikiName / WikiNotFound / WikiExists / WikiDirMissing / SchemaVersionUnsupported / OSError。
+    Raises: InvalidWikiName / WikiNotFound / WikiExists / WikiDirMissing / WikiSessionActive /
+    RenameRequiresConfirmation / SchemaVersionUnsupported / OSError。
     """
     wiki_store.validate_name(new)
     if old == new:
@@ -442,28 +532,48 @@ def rename(
             hint=f"registry 仍登记 '{old}', 但磁盘目录不完整; 检查是否被手动移走",
         )
 
+    # ===== 预检: 活跃窗口硬阻断 =====
+    _ensure_no_active_windows(old)
+
     # created_at 跨 rename 保留,维持时间锚点
     created_at = ws.wikis[old].created_at
 
-    # ===== Phase 1: 原地改 old_path 的 metadata (name→new) =====
-    # wiki_store.save 走 atomic_write (tmp + rename), 失败不留半成品 → old_path 完全不动。
-    # 目录名此刻仍为 old, 与 metadata.name=new 短暂不一致, Phase 2 原子 rename 后即对齐。
+    # ===== 预检: 骨架同步计划 (纯内存读取; 手改偏差在任何写盘前即被 --yes 绊住) =====
+    # topic_changed 与 plan 同源判定一次: 空 plan 的 writes/backups 为空, 落盘与回滚天然跳过
     meta = wiki_store.load(old_path)  # SchemaVersionUnsupported / TOMLDecodeError 透传
     old_topic = meta.topic
+    old_sha256 = meta.agents_md_sha256
+    topic_changed = old_topic == old
+    plan = _plan_skeleton_sync(old_path, old, new, meta, yes)
+
+    # ===== Phase 1: 原地改 old_path 的 metadata (name→new, topic/指纹随骨架同步) =====
+    # wiki_store.save 走 atomic_write (tmp + rename), 失败不留半成品 → old_path 完全不动。
+    # 目录名此刻仍为 old, 与 metadata.name=new 短暂不一致, Phase 3 原子 rename 后即对齐。
     meta.name = new
-    if meta.topic == old:
+    if topic_changed:
         meta.topic = new
+        if plan.agents_new_digest:
+            meta.agents_md_sha256 = plan.agents_new_digest
     meta.bump()
     wiki_store.save(old_path, meta)
 
-    # ===== Phase 2: 原子重命名 old_path → new_path (O(1), 同 FS) =====
+    # ===== Phase 2: 骨架落盘 (AGENTS.md 重渲染 + index/log 头部 topic) =====
+    # 此刻目录名仍为 old, 写入落在 old_path; Phase 3 目录 rename 一并带走。
+    try:
+        for rel, text in plan.writes.items():
+            atomic_write(old_path / rel, text)
+    except OSError:
+        _rollback_rename(meta, old, old_topic, old_sha256, plan, old_path)
+        raise
+
+    # ===== Phase 3: 原子重命名 old_path → new_path (O(1), 同 FS) =====
     # POSIX rename 同 FS 下只改目录项, 不动 inode 数据 / symlink → raw/ 下大量文件零拷贝。
     # 跨 FS 抛 EXDEV (workspace 目录应同 FS; NFS 不安全, 见 AGENTS.md)。
     try:
         old_path.rename(new_path)
     except OSError as e:
-        # 回滚 Phase 1: metadata 的 name/topic 恢复成 rename 前
-        _restore_meta(meta, old, old_topic, old_path)
+        # 回滚 Phase 2 + 1: 骨架 + metadata（含指纹）恢复成 rename 前
+        _rollback_rename(meta, old, old_topic, old_sha256, plan, old_path)
         if e.errno == errno.EXDEV:
             print(
                 "[llmw] hint: old/new 不在同一文件系统 (EXDEV); workspace 目录应位于"
@@ -472,16 +582,16 @@ def rename(
             )
         raise
 
-    # ===== Phase 3: 切换 workspace.toml (del old / add new) =====
+    # ===== Phase 4: 切换 workspace.toml (del old / add new) =====
     try:
         ws.wikis[new] = ws_store.WikiEntry(name=new, path=new, created_at=created_at)
         del ws.wikis[old]
         ws_store.save(workspace_root, ws)
     except (OSError, TOMLDecodeError):
-        # 回滚 Phase 2 + 1: fs rename 回来 + metadata 恢复
+        # 回滚 Phase 3 + 2 + 1: fs rename 回来 + 骨架 + metadata 恢复
         try:
             new_path.rename(old_path)
-            _restore_meta(meta, old, old_topic, old_path)
+            _rollback_rename(meta, old, old_topic, old_sha256, plan, old_path)
         except OSError as rollback_err:
             print(
                 f"[llmw] warning: 回滚失败: {rollback_err}; fs/registry 可能不一致, "
@@ -490,10 +600,8 @@ def rename(
             )
         raise
 
-    topic_changed = old_topic == old
-
-    if as_json:
-        out = {
+    _report_rename(
+        {
             "old": old,
             "new": new,
             "path": str(new_path),
@@ -501,22 +609,12 @@ def rename(
             "topic_old": old_topic if topic_changed else None,
             "topic_new": new if topic_changed else None,
             "created_at": created_at,
-        }
-        print(json.dumps(out, ensure_ascii=False, indent=2))
-        return
-
-    if not quiet:
-        print(f"[llmw] wiki 已重命名: {old} → {new}", file=sys.stdout)
-        print(f"[llmw]   path: {new_path}", file=sys.stdout)
-        if topic_changed:
-            print(
-                f"[llmw]   topic: {old_topic} → {new} (随 name 同步)",
-                file=sys.stdout,
-            )
-        print(f"[llmw]   created_at 保留: {created_at}", file=sys.stdout)
-    else:
-        # 安静模式: 只保留主信息行, 抑制 path / topic / created_at 详情
-        print(f"[llmw] wiki 已重命名: {old} → {new}", file=sys.stdout)
+        },
+        plan.writes,
+        plan.warnings,
+        as_json=as_json,
+        quiet=quiet,
+    )
 
 
 def _show_collect(workspace_root: Path, name: str) -> Dict:

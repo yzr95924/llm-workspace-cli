@@ -135,6 +135,20 @@ class StopRequiresConfirmation(LlmwError):
     user_message = "非 TTY 下 stop 需要 --yes 确认"
 
 
+class WikiSessionActive(LlmwError):
+    """rename 时旧名挂着带标窗口（含 dead 残留）——标签失联 + 窗内 agent 持旧 cwd，先 stop 再改名。"""
+
+    exit_code = 1
+    user_message = "wiki 有运行中的 agent 窗口，rename 需要先 stop"
+
+
+class RenameRequiresConfirmation(LlmwError):
+    """rename 时 AGENTS.md 与指纹不符（手改过），重渲染覆盖需 --yes 确认（同 upgrade blocked_drift 口径）。"""
+
+    exit_code = 1
+    user_message = "AGENTS.md 存在手改偏差，rename 需要 --yes 确认覆盖"
+
+
 class InvalidTagValue(LlmwError):
     exit_code = 1
     user_message = "tag 值非法"
