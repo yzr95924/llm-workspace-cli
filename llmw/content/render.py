@@ -22,6 +22,15 @@ def wiki_constant_mapping() -> Dict[str, str]:
     }
 
 
+def setup_date(created_at: str) -> str:
+    """created_at (UTC ISO8601) → SETUP_DATE（YYYY-MM-DD HH:MM）单一出处。
+
+    出生渲染、rename 重渲染与 check_agents_md_template_sync 的字节比对共享此派生；
+    改口径 = 改字节金标准。
+    """
+    return created_at.replace("T", " ")[:16]
+
+
 def _substitute(text: str, mapping: Dict[str, str]) -> str:
     """替换 {{KEY}}；残留占位符 = 模板漂移，快速失败。"""
     for k, v in mapping.items():
@@ -35,7 +44,7 @@ def _substitute(text: str, mapping: Dict[str, str]) -> str:
     return text
 
 
-def _read_template(path: Path) -> str:
+def read_template(path: Path) -> str:
     """读模板；失败抛 SetupFailed（包内资源缺失）。"""
     try:
         return path.read_text(encoding="utf-8")
@@ -52,7 +61,7 @@ def _read_template(path: Path) -> str:
 def render_wiki_agents_md(*, topic: str, setup_date: str, cli_version: str, format_version: str) -> str:
     """渲染 <wiki-root>/AGENTS.md。"""
     refs = wiki_templates_dir()
-    tmpl = _read_template(refs / "agents-md-template.md")
+    tmpl = read_template(refs / "agents-md-template.md")
     return _substitute(
         tmpl,
         {
@@ -68,12 +77,12 @@ def render_wiki_agents_md(*, topic: str, setup_date: str, cli_version: str, form
 def render_wiki_index_md(*, topic: str, setup_date: str) -> str:
     """渲染 wiki/index.md 初始骨架。"""
     refs = wiki_templates_dir()
-    tmpl = _read_template(refs / "fixtures" / "index.md")
+    tmpl = read_template(refs / "fixtures" / "index.md")
     return _substitute(tmpl, {"TOPIC_NAME": topic, "SETUP_DATE": setup_date, **wiki_constant_mapping()})
 
 
 def render_wiki_log_md(*, topic: str, setup_date: str) -> str:
     """渲染 wiki/log.md 初始骨架。"""
     refs = wiki_templates_dir()
-    tmpl = _read_template(refs / "fixtures" / "log.md")
+    tmpl = read_template(refs / "fixtures" / "log.md")
     return _substitute(tmpl, {"TOPIC_NAME": topic, "SETUP_DATE": setup_date, **wiki_constant_mapping()})

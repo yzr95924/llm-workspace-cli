@@ -35,7 +35,7 @@ from llmw.content._check_common import (
 from llmw.content.external_anchor import SOURCE_NAME_RE
 from llmw.content.log_format import LOG_LINE_RE
 from llmw.content.page_types import TYPE_TO_SECTION
-from llmw.content.render import render_wiki_agents_md
+from llmw.content.render import render_wiki_agents_md, setup_date
 from llmw.content.wiki_lint import (
     ANCHOR_FILENAME,
     EXTERNAL_SUBDIR,
@@ -275,14 +275,10 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
         out["actual"] = f"topic={meta.topic!r}, created_at={meta.created_at!r}"
         return out
 
-    # created_at 形如 "2026-08-19T15:23:45Z" — ISO 8601; 模板 SETUP_DATE 占位符粒度
-    # 为 YYYY-MM-DD HH:MM（与 init_wiki.today 一致）
-    ca = meta.created_at.replace("T", " ")
-    setup_date = ca[:16] if len(ca) >= 16 else ca
-
+    # created_at 形如 "2026-08-19T15:23:45Z" — ISO 8601; SETUP_DATE 派生收口 render.setup_date
     rendered = render_wiki_agents_md(
         topic=meta.topic,
-        setup_date=setup_date,
+        setup_date=setup_date(meta.created_at),
         cli_version=CLI_VERSION,
         format_version=WIKI_FORMAT_VERSION,
     )

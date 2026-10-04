@@ -226,7 +226,7 @@ def _render_fixture(fixture_name: str) -> str:
     """读包内 fixture 模板原始文本（不做 substitute，caller 按需）。"""
     from llmw.config import wiki_templates_dir
 
-    return _render._read_template(wiki_templates_dir() / fixture_name)
+    return _render.read_template(wiki_templates_dir() / fixture_name)
 
 
 def _apply_substitute(text: str, *, topic: str, setup_date: str) -> str:
@@ -239,11 +239,7 @@ def plan_resync(wiki_root: Path, *, meta: Dict[str, str]) -> List[Dict[str, obje
     """计算 resync 计划（不写盘）。"""
     plan = []  # type: List[Dict[str, object]]
     topic = meta["topic"]
-    # SETUP_DATE: UTC created_at → "YYYY-MM-DD HH:MM" (replace "T" with space, take first 16 chars)
-    raw_ca = meta["created_at"]
-    if raw_ca.endswith("Z"):
-        raw_ca = raw_ca[:-1]
-    setup_date = raw_ca.replace("T", " ")[:16]
+    setup_date = _render.setup_date(meta["created_at"])
 
     # byte-owned
     byte_rendered = _render_byte_owned(topic=topic, setup_date=setup_date)
