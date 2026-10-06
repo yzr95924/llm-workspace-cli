@@ -20,7 +20,9 @@ KNOWN_BACKENDS = frozenset({"qodercli", "opencode"})
 # 默认 backend 唯一真源（落盘判定 / config 文案 / enter 回退均引此）
 DEFAULT_BACKEND = "opencode"
 
-_OPENCODE_SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+# v2 忙碌行转圈/进度字符（2026-10-05 实测 2.0.22：`⬝⬝■■■■■■ esc interrupt`；
+# v1 的 braille 盲文 spinner 已不存在）
+_OPENCODE_SPINNER = "⬝■"
 
 STATE_PATTERNS: Dict[str, StatePatterns] = {
     "opencode": StatePatterns(

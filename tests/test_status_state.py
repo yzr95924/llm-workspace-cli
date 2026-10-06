@@ -4,8 +4,8 @@
 llmw/wiki/status._classify_state（判定短路优先级）、_state_sorted（actionable-first）。
 
 只测纯函数——capture-pane 经 monkeypatch，零 tmux/subprocess 依赖（CI 无 tmux 可跑）。
-模式样本为合成文本，结构源自 opencode 1.18.18 真实屏幕（2026-08-15 实测：
-工作态底部状态行含 "esc interrupt" + braille spinner；空闲态底部输入行
+模式样本为合成文本，结构源自 opencode 2.0.22 真实屏幕（2026-10-05 实测：
+工作态底部状态行含 "esc interrupt" + ⬝/■ 进度字符；空闲态底部输入行
 "ctrl+p commands"）。
 """
 
@@ -22,7 +22,14 @@ def test_match_working_opencode_esc_interrupt():
 
 
 def test_match_working_opencode_spinner():
-    tail = "⠹ thinking about your request..."
+    # opencode v2 忙碌行（2.0.22 实测）：spinner 为 ⬝/■ 进度字符
+    tail = "   ⬝⬝■■■■■■ esc interrupt"
+    assert match_working(tail, "opencode") is True
+
+
+def test_match_working_opencode_spinner_only():
+    # spinner 兜底：无 esc interrupt 时仅凭进度字符判工作态
+    tail = "⬝⬝ running your request"
     assert match_working(tail, "opencode") is True
 
 
