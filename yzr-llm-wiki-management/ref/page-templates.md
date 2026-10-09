@@ -6,9 +6,9 @@
 认知质量信号 / 矛盾处理 / 图示指引，AGENTS.md 模板不承载写页规则）；lint 校验规则以
 `llmw wiki lint --explain=all` 为准，不在此镜像
 
-**frontmatter 写法约束**（对齐 `llmw wiki ingest-diff` 的轻量 YAML 解析器，约束对象 = 内容页）：仅支持
-单行 `key: value`、inline 数组 `[a, b, c]`、`- item` 列表项三种形式。**不要**用多行折叠
-`>` / `|`、YAML 锚点 `&` / `*`、嵌套 map，解析器会静默失败返回空 dict
+**frontmatter 写法约束**（约束对象 = 内容页）：仅支持单行 `key: value`、inline 数组
+`[a, b, c]`、`- item` 列表项三种形式。**不要**用多行折叠 `>` / `|`、YAML 锚点 `&` / `*`、
+嵌套 map：CLI 解析 frontmatter 时**静默丢弃或误解析**这些形式且不报错；lint 走同一解析器，兜不住
 
 ## 共有 frontmatter 段
 
@@ -17,7 +17,7 @@
 | `title` | 必填 | 人类可读标题，不带文件扩展名 |
 | `description` | 推荐 | 一句话摘要；`index.md` 条目摘要的唯一来源 |
 | `type` | 必填 | entity / concept / source / comparison / synthesis，驱动子目录 + index 分组 + lint |
-| `tags` | 必填（可空数组） | 取值必须严格在 `wiki/tags.md` 白名单内（canonical 见其头部说明块） |
+| `tags` | 必填（可空数组） | 取值必须严格在 `wiki/tags.md` 白名单内；白名单增删与取值规则按其头部说明块 |
 | `created` / `updated` | 必填 | 写入用 `YYYY-MM-DD HH:MM` |
 | `reviewed` / `reviewed_at` / `contested` / `contradictions` | 可选 | 认知质量信号，见下节 |
 | 类型特定（`sources` / `compared` / `threads` / `aliases` 等） | 按类型 | 见 [章节](#各类型模板) |
@@ -210,7 +210,8 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 
 **逐段溯源（synthesis / 多源 comparison 专属）**：frontmatter `sources` 只能定位"引了
 哪些来源"，无法追溯"某句主张来自哪篇"。对**来源可分的断言**用标准 Markdown 脚注 `[^n]`
-（文末 `[^n]: ...` 指向 source 页；**不要**用 pandoc 行内 `^[...]`）；纯推论无需脚注
+（文末 `[^n]: ...` 指向 source 页；**不要**用 pandoc 行内 `^[...]`，那是 pandoc 方言，
+GitHub 等标准渲染器不识别）；纯推论无需脚注
 
 ### index（index.md）
 
@@ -242,7 +243,7 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 | **拆分页** | 单页正文超过 lint `oversized-page` 阈值（拆分建议随触发输出自带）；拆成子主题 + cross-link |
 | **归档页** | 内容被完全取代 / 主题域变化，加 `archived: true`、从 `index.md` 移除 |
 
-**页不物理删除**，生命周期终点是上表"归档页"，不是 `rm`
+**页不物理删除**（`rm` 断 inbound 链接与 index 溯源），生命周期终点是上表"归档页"，不是 `rm`
 
 ## 图示使用指引
 

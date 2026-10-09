@@ -12,8 +12,7 @@ Ingest 把 `raw/` 的原始资料消化成 wiki 内容页，通常一份资料�
 llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ```
 
-输出按 reason 分类（`untracked` / `stale-raw` / `log-only-no-source-page`），含义与退出码
-输出自明
+输出按 reason 分类（`untracked` / `stale-raw` / `log-only-no-source-page`），分类、含义与退出码均输出自明
 
 ### Step 2：评估规模
 
@@ -29,27 +28,26 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ### Step 3：写 source 页
 
 命中 `stale-raw` 的文件不建新页：source 页还在，用 **Edit** 更新正文（**不要** Write
-覆盖），frontmatter `sources` 只追加新路径、不重写整块
+覆盖，整页重写丢既有正文），frontmatter `sources` 只追加新路径、不重写整块
 
 对每个待摄取文件：
 
 1. **完整读取 raw**：PDF / 图片先做 OCR / 视觉识别
-2. **提取元数据**：标题、作者 / 来源、发布时间、URL、关键标签
-3. **生成 slug**：kebab-case 短标题（例 `attention-is-all-you-need`）
-4. **脚手架**：`llmw wiki write new --type=source --slug=... --title=... --sources=raw/...`，
+2. **生成 slug**：kebab-case 短标题（例 `attention-is-all-you-need`）
+3. **脚手架**：`llmw wiki write new --type=source --slug=... --title=... --sources=raw/...`，
    然后 Edit 写正文；节结构与字段（含元数据落点、摘要写法）以
    [章节](page-templates.md#source资料页) 为准。
    正文含交互流 / 架构关系时优先配图，判定见 [章节](page-templates.md#图示使用指引)
-5. **发现矛盾**：重摄取时冒出与既有页冲突的说法，不静默覆盖，走
+4. **发现矛盾**：重摄取时冒出与既有页冲突的说法，不静默覆盖，走
    [章节](page-templates.md#矛盾处理-update-policy)
-6. **生命周期**：编辑过 source 页就跑 `llmw wiki write touch <page>`，见
-   [章节](page-templates.md#生命周期规则)
-7. **是否新建 entity / concept 页**：见 [章节](#判定是否新建-entity--concept-页)
+5. **生命周期**：凡 Edit 过页面正文就跑 `llmw wiki write touch <page>`（含 Step 4 / 5 对既有页
+   的追加与补链），见 [章节](page-templates.md#生命周期规则)
+6. **是否新建 entity / concept 页**：见 [章节](#判定是否新建-entity--concept-页)
 
 ### Step 4：同步 entity / concept 页
 
-- **已有相关页**：不重排，只往 `## 参考来源 / Sources` 段末尾追加，每条新
-  source 一行 `* [Source Title](../sources/<slug>.md) — 一句话关联点`
+- **已有相关页**：不重排，只往 `## 参考来源 / Sources` 段末尾追加（条目格式照
+  page-templates 骨架该节）
 - **新建页**：走 page-templates 的 entity / concept 骨架
 
 ### Step 5：更新 `wiki/index.md`
@@ -60,13 +58,13 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 ### Step 6：追加 `log.md`
 
 - `llmw wiki write log --op=ingest --title="<source 页 title>" --raw="raw/<相对路径>"`：
-  `--raw` 记录被摄取文件，是 `ingest-diff` 判定 log-only-no-source-page 的精确依据
+  `--raw` 记录被摄取文件，是 `ingest-diff` 判定 log-only-no-source-page 的精确依据（未记录时按
+  title slug 归一化兜底）
 - 批处理走 `--bulk`（见下节）
 
-### Step 7：建议 commit（启用 git 时）
+### Step 7：建议 commit
 
-- commit message：`ingest: <title>` 或 `ingest: <N> files from raw/articles/`；提示用户 commit
-- 裸目录树 wiki 跳过此步
+commit message：`ingest: <title>` 或 `ingest: <N> files from raw/articles/`
 
 **收尾**：主动建议用户做一次关联查询（query 流程见 [章节](query-workflow.md#流程详解)）
 
@@ -105,9 +103,9 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## 反模式
 
-- 一份资料写 5 个 source 页（粒度过细）：按"主题"分，不是按"raw 文件 1:1"
+- 一份资料写 5 个 source 页（粒度过细）：页数跟主题走，默认 1 份 raw 1 页，跨主题才拆
 - source 页只复制 raw 内容：必须消化、提炼、加 cross-refs
-- 跨主题的 entity 混在一起：本 skill 假设一个 wiki 一个主题；跨主题用不同的 wiki
+- 跨主题的 entity 混在一起
 
 ## raw/discussions/ 草稿消化
 

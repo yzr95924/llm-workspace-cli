@@ -37,8 +37,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 1. **询问用户先修哪些**（报告按 error > warn > info 排）：不要一次全修（易回退或引入新问题）
 2. 修完**重新跑 lint 验证**，不带未验的 fix 前进；重跑同样按 wiki 根 `AGENTS.md`
    "写后必同步"记 log
-3. 启用 git 时重大修复建议 `lint: <summary>` 前缀 commit；裸目录树 wiki 跳过
-4. 若跑了 `check-fixtures`：职责切分与 plan 消费流程见
+3. 重大修复的 commit 用 `lint: <summary>` 前缀
+4. 若 `lint --check-version` 报了 fixtures 不合规：职责切分与 plan 消费流程见
    [章节](upgrade-workflow.md#职责切分关键三方分工)
 
 ## lint 频率

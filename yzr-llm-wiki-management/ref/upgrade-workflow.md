@@ -31,17 +31,17 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
    `--apply` 前唯一的可见时机**；先看计划再决定 `--apply`
 
 3. **裁定 drift**（仅 `render` / `gitignore-block` 类 diff 触发）：`--apply` 不加 `--yes`
-   遇这类 diff 即进 `blocked_drift`。**可直接 `--apply --yes`，当且仅当两条同时成立**：
+   遇这类 diff 即进 `blocked_drift`。**可直接 `--apply --yes`，当且仅当三条同时成立**：
 
    - (a) `dropped_sections` 为空
-   - (b) AGENTS.md 未被手改——读 dry-run / `blocked_drift` 的 JSON 输出
-     `agents_md_pristine`：`true` → 成立；`false` → 疑似手改，停呈用户裁定；
-     `null` → 问用户，答未改视同成立，无法确认视同不成立
+   - (b) AGENTS.md 未被手改：读 dry-run / `blocked_drift` 的 JSON 输出 `agents_md_pristine`
+     （三态只裁定它）：`true` → 成立；`false` → 疑似手改，停呈用户裁定；`null` → 问用户，
+     答未改视同成立，无法确认视同不成立
+   - (c) 计划不含 `gitignore-block` diff：该 diff 不适用三态，无论单独出现还是与 `render`
+     并存，其完整 diff 一律呈用户裁定
 
-   三态只裁定 AGENTS.md：`gitignore-block` diff 不适用三态——无论单独出现还是与
-   `render` 并存，其完整 diff 一并呈用户裁定。
-
-   任一不满足 → 停，附归因结论呈用户裁定，按裁定重跑；自行放行的，交付说明注明判据已核
+   任一不满足 → 停，附归因结论呈用户裁定，按裁定重跑；三条成立而自行 `--apply --yes`
+   的，交付说明注明判据已核
 
 4. **查 fixtures 不合规 + 按 plan 修复**（lint 侧）：
 
@@ -52,10 +52,10 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
    - 报告 `needs_upgrade` / fixtures 不合规项
    - 版本行缺失 / 无法解析（`wiki-format-version-unparsed`）→ 跑 `upgrade --apply` 恢复
      版本钉；wiki 版本比 llmw 支持的新（`-ahead`）→ 不动 wiki，见 [章节](#边界)
-   - 有 fixtures 现场 → `--apply --json` 拿 `upgrade_plan`，按 plan 自带规则用
-     Edit 落
+   - 有 fixtures 不合规 → 重跑上条命令加 `--apply --json` 拿 `upgrade_plan`，按 plan 自带
+     规则用 Edit 落
 
-5. **验证**：重跑以下两条命令（upgrade 幂等；**不**带 `--yes`——防 drift 再现被静默放行）：
+5. **验证**：重跑以下两条命令（upgrade 幂等；**不**带 `--yes`，防 drift 再现被静默放行）：
 
    ```bash
    llmw wiki --path="$LLM_WIKI_ROOT" upgrade --apply --json
@@ -84,9 +84,7 @@ breaking 变更的语义合并规则见 [章节](#语义合并规则)；版本�
 
 ## 语义合并规则
 
-CLI 不替代语义判断：本节定义 **wiki/index.md 跨条目的语义合并**
-
-**wiki/index.md 条目合并**：
+CLI 不替代语义判断：以下是 **wiki/index.md 跨条目合并**规则
 
 - 同 `<relative-path>` link 但多条目出现 → 留信息最完整的一条，余删。优先级：
   `✓ reviewed <date>` badge 最新 > 有 `description` 摘要 > `updated` 最新

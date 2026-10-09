@@ -1,6 +1,7 @@
 # raw/external/：外部代码仓接入与跨主机重建
 
-**分工**：接入决策归用户 + agent；agent 对 target 的读写权限与命令细则以 wiki 根
+**分工**：接入决策归用户 + agent；接入物 = symlink + anchor（anchor 是外部仓元数据，
+经 `llmw wiki external` 落盘，agent 不手改）；agent 对 target 的读写权限与命令细则以 wiki 根
 `AGENTS.md` `raw/external/` 节为准
 
 ## 首次接入

@@ -8,8 +8,9 @@ Query 是 wiki 的"消费侧"，把多份资料综合成答案，**好答案归�
 ### Step 1：定位候选页
 
 先读 `wiki/index.md`，按关键词 / 类别扫（哪个类别看用户问法：概念→`concepts/`、对比两实体
-→`sources/`、演进→查 concept 页 inbound links）。**启发式搜索，不做全量 grep**：关键词命中
-index 摘要 / page title / `tags` 字段 → 必看；只命中正文 → 看上下文决定
+→`comparisons/` 已归档的先看、素材在 `sources/`、演进→查 concept 页 inbound links）。
+**启发式搜索，不做全量 grep**（orient 补页间引用的全域 Grep 不在此限）：关键词命中
+index 摘要 / page title / `tags` 字段 → 必看；读页时仅命中正文 → 看上下文决定
 
 ### Step 2：读相关页
 
@@ -19,17 +20,18 @@ index 摘要 / page title / `tags` 字段 → 必看；只命中正文 → 看�
 
 ### Step 2.5：按 reviewed / contested 标注采信等级
 
-读完候选页后按 frontmatter 分三栏标注：已审核（`reviewed: true`，优先采信）/ 未审核（缺省
-或非 true，辅助采信需显式标注）/ 跨页矛盾（`contested: true`，未裁定，看 `contradictions`）
+读完候选页后按 frontmatter 标注两维：采信等级（已审核 = `reviewed: true`，优先采信；未审核 =
+缺省或非 true，引用需显式标注）× 矛盾状态（`contested: true` 未裁定，看 `contradictions`，
+与采信等级正交可叠加）
 
-综合时按下表采信（`contested: true` 时优先采信已审核一侧）：
+综合时按下表采信：
 
 | 场景 | 行为 |
 | --- | --- |
 | 只有已审核页能答 | 正常引用，不额外标注 |
 | 只有未审核页能答 | 引用 + 显式标注"（本页未经人工复审）" |
 | 两种都有，结论一致 | 引用已审核页为主，未审核页作为补充 |
-| 两种都有，结论冲突 | 标注"存在两种说法：X（来源 A，已审核）/ Y（来源 B，未审核），以 X 为准"+ 建议人复审 B |
+| 两种都有，结论冲突 | 未标 `contested`：以 X（已审核）为准 + 建议人工复审 B；已标：两说并列各带来源，见 [章节](#step-3综合答案) |
 
 ### Step 3：综合答案
 
@@ -70,7 +72,6 @@ index 摘要 / page title / `tags` 字段 → 必看；只命中正文 → 看�
 - 追加 log：`llmw wiki write log --op=query --title="<title>"`
 - 相关 entity / concept 页按需追加"参考来源"段（纪律见 wiki 根 `AGENTS.md`"写后必同步"）；
   凡 Edit 过既有页正文 → `llmw wiki write touch <page>`
-- 启用 git 时建议**用户** commit（同 ingest Step 7）；裸目录树 wiki 跳过
 
 ## Query 失败的常见原因
 

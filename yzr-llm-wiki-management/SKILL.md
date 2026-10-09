@@ -29,7 +29,7 @@ metadata:
 
 ### 核心原则
 
-**先对齐现状再动笔（orient ritual，所有操作通用）**：每次 ingest / query / lint 启动前
+**先对齐现状再动笔（orient ritual，所有操作通用）**：每次 ingest / query / lint / upgrade 启动前
 按序读完四件套，任一未读完不写任何 wiki 内容：
 
 1. **确认 wiki 根 `AGENTS.md` 已在上下文**：拿主题名与"当前配置"表的 `Wiki Format 版本` 行
@@ -39,20 +39,19 @@ metadata:
 
 100+ 页（经验阈值）的 wiki 加一次 `wiki/` 全域 `Grep "<topic>"`，补 index.md 看不全的页间引用
 
-**机械归 CLI，语义归 agent**：写操作正路 = `llmw wiki write` 系列（适用 ingest / query / lint；
-升级期豁免，红线见下方 Upgrade 节）：格式 + 滚动窗口截断由 `write` 保证，lint 只兜底带外手改
+**机械归 CLI，语义归 agent**：写操作正路 = `llmw wiki write` 系列（适用 ingest / query / lint /
+upgrade；升级期豁免，红线见 Upgrade 节）：格式 + 滚动窗口截断由 `write` 保证，lint 只兜底带外手改。
 建不建页 / 怎么综合 / 矛盾怎么裁是语义判断，没有命令替你判断
-**逃生舱**：命令不支持的形态手写 Edit/Write 合法，write 是默认路径不是闸门
+**逃生舱**：`llmw wiki write` 确不支持的形态才可手写 Edit/Write，write 是默认路径不是闸门
 
 ### 边界
 
 - **不**绕过 `AGENTS.md` 自创约定：若 AGENTS.md 没说的，**先问用户**再写
 - **不**建跨 wiki xref（一个 wiki 一个主题，跨主题用不同 wiki），确有需求告知用户
+- 启用 git 时各流程收尾建议**用户** commit；裸目录树 wiki 跳过 commit 建议
 - 其余边界纪律以 wiki 根 `AGENTS.md` 为准；流程特有反模式见
   [章节](ref/ingest-workflow.md#反模式)
-- **违反字面 = 违反精神**：对 [章节](#核心原则) 与本段纪律做"效果等同"的绕法（如手写
-  `Edit` / `Write` 替代 `llmw wiki write` 再声称走了逃生舱）算违反
-- 实跑观察：用户说"随便 / 赶时间"时最易合理化省略（漏必填 `tags`、跳 log），态度不是豁免
+- 用户说"随便 / 赶时间"不豁免必填 `tags` 与 log 步骤，照常走
 
 ## 工作流
 
