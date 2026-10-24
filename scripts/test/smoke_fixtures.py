@@ -5,8 +5,7 @@
 都让本 gate 红。双向覆盖。
 
 断言策略：探测器所有 error 级 check passed=True（允许 skipped/null）。
-版本常量 llmw.WIKI_FORMAT_VERSION 与 wiki SKILL.md frontmatter 的
-wiki_format_version 由本 gate 比对，漂移即挂。
+另守护默认 workspace 路径抄写 slip（DEFAULT_WORKSPACE == ~/yzr-llm-wiki-workspace）。
 
 standalone，Python 3.7+（与项目最低支持版本对齐）。用法：``python3 scripts/test/smoke_fixtures.py``
 """
@@ -15,7 +14,6 @@ standalone，Python 3.7+（与项目最低支持版本对齐）。用法：``pyt
 
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -24,48 +22,21 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 
 
-def _check_format_version_alignment():
-    """版本门：SKILL.md frontmatter *_format_version 必须 == llmw 包内常量。
+def _check_default_workspace():
+    """默认 workspace 路径守卫。
 
-    读 SKILL.md frontmatter 与 llmw.WIKI_FORMAT_VERSION 比对，不一致即 exit 1。这是版本对齐纪律的机械 gate（纪律升级为 gate）。
+    防常量抄写 slip（2026-08-20 config.py 重写时 DEFAULT_WORKSPACE 曾丢 "-wiki"，
+    所有测试都显式传 --workspace 故无兜底）：默认路径与仓内文档引用一致。
     """
     sys.path.insert(0, str(REPO))
-    import llmw
     from llmw.config import DEFAULT_WORKSPACE
 
-    # 防常量抄写 slip（2026-08-20 config.py 重写时 DEFAULT_WORKSPACE 曾丢 "-wiki"，
-    # 所有测试都显式传 --workspace 故无兜底）：默认路径与仓内文档引用一致
     expected_default = Path.home() / "yzr-llm-wiki-workspace"
     if DEFAULT_WORKSPACE != expected_default:
         raise SystemExit(
             f"FAIL: DEFAULT_WORKSPACE={DEFAULT_WORKSPACE} != {expected_default}（抄写 slip？）"
         )
-
-    cases = [
-        ("yzr-llm-wiki-management", "wiki_format_version", llmw.WIKI_FORMAT_VERSION),
-    ]
-    drifts = []
-    for skill_dir, key, expected in cases:
-        skill_md = REPO / skill_dir / "SKILL.md"
-        text = skill_md.read_text(encoding="utf-8")
-        m = re.search(rf"^[ \t]*{key}:[ \t]*(\S+)[ \t]*$", text, re.MULTILINE)
-        if m is None:
-            drifts.append(f"{skill_md}: 未找到 {key} 字段")
-            continue
-        frontmatter_value = m.group(1).strip()
-        if frontmatter_value != expected:
-            drifts.append(
-                f"{skill_dir}: SKILL.md {key}={frontmatter_value} != llmw.{key.rstrip('_version').upper()}_FORMAT_VERSION={expected}"
-            )
-    if drifts:
-        sys.stderr.write("FAIL: format 版本对齐检查失败:\n")
-        for d in drifts:
-            sys.stderr.write(f"  {d}\n")
-        sys.stderr.write(
-            "修复：同 commit 改 SKILL.md frontmatter + llmw/__init__.py 常量\n"
-        )
-        raise SystemExit(1)
-    print("[OK] format 版本对齐：SKILL.md frontmatter == llmw 包内常量")
+    print("[OK] 默认 workspace：DEFAULT_WORKSPACE == ~/yzr-llm-wiki-workspace")
 
 
 def _llmw(args):
@@ -122,7 +93,7 @@ def _assert_all_error_pass(args, label):
 
 
 def main():
-    _check_format_version_alignment()
+    _check_default_workspace()
     with tempfile.TemporaryDirectory(prefix="llmw-smoke-") as tmp:
         ws = Path(tmp) / "ws"
 

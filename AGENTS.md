@@ -23,7 +23,6 @@ python3 -m llmw --help                            # 免安装直接跑 CLI
 | CLI 子命令 / flag / finding / reason 等枚举 / rule_ref / 语义断言豁免，或 SKILL 文本 | `python3 scripts/test/check_skill_cli_contract.py` |
 | `llmw/content/templates/`（模板或 fixtures） | `python3 scripts/test/smoke_fixtures.py` |
 | `scripts/install.sh` / `uninstall.sh` | `bash scripts/test/test_install_uninstall.sh`（临时 HOME 隔离） |
-| `WIKI_FORMAT_VERSION`（`llmw/__init__.py`） | 必须与 SKILL.md frontmatter 同 commit（smoke_fixtures 比对） |
 
 ## 架构红线与 SSOT
 
@@ -54,7 +53,7 @@ python3 -m llmw --help                            # 免安装直接跑 CLI
 
 1. 能机械判定的做成 lint / write，不写成文档规则
 2. 强制值（改动影响代码行为）只存 CLI 常量；模板 / fixture 用 `{{占位符}}` 消费；skill 对值零感知——写路径走命令，
-   带外手改读实例文件说明块；文档确需出现值（如 SKILL.md frontmatter 版本，属 CI 绊线）必须 gate 钉住，禁止手抄
+   带外手改读实例文件说明块；文档确需出现值必须 gate 钉住，禁止手抄
 3. 建议值（不影响代码行为）留在文档并标「建议」，不得事后升级为 lint 检查
 4. write 子命令三居一才加：格式多字段 / 滚动窗口类不变量 / 高频
 5. 仅模板 / fixture 字节变才 bump `WIKI_FORMAT_VERSION`

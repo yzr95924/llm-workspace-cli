@@ -29,7 +29,7 @@ OLD_VERSION = "0.25.0"  # 真实历史版本——永远小于当前 target_form
 
 
 def _target_format():
-    """包内常量 llmw.WIKI_FORMAT_VERSION（与 SKILL.md frontmatter 同 commit 对齐，CI gate 守护）。"""
+    """包内常量 llmw.WIKI_FORMAT_VERSION（wiki format 版本唯一来源）。"""
     sys.path.insert(0, str(REPO))
     import llmw
 

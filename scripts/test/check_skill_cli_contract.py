@@ -40,10 +40,8 @@ INLINE_CMD_RE = re.compile(r"`(llmw[^`\n]*)`")
 # 单引号内 backtick，DOTALL 让 . 匹配换行。
 WRAPPED_INLINE_RE = re.compile(r"`(llmw[^`]*?)`", re.DOTALL)
 # 裸 semver —— bump wiki_format_version 时漏改 prose 会静默腐烂（无 lint 兜底）；
-# 豁免：SKILL frontmatter 的 wiki_format_version: 键行（SSOT 本身）+
-# upgrade-workflow.md 整文件（按设计它是唯一允许锚定历史版本的文件）。
+# 豁免：upgrade-workflow.md 整文件（按设计它是唯一允许锚定历史版本的文件）。
 SEMVER_RE = re.compile(r"\bv?\d+\.\d+\.\d+\b")
-SEMVER_KEY_SKIP_RE = re.compile(r"^\s*wiki_format_version\s*:")
 SEMVER_FILE_SKIP = {"upgrade-workflow.md"}
 # 面 2 severity 镜像模式：`` `finding-name`（error|warn|info`` = 旧 checklist 镜像格式；
 # 口径改走 `llmw wiki lint --explain` 注册表（findings.py），出现即红。
@@ -591,8 +589,6 @@ def main():  # pylint: disable=too-many-branches
             continue
         rel = _rel(md)
         for lineno, line in enumerate(_read(md).splitlines(), start=1):
-            if SEMVER_KEY_SKIP_RE.match(line):
-                continue
             if SEMVER_RE.search(line):
                 stats["semver"] += 1
                 errors.append(
