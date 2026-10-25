@@ -81,13 +81,12 @@ def _merge_copy(src, dst):
 
 
 def _frontmatter(path):
-    """取 title / created / sources / reviewed_at（fixture frontmatter 形状固定，够用）。"""
-    title = created = reviewed_at = ""
-    reviewed = False
+    """取 title / created / sources（fixture frontmatter 形状固定，够用）。"""
+    title = created = ""
     sources = []
     lines = path.read_text(encoding="utf-8").splitlines()
     if not lines or lines[0].strip() != "---":
-        return title, created, sources, reviewed_at
+        return title, created, sources
     in_sources = False
     for line in lines[1:]:
         stripped = line.strip()
@@ -104,26 +103,7 @@ def _frontmatter(path):
             title = stripped.split(":", 1)[1].strip().strip('"')
         elif stripped.startswith("created:"):
             created = stripped.split(":", 1)[1].strip()
-        elif stripped.startswith("reviewed:"):
-            reviewed = stripped.split(":", 1)[1].strip() == "true"
-        elif stripped.startswith("reviewed_at:"):
-            reviewed_at = stripped.split(":", 1)[1].strip()
-    if not reviewed:
-        reviewed_at = ""
-    return title, created, sources, reviewed_at
-
-
-def _badge_index_entry(wiki, rel, reviewed_at):
-    """write index add 不生成 ✓ 标识而 lint 要求（index-review-badge-drift），
-    夹具构建侧按 lint 基准补挂；CLI 面只报告不修。"""
-    index = wiki / "wiki" / "index.md"
-    lines = index.read_text(encoding="utf-8").splitlines(keepends=True)
-    out = []
-    for line in lines:
-        if "](%s)" % rel in line and "✓" not in line and line.rstrip("\n").strip():
-            line = line.rstrip("\n") + " ✓ reviewed %s\n" % reviewed_at
-        out.append(line)
-    index.write_text("".join(out), encoding="utf-8")
+    return title, created, sources
 
 
 def _append_tags_growth(wiki, growth_file):
@@ -186,12 +166,8 @@ def _build_root(name, conf, case_dir, tmp_ws):
         if o:
             orphans.add(o)
     for rel in _content_pages(wiki):
-        if rel in orphans:
-            continue
-        _llmw("wiki", "--path=" + str(wiki), "write", "index", "add", "wiki/" + rel)
-        _created, _date, _srcs, reviewed_at = _frontmatter(wiki / "wiki" / rel)
-        if reviewed_at:
-            _badge_index_entry(wiki, rel, reviewed_at)
+        if rel not in orphans:
+            _llmw("wiki", "--path=" + str(wiki), "write", "index", "add", "wiki/" + rel)
 
     sources = []
     src_dir = wiki / "wiki" / "sources"
@@ -200,7 +176,7 @@ def _build_root(name, conf, case_dir, tmp_ws):
             sources.append(p)
     sources.sort(key=lambda p: _frontmatter(p)[1])
     for p in sources:
-        title, _created, srcs, _reviewed_at = _frontmatter(p)
+        title, _created, srcs = _frontmatter(p)
         if not (srcs and title):
             _fail("source page without title/raw: %s" % p)
         _llmw(

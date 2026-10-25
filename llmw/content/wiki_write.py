@@ -187,6 +187,22 @@ def _section_for_entry(lines, entry_line):
     return None
 
 
+_REVIEWED_STRICT_RE = re.compile(r"^reviewed:[ \t]*true[ \t]*$", re.MULTILINE)
+
+
+def _review_badge(page_text, fm):
+    """reviewed 页的 index 条目 ✓ 标识；判定与 lint index-review-badge-drift 同口径
+    （frontmatter 内字面量 true + reviewed_at 非空），不满足则不造标识。"""
+    fm_match = _FRONTMATTER_RE.match(page_text)
+    if not fm_match or not _REVIEWED_STRICT_RE.search(fm_match.group(1)):
+        return ""
+    raw = fm.get("reviewed_at")
+    reviewed_at = str(raw).strip() if raw is not None else ""
+    if not reviewed_at:
+        return ""
+    return " ✓ reviewed " + reviewed_at
+
+
 def cmd_index(wiki_root, args):
     index_path = Path(wiki_root) / "wiki" / "index.md"
     if not index_path.is_file():
@@ -215,7 +231,8 @@ def cmd_index(wiki_root, args):
 
     if not page_path.is_file():
         return f"index add 目标页不存在：{rel}", 1
-    fm = parse_frontmatter_simple(page_path.read_text(encoding="utf-8", errors="replace"))
+    page_text = page_path.read_text(encoding="utf-8", errors="replace")
+    fm = parse_frontmatter_simple(page_text)
     title = str(fm.get("title", "")).strip()
     if not title:
         return "index add 需要目标页 frontmatter 含非空 title", 1
@@ -223,7 +240,7 @@ def cmd_index(wiki_root, args):
     if section is None:
         return "index add 需要目标页 type 为内容页类型之一（当前: {}）".format(fm.get("type")), 1
     desc = str(fm.get("description", "")).strip()
-    entry = "- [{}]({}){}".format(title, link, (" — " + desc) if desc else "")
+    entry = "- [{}]({}){}{}".format(title, link, (" — " + desc) if desc else "", _review_badge(page_text, fm))
 
     lines = text.splitlines(keepends=True)
     existing = [ln for ln in lines if _index_entry_link(ln) == link]

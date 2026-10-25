@@ -19,12 +19,8 @@ python3 scripts/test/build_wiki_eval.py <case-id> <sandbox>
   `finetune-notes`（含 LoRA 结论 + 复现标记），判据依赖 agent 不读取同级根
 
 构建顺序：生成骨架 → 拷基底 → 拷覆盖 → `write index add`（orphans 跳过；
-reviewed 页补挂 `✓ reviewed` 标识）→ `write log --op=ingest`（按 source 页
-`created` 排序）→ 追加 tags 生长段。
+reviewed 页的 `✓ reviewed` 标识由该命令按 frontmatter 派生）→ `write log --op=ingest`
+（按 source 页 `created` 排序）→ 追加 tags 生长段。
 
 stale 信号是日期基准产物：页 frontmatter `updated` 固定在过去，raw 在构建/拷入
 沙箱时刷新 mtime，恒晚于页 → `ingest-diff --check-stale` 恒复现。
-
-已知 CLI 不一致（只报告，不在本仓修）：`write index add` 不生成
-`✓ reviewed` 标识，lint `index-review-badge-drift` 却按标识校验；构建脚本在
-index add 后按 frontmatter 补挂。
