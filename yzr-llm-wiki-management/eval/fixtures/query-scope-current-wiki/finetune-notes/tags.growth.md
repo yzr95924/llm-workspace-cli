@@ -1,0 +1,2 @@
+- 模型：model
+- 训练方法：fine-tuning
