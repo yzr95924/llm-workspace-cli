@@ -2,66 +2,73 @@
 
 **5 类内容页**按 `type` 分，共有 frontmatter 段 + 类型特定字段 + 自由正文
 
-**本文件 = content-owned 页写作纪律的 canonical**（frontmatter 字段语义 / 建页阈值 /
-认知质量信号 / 矛盾处理 / 图示指引，AGENTS.md 模板不承载写页规则）；lint 校验规则以
+本文件是内容页写作纪律的以…为准文本（字段语义、建页阈值、认知质量信号、
+矛盾处理、图示指引；wiki 根 `AGENTS.md` 模板不承载写页规则）；lint 校验规则以
 `llmw wiki lint --explain=all` 为准，不在此镜像
 
 **frontmatter 写法约束**（约束对象 = 内容页）：仅支持单行 `key: value`、inline 数组
-`[a, b, c]`、`- item` 列表项三种形式。**不要**用多行折叠 `>` / `|`、YAML 锚点 `&` / `*`、
-嵌套 map：CLI 解析 frontmatter 时**静默丢弃或误解析**这些形式且不报错；lint 走同一解析器，兜不住
+`[a, b, c]`、`- item` 列表项三种形式。**不要**用多行折叠 `>` / `|`、YAML 锚点
+`&` / `*`、嵌套 map：CLI 解析 frontmatter 时**静默丢弃或误解析**这些形式且不报错；
+lint 走同一解析器，兜不住
 
 ## 共有 frontmatter 段
 
-| 字段 | 必填性 | 语义 |
-| --- | --- | --- |
-| `title` | 必填 | 人类可读标题，不带文件扩展名 |
-| `description` | 推荐 | 一句话摘要；`index.md` 条目摘要的唯一来源 |
-| `type` | 必填 | entity / concept / source / comparison / synthesis，驱动子目录 + index 分组 + lint |
-| `tags` | 必填（可空数组） | 取值必须严格在 `wiki/tags.md` 白名单内；白名单增删与取值规则按其头部说明块 |
-| `created` / `updated` | 必填 | 写入用 `YYYY-MM-DD HH:MM` |
-| `reviewed` / `reviewed_at` / `contested` / `contradictions` | 可选 | 认知质量信号，见下节 |
-| 类型特定（`sources` / `compared` / `threads` / `aliases` 等） | 按类型 | 见 [章节](#各类型模板) |
+- `title`：必填，人类可读标题，不带文件扩展名
+- `description`：推荐，一句话摘要；`index.md` 条目摘要的唯一来源
+- `type`：必填，取值 entity / concept / source / comparison / synthesis，驱动
+  子目录 + index 分组 + lint
+- `tags`：必填（可空数组），取值必须严格在 `wiki/tags.md` 白名单内；白名单增删与
+  取值规则见其头部说明块
+- `created` / `updated`：必填，写入用 `YYYY-MM-DD HH:MM`
+- `reviewed` / `reviewed_at` / `contested` / `contradictions`：可选，认知质量
+  信号，见「可信度与认知质量信号」节
+- 类型特定字段（`sources` / `compared` / `threads` / `related` / `aliases` 等）：
+  按类型见「各类型模板」节
 
-`index.md` / `log.md` 是**reserved 文件**（自带 frontmatter，`type: index` / `type: log`
-仅作标记），lint 跳过
+`index.md` / `log.md` 是 **reserved 文件**（自带 frontmatter，`type: index` /
+`type: log` 仅作标记），lint 跳过
 
-### 可选：可信度与认知质量信号
+### 可信度与认知质量信号
 
-**为什么需要**：LLM 写入的页若不标注，时间一长会被当成"既成事实"，即**认知腐烂**，
-比断链 / 孤儿更隐蔽。`reviewed` 系 = 人工审核背书；`contested` 系 = 矛盾未裁定告警
-（与可信度正交：可既 reviewed 又 contested）
+LLM 写的页不标注，时间一长会被当成既成事实。`reviewed` 系 = 人工审核背书；
+`contested` 系 = 矛盾未裁定告警；两组正交，可叠加
 
-- `reviewed: true`：缺省 = 未审核；与 `reviewed_at: <YYYY-MM-DD>` 成对出现
+- `reviewed: true`：缺省 = 未审核；与 `reviewed_at: <YYYY-MM-DD>` 成对出现。
+  lint 对 `reviewed_at` 与 `updated` 按字符串比较，同日复审会因 `updated` 带
+  时刻而触发 `reviewed-stale`——复审落戳安排在最后一次正文改动之后
 - `contested: true`：存在**尚未裁定**的矛盾主张，搭配 `contradictions` 指向对端
-- `contradictions: [<wiki 页路径>]`：与本页主张冲突的页数组，**双向标注**（A 标 B，
-  B 也标 A）
+- `contradictions: [<路径>]`：与本页主张冲突的页数组，**双向标注**（A 标 B，
+  B 也标 A）。路径按**本页所在目录**解析，与正文链接同基准（如
+  `[../sources/x.md]`），**不**得指向本页自身——lint 按文件路径存在性校验，
+  自指不会被报出，须自查。注意 `related` / `compared` 按 `wiki/` 内容根解析，
+  与 `contradictions` 基准不同
 
 #### 生命周期规则
 
-`reviewed: true` 是"我对这一刻的内容背书"的快照，**不是永久标签**：任何对页面正文的
-LLM 修改（含 ingest 重摄取、query 归档、任何 Edit/Write）都让戳失效，删除
-`reviewed` + `reviewed_at` 回到未审核态，正路 `llmw wiki write touch`。
-落戳是人的主动作：读完正文 + 交叉引用 + 关键 raw 资料、确认主张站得住，才写
-`reviewed: true` + `reviewed_at: <今天>`；遇 `contested: true` 或 `contradictions`
-非空**不**应盲目标，先裁定冲突再标
+`reviewed: true` 是审核时点的背书快照，不是永久标签：LLM 对页面正文的任何修改
+（重摄取、归档、手改）都让戳失效，删 `reviewed` + `reviewed_at` 回到未审核态，
+正路 `llmw wiki write touch <page>`。落戳是人的主动作：读完正文 + 交叉引用 +
+关键 raw 资料、确认主张站得住，才写 `reviewed: true` + `reviewed_at: <今天>`；
+遇 `contested: true` 或 `contradictions` 非空，先裁定冲突再落戳
 
-#### 矛盾处理 Update Policy
+#### 矛盾处理
 
-ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
+ingest 或 query 中发现"新资料与已有页冲突"，**不**静默覆盖：
 
-1. **先看日期**：更新的来源一般覆盖旧的；但若旧来源更权威（如官方技术报告 vs 博客），
-   保留两者并进入第 2 步
-2. **判定是否真矛盾**：版本差异（同一对象 v1 vs v2 的某属性）、上下文差异（不同评测
-   条件）不算矛盾，加注明即可；确属矛盾进入第 3 步
-3. **显式记录两种说法**：页面正文写出 A 说 X（来源 + 日期）、B 说 Y（来源 + 日期），
-   不要"和稀泥"挑一个；双方 frontmatter 都设 `contested: true` + `contradictions` 互指
+1. **先看日期**：更新的来源一般覆盖旧的；若旧来源更权威（如官方技术报告 vs
+   博客），保留两者并进入第 2 步
+2. **判定是否真矛盾**：版本差异（同一对象 v1 vs v2 的某属性）、上下文差异
+   （不同评测条件）不算矛盾，加注明即可；确属矛盾进入第 3 步
+3. **显式记录两种说法**：正文写出 A 说 X（来源 + 日期）、B 说 Y（来源 + 日期），
+   不"和稀泥"挑一个；给承载该主张的页面（通常 concept / entity 页）
+   设 `contested: true` + `contradictions` 互指，纯转述的 source 页不打标
 4. **等 lint 复审**：下次 lint 会把 `contested` 页拎出来；与用户一起裁定后移除
-   `contested`（如该页已审核，按生命周期规则判断是否需重新审）
+   `contested`；裁定过程改了正文的，按生命周期规则重审
 
 ## 各类型模板
 
-每类只列**路径 + 类型特定字段 + 正文骨架**（节名即契约，写入时按它落；节名按需保留 /
-拆分；5 必填 frontmatter 由 `llmw wiki write new` 生成）
+每类只列**路径 + 类型特定字段 + 正文骨架**（节名即契约，写入时按它落；节名按需
+保留 / 拆分；5 个必填 frontmatter 字段由 `llmw wiki write new` 生成）
 
 ### entity（实体页）
 
@@ -208,56 +215,61 @@ ingest 时遇到"新资料与已有页冲突"，**不要静默覆盖**：
 * 列在 frontmatter `sources` 字段
 ```
 
-**逐段溯源（synthesis / 多源 comparison 专属）**：frontmatter `sources` 只能定位"引了
-哪些来源"，无法追溯"某句主张来自哪篇"。对**来源可分的断言**用标准 Markdown 脚注 `[^n]`
-（文末 `[^n]: ...` 指向 source 页；**不要**用 pandoc 行内 `^[...]`，那是 pandoc 方言，
-GitHub 等标准渲染器不识别）；纯推论无需脚注
+**逐段溯源（synthesis / 多源 comparison 专属）**：frontmatter `sources` 只能定位
+"引了哪些来源"，追溯不了"某句主张来自哪篇"。对**来源可分的断言**用标准 Markdown
+脚注 `[^n]`（文末 `[^n]: ...` 指向 source 页；**不要**用 pandoc 行内 `^[...]`，
+那是 pandoc 方言，GitHub 等标准渲染器不识别）；纯推论无需脚注
 
 ### index（index.md）
 
-路径：`wiki/index.md`（**唯一一份**，`type: index` reserved）。条目纪律与扩容护栏见其
-头部说明块；正路走 `llmw wiki write index add|remove`
+路径：`wiki/index.md`（**唯一一份**，`type: index` reserved）。条目纪律与扩容护栏
+见其头部说明块；正路走 `llmw wiki write index add|remove`
 
 ### log.md（log）
 
-路径：`wiki/log.md`（**唯一一份**，`type: log` reserved）。每行格式 / op 取值 / 滚动窗口
-截断见其头部说明块；正路走 `llmw wiki write log`
+路径：`wiki/log.md`（**唯一一份**，`type: log` reserved）。每行格式 / op 取值 /
+滚动窗口截断见其头部说明块；正路走 `llmw wiki write log`
 
 ## 模板使用规则
 
 1. **新建**：走 `llmw wiki write new`；正文按上节骨架写
-2. **修改 / 重写**：`updated` 与 `reviewed` 戳归 `llmw wiki write touch`；`type` /
-   `sources` 等关键字段要变，**先和用户确认**；`title` / `description` / `type` 变更后
-   `llmw wiki write index add <page>` 同步条目，页面换路径另 `llmw wiki write index remove <旧路径>`
+2. **修改 / 重写**：`updated` 与 `reviewed` 戳归 `llmw wiki write touch`；
+   `type` / `sources` 等关键字段要变，**先和用户确认**；`title` / `description` /
+   `type` 变更后 `llmw wiki write index add <page>` 同步条目，页面换路径另
+   `llmw wiki write index remove <旧路径>`
 3. **归档 query 答案**：按答案性质选 `comparison`（对比）或 `synthesis`（综合）
 
 ### 建页 / 追加 / 归档阈值（Page Thresholds）
 
 **宁可错过一个 entity 也不堆十个空页**：空页让 lint 报告被噪声淹没
 
-| 动作 | 触发条件 |
-| --- | --- |
-| **新建 entity / concept 页** | 该 entity / concept 在 ≥ 2 个 source 页中被提到（经验阈值）**或** 是某 source 页的中心主题 |
-| **追加到已有页** | source 页提到一个已被覆盖的 entity / concept，追加"参考来源"段即可（不重写） |
-| **不创建页** | 路过提及（脚注 / 一次出现的名字）、领域外的细节、与本 wiki 主题无关 |
-| **拆分页** | 单页正文超过 lint `oversized-page` 阈值（拆分建议随触发输出自带）；拆成子主题 + cross-link |
-| **归档页** | 内容被完全取代 / 主题域变化，加 `archived: true`、从 `index.md` 移除 |
+- **新建 entity / concept 页**：该 entity / concept 在 ≥ 2 个 source 页中被提到
+  （经验阈值），或是某 source 页的中心主题
+- **追加到已有页**：source 页提到一个已被覆盖的 entity / concept，追加
+  「参考来源」段即可，不重写
+- **不创建页**：路过提及（脚注 / 一次出现的名字）、领域外的细节、与本 wiki
+  主题无关
+- **拆分页**：单页正文超过 lint `oversized-page` 阈值（拆分建议随触发输出自带），
+  拆成子主题 + 交叉链接
+- **归档页**：内容被完全取代或主题域变化，加 `archived: true`、从 `index.md` 移除
 
-**页不物理删除**（`rm` 断 inbound 链接与 index 溯源），生命周期终点是上表"归档页"，不是 `rm`
+**页不物理删除**（`rm` 会断 inbound 链接与 index 溯源），生命周期终点是「归档页」
 
 ## 图示使用指引
 
-advisory（建议式，不强制）：图是过程性 / 结构性内容的压缩，不是装饰；密度优先
+建议式规则，不强制：图是过程性 / 结构性内容的压缩，不是装饰；密度优先
 
-- **优先配图**：交互流程 / pipeline / 状态机 / 组件-模块关系 / 层级结构；散文写这类
-  内容超过 2-3 句仍绕不清时，换一张图
-- **不配图**：静态定义、简单枚举、单点结论；一页一般 ≤ 2 图（超了先自问是否该拆页，
-  阈值见 [章节](#建页--追加--归档阈值page-thresholds)）
+- **优先配图**：交互流程 / pipeline / 状态机 / 组件-模块关系 / 层级结构；散文写
+  这类内容超过 2-3 句仍绕不清时，换一张图
+- **不配图**：静态定义、简单枚举、单点结论；一页一般 ≤ 2 图，超了先自问是否该
+  拆页，阈值见[建页 / 追加 / 归档阈值](#建页--追加--归档阈值page-thresholds)
 - **mermaid 为默认**（`flowchart` / `sequenceDiagram`）：中文标签无碍，GitHub 网页 /
-  md-to-html 均可渲染；**源码本身保持可读**：短标签、线性流、节点 ≤ ~12，超了就拆图或退回文字
+  md-to-html 均可渲染；**源码本身保持可读**：短标签、线性流、节点 ≤ ~12，超了就
+  拆图或退回文字
 - **ASCII 图仅限**目录树 / 纯英文短标签结构（围栏用 `text`），**禁止中文标签进
-  ASCII 框**：LLM 数中英混排显示宽度几乎必错，对齐必崩
-- **表格仍是对比类内容首选**；LaTeX 公式照旧；**不用二进制图片**，检索 / diff /
-  可移植性三损（wiki 的文本性是一等约束）
-- **维护**：图是主张的一部分，改主张必同步改图（stale / `reviewed` 判定对图与文字一视
-  同仁）；**关键结论在图外保留文字**，agent 靠 grep 检索，图里的信息等于不存在
+  ASCII 框**：中英混排显示宽度数不准，对齐必崩
+- **表格仍是对比类内容首选**；LaTeX 公式照旧；**不用二进制图片**——检索 / diff /
+  可移植性三损，wiki 的文本性是一等约束
+- **维护**：图是主张的一部分，改主张必同步改图（stale / `reviewed` 判定对图与
+  文字一视同仁）；**关键结论在图外保留文字**——图里的信息对靠 grep 检索的
+  agent 等于不存在

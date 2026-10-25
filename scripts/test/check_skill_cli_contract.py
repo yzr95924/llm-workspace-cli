@@ -25,7 +25,9 @@ TEMPLATES = CONTENT / "templates"
 
 # 面 2/3/4（finding / rule_ref / 终态词）只走 skill 域——模板 / 仓根文档不是
 # finding 的文档真源，rule_ref 的目标是 skill 文件，升级终态词只定义在 skill 工作流里。
-SKILL_MDS = sorted([p for p in WIKI_SKILL.rglob("*.md")])
+# eval/ 排除在外：behavioral 测试输入（含整份渲染 AGENTS.md / 渲染 wiki 页），不是
+# skill prose，不受命令面 / 锚点 / 裸 semver 契约约束。
+SKILL_MDS = sorted([p for p in WIKI_SKILL.rglob("*.md") if "eval" not in p.parts])
 
 # 面 1（命令 + 风格 + 跨行）扫全仓命令面。有意排除 tests/（可执行测试自带 loud
 # failure）。templates 既含 byte-owned
@@ -88,7 +90,7 @@ PY_CONTRACT = sorted(p for p in (REPO / "llmw").rglob("*.py") if "tests" not in 
 PROSE_EXEMPTIONS = [
     ("ref/lint-workflow.md", "**不**自动修，只报告，修由用户 / agent 决定"),
     ("SKILL.md", "格式 + 滚动窗口截断由 `write` 保证，lint 只兜底带外手改"),
-    ("ref/upgrade-workflow.md", "**CLI `llmw wiki upgrade`（骨架修复者）**：修骨架"),
+    ("ref/upgrade-workflow.md", "**CLI `llmw wiki upgrade`**：修骨架（四类所有权"),
     ("ref/ingest-workflow.md", "分类、含义与退出码均输出自明"),
     # CLI frontmatter 解析器的失败行为（静默丢弃 / 误解析 + lint 共用同一解析器）：
     # agent 黑盒下运行时观测不到，prose 只能靠断言承载；解析器改了行为须同 commit 同步本节
@@ -891,7 +893,7 @@ def main():  # pylint: disable=too-many-branches
                 )
             )
     _req_rows = re.findall(
-        r"^\|\s*(`[^|]+`(?:\s*/\s*`[^`]+`)*)\s*\|\s*必填",
+        r"^-[ \t]*(`[^`|\n]+`(?:[ \t]*/[ \t]*`[^`|\n]+`)*)[ \t]*：必填",
         _read(WIKI_SKILL / "ref" / "page-templates.md"),
         re.MULTILINE,
     )
@@ -901,7 +903,7 @@ def main():  # pylint: disable=too-many-branches
     stats["enum_pins"] += 1
     if _doc_required != set(_page_types_mod.REQUIRED_FRONTMATTER_FIELDS):
         errors.append(
-            "[enum-cov] page-templates.md 必填表 {} != REQUIRED_FRONTMATTER_FIELDS {}".format(
+            "[enum-cov] page-templates.md 必填字段清单 {} != REQUIRED_FRONTMATTER_FIELDS {}".format(
                 sorted(_doc_required),
                 sorted(_page_types_mod.REQUIRED_FRONTMATTER_FIELDS),
             )
