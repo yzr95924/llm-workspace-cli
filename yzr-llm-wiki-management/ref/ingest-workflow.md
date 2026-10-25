@@ -27,8 +27,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 ## 写 source 页
 
-命中 `stale-raw` 的文件不建新页：source 页还在，用 **Edit** 更新正文（**不要**
-Write 覆盖，整页重写丢既有正文），frontmatter `sources` 只追加新路径、不重写整块。
+命中 `stale-raw` 的文件不建新页：source 页还在，**增量更新**正文（**不要**
+整页覆盖，整页重写丢既有正文），frontmatter `sources` 只追加新路径、不重写整块。
 注意 `stale-raw` 判据是 raw 的修改时间晚于 source 页 `updated`：只给这种页
 补链就跑 `touch` 会推前 `updated`、洗掉重摄取信号——不在本次任务范围的
 `stale-raw` 项，别动其 source 页（补链留到重摄取时做），或交付时注明已顺延处理
@@ -39,12 +39,12 @@ Write 覆盖，整页重写丢既有正文），frontmatter `sources` 只追加�
 2. **slug**：建议默认从 raw 文件名派生（去扩展名、规范化 kebab-case，例
    `attention-is-all-you-need`）；要另取标题时向用户说明理由
 3. **脚手架**：`llmw wiki write new --type=source --slug=... --title=... --sources=raw/...`，
-   然后 Edit 写正文；节结构与字段（含元数据落点、摘要写法）以
+   然后补写正文；节结构与字段（含元数据落点、摘要写法）以
    [章节](page-templates.md#source资料页) 为准。正文含交互流 / 架构关系
    时优先配图，判定见[章节](page-templates.md#图示使用指引)
 4. **发现矛盾**：重摄取时冒出与既有页冲突的说法，不静默覆盖，走
    [章节](page-templates.md#矛盾处理)
-5. **生命周期**：凡 Edit 过页面正文就跑 `llmw wiki write touch <page>`（含后续
+5. **生命周期**：凡改过页面正文就跑 `llmw wiki write touch <page>`（含后续
    步骤对既有页的追加与补链），规则见[章节](page-templates.md#生命周期规则)
 6. **是否新建 entity / concept 页**：判据见
    [章节](page-templates.md#建页--追加--归档阈值page-thresholds)。
@@ -72,8 +72,7 @@ Write 覆盖，整页重写丢既有正文），frontmatter `sources` 只追加�
 
 ## 建议 commit 与收尾
 
-- 启用 git 时建议用户 commit，message 形如 `ingest: <title>` 或
-  `ingest: <N> files from raw/articles/`；裸目录树不提
+- message 形如 `ingest: <title>` 或 `ingest: <N> files from raw/articles/`
 - 收尾关联查询建议写成交付回复末尾一行，不另起确认轮（query 流程见
   query-workflow.md）
 
@@ -81,7 +80,7 @@ Write 覆盖，整页重写丢既有正文），frontmatter `sources` 只追加�
 
 1. **读所有 raw**：先列清单，再并行读全文
 2. **聚合 entity / concept**：跨所有 raw 找候选并去重（同一概念只对应一个 wiki 页）
-3. **一次搜完**：用 Grep 搜全部候选名称；产出"已存在 / 待新建"两栏
+3. **一次搜完**：对全部候选名称做一轮全文搜索；产出"已存在 / 待新建"两栏
 4. **一次写入**，按序成片落：source 页（按主题聚类顺序，便于交叉引用）→ entity /
    concept 页（先建新、再追加旧的"参考来源"段）→ index（所有页写完后集中补，每页
    一次 `write index add`）→ log（`write log --op=ingest --bulk --topic="<主题概览>" --count=<N>`
@@ -92,14 +91,17 @@ Write 覆盖，整页重写丢既有正文），frontmatter `sources` 只追加�
 
 正文或对话作答引用上游可变事实时，先过一遍机械判定：上游事实变了，wiki 有任何
 机制（lint / anchor / stale 检查）能发现吗？发现不了的引用就是漂移点，按下列
-类别改写，改写方向就三条：降精度、加锚点、打时间戳
+类别改写
 
 - **位置引用**（`foo.py:812`、PDF 第 34 页）：引符号名 / 章节标题；git 仓引
   commit SHA
 - **瞬态数值**（"star 数 1.2w"、跑分）：值 + "截至 YYYY-MM-DD"；或只引来源不录值
 - **版本绑定**（"最新版支持 X"）：写死版本号（"v2.3 起"）；禁裸"最新 / 目前"
 - **完整枚举**（全参数清单）：代表性例子 + "完整清单见来源"；清单属来源不属 wiki
-- **归属信息**（"由张三维护"）：引角色不引人名
+- **归属信息**（“由张三维护”）：引角色不引人名
+
+日期只标上游事实的有效时点；本次核对 / 回查 / 修订不写进页面标题、节名或正文，
+既有这种写法不跟随复制
 
 ## 反模式
 

@@ -12,7 +12,7 @@
   「骨架所有权四分表」为准）+ legacy paths 移动；`render` / `gitignore-block`
   类 diff 需 `--yes`，否则停于 `blocked_drift`
 - **lint plan（`llmw wiki lint --check-version --apply --json`）**：stdout 输出
-  `upgrade_plan`，**只输出 plan、不落盘**，改动由 agent 用 Edit/Write 落
+  `upgrade_plan`，**只输出 plan、不落盘**，改动由 agent 编辑文件落地
 - **agent 职责**：drift 裁定（见流程第 3 步）、按 plan 落 fixtures 修复（第 4
   步）、按[章节](#语义合并规则)做语义合并
 - **升级期不走 `llmw wiki write`**（机械写命令只认识当前形态）；**不**追加 log
@@ -56,7 +56,7 @@
      `upgrade --apply` 恢复版本行；wiki 版本比 llmw 支持的新（`-ahead`）→
      不动 wiki，见[章节](#边界)
    - 有 fixtures 不合规 → 重跑上条命令加 `--apply --json` 拿 `upgrade_plan`，
-     按 plan 自带规则用 Edit 落
+     按 plan 自带规则编辑文件落地
 
 5. **验证**：重跑以下两条命令（upgrade 幂等；**不**带 `--yes`，防 drift 再现被
    静默放行）：

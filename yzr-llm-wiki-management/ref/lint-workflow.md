@@ -39,8 +39,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
    或引入新问题
 2. 修完**重新跑 lint 验证**，不带未验证的 fix 前进；每次 lint 运行的 log 义务按
    wiki 根 `AGENTS.md` 写后必同步条
-3. 重大修复的 commit message 用 `lint: <summary>` 前缀（启用 git 时向用户建议，
-   由用户执行）
+3. 重大修复的 commit message 用 `lint: <summary>` 前缀
 4. `llmw wiki lint --check-version` 报 fixtures 不合规 → 职责切分与 plan 消费
    流程见[章节](upgrade-workflow.md#职责切分关键三方分工)
 

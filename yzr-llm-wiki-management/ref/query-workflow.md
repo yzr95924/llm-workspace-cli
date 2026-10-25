@@ -10,7 +10,7 @@ Query 把 wiki 里多份资料综合成答案，好答案归档回 wiki 继续�
 先看 `comparisons/` 已归档的、素材在 `sources/`、演进 → 查 concept 页 inbound
 links）。**启发式搜索，不做全量 grep**：关键词命中 index 摘要 / page title /
 `tags` 字段 = 必看；读页时仅命中正文 = 看上下文决定（执行原则里大 wiki 的全域
-Grep 补链不在此限）
+全文搜索补链不在此限）
 
 ## 读相关页
 
@@ -50,13 +50,14 @@ Grep 补链不在此限）
 综合 / 新联系；长度 > 200 字；涉及 ≥ 3 个 source 页（数字均为经验阈值）。归档
 写回以用户**明示同意**为前提：拒绝、或拿不到明示同意（含用户不在场、按默认
 继续的场景）一律不归档——不落页、不动 index、不记 log（wiki 无痕）；同意 =
-走下一步
+走下一步。归档提议只用本次回答已有的信息，作为本轮 query 收尾；提出后不再做任何
+归档准备，用户之后明确同意才进入归档流程
 
 ## 归档 query 答案
 
 脚手架 `llmw wiki write new --type=comparison --slug=... --title=...`（或
 `--type=synthesis`），类型必填字段照[章节](page-templates.md#各类型模板)
-用 Edit 补。**不走 `--sources` flag**：它专属于 source 页（落 `raw/` 相对路径），
+直接编辑补齐。**不走 `--sources` flag**：它专属于 source 页（落 `raw/` 相对路径），
 synthesis 的 `sources` frontmatter 字段是 wiki 内页路径
 
 - 记录跨页矛盾：`contested` + `contradictions` 互指，字段基准与语义见
@@ -73,7 +74,7 @@ synthesis 的 `sources` frontmatter 字段是 wiki 内页路径
 - 同步 index：`llmw wiki write index add <page>`
 - 追加 log：`llmw wiki write log --op=query --title="<title>"`
 - 相关 entity / concept 页按需追加"参考来源"段（纪律见 wiki 根 `AGENTS.md`
-  写后必同步条）；凡 Edit 过既有页正文 → `llmw wiki write touch <page>`
+  写后必同步条）；凡改过既有页正文 → `llmw wiki write touch <page>`
 
 ## Query 失败的常见原因
 
