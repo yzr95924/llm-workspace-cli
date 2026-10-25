@@ -89,7 +89,7 @@ PY_CONTRACT = sorted(p for p in (REPO / "llmw").rglob("*.py") if "tests" not in 
 # landmark，gate 红，同 commit 必须同步 skill 引用。
 PROSE_EXEMPTIONS = [
     ("ref/lint-workflow.md", "**不**自动修，只报告，修由用户 / agent 决定"),
-    ("SKILL.md", "格式 + 滚动窗口截断由 `write` 保证，lint 只兜底带外手改"),
+    ("SKILL.md", "格式与滚动窗口截断由 `write` 保证，lint 只兜底带外手改"),
     ("ref/upgrade-workflow.md", "**CLI `llmw wiki upgrade`**：修骨架（四类所有权"),
     ("ref/ingest-workflow.md", "分类、含义与退出码均输出自明"),
     # CLI frontmatter 解析器的失败行为（静默丢弃 / 误解析 + lint 共用同一解析器）：
@@ -459,9 +459,12 @@ def _resolve_targets(fname):
     return [WIKI_SKILL / "ref" / fname]
 
 
-# 锚点形态：markdown 链接 ](path#slug)（path 为空 = 同文件）；纯文本 base.md#slug
+# 锚点形态：markdown 链接 [label](path#slug)（path 为空 = 同文件）；纯文本 base.md#slug
 # （CLI .py 字符串与跨 skill 引用位）。
-_MD_ANCHOR_RE = re.compile(r"\]\((?P<path>[^)\s#]*)#(?P<slug>[^)\s]+)\)")
+_MD_ANCHOR_RE = re.compile(
+    r"\[(?P<label>[^\]]+)\]\((?P<path>[^)\s#]*)#(?P<slug>[^)\s]+)\)"
+)
+ANCHOR_LINK_LABEL = "章节"
 _PLAIN_ANCHOR_RE = re.compile(
     r"(?P<base>" + _BASENAMES + r")\.md#(?P<slug>[^\s)\]，。；、`「」（）<>\"'—]+)"
 )
@@ -660,6 +663,12 @@ def main():  # pylint: disable=too-many-branches
                 if p.startswith(("http://", "https://", "mailto:")):
                     continue
                 _check_link_anchor(path_obj, p, m.group("slug"), rel, stats, errors)
+                if path_obj in SKILL_MDS and m.group("label") != ANCHOR_LINK_LABEL:
+                    errors.append(
+                        '[anchor-label] {} 锚点链接文字须为"{}"，实为"{}"（目标 {}#{}）'.format(
+                            rel, ANCHOR_LINK_LABEL, m.group("label"), p, m.group("slug")
+                        )
+                    )
         for m in _PLAIN_ANCHOR_RE.finditer(text):
             if any(s <= m.start() < e for s, e in spans):
                 continue
@@ -884,14 +893,14 @@ def main():  # pylint: disable=too-many-branches
                     _reason
                 )
             )
-    for _doc in (WIKI_SKILL / "SKILL.md", WIKI_SKILL / "ref" / "page-templates.md"):
-        stats["enum_pins"] += 1
-        if _page_types_mod.TYPES_DISPLAY not in _read(_doc):
-            errors.append(
-                "[enum-cov] {} 缺类型枚举 `{}`".format(
-                    _rel(_doc), _page_types_mod.TYPES_DISPLAY
-                )
+    _types_doc = WIKI_SKILL / "ref" / "page-templates.md"
+    stats["enum_pins"] += 1
+    if _page_types_mod.TYPES_DISPLAY not in _read(_types_doc):
+        errors.append(
+            "[enum-cov] {} 缺类型枚举 `{}`".format(
+                _rel(_types_doc), _page_types_mod.TYPES_DISPLAY
             )
+        )
     _req_rows = re.findall(
         r"^-[ \t]*(`[^`|\n]+`(?:[ \t]*/[ \t]*`[^`|\n]+`)*)[ \t]*：必填",
         _read(WIKI_SKILL / "ref" / "page-templates.md"),

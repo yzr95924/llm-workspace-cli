@@ -31,7 +31,7 @@ Grep 补链不在此限）
 - 两种都有、结论冲突：两说并列、各带来源，**不**用 reviewed 身份单方裁定；已
   审核一侧标注"优先参考，待人工复审裁定"
 - 结论冲突但双方都未标 contested：在答案外提醒用户走
-  [矛盾处理](page-templates.md#矛盾处理) 补标注
+  [章节](page-templates.md#矛盾处理) 补标注
 
 ## 综合答案
 
@@ -55,18 +55,18 @@ Grep 补链不在此限）
 ## 归档 query 答案
 
 脚手架 `llmw wiki write new --type=comparison --slug=... --title=...`（或
-`--type=synthesis`），类型必填字段照[各类型模板](page-templates.md#各类型模板)
+`--type=synthesis`），类型必填字段照[章节](page-templates.md#各类型模板)
 用 Edit 补。**不走 `--sources` flag**：它专属于 source 页（落 `raw/` 相对路径），
 synthesis 的 `sources` frontmatter 字段是 wiki 内页路径
 
 - 记录跨页矛盾：`contested` + `contradictions` 互指，字段基准与语义见
-  [认知质量信号](page-templates.md#可信度与认知质量信号)
+  [章节](page-templates.md#可信度与认知质量信号)
 - 正文把对话答案整理成可独立阅读的页面；synthesis 逐段溯源（脚注 `[^n]`）见
-  [synthesis 综合页](page-templates.md#synthesis综合页)
+  [章节](page-templates.md#synthesis综合页)
 - 正文含交互流 / 架构关系时优先配图，见
-  [图示使用指引](page-templates.md#图示使用指引)
+  [章节](page-templates.md#图示使用指引)
 - 正文引用上游易变事实时过一遍
-  [正文引用的稳定性](ingest-workflow.md#正文引用的稳定性漂移点规避)
+  [章节](ingest-workflow.md#正文引用的稳定性漂移点规避)
 
 ## 簿记与收尾
 

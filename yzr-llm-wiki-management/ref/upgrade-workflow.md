@@ -3,7 +3,7 @@
 **优先级裁定**：边界与纪律以本文档 + wiki 根 `AGENTS.md` 为准；每条动作的具体
 改法与执行顺序以 lint plan 自带的 `agent_rules[]` + 各 action 说明为准（CLI 输出
 真源，本文不重述，重述必漂移）。格式版本以 `<wiki-root>/AGENTS.md`「当前配置」表
-的「Wiki Format 版本」行为准；breaking 变更的语义合并见[语义合并规则](#语义合并规则)；
+的「Wiki Format 版本」行为准；breaking 变更的语义合并见[章节](#语义合并规则)；
 版本演进叙事看 git log
 
 ## 职责切分（**关键**：三方分工）
@@ -14,7 +14,7 @@
 - **lint plan（`llmw wiki lint --check-version --apply --json`）**：stdout 输出
   `upgrade_plan`，**只输出 plan、不落盘**，改动由 agent 用 Edit/Write 落
 - **agent 职责**：drift 裁定（见流程第 3 步）、按 plan 落 fixtures 修复（第 4
-  步）、[语义合并规则](#语义合并规则)的语义合并
+  步）、按[章节](#语义合并规则)做语义合并
 - **升级期不走 `llmw wiki write`**（机械写命令只认识当前形态）；**不**追加 log
   条目（升级不是 wiki 操作事件）
 
@@ -54,7 +54,7 @@
    - 报告 `needs_upgrade` / fixtures 不合规项
    - 版本行缺失 / 无法解析（`wiki-format-version-unparsed`）→ 跑
      `upgrade --apply` 恢复版本行；wiki 版本比 llmw 支持的新（`-ahead`）→
-     不动 wiki，见[边界](#边界)
+     不动 wiki，见[章节](#边界)
    - 有 fixtures 不合规 → 重跑上条命令加 `--apply --json` 拿 `upgrade_plan`，
      按 plan 自带规则用 Edit 落
 

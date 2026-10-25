@@ -40,14 +40,14 @@ Write 覆盖，整页重写丢既有正文），frontmatter `sources` 只追加�
    `attention-is-all-you-need`）；要另取标题时向用户说明理由
 3. **脚手架**：`llmw wiki write new --type=source --slug=... --title=... --sources=raw/...`，
    然后 Edit 写正文；节结构与字段（含元数据落点、摘要写法）以
-   [source 资料页](page-templates.md#source资料页) 为准。正文含交互流 / 架构关系
-   时优先配图，判定见[图示使用指引](page-templates.md#图示使用指引)
+   [章节](page-templates.md#source资料页) 为准。正文含交互流 / 架构关系
+   时优先配图，判定见[章节](page-templates.md#图示使用指引)
 4. **发现矛盾**：重摄取时冒出与既有页冲突的说法，不静默覆盖，走
-   [矛盾处理](page-templates.md#矛盾处理)
+   [章节](page-templates.md#矛盾处理)
 5. **生命周期**：凡 Edit 过页面正文就跑 `llmw wiki write touch <page>`（含后续
-   步骤对既有页的追加与补链），规则见[生命周期规则](page-templates.md#生命周期规则)
+   步骤对既有页的追加与补链），规则见[章节](page-templates.md#生命周期规则)
 6. **是否新建 entity / concept 页**：判据见
-   [建页、追加与归档阈值](page-templates.md#建页--追加--归档阈值page-thresholds)。
+   [章节](page-templates.md#建页--追加--归档阈值page-thresholds)。
    例：单篇反复提到 self-attention 且无页，建 `concepts/self-attention.md`；
    偶然提到一次 GPU，不建
 

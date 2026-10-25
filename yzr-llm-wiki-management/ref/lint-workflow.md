@@ -1,7 +1,7 @@
 # Lint 详细流程
 
 Lint 查 wiki 结构健康。分两层：机械层 = `llmw wiki lint` 执行；半定性层 = agent
-在其上人工判断，见[半定性检查](#半定性检查agent-执行)
+在其上人工判断，见[章节](#半定性检查agent-执行)
 
 ## 调用方式
 
@@ -16,13 +16,13 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 ## 半定性检查（agent 执行）
 
 机械层跑完后，**仅 wiki < 200 页时逐项人工做**（经验阈值）；更大的 wiki 语义
-矛盾 / 缺链不靠人工兜底，撞见了走[矛盾处理](page-templates.md#矛盾处理)：
+矛盾 / 缺链不靠人工兜底，撞见了走[章节](page-templates.md#矛盾处理)：
 
 - **矛盾主张**：同一概念 / 实体在 ≥ 2 页的描述互相矛盾且**未标** `contested`
   （已标注的归机械层）；grep 概念关键词 + 读上下文，发现后列入修复建议
 - **缺失交叉引用**：概念 X 出现在正文但没链到对应 `concepts/` 页
 - **缺失 entity / concept 页**：达到建页阈值仍无独立页，阈值见
-  [建页、追加与归档阈值](page-templates.md#建页--追加--归档阈值page-thresholds)；
+  [章节](page-templates.md#建页--追加--归档阈值page-thresholds)；
   用 grep 统计候选词出现在几个 source 页
 - **调查方向建议**：热门主题（多 source 涉及）还没有综合 / 对比页 = 新合成机会
 - **待摄取堆积**：`raw/articles/` 有大量未摄取或已更新待重摄的文件（跑
@@ -31,7 +31,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 - **index 体积**：单类别 / 总条目超过 `wiki/index.md` 头部"扩容护栏"建议值时，
   按该说明块处置
 - **漂移点引用**：正文引用上游可变、且 wiki 机制感知不到变化的事实，按
-  [正文引用的稳定性](ingest-workflow.md#正文引用的稳定性漂移点规避) 逐类扫描改写
+  [章节](ingest-workflow.md#正文引用的稳定性漂移点规避) 逐类扫描改写
 
 ## lint 之后
 
@@ -42,7 +42,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 3. 重大修复的 commit message 用 `lint: <summary>` 前缀（启用 git 时向用户建议，
    由用户执行）
 4. `llmw wiki lint --check-version` 报 fixtures 不合规 → 职责切分与 plan 消费
-   流程见[职责切分](upgrade-workflow.md#职责切分关键三方分工)
+   流程见[章节](upgrade-workflow.md#职责切分关键三方分工)
 
 ## lint 频率
 
