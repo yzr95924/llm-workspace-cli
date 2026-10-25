@@ -5,7 +5,9 @@
       "id": "ingest-single",
       "prompt": "把 raw/articles/attention.md 摄取进这个 wiki，重点整理 self-attention，并与已有的 Transformer 页关联。",
       "expectations": [
-        "先跑 `llmw wiki ingest-diff --check-stale` 确认待摄取状态（夹具日期基准会让 mamba 也显示 stale-raw，不要求 agent 处理它）",
+        "先跑 `llmw wiki ingest-diff --check-stale`，识别 attention.md 为 untracked、mamba.md 为 stale-raw（日期基准产物），本次只处理 attention.md",
+        "不碰 stale-raw 的 `wiki/sources/mamba-notes.md`：不补链、不跑 `write touch`（会把 `updated` 推前、洗掉重摄取信号）；确有补链必要则交付说明注明已顺延",
+        "收尾 `llmw wiki ingest-diff --check-stale` 中 `articles/mamba.md` 仍为 stale-raw（上条的机械验证）",
         "source 页经 `llmw wiki write new --type=source --sources=raw/articles/attention.md` 创建，不手写 frontmatter",
         "每个新页跑 `llmw wiki write index add` 入 index",
         "以 `llmw wiki write log --op=ingest` 记 ingest 条目且带 --raw 参数",
@@ -13,6 +15,21 @@
         "若新建 self-attention concept 页，同样走 write new + index add；不建页必须在交付说明里给出按建页阈值的理由",
         "不给任何新页落 reviewed: true",
         "不为同一 raw 写第二个 source 页",
+        "不执行任何 git 命令"
+      ]
+    },
+    {
+      "id": "ingest-stale-reingest",
+      "prompt": "raw/articles/mamba.md 后来补了一段（显存数字），重新摄取一下；attention.md 这次不动。",
+      "expectations": [
+        "用 `llmw wiki ingest-diff --check-stale` 确认 mamba.md 与 attention.md 均为 `stale-raw`（非 untracked），本次只处理用户点名的 mamba.md",
+        "不建新 source 页、不对 `wiki/sources/mamba-notes.md` 做 Write 整页覆盖：用 Edit 更新正文，既有节（摘要 / 关键贡献 / 关键数字）与既有主张保留",
+        "补记里的新信息（显存约为注意力基线 60%）消化进『关键数字 / 实验结果』节，不是只 touch 不改正文",
+        "frontmatter `sources` 保持单条 `raw/articles/mamba.md`，不新增、不删；index 不重复 add（该页已登记）",
+        "Edit 过正文后跑 `llmw wiki write touch wiki/sources/mamba-notes.md`",
+        "以 `llmw wiki write log --op=ingest --raw=raw/articles/mamba.md` 记重摄取条目（重摄取不跳过 log）",
+        "不碰任务外的 `wiki/sources/attention-notes.md`（不补链、不 touch、不改正文）",
+        "收尾 `llmw wiki ingest-diff --check-stale`：mamba.md 不再报 stale，attention.md 仍报 stale-raw",
         "不执行任何 git 命令"
       ]
     },
@@ -35,7 +52,7 @@
         "跑 `llmw wiki lint` 拿机械层 finding，并用 `llmw wiki lint --explain=all` 对齐口径",
         "报告按名覆盖 broken-link（concepts/state-space-model.md）与 orphan-page（entities/karpathy.md）",
         "报告指出 transformer 页 contested 未裁定与 contradiction-asymmetric（标注只挂单向）",
-        "跑 `llmw wiki ingest-diff` 并在报告指出 stale-raw（raw/articles/mamba.md）与未摄取堆积（attention.md）",
+        "跑 `llmw wiki ingest-diff --check-stale` 并在报告指出 stale-raw（raw/articles/mamba.md）与未摄取堆积（attention.md）",
         "不修改任何内容页，不执行 index add / remove",
         "以 `llmw wiki write log --op=lint` 记一条巡检条目（lint 运行的 log 义务按根 AGENTS.md）",
         "不执行 git 命令"
