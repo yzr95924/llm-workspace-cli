@@ -1,0 +1,65 @@
+{
+  "skill_name": "yzr-llm-wiki-management",
+  "evals": [
+    {
+      "id": "ingest-single",
+      "prompt": "把 raw/articles/attention.md 摄取进这个 wiki，重点整理 self-attention，并与已有的 Transformer 页关联。",
+      "expectations": [
+        "先跑 `llmw wiki ingest-diff --check-stale` 确认待摄取状态（夹具日期基准会让 mamba 也显示 stale-raw，不要求 agent 处理它）",
+        "source 页经 `llmw wiki write new --type=source --sources=raw/articles/attention.md` 创建，不手写 frontmatter",
+        "每个新页跑 `llmw wiki write index add` 入 index",
+        "以 `llmw wiki write log --op=ingest` 记 ingest 条目且带 --raw 参数",
+        "Transformer 页只在『参考来源 / Sources』段追加与补交叉引用，不整页重写；Edit 过正文则跑 `llmw wiki write touch`",
+        "若新建 self-attention concept 页，同样走 write new + index add；不建页必须在交付说明里给出按建页阈值的理由",
+        "不给任何新页落 reviewed: true",
+        "不为同一 raw 写第二个 source 页",
+        "不执行任何 git 命令"
+      ]
+    },
+    {
+      "id": "query-archive-conflict",
+      "prompt": "wiki 里关于 Transformer 和 Mamba 的取舍有什么结论？综合已有页面回答；有矛盾就并列来源。",
+      "expectations": [
+        "先读 wiki/index.md 定位候选页，不对 wiki/ 做全量 grep",
+        "答案中每条事实带（来源：<页面路径>）标注",
+        "Transformer 与 Mamba 对长序列可持续性的判断两说并列、各带来源，不以 reviewed 身份单方裁定",
+        "引用未审核页时显式标注未经人工复审；引用 reviewed: true 的 Transformer 页时标注优先参考、待人工复审裁定",
+        "本用例不调用任何 `llmw wiki write`：wiki 内不新建页面、index.md 与 log.md 零新增条目",
+        "最终回答或 outputs 中出现归档提议（说明答案本质是 comparison/synthesis 并询问是否归档），默认未归档"
+      ]
+    },
+    {
+      "id": "lint-report-only",
+      "prompt": "检查一下这个 wiki 有哪些结构问题，先别修，按优先级报告给我。",
+      "expectations": [
+        "跑 `llmw wiki lint` 拿机械层 finding，并用 `llmw wiki lint --explain=all` 对齐口径",
+        "报告按名覆盖 broken-link（concepts/state-space-model.md）与 orphan-page（entities/karpathy.md）",
+        "报告指出 transformer 页 contested 未裁定与 contradiction-asymmetric（标注只挂单向）",
+        "跑 `llmw wiki ingest-diff` 并在报告指出 stale-raw（raw/articles/mamba.md）与未摄取堆积（attention.md）",
+        "不修改任何内容页，不执行 index add / remove",
+        "以 `llmw wiki write log --op=lint` 记一条巡检条目（lint 运行的 log 义务按根 AGENTS.md）",
+        "不执行 git 命令"
+      ]
+    },
+    {
+      "id": "upgrade-drift",
+      "status": "未实跑",
+      "prompt": "这个 wiki 的 format 版本漂移了，升级它。",
+      "expectations": [
+        "先 `llmw wiki upgrade --json` dry-run 看计划，确认 dropped_sections 后才决定 --apply",
+        "三判据（dropped_sections 为空 / agents_md_pristine / 不含 gitignore-block）不满足时不 --apply --yes，呈用户裁定；自行批准的在交付说明注明判据已核",
+        "升级期不调用 `llmw wiki write`、不追加 log 条目",
+        "收尾用 `llmw wiki upgrade --apply --json`（不带 --yes）与 `llmw wiki lint --check-version` 验证终态"
+      ]
+    },
+    {
+      "id": "external-add",
+      "status": "未实跑",
+      "prompt": "把 ~/src/ray 这个仓库纳入 wiki 当语料。",
+      "expectations": [
+        "经 `llmw wiki external add` 落 symlink + anchor，不手改 anchor toml、不内嵌拷贝仓库",
+        "命名、target 路径、notes 三项取值先与用户确认"
+      ]
+    }
+  ]
+}

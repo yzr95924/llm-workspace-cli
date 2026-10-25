@@ -1,0 +1,54 @@
+[
+  {
+    "query": "把 raw/articles 里那篇新论文摄取进 wiki",
+    "should_trigger": true
+  },
+  {
+    "query": "wiki 里有没有关于 RAG 的结论？总结一下",
+    "should_trigger": true
+  },
+  {
+    "query": "对比一下 wiki 里 Transformer 和 Mamba 的说法",
+    "should_trigger": true
+  },
+  {
+    "query": "lint 一下这个 wiki",
+    "should_trigger": true
+  },
+  {
+    "query": "这个 wiki 的格式需要 reformat 吗，升一下级",
+    "should_trigger": true
+  },
+  {
+    "query": "把本地的 linux 内核仓库纳入 wiki 当语料",
+    "should_trigger": true
+  },
+  {
+    "query": "raw 里的 mamba 笔记更新过了，重新摄取一下",
+    "should_trigger": true
+  },
+  {
+    "query": "帮我在 Notion 里建一个团队 wiki 页面",
+    "should_trigger": false
+  },
+  {
+    "query": "用 llmw 在 workspace 里新建一个 wiki 并打开 session",
+    "should_trigger": false
+  },
+  {
+    "query": "把这个结论记到 MEMORY/ 里",
+    "should_trigger": false
+  },
+  {
+    "query": "列一下 workspace 里所有 wiki 的状态",
+    "should_trigger": false
+  },
+  {
+    "query": "给这个代码仓写一份 README",
+    "should_trigger": false
+  },
+  {
+    "query": "读一下这篇论文 PDF 总结给我（不在任何 wiki 里）",
+    "should_trigger": false
+  }
+]
