@@ -119,22 +119,12 @@
 6. **路径稳定**：文件名一旦确定就是永久 ID；想改名时重命名文件 + 更新所有引用（启用
    git 时用 `git mv` 保留 history；未启用 git 时用普通 `mv` + 全量更新引用）
 
-## 三、阅读纪律
+## 三、Query 纪律
 
-1. **只在矛盾时回 raw 复核**：source 页的引用若与 raw 矛盾，回到 raw 复核
-2. **不读 log 内容**做证据：log 是时间线，证据在源页里
-3. **跨页综合走 query 操作**：读多页 + 综合 + 给引用，不要拼接
+细则由维护本 wiki 的 skill 的 query-workflow 文档承载；执行 query 前读全文。
+环境中没有该 skill 时，向用户索取该文档
 
-## 四、Query 纪律
-
-1. **先看 index，再读相关页**：不要直接全量 grep
-2. **答案带引用**：每条事实带 `（来源：<page path>）`；引非 wiki 页的上游事实
-   （raw 资料 / 外部仓 / 网络来源）走稳定锚点（不锚行号 / 页码等易漂移坐标），
-   细则见维护本 wiki 的 skill 的 ingest-workflow"正文引用的稳定性"节
-3. **矛盾显式标注**：不要"和稀泥"
-4. **好答案问归档**：对比 / 综合 / 发现新联系 → 询问用户是否写回 wiki
-
-## 五、Lint 纪律
+## 四、Lint 纪律
 
 1. **`llmw wiki lint` 检查 deterministic 部分**：检查集与 finding 口径以 `llmw wiki lint`
    输出 / `--explain` 为准（本文件不枚举）
@@ -144,7 +134,7 @@
    **不回退 schema、不手改对齐**；告知用户，升级流程细则见维护本 wiki 的 skill 的
    upgrade-workflow 文档
 
-## 六、本文件本身的纪律
+## 五、本文件本身的纪律
 
 - **本文件由 llmw CLI 渲染拥有（byte-owned），禁手改**：手改会被 `agents-md-template-sync`
   check 判 drift、`llmw wiki upgrade --apply` 按最新模板**全量重渲染**覆盖："当前配置"表 4 个
@@ -163,7 +153,7 @@
 | `wiki/index.md` / `wiki/log.md` / `wiki/tags.md` / `scripts/SCRIPTS.md` | header-owned（文件头禁改） | growth 段（`##` 段体 / 条目 / tags）日常写 |
 | wiki `wiki/` 各内容页 + scripts 脚本 | content-owned | agent 拥有；`llmw wiki upgrade` 不动 |
 
-## 七、当前配置
+## 六、当前配置
 
 | 字段 | 值 |
 | --- | --- |
