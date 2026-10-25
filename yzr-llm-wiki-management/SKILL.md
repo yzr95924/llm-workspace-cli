@@ -1,21 +1,19 @@
 ---
 name: yzr-llm-wiki-management
 description: |
-  在本地 Markdown 个人 wiki（raw/ 原始资料 + LLM 维护的 wiki/ 内容页）内工作：
-  摄取资料成页、跨页查询与综合、结论归档、lint 体检、format 升级、外部代码仓接入。
-  当用户要求把论文 / 剪藏 / 笔记 / 代码仓摄取或纳入 wiki、问 wiki 里有没有或总结对比 X、
-  要求 lint 健康检查或升级 wiki 格式、重摄取 raw/ 里已更新的资料时使用；在 wiki 根内
-  收到这类消化 / 总结 / 体检请求，即使没提 skill 名也应使用本 skill。
-  不适用：云端或团队 wiki（Notion / Confluence / Outline 等）；wiki 注册与元数据配置、
-  增删 wiki、session 启停（单条 llmw 命令即可完成）；跨 wiki 或 workspace 层操作；
-  MEMORY/ 的写入与治理（归 yzr-memory-management）；无法定位 wiki 根
-  （无 wiki_metadata.toml + AGENTS.md 骨架）且用户不给路径。
+  维护本地 Markdown 个人 wiki（raw/ 原始资料 + LLM 维护的 wiki/ 内容页）。
+  当用户要求摄取 / 重摄取论文、剪藏、笔记等资料，接入外部代码仓，
+  查询 / 总结 / 对比 / 综合 wiki 内容，归档结论，lint 体检或 format 升级时使用；
+  在 wiki 根内收到这类消化 / 总结 / 体检请求，即使没提 skill 名也应使用本 skill。
+  不适用：云端或团队 wiki（Notion / Confluence / Outline 等）；wiki 注册 / 元数据配置 /
+  增删 wiki、session 启停及跨 wiki / workspace 层操作；MEMORY/ 的写入与治理。
 ---
 
 ## 输入与输出
 
 - 输入：wiki 根 = session cwd；不在根内用 `$LLM_WIKI_ROOT`；仍定不了就问用户。
-  wiki 根须含 `AGENTS.md` 与 `wiki_metadata.toml`，否则本 skill 不适用并告知用户
+  wiki 根须含 `AGENTS.md` 与 `wiki_metadata.toml`，否则本 skill 不适用并告知用户。
+  根确定后，不读取、搜索或写入其他 wiki
 - 输出：写 wiki/ 内容页（entity / concept / source / comparison / synthesis）并同步
   index / log / tags 条目，写路径走 `llmw wiki write`；query 答案与 lint 报告本体
   是会话输出，用户认可后才落 wiki
