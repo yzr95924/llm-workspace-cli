@@ -50,7 +50,6 @@ def render_and_write(
     wiki_dir: Path,
     topic: str,
     today: str,
-    cli_version: str,
     format_version: str,
 ) -> None:
     """按包内 templates/ + fixtures/ 落盘 wiki 骨架（调用方已 mkdir wiki_dir；本函数不碰 git）。
@@ -74,7 +73,6 @@ def render_and_write(
     agents_md = render_wiki_agents_md(
         topic=topic,
         setup_date=today,
-        cli_version=cli_version,
         format_version=format_version,
     )
     index_md = render_wiki_index_md(topic=topic, setup_date=today)

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from llmw import WIKI_FORMAT_VERSION, __version__
+from llmw import WIKI_FORMAT_VERSION
 from llmw._compat import TOMLDecodeError
 from llmw.content import skeleton_sync
 from llmw.content.render import setup_date as render_setup_date
@@ -175,7 +175,6 @@ def add(
         wiki_dir,
         topic,
         setup_date,
-        cli_version=__version__,
         format_version=WIKI_FORMAT_VERSION,
     )
     meta.agents_md_sha256 = sha256_file(wiki_dir / "AGENTS.md") or ""

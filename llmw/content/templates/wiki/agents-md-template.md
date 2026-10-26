@@ -3,8 +3,8 @@
 这是本 wiki 的**纪律配置**，即给维护本 wiki 的 LLM 看的"工作守则"。你（即 LLM）必须在每次
 操作前先读这份文件；任何对 wiki 的写入都必须符合这里规定的边界。
 
-**本文件（`AGENTS.md`）是本 wiki 纪律的单一真源（SSOT）**，工具无关；渲染所有权与升级
-重渲染规则见"本文件本身的纪律"节。
+**本文件（`AGENTS.md`）规定跨操作边界与骨架所有权；内容页写法、index / log / tags / scripts
+细则以各自文档或说明块为准。渲染所有权与升级重渲染规则见"本文件本身的纪律"节。
 
 <!-- 下方 @引用若未被自动展开（看不到正文），用 Read 工具读取 -->
 @MEMORY/MEMORY.md
@@ -21,7 +21,8 @@
     （symlink + anchor，见下文）+ `raw/discussions/`（协作草稿，见下文）。**这两处例外
     不得外推到 raw/ 其他子树**（papers / articles / clippings 等仍只读）
   - **用户可随时新增 / 更新 raw/**（重新剪藏、重存 PDF 都算）；这是用户的权限，
-    不是违反纪律
+    不是违反纪律。启用 git 后，未提交的 raw 变更会被 lint 报 `raw-modified`，含义是
+    确认改动来源，不是禁止用户更新；agent 不代还原或代提交，由用户决定
   - raw 文件一旦被更新（同路径新内容），**由 ingest 重新消化**（`llmw wiki ingest-diff --check-stale`
     可发现待重摄文件）
   - raw 文件路径是 wiki 内 source 页的 `sources` 字段的"永久引用"（改名会断链）
@@ -36,10 +37,11 @@
   作语料纳入 wiki；**不**内嵌拷贝，走 symlink + 锚定元数据
 - **扁平布局**：symlink + anchor 直接在 `raw/external/` 顶层，不要开
   `<source-name>/` 子目录；外部仓由单个 `.symlink-anchor.toml` 记录
-- **写路径收编（本仓唯一 `raw/` 写权限例外）**：symlink 与 anchor 的创建 / 删除 / 重建
+- **写路径收编（`raw/` 写权限例外之一）**：symlink 与 anchor 的创建 / 删除 / 重建
   **一律**走 `llmw wiki external` 子命令（add / remove / list / rebuild，签名与行为见
-  `llmw wiki external --help`），target 仓本体永不触碰；新机器 `git clone` 后跑
-  `llmw wiki external rebuild` 按 anchor 恢复 symlink；LLM **不**手改 `.symlink-anchor.toml`
+  `llmw wiki external --help`）；add / remove 不修改已有 target 仓，`rebuild` 可在 target
+  缺失且 anchor 记有 remote 时 clone；LLM **不**手改 `.symlink-anchor.toml`。孤儿 symlink
+  等 CLI 无法直接接管的异常现场，经用户确认后只清理该 symlink，再走 `external add` 重建
 - anchor / symlink 漂移由 `llmw wiki lint` 机械探测，check 名以 lint 输出为准
 - **target 仓 agent 可读写**：`raw/external/` symlink 指向的外部仓**不**受 raw/ 只读约束；
   target 在 wiki 仓外、有其自身 git、由用户全权处置
@@ -70,9 +72,10 @@
 - 性质：LLM 生成的相互链接的 Markdown 文件
 - 纪律：
   - 用户**不写** wiki 页面
-  - 任何 wiki 页面**必须**含 YAML frontmatter
-  - 任何 wiki 页面**必须**在 `wiki/index.md` 中有对应条目
-  - 任何 wiki 页面**必须**有 ≥ 1 条 inbound 链接（index 或其它页）
+  - 内容页**必须**含 YAML frontmatter；`index.md` / `log.md` / `tags.md` 按骨架文件
+    各自说明块维护
+  - 未归档内容页**必须**在 `wiki/index.md` 中有对应条目；归档页保留文件但退出 index
+    与日常 lint 检查
 - **内容页写页规则不在本文件**：页面类型 / frontmatter 字段全集 / 建页与追加阈值 /
   认知质量字段（`reviewed` / `contested` 等）由维护本 wiki 的 skill 的页面模板文档承载
   （ingest / 写页操作时按需读取）；环境中没有该 skill 时，向用户索取该文档
@@ -99,25 +102,27 @@
 
 ## 二、写入纪律
 
-1. **写前必搜**：创建新页面前先 grep / search `wiki/` 确认是否已有同名或近义页
-2. **写后必同步（wiki 痕迹是同步义务的唯一判定）**：判据是"动作在 wiki 留下什么
-   痕迹"，与动作叫什么、写入落在哪个路径无关：
-   - `index.md` + 相关页交叉引用：`wiki/` 页面新增 / 删 / 改后必同步（宁可多改；
-     条目增减；相关 entity / concept 页按需追加"参考来源"段，**不重写**）
+1. **写前必搜**：创建新页面前先 grep / search `wiki/` 确认是否已有同主题或近义页；
+   有则编辑它，不建新的副本
+2. **写后必同步**：按同步对象判，不按动作名称判：
+   - `index.md`：页面新增 / 删除 / 改名，或 `title` / `description` / `type` /
+     `reviewed` 等 index 派生字段变化时，用 `llmw wiki write index add|remove` 同步
+   - 相关页交叉引用：新增或取消页面关系时，在相关 entity / concept 页按需追加 / 修正，
+     **不重写**整页
    - `log.md`：仅下列 op 痕迹各记一条，**ingest**＝raw 消化落盘；**query**＝结论
-     归档（未归档的纯问答不记）；**lint**＝执行 `llmw wiki lint`（干净运行也记，
-     兼任"上次巡检时间"信号）。条目写法细则见 `wiki/log.md` 头部说明块
-   - **此外一切动作一律不动 `index.md` / `log.md`**：纯读取、不属于上述 op 的独立
-     微小编辑（git 承载）、`wiki/` 之外的任何写入（raw/ 各子树含 discussions/ 草稿与
-     external target 仓、scripts/、仓外路径）。新场景自动落入本行，
-     无需逐例豁免；"本 wiki 的边界"各节指针均指向这里
-3. **改写而非新建**：若已有同类页，**编辑它**而不是建新的副本
-4. **重写时保留 frontmatter**：不要因为改写丢失 `type` / `tags` / `sources` 字段
-5. **交叉引用走相对路径**：`[link](../concepts/transformer.md)`，**不要**用 wikilink
+     归档（未归档的纯问答不记）；**lint**＝常规 `llmw wiki lint` 体检（干净运行也记，
+     兼任"上次巡检时间"信号；format 升级中的 `--check-version` 不记）。条目写法细则见
+     `wiki/log.md` 头部说明块
+   - **此外一律不动 `index.md` / `log.md`**：纯读取、只改正文且不触发上述 index
+     字段的微小编辑（git 承载）、`wiki/` 之外的任何写入（raw/ 各子树含 discussions/
+     草稿与 external target 仓、scripts/、仓外路径）
+3. **重写时保留 frontmatter**：不要因为改写丢失 `type` / `tags` / `sources` 字段
+4. **交叉引用走相对路径**：`[link](../concepts/transformer.md)`，**不要**用 wikilink
    `[[transformer]]`（Obsidian 等工具的专用语法，换渲染器即失效）、**不要**用绝对路径
    （换机 / 分发即断）
-6. **路径稳定**：文件名一旦确定就是永久 ID；想改名时重命名文件 + 更新所有引用（启用
-   git 时用 `git mv` 保留 history；未启用 git 时用普通 `mv` + 全量更新引用）
+5. **路径稳定**：文件名一旦确定就是永久 ID；想改名时重命名文件 + 更新所有引用，并同步
+   `wiki/index.md`（启用 git 时用 `git mv` 保留 history；未启用 git 时用普通 `mv` +
+   全量更新引用）
 
 ## 三、Query 纪律
 
@@ -137,9 +142,9 @@
 ## 五、本文件本身的纪律
 
 - **本文件由 llmw CLI 渲染拥有（byte-owned），禁手改**：手改会被 `agents-md-template-sync`
-  check 判 drift、`llmw wiki upgrade --apply` 按最新模板**全量重渲染**覆盖："当前配置"表 4 个
-  per-wiki 字段（主题 / 创建日期 / CLI 版本 / Wiki Format 版本）是仅有的本地内容，升级时保留
-  现值；自定义纪律沉淀去 `MEMORY/`
+  check 判 drift、`llmw wiki upgrade --apply` 按最新模板**全量重渲染**覆盖："当前配置"表是
+  仅有的本地内容（主题 / 创建日期来自 wiki metadata，Wiki Format 版本取升级目标）；
+  自定义纪律沉淀去 `MEMORY/`
 - 本文件是 schema，**不是 wiki 内容**：不要往里塞 wiki 主题相关的笔记
 
 ### 骨架所有权四分表（wiki 侧文件归属）
@@ -159,6 +164,4 @@
 | --- | --- |
 | 主题 | {{TOPIC_NAME}} |
 | 创建日期 | {{SETUP_DATE}} |
-| Wiki 根 | <由 LLM_WIKI_ROOT 环境变量或 init 时确定> |
 | Wiki Format 版本 | {{WIKI_FORMAT_VERSION}} |
-| CLI 版本 | {{CLI_VERSION}} |

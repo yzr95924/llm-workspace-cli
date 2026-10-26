@@ -58,7 +58,7 @@ def read_template(path: Path) -> str:
 # ===== wiki side =====
 
 
-def render_wiki_agents_md(*, topic: str, setup_date: str, cli_version: str, format_version: str) -> str:
+def render_wiki_agents_md(*, topic: str, setup_date: str, format_version: str) -> str:
     """渲染 <wiki-root>/AGENTS.md。"""
     refs = wiki_templates_dir()
     tmpl = read_template(refs / "agents-md-template.md")
@@ -67,7 +67,6 @@ def render_wiki_agents_md(*, topic: str, setup_date: str, cli_version: str, form
         {
             "TOPIC_NAME": topic,
             "SETUP_DATE": setup_date,
-            "CLI_VERSION": cli_version,
             "WIKI_FORMAT_VERSION": format_version,
             **wiki_constant_mapping(),
         },

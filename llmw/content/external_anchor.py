@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """external_anchor — raw/external/ 写路径（anchor `[[entry]]` 数组 + symlink 注册表变换）。
 
-anchor 记"接入意图"不记 commit（commit 是机器快照会腐坏）；target 仓永不触碰。
+anchor 记"接入意图"不记 commit（commit 是机器快照会腐坏）；add / remove 不修改已有 target 仓。
 子命令 add / remove / list / rebuild（经 `llmw wiki external <action>`）。
 退出码 0/1/2 = 成功 / 用户错误 / 环境错误。
 """
@@ -252,7 +252,7 @@ def cmd_add(wiki_root: Path, args) -> Tuple[Optional[str], int]:
             # （保护手工修复现场；用户要先备份再删，或手工修 TOML 后重跑）
             return (
                 f"anchor 文件存在但解析失败（可能损坏）: {anchor_path}；"
-                "请先备份后删除或手工修复 TOML，再用 add 重建 entries",
+                "请经用户确认后备份并删除，再用 external add 逐项重建 entries",
                 1,
             )
     else:
@@ -315,7 +315,11 @@ def cmd_remove(wiki_root: Path, args) -> Tuple[Optional[str], int]:
         return (f"anchor 解析失败或空: {anchor_path}", 1)
     new = [e for e in existing if e.get("symlink") != name]
     if len(new) == len(existing):
-        return (f"anchor 中无 entry '{name}';若是孤儿 symlink（anchor 无对应 entry）请手动 rm {sl_path}", 1)
+        return (
+            f"anchor 中无 entry '{name}';若是孤儿 symlink（anchor 无对应 entry），"
+            f"确认后只删该 symlink（{sl_path}），再用 external add 注册",
+            1,
+        )
 
     if sl_path.exists() or sl_path.is_symlink():
         if not sl_path.is_symlink():

@@ -32,12 +32,12 @@ FINDINGS = {
     "external-anchor-corrupt": FindingSpec(
         "error",
         "raw/external/.symlink-anchor.toml 解析失败或 0 个有效 entry",
-        "检查 TOML 语法；无法修复时用 `llmw wiki external add` 重建（CLI 持有 schema SSOT）",
+        "先备份；经用户确认后删除损坏 anchor，再用 `external add` 逐项重建（schema 由 CLI 持有）",
     ),
     "external-anchor-missing": FindingSpec(
         "error",
         "raw/external/ 下有 symlink，但 anchor 文件（.symlink-anchor.toml）不存在",
-        "用 `llmw wiki external add <path> --name=<name>` 注册，或移除多余 symlink",
+        "确认 target 后只删该 symlink，再用 `external add <path> --name=<name>` 注册",
     ),
     "external-source-name-invalid": FindingSpec(
         "error",
@@ -86,23 +86,23 @@ FINDINGS = {
     ),
     "missing-frontmatter": FindingSpec(
         "error",
-        "内容页缺必填 frontmatter 字段（title / type / created / updated / tags）",
+        "未归档内容页缺必填 frontmatter 字段（title / type / created / updated / tags）",
         "补齐缺失字段（字段契约 canonical 见各 fixture 头部）",
     ),
     "missing-sources": FindingSpec(
         "error",
-        "source / synthesis 页缺 `sources` 字段或为空",
+        "未归档 source / synthesis 页缺 `sources` 字段或为空",
         "补 `sources:`（source 页指 wiki 根相对 raw/ 现存路径；synthesis 页指 wiki 内页）",
     ),
     "orphan-page": FindingSpec(
         "error",
-        "非 index / log 页未被 wiki/index.md 引用",
-        "`llmw wiki write index add` 补条目；或按归档流程从 index 移除",
+        "未归档内容页未被 wiki/index.md 引用",
+        "`llmw wiki write index add` 补条目；确认退役则加 `archived: true` 并从 index 移除",
     ),
     "raw-modified": FindingSpec(
         "error",
-        "git 仓内 raw/ 的 tracked 文件有未提交改动（raw/ 是不可变真相源）",
-        "问用户：还原改动，或确认后提交",
+        "git 仓内 raw/ 的 tracked 文件有未提交改动；用户更新合法，但需确认来源",
+        "问用户确认来源：用户更新则按需重摄取，是否提交由用户决定；非用户改动先还原",
     ),
     "source-in-discussions": FindingSpec(
         "error",
@@ -157,13 +157,13 @@ FINDINGS = {
     ),
     "duplicate-title": FindingSpec(
         "warn",
-        "同一 `title` 出现在多个 wiki 页",
+        "同一 `title` 出现在多个未归档 wiki 页",
         "评估合并候选；确需并存则改标题区分",
     ),
     "external-anchor-orphan": FindingSpec(
         "warn",
         "raw/external/ 下有 symlink 但 anchor 无对应 entry（必填关联）",
-        "`llmw wiki external add` 注册，或移除该 symlink",
+        "确认 target 后只删该 symlink，再用 `external add` 注册",
     ),
     "external-target-drift": FindingSpec(
         "warn",
@@ -202,7 +202,7 @@ FINDINGS = {
     ),
     "oversized-page": FindingSpec(
         "warn",
-        "内容页正文非空行数超过阈值（阈值随 finding 文本输出）",
+        "未归档内容页正文非空行数超过阈值（阈值随 finding 文本输出）",
         "拆成子主题页 + cross-link",
     ),
     "related-broken-link": FindingSpec(
@@ -227,7 +227,7 @@ FINDINGS = {
     ),
     "stale-summary": FindingSpec(
         "warn",
-        "source 页 `updated` 距今天数超过阈值（阈值随 finding 文本输出）",
+        "未归档 source 页 `updated` 距今天数超过阈值（阈值随 finding 文本输出）",
         "复查上游源文件是否有更新，必要时重摄取",
     ),
     "wiki-format-version-ahead": FindingSpec(
@@ -248,7 +248,7 @@ FINDINGS = {
     # --- info：提示 / 审计循环，不强制 ---
     "pending-review": FindingSpec(
         "info",
-        "非 log/index 页未含 `reviewed: true`（仅提示）",
+        "未归档内容页未含 `reviewed: true`（仅提示）",
         "人工审核后 `llmw wiki write touch` 落戳；不审则忽略",
     ),
     "tag-not-in-taxonomy": FindingSpec(

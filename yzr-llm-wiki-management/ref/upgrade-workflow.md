@@ -78,7 +78,8 @@
 
 ## 边界
 
-- **不**删除 wiki 内容（即便某 source 页的 raw 已不存在）：用 `archived: true`
+- **不**删除 wiki 内容（即便某 source 页的 raw 已不存在）：加 `archived: true` 并移出
+  index；lint 不再要求归档页入 index 或 raw 仍存在
   替代
 - **不**手改 `wiki/log.md` / `wiki/index.md` 的 frontmatter：骨架键缺失只按
   fixtures plan（`fixtures-fix-skeleton`）补齐

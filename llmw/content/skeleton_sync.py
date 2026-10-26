@@ -8,7 +8,7 @@ import hashlib
 from pathlib import Path
 from typing import Dict, List, NamedTuple, Optional
 
-from llmw import WIKI_FORMAT_VERSION, __version__
+from llmw import WIKI_FORMAT_VERSION
 from llmw.config import wiki_templates_dir
 from llmw.content.render import read_template, render_wiki_agents_md, setup_date
 from llmw.fsutil import sha256_file
@@ -58,7 +58,6 @@ def plan_skeleton_sync(wiki_dir: Path, old_topic: str, new_topic: str, meta) -> 
         new_text = render_wiki_agents_md(
             topic=new_topic,
             setup_date=setup_date(meta.created_at),
-            cli_version=__version__,
             format_version=WIKI_FORMAT_VERSION,
         )
         agents_digest = hashlib.sha256(new_text.encode("utf-8")).hexdigest()

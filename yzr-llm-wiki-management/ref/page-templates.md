@@ -25,8 +25,8 @@ lint 走同一解析器，兜不住
 - 类型特定字段（`sources` / `compared` / `threads` / `related` / `aliases` 等）：
   按类型见「各类型模板」节
 
-`index.md` / `log.md` 是 **reserved 文件**（自带 frontmatter，`type: index` /
-`type: log` 仅作标记），lint 跳过
+`index.md` / `log.md` / `tags.md` 是 **reserved 文件**（index / log 自带 frontmatter，
+`type: index` / `type: log` 仅作标记；tags 不带 frontmatter），lint 跳过
 
 ### 可信度与认知质量信号
 
@@ -255,7 +255,8 @@ ingest 或 query 中发现"新资料与已有页冲突"，**不**静默覆盖：
   主题无关
 - **拆分页**：单页正文超过 lint `oversized-page` 阈值（拆分建议随触发输出自带），
   拆成子主题 + 交叉链接
-- **归档页**：内容被完全取代或主题域变化，加 `archived: true`、从 `index.md` 移除
+- **归档页**：内容被完全取代或主题域变化，加 `archived: true`、从 `index.md` 移除；
+  页文件保留，lint 与 `ingest-diff --check-stale` 不再按活跃页维护它
 
 **页不物理删除**（`rm` 会断 inbound 链接与 index 溯源），生命周期终点是「归档页」
 

@@ -181,9 +181,11 @@ def collect_ingested_sources_map(wiki_root: Path) -> Dict[str, List[Path]]:
 
 
 def raw_newer_than_source(raw_path: Path, source_page: Path) -> bool:
-    """raw mtime 日期是否晚于 source 页 updated；无法判定（缺 / 格式错）返 False（不误报）。"""
+    """raw mtime 日期是否晚于未归档 source 页 updated；archived 页不算 stale。"""
     text = source_page.read_text(encoding="utf-8", errors="replace")
     fm = parse_frontmatter_simple(text)
+    if str(fm.get("archived", "")).strip() == "true":
+        return False
     updated = fm.get("updated")
     upd_date = parse_date_or_datetime(updated)
     if upd_date is None:

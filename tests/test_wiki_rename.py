@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from llmw import WIKI_FORMAT_VERSION, __version__
+from llmw import WIKI_FORMAT_VERSION
 from llmw.content.wiki_fixtures import run_checks
 from llmw.errors import (
     InvalidWikiName,
@@ -49,7 +49,6 @@ def full_workspace_with_wiki(tmp_path: Path) -> Path:
         foo,
         "foo",
         setup_date,
-        cli_version=__version__,
         format_version=WIKI_FORMAT_VERSION,
     )
     meta.agents_md_sha256 = sha256_file(foo / "AGENTS.md") or ""

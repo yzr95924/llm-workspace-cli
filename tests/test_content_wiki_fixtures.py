@@ -39,15 +39,12 @@ def _target_format():
 TARGET_FORMAT = _target_format()
 
 
-def _render_agents_md(
-    topic="Test", setup_date="2026-06-28 00:00", cli="0.1.0", format_version=None
-):
+def _render_agents_md(topic="Test", setup_date="2026-06-28 00:00", format_version=None):
     """生产 render 的薄封装；默认参数与 _wiki_metadata.created_at="2026-06-28T00:00:00Z"（[:16] 派生为
     `"2026-06-28 00:00"`）对齐，保证 scratch wiki 的 AGENTS.md 与 metadata + 渲染契约字节一致。"""
     return render_wiki_agents_md(
         topic=topic,
         setup_date=setup_date,
-        cli_version=cli,
         format_version=format_version or TARGET_FORMAT,
     )
 

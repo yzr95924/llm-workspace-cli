@@ -98,8 +98,16 @@ def is_external_url(url: str) -> bool:
 PAGE_BUCKETS = WIKI_SUBDIRS + ("index", "log")
 
 
+def _is_archived_page(path: Path) -> bool:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    return str(parse_frontmatter_simple(text).get("archived", "")).strip() == "true"
+
+
 def find_md_files(wiki_root: Path) -> Dict[str, List[Path]]:
-    """收集 wiki/**/*.md，按子目录分桶。
+    """收集未归档 wiki/**/*.md，按子目录分桶。
 
     桶键推导自 page_types.WIKI_SUBDIRS（新增内容类型不 KeyError）。
     """
@@ -111,7 +119,8 @@ def find_md_files(wiki_root: Path) -> Dict[str, List[Path]]:
         d = wiki_dir / sub
         if d.is_dir():
             for p in sorted(d.glob("*.md")):
-                out[sub].append(p)
+                if not _is_archived_page(p):
+                    out[sub].append(p)
     out["index"].append(wiki_dir / "index.md")
     out["log"].append(wiki_dir / "log.md")
     return out
@@ -471,7 +480,7 @@ def check_link_integrity(wiki_root: Path) -> List[str]:
 
 
 def check_index_coverage(wiki_root: Path) -> List[str]:
-    """index.md 覆盖：内容页必须被列出。"""
+    """index.md 覆盖：未归档内容页必须被列出。"""
     findings = []  # type: List[str]
     index_path = wiki_root / "wiki" / "index.md"
     if not index_path.is_file():
@@ -586,7 +595,7 @@ def check_log_truncation(wiki_root: Path) -> List[str]:
 
 
 def check_stale_summaries(wiki_root: Path, threshold_days: int = STALE_SUMMARY_DAYS) -> List[str]:
-    """source 页 `updated` 距今超阈值。"""
+    """未归档 source 页 `updated` 距今超阈值。"""
     findings = []  # type: List[str]
     sources_dir = wiki_root / "wiki" / "sources"
     if not sources_dir.is_dir():
@@ -595,6 +604,8 @@ def check_stale_summaries(wiki_root: Path, threshold_days: int = STALE_SUMMARY_D
     for p in sources_dir.glob("*.md"):
         text = p.read_text(encoding="utf-8", errors="replace")
         fm = parse_frontmatter_simple(text)
+        if str(fm.get("archived", "")).strip() == "true":
+            continue
         updated = fm.get("updated")
         upd_date = parse_date_or_datetime(updated)
         if upd_date is None:
@@ -1050,7 +1061,7 @@ _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]
         "fixtures-fix-agents-md-resync",
         lambda b: (
             "跑 `llmw wiki upgrade --apply`：CLI 全量重渲染 AGENTS.md（byte-owned，"
-            "「当前配置」表四变量保留 wiki 现值）。若本地定制 diff 进 blocked_drift："
+            "「当前配置」表按 wiki metadata 与升级目标 format 重渲染）。若本地定制 diff 进 blocked_drift："
             "逐条列给用户裁定——搬 MEMORY/（由 yzr-memory-management skill 收纳）或丢弃，裁定完加 `--yes` 重跑"
         ),
     ),
@@ -1067,8 +1078,8 @@ _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]
     "symlink-anchor-toml-symlink-matches": (
         "fixtures-fix-anchor-symlink-matches",
         lambda b: (
-            "双向校验：anchor 有 entry 但 symlink 缺 → `mkdir -p raw/external && ln -s <target> raw/external/<symlink>`；"
-            "symlink 有但 anchor 无 entry → 补一条 `[[entry]]` 块（含 symlink/target/captured_at/kind + 可选 git 身份字段）"
+            "anchor 有 entry 但 symlink 缺 → `llmw wiki external rebuild`；"
+            "symlink 有但 anchor 无 entry → 确认 target 后只删该 symlink，再用 `external add` 注册；不手写 anchor"
         ),
     ),
     "scripts-md-no-frontmatter": (

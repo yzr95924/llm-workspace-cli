@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from llmw import WIKI_FORMAT_VERSION
-from llmw import __version__ as CLI_VERSION
 from llmw.content import render as _render
 from llmw.content import wiki_fixtures
 from llmw.content._check_common import read_text as _read_text
@@ -216,7 +215,6 @@ def _render_byte_owned(*, topic: str, setup_date: str) -> Dict[str, str]:
         "AGENTS.md": _render.render_wiki_agents_md(
             topic=topic,
             setup_date=setup_date,
-            cli_version=CLI_VERSION,
             format_version=WIKI_FORMAT_VERSION,
         ),
     }

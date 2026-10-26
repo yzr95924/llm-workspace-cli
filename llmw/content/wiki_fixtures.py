@@ -15,7 +15,6 @@ from typing import Callable, Dict, List, Optional
 
 # 常量 SSOT 在 _check_common / wiki_lint / log_format / external_anchor，import 不复制。
 from llmw import WIKI_FORMAT_VERSION
-from llmw import __version__ as CLI_VERSION
 from llmw.config import wiki_templates_dir
 from llmw.content._check_common import (
     SEMVER_RE,
@@ -58,7 +57,7 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": "AGENTS.md",
         "rule_ref": "upgrade-workflow.md#职责切分关键三方分工（agents-md-template-sync 修复走 upgrade --apply）",
-        "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（「当前配置」四变量替换后）；定制纪律应沉淀到 MEMORY/",
+        "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（「当前配置」变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
         "id": "template-no-outbound-refs",
@@ -279,7 +278,6 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
     rendered = render_wiki_agents_md(
         topic=meta.topic,
         setup_date=setup_date(meta.created_at),
-        cli_version=CLI_VERSION,
         format_version=WIKI_FORMAT_VERSION,
     )
 
