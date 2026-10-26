@@ -1305,6 +1305,7 @@ def run(
     """lint 业务入口（flag SSOT 在 llmw.cli argparse 树）。
 
     no_git=True 完全不检测 git；否则按 `.git/` 自动决定（裸目录树 wiki 默认支持）。
+    json_mode=True 输出 findings / notes / summary 到 stdout。
     """
     if not (wiki_root / "wiki").is_dir():
         print(f"ERROR: {wiki_root}/wiki 不存在（wiki 还没 setup？）", file=sys.stderr)
@@ -1343,6 +1344,32 @@ def run(
         threshold = SEV_RANK[severity]
         all_findings = [f for f in all_findings if SEV_RANK[severity_of(f)] <= threshold]
 
+    by_sev = {"error": [], "warn": [], "info": []}  # type: Dict[str, List[str]]
+    for f in all_findings:
+        by_sev[severity_of(f)].append(f)
+
+    if json_mode:
+        payload = {
+            "findings": [
+                {
+                    "name": f.split(":", 1)[0].strip(),
+                    "severity": sev,
+                    "text": f,
+                }
+                for sev in ("error", "warn", "info")
+                for f in by_sev[sev]
+            ],
+            "notes": info_notes,
+            "summary": {
+                "error": len(by_sev["error"]),
+                "warn": len(by_sev["warn"]),
+                "info": len(by_sev["info"]),
+                "total": len(all_findings),
+            },
+        }
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        return 0 if not all_findings else 1
+
     if info_notes:
         print("\n[NOTES]")
         for n in info_notes:
@@ -1351,10 +1378,6 @@ def run(
     if not all_findings:
         print("No issues found. ✓")
         return 0
-
-    by_sev = {"error": [], "warn": [], "info": []}  # type: Dict[str, List[str]]
-    for f in all_findings:
-        by_sev[severity_of(f)].append(f)
 
     for sev in ("error", "warn", "info"):
         if by_sev[sev]:
