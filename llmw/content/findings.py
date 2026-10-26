@@ -107,7 +107,7 @@ FINDINGS = {
     "source-in-discussions": FindingSpec(
         "error",
         "source 页的 sources 指向 raw/discussions/（provenance 后门）",
-        "走草稿消化路径：消化式或转正式 `mv` 后再 ingest",
+        "经用户确认后 `mv` 到 raw/articles 等正式子树，再走标准 ingest",
     ),
     "sources-absolute-path": FindingSpec(
         "error",

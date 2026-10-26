@@ -8,8 +8,6 @@ Ingest 把 `raw/` 的原始资料消化成 wiki 内容页。默认 1 份 raw 1 �
 - 先读 wiki 根四份文档：`AGENTS.md`（纪律与 format 版本）、`wiki/index.md`（有哪些页、
   归哪些类）、`wiki/log.md`（最近约 30 行，避免重复动作）、`scripts/SCRIPTS.md`
   （wiki 可无 scripts/；跑自定义脚本前先查其分节契约）
-- `raw/discussions/` 草稿消化是本入口的可选场景，完整纪律由 wiki 根 `AGENTS.md`
-  的 `raw/discussions/` 节承载
 
 ```bash
 # 找全新 / raw 有更新待重摄取 / log 有记录但 source 页缺失待重建的文件

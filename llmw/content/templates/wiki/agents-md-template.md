@@ -51,20 +51,18 @@
 
 #### `raw/discussions/`：协作草稿层（用户 + LLM 双方可写）
 
-- 路径：`<wiki-root>/raw/discussions/`（协作草稿层；存在时适用本节纪律）
+- 路径：`<wiki-root>/raw/discussions/`（协作草稿层，与 wiki 内容维护解耦；存在时适用本节纪律）
 - 用途：用户 + LLM 协作的临时草稿（讨论稿、设计草稿、待整理笔记）。**不是**"用户掌控的
-  真相源"，不参与复利结构
+  真相源"，**不是**待摄取资料，不参与复利结构
 - 纪律：
   - **用户 + LLM 双方可写**：创建 / 编辑 / 删除都行；这是 `raw/` 总纪律的**第二处写权限
     例外**（第一处是 `raw/external/` 的 symlink + anchor）
   - **不**要求 frontmatter（草稿不是内容页）
   - **`sources:` 不得指向** `raw/discussions/`（lint 会报 `source-in-discussions`）
-- **归档路径**（草稿 → wiki 真相，两条都需用户确认）：
-  - **消化式**：LLM 把结论写进 `wiki/` 对应页（走标准 ingest 纪律），原稿留删自便，不进 `sources:`
-  - **转正式**：用户确认后 LLM `mv raw/discussions/<x>.md raw/articles/<x>.md`（或合适
-    子树），此后回归只读真相源、走标准 ingest；这是 raw/ 只读的 **mv 例外**
-    （迁入正式子树后 LLM 不可再改）
-- **滑坡防线**：**不得**借 discussions/ 规避 ingest 纪律（绕归档路径漏 log / index / reviewed 戳）
+- **转正式**（草稿纳入 wiki 的唯一路径）：仅当用户明确要求时，LLM 才把草稿 `mv` 到
+  `raw/articles/`（或合适的其他子树），此后按正式 raw 走标准 ingest；这是 raw/ 只读的
+  **mv 例外**（迁入正式子树后 LLM 不可再改）。未经用户要求，agent **不**主动读本区
+  内容往 `wiki/` 落页
 
 ### `wiki/`：LLM 拥有的复利资产
 
