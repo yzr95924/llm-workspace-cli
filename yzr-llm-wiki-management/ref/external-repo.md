@@ -12,12 +12,12 @@
 - **target 路径**：建议 `~/src/<name>`（跨主机重建友好）
 - **notes 文本**：可选，agent 自由写
 
-## sources 字段的元素类型
+## 消费 target 代码
 
-`raw/external/<symlink>/...` 可指向**文件或目录**：symlink 目标是 git 仓目录时
-可整仓作语料；普通 raw 路径（非 `raw/external/`）的 sources 仍要求指向**文件**。
-lint 只校验可访问性；细则见 `llmw wiki lint --explain=external-target-dead` 等
-external-* 条目
+- **分析代码**：围绕问题解释，不把复述实现细节当作分析；可引用关键函数和变量名
+  支撑结论
+- 把 target 内容落成 source 页走 ingest 流程，`sources` 字段的元素类型规则见
+  [章节](page-templates.md#source资料页)
 
 ## 跨主机重建
 

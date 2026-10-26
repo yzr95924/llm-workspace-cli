@@ -10,6 +10,11 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint
 llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修法查询
 ```
 
+跑 lint 前先读 `AGENTS.md` + `wiki/index.md`；要定修复优先级时再补读 `wiki/log.md`。
+常规 lint 体检每次运行都要记 log（干净运行也记，log 义务按 wiki 根 `AGENTS.md`
+写后必同步条）；format 升级中的 `--check-version` 调用不记，见
+[章节](upgrade-workflow.md#边界)
+
 遇版本漂移 finding（`wiki-format-version-*`）→ `llmw wiki lint --check-version`
 取报告，走[升级流程](upgrade-workflow.md)
 
@@ -31,22 +36,17 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 - **index 体积**：单类别 / 总条目超过 `wiki/index.md` 头部"扩容护栏"建议值时，
   按该说明块处置
 - **漂移点引用**：正文引用上游可变、且 wiki 机制感知不到变化的事实，按
-  [章节](ingest-workflow.md#正文引用的稳定性漂移点规避) 逐类扫描改写
+  [章节](page-templates.md#正文引用的稳定性漂移点规避) 逐类扫描改写
 
 ## lint 之后
 
 1. **询问用户先修哪些**（报告按 error > warn > info 排）：不要一次全修，易回退
    或引入新问题
-2. 修完**重新跑 lint 验证**，不带未验证的 fix 前进；每次 lint 运行的 log 义务按
-   wiki 根 `AGENTS.md` 写后必同步条
-3. 重大修复的 commit message 用 `lint: <summary>` 前缀
+2. **动手修前补读** `wiki/log.md` 与 `scripts/SCRIPTS.md`（`AGENTS.md` 与
+   `wiki/index.md` 已在调用方式节读过）
+3. 修完**重新跑 lint 验证**，不带未验证的 fix 前进
 4. `llmw wiki lint --check-version` 报 fixtures 不合规 → 职责切分与 plan 消费
    流程见[章节](upgrade-workflow.md#职责切分关键三方分工)
-
-## lint 频率
-
-建议值（经验阈值）：小 wiki（< 50 页）每月 1 次；中（50~200）每 2 周；大
-（> 200）每周，可写 cron；重大 ingest 后跑一次（可能引入新 entity / 断链）
 
 ## lint 的边界
 

@@ -3,8 +3,7 @@
 **优先级裁定**：边界与纪律以本文档 + wiki 根 `AGENTS.md` 为准；每条动作的具体
 改法与执行顺序以 lint plan 自带的 `agent_rules[]` + 各 action 说明为准（CLI 输出
 真源，本文不重述，重述必漂移）。格式版本以 `<wiki-root>/AGENTS.md`「当前配置」表
-的「Wiki Format 版本」行为准；breaking 变更的语义合并见[章节](#语义合并规则)；
-版本演进叙事看 git log
+的「Wiki Format 版本」行为准；breaking 变更的语义合并见[章节](#语义合并规则)
 
 ## 职责切分（**关键**：三方分工）
 
@@ -13,14 +12,15 @@
   类 diff 需 `--yes`，否则停于 `blocked_drift`
 - **lint plan（`llmw wiki lint --check-version --apply --json`）**：stdout 输出
   `upgrade_plan`，**只输出 plan、不落盘**，改动由 agent 编辑文件落地
-- **agent 职责**：drift 裁定（见流程第 3 步）、按 plan 落 fixtures 修复（第 4
-  步）、按[章节](#语义合并规则)做语义合并
-- **升级期不走 `llmw wiki write`**（机械写命令只认识当前形态）；**不**追加 log
-  条目（升级不是 wiki 操作事件）
+- **agent 职责**：按流程裁定 drift、按 plan 落 fixtures 修复、按
+  [章节](#语义合并规则)做语义合并
+- **升级期不走 `llmw wiki write`**（机械写命令只认识当前形态）；`wiki/log.md`
+  的处理见[章节](#边界)
 
-## 流程（agent 驱动，5 步）
+## 流程（agent 驱动）
 
-1. **操作前置**：跑执行原则的先读现状（四件套）
+1. **操作前置**：读完 wiki 根四份文档（`AGENTS.md`、`wiki/index.md`、`wiki/log.md`、
+   `scripts/SCRIPTS.md`；wiki 可无 scripts/，跑自定义脚本前先查其分节契约）
 
 2. **dry-run 看骨架计划**：
 
@@ -69,7 +69,7 @@
    按终态处置：
 
    - `done` + `needs_upgrade == false` → 告知用户完成
-   - `blocked_drift` → 回第 3 步裁定
+   - `blocked_drift` → 回「裁定 drift」步
    - `done_with_residue` → 逐项读 `residue[]` 的 `note`（处置建议自带）与用户裁定
    - `verify_failed` → 按 `verified.failures[]` 修完重跑（幂等）
    - lint 侧仍有 fixtures 不合规 → 报告 + 转人工
@@ -85,6 +85,8 @@
 - **不**手改 `AGENTS.md`（byte-owned）：版本行与骨架由
   `llmw wiki upgrade --apply` 重渲染落地
 - **wiki 版本比 llmw 支持版本新**（`-ahead`）：**不**阻断、**不**改 wiki
+- `wiki/log.md` 升级期原样保留：不追加条目（升级不是 wiki 操作事件）、不合并不
+  截断不改格式（超过保留上限也不在升级期截断）；仅新增行不合规时修
 - 其余边界以 wiki 根 `AGENTS.md` 为准（raw 只读等全局纪律）
 
 ## 语义合并规则
@@ -99,6 +101,3 @@ CLI 不替代语义判断，以下是 wiki/index.md 跨条目合并规则：
 - 老 wiki 缺标准类别 → 缺失 H2 由 fixtures plan（`fixtures-fix-skeleton`）补齐
   （缺哪些类别见 plan `expected`）；agent 在新 H2 下加一行
   `<!-- agent: TODO 归类旧页 -->` 占位提醒归类
-
-**wiki/log.md 升级期不改**：不合并不截断不改格式，原样保留（超过保留上限也不在
-升级期截断）；仅新增行不合规时修

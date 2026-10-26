@@ -3,14 +3,21 @@
 Query 把 wiki 里多份资料综合成答案，好答案归档回 wiki 继续可用；wiki 根
 `AGENTS.md` 的 Query 纪律细则以本文为准
 
+## 准备
+
+- 只读 wiki 根 `AGENTS.md` + `wiki/index.md`
+- 超过 100 页（经验阈值）的 wiki 加一次 `wiki/` 全域全文搜索，补 index 看不全的
+  页间引用
+- 用户同意归档后，补读 `wiki/log.md`（最近约 30 行，避免重复归档）与
+  `scripts/SCRIPTS.md`（wiki 可无 scripts/；跑自定义脚本前先查其分节契约），再进入
+  「归档 query 答案」节
+
 ## 定位候选页
 
-预读按本 skill 执行原则的分级：纯读只读 wiki 根 `AGENTS.md` + `wiki/index.md`。
 按关键词 / 类别扫 index（哪个类别看用户问法：概念 → `concepts/`、对比两实体 →
 先看 `comparisons/` 已归档的、素材在 `sources/`、演进 → 查 concept 页 inbound
-links）。**启发式搜索，不做全量 grep**：关键词命中 index 摘要 / page title /
-`tags` 字段 = 必看；读页时仅命中正文 = 看上下文决定（执行原则里大 wiki 的全域
-全文搜索补链不在此限）
+links）。**启发式搜索，不做全量 grep**（准备节的大 wiki 全域搜索不在此限）：关键词命中
+index 摘要 / page title / `tags` 字段 = 必看；读页时仅命中正文 = 看上下文决定
 
 ## 读相关页
 
@@ -40,7 +47,7 @@ links）。**启发式搜索，不做全量 grep**：关键词命中 index 摘�
 
 - **直接回答**：每条事实带 `（来源：<page path>）`，未审核页额外标"未经人工复审"；
   引 raw / 外部仓 / 网络等非 wiki 上游事实走稳定锚点（不锚行号 / 页码等易漂移坐标），
-  按[章节](ingest-workflow.md#正文引用的稳定性漂移点规避)
+  按[章节](page-templates.md#正文引用的稳定性漂移点规避)
 - **对比表**（"A vs B" 类）：行 = 维度、列 = 对象、单元格用引用形式
 - **时间线**（"X 的演进" 类）：按 source 页 published 排序
 - **矛盾标注**：按上节分级采信规则，不和稀泥
@@ -70,7 +77,7 @@ synthesis 的 `sources` frontmatter 字段是 wiki 内页路径
 - 正文含交互流 / 架构关系时优先配图，见
   [章节](page-templates.md#图示使用指引)
 - 正文引用上游易变事实时过一遍
-  [章节](ingest-workflow.md#正文引用的稳定性漂移点规避)
+  [章节](page-templates.md#正文引用的稳定性漂移点规避)
 
 ## 簿记与收尾
 
@@ -78,8 +85,3 @@ synthesis 的 `sources` frontmatter 字段是 wiki 内页路径
 - 追加 log：`llmw wiki write log --op=query --title="<title>"`
 - 相关 entity / concept 页按需追加"参考来源"段（纪律见 wiki 根 `AGENTS.md`
   写后必同步条）；凡改过既有页正文 → `llmw wiki write touch <page>`
-
-## Query 失败的常见原因
-
-index 没维护 / source 页过期 / 同名页指不同东西，都有对应 lint finding，
-先跑 `llmw wiki lint` 按输出行动

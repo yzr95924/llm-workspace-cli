@@ -43,7 +43,7 @@ LLM 写的页不标注，时间一长会被当成既成事实。`reviewed` 系 =
   自指不会被报出，须自查。注意 `related` / `compared` 按 `wiki/` 内容根解析，
   与 `contradictions` 基准不同
 
-#### 生命周期规则
+### 生命周期规则
 
 `reviewed: true` 是审核时点的背书快照，不是永久标签：LLM 对页面正文的任何修改
 （重摄取、归档、手改）都让戳失效，删 `reviewed` + `reviewed_at` 回到未审核态，
@@ -51,7 +51,7 @@ LLM 写的页不标注，时间一长会被当成既成事实。`reviewed` 系 =
 关键 raw 资料、确认主张站得住，才写 `reviewed: true` + `reviewed_at: <今天>`；
 遇 `contested: true` 或 `contradictions` 非空，先裁定冲突再落戳
 
-#### 矛盾处理
+### 矛盾处理
 
 ingest 或 query 中发现"新资料与已有页冲突"，**不**静默覆盖：
 
@@ -67,8 +67,8 @@ ingest 或 query 中发现"新资料与已有页冲突"，**不**静默覆盖：
 
 ## 各类型模板
 
-每类只列**路径 + 类型特定字段 + 正文骨架**（节名即契约，写入时按它落；节名按需
-保留 / 拆分；5 个必填 frontmatter 字段由 `llmw wiki write new` 生成）
+每类只列**路径 + 类型特定字段 + 正文骨架**（不适用的节可省略；写到的节沿用模板
+节名，可按内容拆分；5 个必填 frontmatter 字段由 `llmw wiki write new` 生成）
 
 ### entity（实体页）
 
@@ -130,6 +130,11 @@ ingest 或 query 中发现"新资料与已有页冲突"，**不**静默覆盖：
 
 路径：`wiki/sources/<slug>.md`；类型字段：`sources`（必填，raw/ 现存路径）、
 `authors` / `published` / `url` / `venue`（可选）
+
+`sources` 元素指向文件或目录的限制：`raw/external/<symlink>/...` 可指向**文件或
+目录**（symlink 目标是 git 仓目录时可整仓作语料）；普通 raw 路径（非
+`raw/external/`）仍要求指向**文件**。lint 只校验可访问性，细则见
+`llmw wiki lint --explain=external-target-dead` 等 external-* 条目
 
 ```markdown
 # <Title>
@@ -233,11 +238,10 @@ ingest 或 query 中发现"新资料与已有页冲突"，**不**静默覆盖：
 ## 模板使用规则
 
 1. **新建**：走 `llmw wiki write new`；正文按上节骨架写
-2. **修改 / 重写**：`updated` 与 `reviewed` 戳归 `llmw wiki write touch`；
+2. **修改 / 重写**：改过正文按[章节](#生命周期规则)处理 `updated` / `reviewed` 戳；
    `type` / `sources` 等关键字段要变，**先和用户确认**；`title` / `description` /
    `type` 变更后 `llmw wiki write index add <page>` 同步条目，页面换路径另
    `llmw wiki write index remove <旧路径>`
-3. **归档 query 答案**：按答案性质选 `comparison`（对比）或 `synthesis`（综合）
 
 ### 建页 / 追加 / 归档阈值（Page Thresholds）
 
@@ -273,3 +277,19 @@ ingest 或 query 中发现"新资料与已有页冲突"，**不**静默覆盖：
 - **维护**：图是主张的一部分，改主张必同步改图（stale / `reviewed` 判定对图与
   文字一视同仁）；**关键结论在图外保留文字**——图里的信息对靠 grep 检索的
   agent 等于不存在
+
+## 正文引用的稳定性（漂移点规避）
+
+正文或对话作答引用上游可变事实时，先过一遍机械判定：上游事实变了，wiki 有任何
+机制（lint / anchor / stale 检查）能发现吗？发现不了的引用就是漂移点，按下列
+类别改写
+
+- **位置引用**（`foo.py:812`、PDF 第 34 页）：引符号名 / 章节标题；git 仓引
+  commit SHA
+- **瞬态数值**（"star 数 1.2w"、跑分）：值 + "截至 YYYY-MM-DD"；或只引来源不录值
+- **版本绑定**（"最新版支持 X"）：写死版本号（"v2.3 起"）；禁裸"最新 / 目前"
+- **完整枚举**（全参数清单）：代表性例子 + "完整清单见来源"；清单属来源不属 wiki
+- **归属信息**（“由张三维护”）：引角色不引人名
+
+日期只标上游事实的有效时点；本次核对 / 回查 / 修订不写进页面标题、节名或正文，
+既有这种写法不跟随复制

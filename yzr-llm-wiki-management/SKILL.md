@@ -17,23 +17,13 @@ description: |
 
 ## 执行原则
 
-- **写类操作预读**：ingest、query 归档、lint 修复、upgrade 启动前，读完 wiki 根四份文档：
-  - `AGENTS.md`：本 wiki 的纪律与 format 版本
-  - `wiki/index.md`：有哪些页、归哪些类
-  - `wiki/log.md`：最近约 30 行，避免重复动作
-  - `scripts/SCRIPTS.md`：wiki 可无 scripts/；跑自定义脚本前先查其分节契约
-- **query 与 lint 报告预读**：未进入归档的 query 与 lint 报告只读 `AGENTS.md` +
-  `wiki/index.md`；lint 要定优先级时再补读 log
-- **大型 wiki 补查**：超过 100 页（经验阈值）的 wiki 加一次 `wiki/` 全域全文搜索。
-  补 index 看不全的页间引用
+- **预读按操作**：要读的 wiki 根文档以各工作流文档的预读规定为准，进流程先读完
 - **机械操作走 CLI**：写操作走 `llmw wiki write` 系列，格式与滚动窗口截断由 `write` 保证，lint 只兜底带外手改；
   `write` 不支持的形态直接编辑文件。建不建页、怎么综合、矛盾怎么裁，由 agent 判断
-- **代码分析**：围绕问题解释代码，不把复述实现细节当作分析；可引用关键函数和变量名支撑结论
-- **不自行立规**：不绕开 wiki 根 `AGENTS.md` 与本 skill 另立约定；两处都没提的，先问用户再写
 - **不跨 wiki**：wiki 根确定后，不读取、搜索或写入其他 wiki；一个 wiki 一个主题，
   不建跨 wiki 交叉引用；跨主题需求告知用户另开 wiki
-- **git 收尾建议**：可在流程收尾建议用户 commit，未启用 git 时不提
-- **不豁免必做项**：用户说“随便 / 赶时间”时，`tags` 等必填字段与按写入纪律应记的 log 也不能省
+- **不自行立规**：不绕开 wiki 根 `AGENTS.md` 与本 skill 另立约定；两处规则冲突时停下问用户，
+  都没规定的常规判断不必逐条请示
 
 ## 工作流
 

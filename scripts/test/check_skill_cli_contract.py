@@ -91,7 +91,6 @@ PROSE_EXEMPTIONS = [
     ("ref/lint-workflow.md", "**不**自动修，只报告，修由用户 / agent 决定"),
     ("SKILL.md", "格式与滚动窗口截断由 `write` 保证，lint 只兜底带外手改"),
     ("ref/upgrade-workflow.md", "**CLI `llmw wiki upgrade`**：修骨架（四类所有权"),
-    ("ref/ingest-workflow.md", "分类、含义与退出码均输出自明"),
     # CLI frontmatter 解析器的失败行为（静默丢弃 / 误解析 + lint 共用同一解析器）：
     # agent 黑盒下运行时观测不到，prose 只能靠断言承载；解析器改了行为须同 commit 同步本节
     ("ref/page-templates.md", "静默丢弃或误解析"),
