@@ -127,28 +127,69 @@ class LintPlanContractTest(unittest.TestCase):
 
 
 class DryRunVisibilityTest(unittest.TestCase):
+    _CUSTOM_INDEX = (
+        "---\n"
+        'title: "Test Index"\n'
+        "type: index\n"
+        'okf_version: "0.1"\n'
+        "tags: [index]\n"
+        "created: 2026-06-28 00:00\n"
+        "updated: 2026-06-28 00:00\n"
+        "---\n\n"
+        "# Test Wiki\n\n"
+        "> 说明块\n\n"
+        "## MyCategory\n\n"
+        "- [x](concepts/x.md) — 自定义段条目\n"
+    )
+
     def test_dropped_sections_surface_in_dry_run(self):
         """新骨架没有的自定义 ## 段在 dry-run plan 前置可见——唯一数据丢失路径。"""
-        custom_index = (
-            "---\n"
-            'title: "Test Index"\n'
-            "type: index\n"
-            'okf_version: "0.1"\n'
-            "tags: [index]\n"
-            "created: 2026-06-28 00:00\n"
-            "updated: 2026-06-28 00:00\n"
-            "---\n\n"
-            "# Test Wiki\n\n"
-            "> 说明块\n\n"
-            "## MyCategory\n\n"
-            "- [x](concepts/x.md) — 自定义段条目\n"
-        )
         with tempfile.TemporaryDirectory() as d:
-            build_wiki(d, index_md=custom_index)
+            build_wiki(d, index_md=self._CUSTOM_INDEX)
             rc, report, err = run_wiki(d, "upgrade")
             self.assertEqual(rc, 0, err)
             item = next(p for p in report["plan"] if p["file"] == "wiki/index.md")
             self.assertEqual(item["dropped_sections"], ["MyCategory"])
+
+
+class ApplySafetyGateTest(unittest.TestCase):
+    """apply 门禁：growth dropped_sections 是数据丢失路径，-ahead 拒绝降级——
+    机械判定收口在 CLI，不靠 prose 约束 agent。"""
+
+    def test_dropped_sections_block_apply(self):
+        """无 render/gitignore diff 但将丢弃自定义段 → 不带 --yes 的 --apply 停 blocked_drift，内容原样。"""
+        with tempfile.TemporaryDirectory() as d:
+            build_wiki(d, index_md=DryRunVisibilityTest._CUSTOM_INDEX)
+            rc, report, err = run_wiki(d, "upgrade", "--apply")
+            self.assertEqual(rc, 1, err)
+            self.assertEqual(report["status"], "blocked_drift", report)
+            self.assertTrue(
+                [c for c in report["changed"] if c.get("dropped_sections")],
+                report["changed"],
+            )
+            self.assertIn(
+                "## MyCategory",
+                (Path(d) / "wiki" / "index.md").read_text(encoding="utf-8"),
+            )
+
+    def test_dropped_sections_pass_with_yes(self):
+        """--yes = 用户已确认丢弃 → 照常嫁接，终态带 dropped-section residue。"""
+        with tempfile.TemporaryDirectory() as d:
+            build_wiki(d, index_md=DryRunVisibilityTest._CUSTOM_INDEX)
+            rc, report, err = run_wiki(d, "upgrade", "--apply", "--yes")
+            self.assertEqual(rc, 0, err)
+            self.assertEqual(report["status"], "done_with_residue", report)
+            self.assertIn("dropped-section", [r["type"] for r in report["residue"]])
+
+    def test_ahead_version_refuses(self):
+        """wiki 版本钉领先 CLI → 任何 apply（含 --yes）拒绝执行（exit 2），AGENTS.md 原样。"""
+        with tempfile.TemporaryDirectory() as d:
+            build_wiki(d, agents_md=_render_agents_md(format_version="99.0.0"))
+            rc, report, err = run_wiki(d, "upgrade", "--apply", "--yes")
+            self.assertEqual(rc, 2, err)
+            self.assertEqual(report["status"], "error")
+            self.assertEqual(report["current_format"], "99.0.0")
+            self.assertIn("99.0.0", (Path(d) / "AGENTS.md").read_text(encoding="utf-8"))
 
 
 class SkeletonExpectedContractTest(unittest.TestCase):

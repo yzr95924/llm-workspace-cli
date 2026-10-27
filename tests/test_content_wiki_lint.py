@@ -183,6 +183,43 @@ class DiscussionsSourceGuardTest(unittest.TestCase):
         )
 
 
+class ReviewedStaleDateTest(unittest.TestCase):
+    """`reviewed-stale` 按日期比较：同日"改正文 → 人工复审"是合法终态不报；
+    updated 日期晚于 reviewed_at 才报（原字符串比较把同日合法态误报）。"""
+
+    _PAGE = (
+        "---\n"
+        "title: Alpha\n"
+        "description: d\n"
+        "type: concept\n"
+        "tags: []\n"
+        "created: 2026-07-21\n"
+        "updated: {updated}\n"
+        "reviewed: true\n"
+        "reviewed_at: 2026-07-21\n"
+        "---\n"
+        "# Alpha\n"
+    )
+
+    def test_same_day_update_not_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = build_minimal_wiki(tmp)
+            (root / "wiki" / "concepts" / "alpha.md").write_text(
+                self._PAGE.format(updated="2026-07-21 10:00"), encoding="utf-8"
+            )
+            _, stdout = run_lint(root)
+        self.assertNotIn("reviewed-stale", stdout, f"同日改后复审不应报：\n{stdout}")
+
+    def test_next_day_update_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = build_minimal_wiki(tmp)
+            (root / "wiki" / "concepts" / "alpha.md").write_text(
+                self._PAGE.format(updated="2026-07-22 08:00"), encoding="utf-8"
+            )
+            _, stdout = run_lint(root)
+        self.assertIn("reviewed-stale", stdout, f"次日更新应报：\n{stdout}")
+
+
 class GitPorcelainPathsTest(unittest.TestCase):
     """`_git_porcelain_paths`——raw-modified 排除 discussions/ 的解析基础。"""
 

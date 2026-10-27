@@ -4,7 +4,8 @@
 幂等，任意中间态可重跑。终态 JSON（--json 恒可用，agent 判定依据）。
 current_format = wiki AGENTS.md 版本钉（解析失败 = null，如实上报，不冒充包内常量）；
 target = 包内常量。
-退出码：0 = done / done_with_residue；1 = blocked_drift；2 = 输入错 / 自验失败（幂等可重跑）。
+退出码：0 = done / done_with_residue；1 = blocked_drift；2 = 输入错 / 自验失败（幂等可重跑）
+/ wiki 版本领先 CLI（拒绝降级骨架）。
 变量 SSOT = metadata toml + 版本常量（不从旧文件反提取）。
 指纹：add / apply 后记 AGENTS.md sha256 到 metadata `agents_md_sha256`；
 dry-run / blocked_drift 输出三态 `agents_md_pristine`（true/false/null）。
@@ -20,6 +21,7 @@ from typing import Dict, List, Optional
 from llmw import WIKI_FORMAT_VERSION
 from llmw.content import render as _render
 from llmw.content import wiki_fixtures
+from llmw.content._check_common import compare_semver as _compare_semver
 from llmw.content._check_common import read_text as _read_text
 from llmw.content.wiki_lint import parse_format_version as _parse_format_version
 from llmw.fsutil import atomic_write, sha256_file
@@ -424,20 +426,37 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
                 print(f"[llmw] hint: {result['hint']}", file=sys.stderr)
         return 2
 
+    # 当前版本 = wiki AGENTS.md 版本钉（如实上报；解析失败 = None，不冒充 CLI 常量）
+    current_format = _parse_format_version(wiki_root)
+    # 版本钉领先 CLI：本地骨架比包内模板新，重渲染 = 降级，一律拒绝且不写盘
+    if current_format and _compare_semver(current_format, WIKI_FORMAT_VERSION) == "newer":
+        result = {
+            "status": "error",
+            "current_format": current_format,
+            "target_format": WIKI_FORMAT_VERSION,
+            "error": f"wiki format {current_format} 领先 CLI {WIKI_FORMAT_VERSION}：拒绝降级骨架",
+            "hint": "更新 llmw 后重试；wiki 未做任何改动",
+        }
+        if as_json:
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+        else:
+            print(f"[llmw] error: {result['error']}", file=sys.stderr)
+            print(f"[llmw] hint: {result['hint']}", file=sys.stderr)
+        return 2
+
     # 1. plan resync
     plan = plan_resync(wiki_root, meta=meta)
 
-    # 当前版本 = wiki AGENTS.md 版本钉（如实上报；解析失败 = None，不冒充 CLI 常量）
-    current_format = _parse_format_version(wiki_root)
     pristine = _agents_md_pristine(wiki_root, meta["agents_md_sha256"])
 
-    # 2. preflight: 判断 blocked_drift（diff 非空 + 非 dry-run 未 --yes）
-    # 注：growth-graft 保留条目，不算 drift；只有 byte-owned render + gitignore-block 算
+    # 2. preflight: 判断 blocked_drift（非 dry-run 未 --yes 时）
+    # 注：growth-graft 保留条目不算 drift，但其 dropped_sections 是数据丢失路径，同样需 --yes
     has_diff = any(item.get("diff") for item in plan if item.get("action") in ("render", "gitignore-block"))
-    if has_diff and not dry_run and not yes:
+    has_drops = any(item.get("dropped_sections") for item in plan)
+    if (has_diff or has_drops) and not dry_run and not yes:
         changed_out = []  # type: List[Dict[str, object]]
         for item in plan:
-            if not item.get("diff"):
+            if not (item.get("diff") or item.get("dropped_sections")):
                 continue
             entry = {
                 "file": str(item.get("rel_path", "")),
@@ -454,16 +473,21 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
             "changed": changed_out,
             "residue": [],
             "verified": {"error": 0, "warn": 0, "pass": 0, "skip": 0},
-            "hint": "diff 非空，需 --yes 确认（自定义内容先搬 MEMORY/，然后重跑）",
+            "hint": "有 diff 或将丢弃自定义段，需 --yes 确认（要保留的内容先搬 MEMORY/ 或固定段，然后重跑）",
         }
         if as_json:
             print(json.dumps(result, indent=2, ensure_ascii=False))
         else:
             print("== upgrade blocked_drift == ", file=sys.stderr)
             for item in plan:
+                if not (item.get("diff") or item.get("dropped_sections")):
+                    continue
+                print(f"\n--- {item.get('rel_path')} ---", file=sys.stderr)
                 if item.get("diff"):
-                    print(f"\n--- {item.get('rel_path')} ---", file=sys.stderr)
                     print(item["diff"], file=sys.stderr)
+                dropped = item.get("dropped_sections") or []
+                if dropped:
+                    print("  将丢弃自定义段: " + " / ".join(f"## {s}" for s in dropped), file=sys.stderr)
             print(f"\n[llmw] hint: {result['hint']}", file=sys.stderr)
         return 1
 

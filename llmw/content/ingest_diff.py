@@ -207,6 +207,7 @@ def run(wiki_root: Path, *, as_json: bool = False, relative: bool = False, check
     raw_files = collect_raw_files(raw_root)
     src_map = collect_ingested_sources_map(wiki_root)
     ingested_paths = set(src_map.keys())
+    dir_sources = [k for k in ingested_paths if (wiki_root / k).is_dir()]
     log_titles, log_raw_paths = collect_ingested_from_log(wiki_root / "wiki" / "log.md")
     log_title_slugs = {_slugify(t) for t in log_titles} - {""}
 
@@ -219,6 +220,10 @@ def run(wiki_root: Path, *, as_json: bool = False, relative: bool = False, check
                     if raw_newer_than_source(p, sp):
                         pending.append((p, REASON_STALE_RAW))
                         break
+            continue
+        if any(rel_to_root.startswith(d + "/") for d in dir_sources):
+            # 目录源（external 整仓语料）按 source 页整体覆盖，不按单文件报 stale——
+            # 摘要是否过期由用户判断（见 skill external 流程）
             continue
         stem = p.stem
         # 新条目 raw 路径精确命中；老条目（无路径）走标题 slug 归一化兜底（启发式）

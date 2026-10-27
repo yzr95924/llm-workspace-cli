@@ -796,11 +796,13 @@ def check_quality_signals(wiki_root):
             findings.append(f"reviewed-at-orphan: {rel} reviewed_at='{reviewed_at_raw}' 但缺 reviewed=true")
 
         if is_reviewed and has_reviewed_at:
-            updated = fm.get("updated")
-            if updated and str(updated).strip() > str(reviewed_at_raw).strip():
+            # 按日期比较（reviewed_at 精度只到日；同日"改正文→复审"是合法终态）
+            upd_d = parse_date_or_datetime(str(fm.get("updated") or "").strip())
+            rev_d = parse_date_or_datetime(str(reviewed_at_raw).strip())
+            if upd_d and rev_d and upd_d > rev_d:
                 findings.append(
                     f"reviewed-stale: {rel} reviewed=true reviewed_at={reviewed_at_raw} "
-                    f"但 updated={updated} — LLM 修改后未清 reviewed，建议重新审核"
+                    f"但 updated={fm.get('updated')} — LLM 修改后未清 reviewed，建议重新审核"
                 )
 
         if not is_reviewed:

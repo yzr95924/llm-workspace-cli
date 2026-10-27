@@ -154,6 +154,26 @@ class LogOnlyClassificationTests(unittest.TestCase):
         )
         assert reasons == ["untracked"]
 
+    def test_directory_source_covers_subtree(self):
+        """sources 指向目录（external 整仓语料）：子树内文件按 source 页整体覆盖，
+        不报 untracked，也不按单文件报 stale（摘要过期与否归用户判断）。"""
+        (self.root / "raw" / "external" / "repo" / "docs").mkdir(parents=True)
+        (self.root / "raw" / "external" / "repo" / "docs" / "readme.md").write_text(
+            "x", encoding="utf-8"
+        )
+        (self.root / "wiki" / "sources").mkdir(parents=True)
+        (self.root / "wiki" / "log.md").write_text("", encoding="utf-8")
+        (self.root / "wiki" / "sources" / "repo-notes.md").write_text(
+            "---\ntitle: Repo\nsources:\n  - raw/external/repo\n---\n", encoding="utf-8"
+        )
+        from llmw.content.ingest_diff import run
+
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            rc = run(self.root, as_json=True, check_stale=True)
+        assert json.loads(buf.getvalue()) == []
+        assert rc == 0
+
 
 if __name__ == "__main__":
     unittest.main()

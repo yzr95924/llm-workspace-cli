@@ -222,7 +222,7 @@ FINDINGS = {
     ),
     "reviewed-stale": FindingSpec(
         "warn",
-        "`reviewed: true` 但 `updated` 晚于 `reviewed_at`（LLM 修改后漏清戳）",
+        "`reviewed: true` 但 `updated` 的日期晚于 `reviewed_at`（LLM 修改后漏清戳）",
         "重新审核并 `llmw wiki write touch`；或不审则删两字段回未审核态",
     ),
     "stale-summary": FindingSpec(
