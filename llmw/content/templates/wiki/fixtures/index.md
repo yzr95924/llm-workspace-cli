@@ -9,12 +9,13 @@ updated: {{SETUP_DATE}}
 
 # {{TOPIC_NAME}} Wiki
 
-> **条目纪律**：按类别分组列出所有未归档内容页（{{INDEX_SECTIONS}}），类别内条目按标题字母序；每条带链接 + 一句话摘要（取自页面 `description`）。
+> 条目规则：按类别分组列出所有未归档内容页（{{INDEX_SECTIONS}}），类别内条目按标题字母序；
+> 每条带链接，页面 `description` 非空时附一句话摘要。
 >
-> **扩容护栏（阈值为建议值）**：单个类别 > 50 条时按首字母 / 子域拆小段（如 `### A-F` / `### G-M`）；
-> 总条目 > 200 时新建 `wiki/_meta/topic-map.md` 按主题聚合导航（index 仍按 type 列）。
-> `llmw wiki lint` 不自动检测 index 体积。agent 在 lint 半定性环节观察，超阈值时
-> 建议用户拆段 / 建 topic-map。
+> 规模建议（阈值非强制）：单个类别超过 50 条时，按首字母或子域拆小节（如 `### A-F` /
+> `### G-M`）；总条目超过 200 条时，新建 `wiki/_meta/topic-map.md` 按主题聚合导航
+> （index 仍按 type 列）。`llmw wiki lint` 不检测 index 体积，超出建议值时由 agent
+> 提醒用户拆段或建 topic-map。
 
 ## Comparisons
 
