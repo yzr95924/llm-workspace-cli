@@ -72,7 +72,6 @@ def render_and_write(
     # 渲染 3 份有占位符的文件（走 llmw.content.render 单一入口）
     agents_md = render_wiki_agents_md(
         topic=topic,
-        setup_date=today,
         format_version=format_version,
     )
     index_md = render_wiki_index_md(topic=topic, setup_date=today)

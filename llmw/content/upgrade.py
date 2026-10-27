@@ -209,12 +209,11 @@ GROWTH_FILES = {
 GITIGNORE_REL = ".gitignore"
 
 
-def _render_byte_owned(*, topic: str, setup_date: str) -> Dict[str, str]:
+def _render_byte_owned(*, topic: str) -> Dict[str, str]:
     """byte-owned 文件渲染（AGENTS.md）。"""
     return {
         "AGENTS.md": _render.render_wiki_agents_md(
             topic=topic,
-            setup_date=setup_date,
             format_version=WIKI_FORMAT_VERSION,
         ),
     }
@@ -240,7 +239,7 @@ def plan_resync(wiki_root: Path, *, meta: Dict[str, str]) -> List[Dict[str, obje
     setup_date = _render.setup_date(meta["created_at"])
 
     # byte-owned
-    byte_rendered = _render_byte_owned(topic=topic, setup_date=setup_date)
+    byte_rendered = _render_byte_owned(topic=topic)
     for rel, new_text in byte_rendered.items():
         old_text = _read_text(wiki_root / rel)
         action = "render"

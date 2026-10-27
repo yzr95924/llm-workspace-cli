@@ -101,10 +101,9 @@ WIKI_TEMPLATE_LANDMARKS = [
     "Wiki Format 版本",
     "@MEMORY/MEMORY.md",
     "@scripts/SCRIPTS.md",
-    "Query 纪律",
     "raw/discussions/",
     "写后必同步",
-    "骨架所有权四分表",
+    "骨架所有权",
 ]
 # 面 6c 模板 → skill 反向引用：字节模板（改一次 = 一次 format bump，无人顺手动）以
 # `<doc>「<节名>」` 软指 skill 文档；skill 侧可自由重构，缺此检查时两侧互相 rename
@@ -133,7 +132,7 @@ LAYOUT_TOKEN_RE = re.compile(r"(?:^|[\s<>/])wiki/([a-z][a-z0-9]*)/")
 # 面 9 module 限定符号禁令：抓两种"包内路径 / 符号"形态——
 #   (a) `llmw.` 前缀（含多点：llmw.content / llmw.content.external_anchor._REQUIRED_FIELDS）
 #   (b) 单点 ident.IDENT（第二段含大写：wiki_lint.VALID_TYPES）
-# 「单向约束」：skill 文本不读 CLI 代码，只用命令名 / finding 名 / 裸常量名。
+# 单向约束：skill 文本不读 CLI 代码，只用命令名 / finding 名 / 裸常量名。
 # 只扫 SKILL_MDS；模板 / 仓根文档是 CLI 自身文档，引用自身常量合法。零误报：MEMORY/MEMORY.md（斜杠）/
 # page-templates.md（第二段无大写）llmw wiki lint（空格命令形态）均不匹配。
 MODULE_SYMBOL_RE = re.compile(
@@ -142,7 +141,7 @@ MODULE_SYMBOL_RE = re.compile(
 
 # 面 10 agent 可见指令文本禁内部引用：CLI 输出的执行指令（to_action / agent_rules /
 # note / rule_ref）只能引 (a) 命令名 (b) 输出自带字段 (c) 实例内可读路径——
-# agent 读不到 CLI 代码（「单向约束」），引包内实现 = 不可执行指令。
+# agent 读不到 CLI 代码（单向约束），引包内实现 = 不可执行指令。
 # ast 键值配对 + 关键字实参精确取这 4 个键的值（递归 List / f-string），不用行窗口启发式。
 # 不扫 desc / argparse help（CLI 自述自身合法）；不扫 hint（错误诊断文本，安装完整性
 # 路径对用户排障合法；真执行指令应落 to_action / agent_rules）。
@@ -856,7 +855,7 @@ def main():  # pylint: disable=too-many-branches
                 errors.append(
                     "[module-symbol] {}:{} :: skill prose 引 CLI 包内符号 `{}`——"
                     "skill 文本不读 CLI 代码，只用命令名 / finding 名 / 裸常量名"
-                    "（「单向约束」：CLI 重构不能让 skill 失效）".format(
+                    "（单向约束：CLI 重构不能让 skill 失效）".format(
                         rel, lineno, m.group(1)
                     )
                 )
@@ -874,7 +873,7 @@ def main():  # pylint: disable=too-many-branches
                 errors.append(
                     "[agent-text-ref] {}:{} :: agent 可见指令 `{}` 引 CLI 内部资产 `{}`——"
                     "只能引命令名 / 输出自带字段 / 实例内可读路径"
-                    "（「单向约束」：agent 读不到包内实现）".format(
+                    "（单向约束：agent 读不到包内实现）".format(
                         rel, lineno, key, m.group(0)
                     )
                 )
@@ -916,10 +915,10 @@ def main():  # pylint: disable=too-many-branches
                 sorted(_page_types_mod.REQUIRED_FRONTMATTER_FIELDS),
             )
         )
-    # byte-owned 模板侧：「写入纪律」加粗 op 名 ⊆ LOG_OPS
+    # byte-owned 模板侧：写入纪律节标注的 op 名 ⊆ LOG_OPS
     from llmw.content import log_format as _lf_mod  # pylint: disable=import-outside-toplevel
 
-    _tmpl_ops = set(re.findall(r"\*\*([a-z]+)\*\*＝", wiki_tpl_text))
+    _tmpl_ops = set(re.findall(r"`([a-z]+)` = ", wiki_tpl_text))
     for _op in _tmpl_ops:
         stats["enum_pins"] += 1
         if _op not in _lf_mod.LOG_OPS:

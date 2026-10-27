@@ -34,7 +34,7 @@ from llmw.content._check_common import (
 from llmw.content.external_anchor import SOURCE_NAME_RE
 from llmw.content.log_format import LOG_LINE_RE
 from llmw.content.page_types import TYPE_TO_SECTION
-from llmw.content.render import render_wiki_agents_md, setup_date
+from llmw.content.render import render_wiki_agents_md
 from llmw.content.wiki_lint import (
     ANCHOR_FILENAME,
     EXTERNAL_SUBDIR,
@@ -50,27 +50,27 @@ CHECK_REGISTRY = [
         "severity": "error",
         "file": "AGENTS.md",
         "rule_ref": "lint-workflow.md#调用方式（--check-version wiki-format-version）",
-        "desc": "AGENTS.md 末尾「当前配置」表 Wiki Format 版本行需与 --target-format 一致",
+        "desc": "AGENTS.md 末尾当前配置表的 Wiki Format 版本行需与 --target-format 一致",
     },
     {
         "id": "agents-md-template-sync",
         "severity": "error",
         "file": "AGENTS.md",
         "rule_ref": "upgrade-workflow.md#职责切分关键三方分工（agents-md-template-sync 修复走 upgrade --apply）",
-        "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（「当前配置」变量替换后）；定制纪律应沉淀到 MEMORY/",
+        "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（渲染变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
         "id": "template-no-outbound-refs",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "<wiki-root>/AGENTS.md「本文件本身的纪律」节（含骨架所有权四分表）",
+        "rule_ref": "<wiki-root>/AGENTS.md：本文件本身的纪律",
         "desc": "模板零出边引用——不得含 page-templates/lint-workflow/SKILL.md/ref/yzr-llm-wiki-management/OKF/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
     },
     {
         "id": "gitignore-external-track-toml",
         "severity": "error",
         "file": ".gitignore",
-        "rule_ref": "external-repo.md#跨主机重建",
+        "rule_ref": ".gitignore external 段（symlink 不入 git，仅跟踪 anchor；wiki 实例内直接可读）",
         "desc": ".gitignore 含 `raw/external/*` 排除 + `!raw/external/.symlink-anchor.toml` 跟踪",
     },
     {
@@ -84,7 +84,7 @@ CHECK_REGISTRY = [
         "id": "symlink-anchor-toml-symlink-matches",
         "severity": "error",
         "file": "raw/external/",
-        "rule_ref": "external-repo.md#跨主机重建（anchor 进 git 的 rationale + 扁平布局不变量）",
+        "rule_ref": "<wiki-root>/AGENTS.md 的 `raw/external/` 节（顶层 symlink + anchor 布局）",
         "desc": "anchor 每个 [[entry]].symlink 对应 external/ 顶层同名 symlink；anchor 无对应 symlink / orphan symlink 一并检查",
     },
     {
@@ -206,7 +206,7 @@ def _parse_anchor_minimal(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
 
 
 def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, object]:
-    """AGENTS.md 末尾「当前配置」表 `Wiki Format 版本` 字段与 --target-format 一致"""
+    """AGENTS.md 末尾当前配置表的 `Wiki Format 版本` 字段与 --target-format 一致"""
     target_format = info.get("target_format") or None
     out = {  # type: Dict[str, object]
         "passed": True,
@@ -231,7 +231,7 @@ def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obj
             break
     if found_version is None:
         out["passed"] = False  # type: ignore
-        out["actual"] = "(无法解析末尾「当前配置」表 `Wiki Format 版本` 字段)"
+        out["actual"] = "(无法解析末尾当前配置表的 `Wiki Format 版本` 字段)"
         out["expected"] = target_format
         return out
     cmp = _compare_semver(found_version, target_format)
@@ -256,7 +256,7 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
         out["skipped"] = "AGENTS.md 不存在"
         return out
 
-    # 变量 SSOT: 从 wiki_metadata.toml 读 topic/created_at（不从 AGENTS.md「当前配置」表反提取）
+    # 变量 SSOT: 从 wiki_metadata.toml 读 topic（不从 AGENTS.md 当前配置表反提取）
     try:
         meta = wiki_store.load(wiki_root)
     except WikiMetadataCorrupt as e:
@@ -268,16 +268,14 @@ def check_agents_md_template_sync(wiki_root: Path, info: Dict[str, str]) -> Dict
         out["skipped"] = f"wiki_metadata.toml 不可读: {e}"
         return out
 
-    if not meta.topic or not meta.created_at:
+    if not meta.topic:
         out["passed"] = False  # type: ignore
-        out["expected"] = "wiki_metadata.toml 含 topic 与 created_at（渲染变量 SSOT）"
-        out["actual"] = f"topic={meta.topic!r}, created_at={meta.created_at!r}"
+        out["expected"] = "wiki_metadata.toml 含 topic（渲染变量 SSOT）"
+        out["actual"] = f"topic={meta.topic!r}"
         return out
 
-    # created_at 形如 "2026-08-19T15:23:45Z" — ISO 8601; SETUP_DATE 派生收口 render.setup_date
     rendered = render_wiki_agents_md(
         topic=meta.topic,
-        setup_date=setup_date(meta.created_at),
         format_version=WIKI_FORMAT_VERSION,
     )
 

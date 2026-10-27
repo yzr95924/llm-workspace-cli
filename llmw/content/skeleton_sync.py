@@ -10,7 +10,7 @@ from typing import Dict, List, NamedTuple, Optional
 
 from llmw import WIKI_FORMAT_VERSION
 from llmw.config import wiki_templates_dir
-from llmw.content.render import read_template, render_wiki_agents_md, setup_date
+from llmw.content.render import read_template, render_wiki_agents_md
 from llmw.fsutil import sha256_file
 
 _TOPIC_PH = "{{TOPIC_NAME}}"
@@ -41,7 +41,7 @@ def empty_plan() -> SkeletonSyncPlan:
 def plan_skeleton_sync(wiki_dir: Path, old_topic: str, new_topic: str, meta) -> SkeletonSyncPlan:
     """生成 new_topic 下的骨架同步计划（只读，不写盘）。
 
-    meta 为 wiki_store.WikiMetadata（消费 created_at / agents_md_sha256）。
+    meta 为 wiki_store.WikiMetadata（消费 agents_md_sha256）。
     活文件严格 utf-8 读（异于 checker 侧 errors="replace" 的宽松读）：计划字节会被
     原样写回，宽松读会把损坏字节替换成 U+FFFD 再落盘，等于借 rename 固化损坏。
     Raises: SetupFailed（包内 fixture 模板缺失）。
@@ -57,7 +57,6 @@ def plan_skeleton_sync(wiki_dir: Path, old_topic: str, new_topic: str, meta) -> 
         old_text = agents_p.read_text(encoding="utf-8")
         new_text = render_wiki_agents_md(
             topic=new_topic,
-            setup_date=setup_date(meta.created_at),
             format_version=WIKI_FORMAT_VERSION,
         )
         agents_digest = hashlib.sha256(new_text.encode("utf-8")).hexdigest()

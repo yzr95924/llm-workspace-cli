@@ -9,7 +9,7 @@ from typing import Dict
 
 from llmw.config import wiki_templates_dir
 from llmw.content.log_format import LOG_OPS, LOG_RETENTION_LIMIT
-from llmw.content.page_types import TYPE_TO_SECTION, WIKI_SUBDIRS
+from llmw.content.page_types import TYPE_TO_SECTION
 from llmw.errors import SetupFailed
 
 
@@ -17,7 +17,6 @@ def wiki_constant_mapping() -> Dict[str, str]:
     return {
         "LOG_RETENTION_LIMIT": str(LOG_RETENTION_LIMIT),
         "LOG_OPS": " / ".join(f"`{op}`" for op in LOG_OPS),
-        "WIKI_SUBDIRS_GLOB": "{" + ",".join(WIKI_SUBDIRS) + "}",
         "INDEX_SECTIONS": " / ".join(sorted(TYPE_TO_SECTION.values())),
     }
 
@@ -25,8 +24,8 @@ def wiki_constant_mapping() -> Dict[str, str]:
 def setup_date(created_at: str) -> str:
     """created_at (UTC ISO8601) → SETUP_DATE（YYYY-MM-DD HH:MM）单一出处。
 
-    出生渲染、rename 重渲染与 check_agents_md_template_sync 的字节比对共享此派生；
-    改口径 = 改字节金标准。
+    出生渲染（init）与 upgrade 重渲染 index / log fixture 共享此派生；
+    改口径 = 改骨架字节金标准。
     """
     return created_at.replace("T", " ")[:16]
 
@@ -58,7 +57,7 @@ def read_template(path: Path) -> str:
 # ===== wiki side =====
 
 
-def render_wiki_agents_md(*, topic: str, setup_date: str, format_version: str) -> str:
+def render_wiki_agents_md(*, topic: str, format_version: str) -> str:
     """渲染 <wiki-root>/AGENTS.md。"""
     refs = wiki_templates_dir()
     tmpl = read_template(refs / "agents-md-template.md")
@@ -66,7 +65,6 @@ def render_wiki_agents_md(*, topic: str, setup_date: str, format_version: str) -
         tmpl,
         {
             "TOPIC_NAME": topic,
-            "SETUP_DATE": setup_date,
             "WIKI_FORMAT_VERSION": format_version,
             **wiki_constant_mapping(),
         },

@@ -276,8 +276,7 @@ def test_rename_resyncs_skeleton_headers(full_workspace_with_wiki: Path):
     bar = ws_root / "bar"
 
     agents = (bar / "AGENTS.md").read_text(encoding="utf-8")
-    assert agents.startswith("# bar Wiki：LLM 维护守则")
-    assert "| 主题 | bar |" in agents
+    assert agents.startswith("# bar Wiki\n")
 
     index = (bar / "wiki" / "index.md").read_text(encoding="utf-8")
     assert 'title: "bar Index"' in index
@@ -346,7 +345,7 @@ def test_rename_drift_yes_overwrites(full_workspace_with_wiki: Path):
 
     new_agents = (ws_root / "bar" / "AGENTS.md").read_text(encoding="utf-8")
     assert "<!-- my custom rule -->" not in new_agents
-    assert new_agents.startswith("# bar Wiki：LLM 维护守则")
+    assert new_agents.startswith("# bar Wiki\n")
     meta = wiki_store.load(ws_root / "bar")
     assert meta.agents_md_sha256 == sha256_file(ws_root / "bar" / "AGENTS.md")
 
