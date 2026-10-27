@@ -102,7 +102,7 @@ FINDINGS = {
     "raw-modified": FindingSpec(
         "error",
         "git 仓内 raw/ 的 tracked 文件有未提交改动；用户更新合法，但需确认来源",
-        "问用户确认来源：用户更新则按需重摄取，是否提交由用户决定；非用户改动先还原",
+        "问用户确认来源：用户更新则按需重摄取，是否提交由用户决定；非用户改动报用户裁定（agent 不写 raw/、不代还原）",
     ),
     "source-in-discussions": FindingSpec(
         "error",
@@ -242,7 +242,7 @@ FINDINGS = {
     ),
     "wiki-format-version-unparsed": FindingSpec(
         "warn",
-        "AGENTS.md 末尾「当前配置」表的 `Wiki Format 版本` 行无法解析",
+        "AGENTS.md 末尾当前配置表的 `Wiki Format 版本` 行无法解析",
         "跑 `llmw wiki lint --check-version` 诊断，或按模板形态修表格行",
     ),
     # --- info：提示 / 审计循环，不强制 ---

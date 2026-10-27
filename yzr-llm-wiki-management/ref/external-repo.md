@@ -23,7 +23,7 @@
 
 ## 跨主机重建
 
-命令与 `--target` / `--yes` 形式见 wiki 根 `AGENTS.md` 的 `raw/external/` 节；
+命令与 `--target` / `--yes` 形式见 `llmw wiki external rebuild --help`；
 完成后 `llmw wiki lint` 的 external-* findings 应为 0
 
 ## 漂移刷新
