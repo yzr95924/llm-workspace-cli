@@ -974,12 +974,12 @@ def severity_of(finding: str) -> str:
 
 # ===== --check-version：纯探测（不写盘）；plan 的消费方 = upgrade-workflow.md =====
 
-# 「当前配置」表格式版本行（容忍用户编辑变体，如多余空格 / 备注尾部；semver 单独抓取）
+# 当前配置表格式版本行（容忍用户编辑变体，如多余空格 / 备注尾部；semver 单独抓取）
 FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\s*\|")
 
 
 def parse_format_version(wiki_root: Path) -> Optional[str]:
-    """抽 AGENTS.md「当前配置」表的 `Wiki Format 版本`；解析失败 / 缺文件 → None。
+    """抽 AGENTS.md 当前配置表的 `Wiki Format 版本`；解析失败 / 缺文件 → None。
 
     只认表行不扫全文（防误抓正文版本号）；表被编辑坏 → None，让上游提示人工填回而不是猜。
     """
@@ -1008,7 +1008,7 @@ def check_format_version(wiki_root: Path) -> List[str]:
     current = parse_format_version(wiki_root)
     if current is None:
         findings.append(
-            "wiki-format-version-unparsed: AGENTS.md 末尾「当前配置」表 `Wiki Format 版本` 行无法解析"
+            "wiki-format-version-unparsed: AGENTS.md 末尾当前配置表的 `Wiki Format 版本` 行无法解析"
             "（缺 AGENTS.md 或表格格式破坏）——"
             "跑 `llmw wiki lint --check-version` 诊断"
         )
@@ -1016,12 +1016,12 @@ def check_format_version(wiki_root: Path) -> List[str]:
     cmp = _compare_semver(current, CURRENT_WIKI_FORMAT)
     if cmp == "older":
         findings.append(
-            f"wiki-format-version-stale: AGENTS.md 末尾「当前配置」表 format {current} 落后 llmw 支持版本 {CURRENT_WIKI_FORMAT}——"
+            f"wiki-format-version-stale: AGENTS.md 末尾当前配置表 format {current} 落后 llmw 支持版本 {CURRENT_WIKI_FORMAT}——"
             "跑 `llmw wiki lint --check-version --apply` 走升级流程"
         )
     elif cmp == "newer":
         findings.append(
-            f"wiki-format-version-ahead: AGENTS.md 末尾「当前配置」表 format {current} 领先 llmw 支持版本 {CURRENT_WIKI_FORMAT}——"
+            f"wiki-format-version-ahead: AGENTS.md 末尾当前配置表 format {current} 领先 llmw 支持版本 {CURRENT_WIKI_FORMAT}——"
             "更新 llmw 安装对齐"
         )
     # equal / unknown → 无 finding
@@ -1061,7 +1061,7 @@ _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]
         "fixtures-fix-agents-md-resync",
         lambda b: (
             "跑 `llmw wiki upgrade --apply`：CLI 全量重渲染 AGENTS.md（byte-owned，"
-            "「当前配置」表按 wiki metadata 与升级目标 format 重渲染）。若本地定制 diff 进 blocked_drift："
+            "当前配置表按 wiki metadata 与升级目标 format 重渲染）。若本地定制 diff 进 blocked_drift："
             "逐条列给用户裁定——搬 MEMORY/（由 yzr-memory-management skill 收纳）或丢弃，裁定完加 `--yes` 重跑"
         ),
     ),
@@ -1230,7 +1230,7 @@ def cmd_check_version(wiki_root: Path, apply: bool, json_mode: bool) -> int:
         return 0
 
     if current_format is None:
-        print("[WARN] 无法解析 <wiki-root>/AGENTS.md 末尾「当前配置」表 `Wiki Format 版本`")
+        print("[WARN] 无法解析 <wiki-root>/AGENTS.md 末尾当前配置表的 `Wiki Format 版本`")
         print("       请确认该行存在且格式为: | Wiki Format 版本 | 0.x.y |")
         print("       解析失败不影响 fixtures check（下方继续输出）")
         print()

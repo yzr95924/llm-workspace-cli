@@ -21,9 +21,9 @@ lint 走同一解析器，兜不住
   取值规则见其头部说明块
 - `created` / `updated`：必填，写入用 `YYYY-MM-DD HH:MM`
 - `reviewed` / `reviewed_at` / `contested` / `contradictions`：可选，认知质量
-  信号，见「可信度与认知质量信号」节
+  信号，见[章节](#可信度与认知质量信号)
 - 类型特定字段（`sources` / `compared` / `threads` / `related` / `aliases` 等）：
-  按类型见「各类型模板」节
+  按类型见[章节](#各类型模板)
 
 `index.md` / `log.md` / `tags.md` 是 **reserved 文件**（index / log 自带 frontmatter，
 `type: index` / `type: log` 仅作标记；tags 不带 frontmatter），lint 跳过
@@ -250,7 +250,7 @@ ingest 或 query 中发现"新资料与已有页冲突"，**不**静默覆盖：
 - **新建 entity / concept 页**：该 entity / concept 在 ≥ 2 个 source 页中被提到
   （经验阈值），或是某 source 页的中心主题
 - **追加到已有页**：source 页提到一个已被覆盖的 entity / concept，追加
-  「参考来源」段即可，不重写
+  `参考来源` 段即可，不重写
 - **不创建页**：路过提及（脚注 / 一次出现的名字）、领域外的细节、与本 wiki
   主题无关
 - **拆分页**：单页正文超过 lint `oversized-page` 阈值（拆分建议随触发输出自带），
@@ -258,7 +258,7 @@ ingest 或 query 中发现"新资料与已有页冲突"，**不**静默覆盖：
 - **归档页**：内容被完全取代或主题域变化，加 `archived: true`、从 `index.md` 移除；
   页文件保留，lint 与 `ingest-diff --check-stale` 不再按活跃页维护它
 
-**页不物理删除**（`rm` 会断 inbound 链接与 index 溯源），生命周期终点是「归档页」
+**页不物理删除**（`rm` 会断 inbound 链接与 index 溯源），生命周期终点是归档页
 
 ## 图示使用指引
 

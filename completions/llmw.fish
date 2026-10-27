@@ -4,8 +4,8 @@
 # fish 自动加载，无需 source。
 
 # 参数风格：带值 flag 一律 `--flag=<value>`（= 连接；CLI 拒绝空格分隔的 --flag value）。
-# 带值 flag 补全分两类（核心：fish 对带值 long option 生成 `--flag=` 候选的条件是「有 -a 值候选
-# 且无 -r」——-r 会让 fish 走空格分隔语义，既不给 = 形式、又与 CLI 的 = 要求冲突）：
+# 带值 flag 补全分两类（核心：fish 对带值 long option 生成 `--flag=` 候选的条件是有 -a 值候选
+# 且无 -r——-r 会让 fish 走空格分隔语义，既不给 = 形式、又与 CLI 的 = 要求冲突）：
 #   A 类（有动态值，如 --name）：`-l flag -a "(vals)"`（无 -r），
 #       fish 原生同时给 --flag 与 --flag=；= 后 <Tab> 补动态值。
 #   B 类（free-form 无动态值，如 --topic）：`-a "--flag="`（直接给 = 候选），值手敲。

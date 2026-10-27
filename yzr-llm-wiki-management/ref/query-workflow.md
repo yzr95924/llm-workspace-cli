@@ -1,16 +1,14 @@
 # Query 详细流程
 
-Query 把 wiki 里多份资料综合成答案，好答案归档回 wiki 继续可用；wiki 根
-`AGENTS.md` 的 Query 纪律细则以本文为准
+Query 把 wiki 里多份资料综合成答案，好答案归档回 wiki 继续可用
 
 ## 准备
 
 - 只读 wiki 根 `AGENTS.md` + `wiki/index.md`
 - 超过 100 页（经验阈值）的 wiki 加一次 `wiki/` 全域全文搜索，补 index 看不全的
   页间引用
-- 用户同意归档后，补读 `wiki/log.md`（最近约 30 行，避免重复归档）与
-  `scripts/SCRIPTS.md`（wiki 可无 scripts/；跑自定义脚本前先查其分节契约），再进入
-  「归档 query 答案」节
+- 用户同意归档后，补读 `wiki/log.md`（最近约 30 行，避免重复归档），再进入
+  [章节](#归档-query-答案)
 
 ## 定位候选页
 

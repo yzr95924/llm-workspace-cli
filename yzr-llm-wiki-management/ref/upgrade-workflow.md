@@ -2,13 +2,13 @@
 
 **优先级裁定**：边界与纪律以本文档 + wiki 根 `AGENTS.md` 为准；每条动作的具体
 改法与执行顺序以 lint plan 自带的 `agent_rules[]` + 各 action 说明为准（CLI 输出
-真源，本文不重述，重述必漂移）。格式版本以 `<wiki-root>/AGENTS.md`「当前配置」表
-的「Wiki Format 版本」行为准；breaking 变更的语义合并见[章节](#语义合并规则)
+真源，本文不重述，重述必漂移）。格式版本以 `<wiki-root>/AGENTS.md` 当前配置表的
+`Wiki Format 版本` 行为准；breaking 变更的语义合并见[章节](#语义合并规则)
 
 ## 职责切分（**关键**：三方分工）
 
 - **CLI `llmw wiki upgrade`**：修骨架（四类所有权，清单以 wiki 根 `AGENTS.md`
-  「骨架所有权四分表」为准）+ legacy paths 移动；`render` / `gitignore-block`
+  的骨架所有权一节为准）+ legacy paths 移动；`render` / `gitignore-block`
   类 diff 需 `--yes`，否则停于 `blocked_drift`
 - **lint plan（`llmw wiki lint --check-version --apply --json`）**：stdout 输出
   `upgrade_plan`，**只输出 plan、不落盘**，改动由 agent 编辑文件落地
@@ -19,8 +19,7 @@
 
 ## 流程（agent 驱动）
 
-1. **操作前置**：读完 wiki 根四份文档（`AGENTS.md`、`wiki/index.md`、`wiki/log.md`、
-   `scripts/SCRIPTS.md`；wiki 可无 scripts/，跑自定义脚本前先查其分节契约）
+1. **操作前置**：读完 wiki 根三份文档（`AGENTS.md`、`wiki/index.md`、`wiki/log.md`）
 
 2. **dry-run 看骨架计划**：
 
@@ -69,7 +68,7 @@
    按终态处置：
 
    - `done` + `needs_upgrade == false` → 告知用户完成
-   - `blocked_drift` → 回「裁定 drift」步
+   - `blocked_drift` → 回到裁定 drift 一步
    - `done_with_residue` → 逐项读 `residue[]` 的 `note`（处置建议自带）与用户裁定
    - `verify_failed` → 按 `verified.failures[]` 修完重跑（幂等）
    - lint 侧仍有 fixtures 不合规 → 报告 + 转人工
@@ -95,7 +94,7 @@
 CLI 不替代语义判断，以下是 wiki/index.md 跨条目合并规则：
 
 - 同 `<relative-path>` link 但多条目出现 → 留信息最完整的一条，余删。优先级：
-  「✓ reviewed <date>」标识最新 > 有 `description` 摘要 > `updated` 最新
+  `✓ reviewed <date>` 标识最新 > 有 `description` 摘要 > `updated` 最新
 - 同 `<title>` 但不同 `<relative-path>` → lint 报 `duplicate-title`，**转人工
   裁定**：是 entity 重命名（保留新路径，老条目信息并入后删）还是概念拆页
   （重命名其一）

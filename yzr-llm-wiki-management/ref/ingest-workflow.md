@@ -5,9 +5,8 @@ Ingest 把 `raw/` 的原始资料消化成 wiki 内容页。默认 1 份 raw 1 �
 
 ## 准备
 
-- 先读 wiki 根四份文档：`AGENTS.md`（纪律与 format 版本）、`wiki/index.md`（有哪些页、
-  归哪些类）、`wiki/log.md`（最近约 30 行，避免重复动作）、`scripts/SCRIPTS.md`
-  （wiki 可无 scripts/；跑自定义脚本前先查其分节契约）
+- 先读 wiki 根三份文档：`AGENTS.md`（纪律与 format 版本）、`wiki/index.md`（有哪些页、
+  归哪些类）、`wiki/log.md`（最近约 30 行，避免重复动作）
 
 ```bash
 # 找全新 / raw 有更新待重摄取 / log 有记录但 source 页缺失待重建的文件
@@ -16,7 +15,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
 
 输出按 reason 区分 `untracked` / `stale-raw` / `log-only-no-source-page`
 
-- **评估规模**：< 3 份逐份处理；≥ 3 份走「批处理摄取」；> 20 份先按主题聚类（同议题 /
+- **评估规模**：< 3 份逐份处理；≥ 3 份走批处理摄取；> 20 份先按主题聚类（同议题 /
   同作者 / 同时间段优先，不按文件名随机排），再问用户先处理哪一簇、逐批推进
   （数字均为经验阈值，非 CLI 强制）
 - **对齐要点**（交互式单篇 / 少量、且用户没给明确方向时做）：确认主题方向、重点交叉的
@@ -62,7 +61,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale
   既有 source 页里该指向新页的交叉引用补上
 - `llmw wiki write log --op=ingest --title="<source 页 title>" --raw="raw/<相对路径>"`：
   `--raw` 记录被摄取文件，是 `ingest-diff` 判定 log-only-no-source-page 的精确
-  依据（未记录时按 title slug 归一化兜底）；批处理走 `--bulk`（见「批处理摄取」）
+  依据（未记录时按 title slug 归一化兜底）；批处理走 `--bulk`（见批处理摄取一节）
 
 ## 批处理摄取（≥ 3 份 raw 同时摄入）
 

@@ -36,7 +36,7 @@ def _now():
 
 
 def _warn_version(wiki_root):
-    """AGENTS.md 末尾「当前配置」表钉定版本与 SKILL 不一致时打警告（stderr，不阻断）"""
+    """AGENTS.md 末尾当前配置表钉定版本与 SKILL 不一致时打警告（stderr，不阻断）"""
     pinned = parse_format_version(Path(wiki_root))
     if pinned and pinned != CURRENT_WIKI_FORMAT:
         print(

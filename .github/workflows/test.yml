@@ -49,7 +49,7 @@ jobs:
   # fresh init + wiki → wiki 探测器（llmw.content 命令面：`llmw wiki --path=DIR check-fixtures`）
   # → 断言结构合规。
   # 双向覆盖：CLI 改坏骨架 / SKILL 改坏 fixtures 都让本 job 红。兑现
-  # 探测器作为「CLI 产物合规的可执行真源」（格式契约与探测器不一致时以探测器为准）。
+  # 探测器是 CLI 产物合规的可执行真源（格式契约与探测器不一致时以探测器为准）。
   # SKILL 与 CLI 同仓，无 submodule 依赖。
   fixtures-smoke:
     runs-on: ubuntu-latest

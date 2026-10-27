@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Tuple
 
 SEMVER_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 
-# 模板零出边引用：§节号引用（如「§6」；文件级 pattern 清单由各 check 文件自持）
+# 模板零出边引用：§节号引用（如 `§6`；文件级 pattern 清单由各 check 文件自持）
 TEMPLATE_OUTBOUND_SECTION_RE = re.compile(r"§[0-9]")
 
 

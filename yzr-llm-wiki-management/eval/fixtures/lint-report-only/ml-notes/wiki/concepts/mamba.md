@@ -23,8 +23,8 @@ SSM 参数随输入变化以获得按内容过滤的能力。
 
 ## 相关概念
 
-- [Transformer](../concepts/transformer.md) — 注意力路线；本页与它对「长序列
-  是否必须离开注意力」的判断冲突
+- [Transformer](../concepts/transformer.md) — 注意力路线；本页与它对“长序列
+  是否必须离开注意力”的判断冲突
 
 ## 参考来源 / Sources
 

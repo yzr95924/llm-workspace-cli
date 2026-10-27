@@ -11,9 +11,8 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 ```
 
 跑 lint 前先读 `AGENTS.md` + `wiki/index.md`；要定修复优先级时再补读 `wiki/log.md`。
-常规 lint 体检每次运行都要记 log（干净运行也记，log 义务按 wiki 根 `AGENTS.md`
-写后必同步条）；format 升级中的 `--check-version` 调用不记，见
-[章节](upgrade-workflow.md#边界)
+log 义务按 wiki 根 `AGENTS.md` 写后必同步条（升级中的 `--check-version` 调用不记，见
+[章节](upgrade-workflow.md#边界)）。
 
 遇版本漂移 finding（`wiki-format-version-*`）→ `llmw wiki lint --check-version`
 取报告，走[升级流程](upgrade-workflow.md)
@@ -42,7 +41,7 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all    # finding 含义 / 修�
 
 1. **询问用户先修哪些**（报告按 error > warn > info 排）：不要一次全修，易回退
    或引入新问题
-2. **动手修前补读** `wiki/log.md` 与 `scripts/SCRIPTS.md`（`AGENTS.md` 与
+2. **动手修前补读** `wiki/log.md`（`AGENTS.md` 与
    `wiki/index.md` 已在调用方式节读过）
 3. 修完**重新跑 lint 验证**，不带未验证的 fix 前进
 4. `llmw wiki lint --check-version` 报 fixtures 不合规 → 职责切分与 plan 消费
