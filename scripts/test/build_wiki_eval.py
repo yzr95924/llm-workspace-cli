@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -188,6 +189,12 @@ def _build_root(name, conf, case_dir, tmp_ws):
             "--title=" + title,
             "--raw=" + srcs[0],
         )
+
+    # copy2 保留源 mtime；显式刷新，保证"raw 恒晚于页内固定 updated"的 stale 前提恒复现
+    now = time.time()
+    for p in (wiki / "raw").rglob("*"):
+        if p.is_file():
+            os.utime(p, (now, now))
     return wiki
 
 

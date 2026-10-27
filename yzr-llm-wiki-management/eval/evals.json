@@ -5,32 +5,34 @@
       "id": "ingest-single",
       "prompt": "把 raw/articles/attention.md 摄取进这个 wiki，重点整理 self-attention，并与已有的 Transformer 页关联。",
       "expectations": [
-        "先跑 `llmw wiki ingest-diff --check-stale`，识别 attention.md 为 untracked、mamba.md 为 stale-raw（日期基准产物），本次只处理 attention.md",
-        "不碰 stale-raw 的 `wiki/sources/mamba-notes.md`：不补链、不跑 `write touch`（会把 `updated` 推前、洗掉重摄取信号）；确有补链必要则交付说明注明已顺延",
-        "收尾 `llmw wiki ingest-diff --check-stale` 中 `articles/mamba.md` 仍为 stale-raw（上条的机械验证）",
-        "source 页经 `llmw wiki write new --type=source --sources=raw/articles/attention.md` 创建，不手写 frontmatter",
+        "先跑 `llmw wiki ingest-diff --check-stale --json`，识别 attention.md 为 untracked、mamba.md 为 stale-raw（日期比较产物），本次只处理 attention.md",
+        "stale-raw 的 `wiki/sources/mamba-notes.md` 保持不动：不补链、不跑 `write touch`（会把 `updated` 推到今天、洗掉重摄取信号）；确有补链必要则交付说明注明已顺延",
+        "收尾 `llmw wiki ingest-diff --check-stale --json` 中 `articles/mamba.md` 仍为 stale-raw，attention.md 不再出现在待处理项",
+        "source 页经 `llmw wiki write new --type=source --slug=<slug> --title=<title> --description=<摘要> --sources=raw/articles/attention.md` 创建，不手写 frontmatter",
         "每个新页跑 `llmw wiki write index add` 入 index",
-        "以 `llmw wiki write log --op=ingest` 记 ingest 条目且带 --raw 参数",
-        "Transformer 页只在『参考来源 / Sources』段追加与补交叉引用，不整页重写；Edit 过正文则跑 `llmw wiki write touch`",
-        "若新建 self-attention concept 页，同样走 write new + index add；不建页必须在交付说明里给出按建页阈值的理由",
+        "以 `llmw wiki write log --op=ingest` 记一条 ingest 条目，含 `--raw=raw/articles/attention.md` 且 title 对应 source 页",
+        "Transformer 页不整页覆盖：往 Sources 段追加条目并补交叉引用，改动正文后跑 `llmw wiki write touch`",
+        "新建 `wiki/concepts/self-attention.md`：走 write new，正文含定义与缩放点积 / 多头要点，经 index add 入 index，并与 attention source 页、Transformer 页互链",
+        "attention raw 与既有 Mamba 立场的冲突不静默覆盖：两说并列并各带来源，或给承载主张的页面设 contested + contradictions 互指",
         "不给任何新页落 reviewed: true",
         "不为同一 raw 写第二个 source 页",
-        "不执行任何 git 命令"
+        "raw/ 下文件字节与 mtime 不变",
+        "不执行 git 写操作（只读 status / diff / log 允许）"
       ]
     },
     {
       "id": "ingest-stale-reingest",
       "prompt": "raw/articles/mamba.md 后来补了一段（显存数字），重新摄取一下；attention.md 这次不动。",
       "expectations": [
-        "用 `llmw wiki ingest-diff --check-stale` 确认 mamba.md 与 attention.md 均为 `stale-raw`（非 untracked），本次只处理用户点名的 mamba.md",
-        "不建新 source 页、不对 `wiki/sources/mamba-notes.md` 做 Write 整页覆盖：用 Edit 更新正文，既有节（摘要 / 关键贡献 / 关键数字）与既有主张保留",
-        "补记里的新信息（显存约为注意力基线 60%）消化进『关键数字 / 实验结果』节，不是只 touch 不改正文",
+        "用 `llmw wiki ingest-diff --check-stale --json` 确认 mamba.md 与 attention.md 均为 `stale-raw`（非 untracked），本次只处理用户点名的 mamba.md",
+        "不建新 source 页，不把 `wiki/sources/mamba-notes.md` 整页覆盖：增量编辑正文，既有节（摘要 / 关键贡献 / 关键数字）与既有主张保留",
+        "补记里的新信息消化进 `## 关键数字 / 实验结果` 节，保留 8K token、同等规模、训练峰值三个限定（显存约为注意力基线 60%），不是只 touch 不改正文",
         "frontmatter `sources` 保持单条 `raw/articles/mamba.md`，不新增、不删；index 不重复 add（该页已登记）",
-        "Edit 过正文后跑 `llmw wiki write touch wiki/sources/mamba-notes.md`",
-        "以 `llmw wiki write log --op=ingest --raw=raw/articles/mamba.md` 记重摄取条目（重摄取不跳过 log）",
-        "不碰任务外的 `wiki/sources/attention-notes.md`（不补链、不 touch、不改正文）",
-        "收尾 `llmw wiki ingest-diff --check-stale`：mamba.md 不再报 stale，attention.md 仍报 stale-raw",
-        "不执行任何 git 命令"
+        "增量编辑正文后跑 `llmw wiki write touch wiki/sources/mamba-notes.md`",
+        "以 `llmw wiki write log --op=ingest --raw=raw/articles/mamba.md` 记重摄取条目（title 对应 source 页；重摄取不跳过 log）",
+        "任务外的 `wiki/sources/attention-notes.md` 保持不动（不补链、不 touch、不改正文）",
+        "收尾 `llmw wiki ingest-diff --check-stale --json`：mamba.md 不再报 stale，attention.md 仍报 stale-raw",
+        "raw/ 下文件字节与 mtime 不变；不执行 git 写操作（只读命令允许）"
       ]
     },
     {
@@ -41,18 +43,19 @@
         "答案中每条事实带（来源：<页面路径>）标注",
         "Transformer 与 Mamba 对长序列可持续性的判断两说并列、各带来源，不以 reviewed 身份单方裁定",
         "引用未审核页时显式标注未经人工复审；引用 reviewed: true 的 Transformer 页时标注优先参考、待人工复审裁定",
-        "本用例不调用任何 `llmw wiki write`：wiki 内不新建页面、index.md 与 log.md 零新增条目",
-        "最终回答或 outputs 中出现归档提议（说明答案本质是 comparison/synthesis 并询问是否归档），默认未归档"
+        "冲突双方都未标 contested：在答案外提醒用户按矛盾处理补标注，本轮不代标",
+        "本用例不调用任何 `llmw wiki write`：不新建页面、index.md 与 log.md 零新增条目，已有页面的正文与 frontmatter 均不改动",
+        "最终回答或 outputs 中出现归档提议：附建议类型（comparison 或 synthesis）、标题与目标路径并询问是否归档；默认未归档"
       ]
     },
     {
       "id": "query-scope-current-wiki",
       "prompt": "这个 wiki 里关于 LoRA 低秩微调有什么结论？只根据当前 wiki 已有页面回答。",
       "expectations": [
-        "文件读取 / Grep / Glob / 目录列举只发生在当前 wiki 根 current/ 内（skill 自身文档除外），不读取、列举或搜索同级 finetune-notes/ 或其他 wiki，也不向上层目录搜索",
+        "文件读取 / Grep / Glob / 目录列举只发生在当前 wiki 根 current/ 内（skill 自身文档与本例 outputs 除外），不读取、列举或搜索同级 finetune-notes/ 或其他 wiki，也不向上层目录搜索",
         "如实报告当前 wiki 未找到 LoRA 相关结论；最终回答与 outputs 不出现复现标记 lora-7bx-mem-35、35% 显存结论或 finetune-notes 页的任何路径",
-        "不新建页面、不归档、不写入 current/ 之外的任何文件",
-        "不执行任何 git 命令"
+        "不新建页面、不归档、不修改 current/ 内任何文件；除本例 outputs 外不写任何文件",
+        "不执行 git 写操作（只读命令允许）"
       ]
     },
     {
@@ -61,11 +64,12 @@
       "expectations": [
         "跑 `llmw wiki lint` 拿机械层 finding，并用 `llmw wiki lint --explain=all` 对齐口径",
         "报告按名覆盖 broken-link（concepts/state-space-model.md）与 orphan-page（entities/karpathy.md）",
-        "报告指出 transformer 页 contested 未裁定与 contradiction-asymmetric（标注只挂单向）",
+        "报告指出 `contested-page`（wiki/concepts/transformer.md 未裁定）与 contradiction-asymmetric（标注只挂单向）",
+        "报告覆盖 lint 输出中的全部 error 与 warn（含 tag-not-in-taxonomy 等附加项），按 error > warn > info 排序，info 可汇总",
         "跑 `llmw wiki ingest-diff --check-stale` 并在报告指出 stale-raw（raw/articles/mamba.md）与未摄取堆积（attention.md）",
-        "不修改任何内容页，不执行 index add / remove",
+        "除新增一条 lint 巡检 log 外不修改任何文件：内容页零改动，不执行 index add / remove",
         "以 `llmw wiki write log --op=lint` 记一条巡检条目（lint 运行的 log 义务按根 AGENTS.md）",
-        "不执行 git 命令"
+        "不执行 git 写操作（只读命令允许）"
       ]
     },
     {
@@ -73,10 +77,11 @@
       "status": "未实跑",
       "prompt": "这个 wiki 的 format 版本漂移了，升级它。",
       "expectations": [
-        "先 `llmw wiki upgrade --json` dry-run 看计划，确认 dropped_sections 后才决定 --apply",
+        "先 `llmw wiki upgrade --json` dry-run 看计划，逐项确认 `plan[].dropped_sections` 后才决定 --apply",
         "三判据（dropped_sections 为空 / agents_md_pristine / 不含 gitignore-block）不满足时不 --apply --yes，呈用户裁定；自行批准的在交付说明注明判据已核",
         "升级期不调用 `llmw wiki write`、不追加 log 条目",
-        "收尾用 `llmw wiki upgrade --apply --json`（不带 --yes）与 `llmw wiki lint --check-version` 验证终态"
+        "过程中跑 `llmw wiki lint --check-version`；有 fixtures 不合规时取 `upgrade_plan` 按其落地",
+        "安全分支收尾用 `llmw wiki upgrade --apply --json`（不带 --yes）与 `llmw wiki lint --check-version` 验证终态；阻断分支只把裁定请求写入 outputs，不 apply、不追加 log"
       ]
     },
     {
@@ -85,7 +90,8 @@
       "prompt": "把 ~/src/ray 这个仓库纳入 wiki 当语料。",
       "expectations": [
         "经 `llmw wiki external add` 落 symlink + anchor，不手改 anchor toml、不内嵌拷贝仓库",
-        "命名、target 路径、notes 三项取值先与用户确认"
+        "命名、target 路径、notes 三项取值先与用户确认",
+        "target 仓内容不被修改；index 与 log 无新增条目"
       ]
     }
   ]

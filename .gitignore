@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Eval workspaces (skill qualitative-loop, see yzr-skill-management)
+*-workspace/
