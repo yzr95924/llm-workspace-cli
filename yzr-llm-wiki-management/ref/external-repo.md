@@ -28,4 +28,4 @@
 ## 漂移刷新
 
 用户日常对 target 仓 `git pull` 不触发任何自动检测：anchor 身份字段极少变化，无需刷新。
-摘要是否过期由用户判断，需要时对对应 source 页重新执行 ingest（`target` 字段不动）。
+摘要是否过期由用户判断，需要时对对应 source 页重新执行 ingest（anchor 的 `target` 不动）。

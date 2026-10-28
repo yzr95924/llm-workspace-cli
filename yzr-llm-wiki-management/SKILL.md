@@ -16,7 +16,7 @@ description: |
   llmw 内容命令只认 `--path=<wiki 根>`、`--name` 或 `$LLM_WIKI_ROOT`，不按 cwd 推断；
   根未注入 env 时，把示例中的 `--path="$LLM_WIKI_ROOT"` 换成解析出的根路径
 - **输出**：写操作更新 wiki/ 内容页，并按 wiki 根 `AGENTS.md` 的写入纪律同步
-  index / log / tags；query 答案与 lint 报告在会话内交付
+  index / log / tags；查询答案与 lint 报告在会话内交付
 
 ## 执行原则
 
@@ -30,10 +30,10 @@ description: |
 
 ## 工作流
 
-按操作类型选择对应文档，读全文后执行；各流程自带预读清单
+按操作类型选择对应文档，读全文后执行
 
 - 摄取 / 重摄取资料：`ref/ingest-workflow.md`；外部代码仓接入：`ref/external-repo.md`
-- 查询 / 对比 / 综合：`ref/query-workflow.md`
+- 查询 / 总结 / 对比 / 综合 / 归档结论：`ref/query-workflow.md`
 - lint 体检：`ref/lint-workflow.md`
 - format 升级：`ref/upgrade-workflow.md`；lint 报 `wiki-format-version-stale` /
   `wiki-format-version-unparsed` 类 finding 或 fixtures 不合规也走此路
