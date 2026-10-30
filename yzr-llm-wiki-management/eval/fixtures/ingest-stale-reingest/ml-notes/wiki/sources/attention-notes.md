@@ -33,3 +33,7 @@ sources:
 - 概念页见 [Transformer](../concepts/transformer.md)
 - 与 [Mamba 论文学习笔记](../sources/mamba-notes.md) 立场冲突：本页认为平方
   开销可被并行度弥补，Mamba 侧认为注意力路线在超长序列上不可持续
+
+## 参考来源 / Sources
+
+- [raw/articles/attention.md](../../raw/articles/attention.md)

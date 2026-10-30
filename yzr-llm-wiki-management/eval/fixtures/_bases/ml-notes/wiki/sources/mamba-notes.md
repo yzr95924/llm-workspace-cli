@@ -34,3 +34,7 @@ sources:
 - 与 [Transformer](../concepts/transformer.md) 页的立场冲突：本页一侧认为
   平方复杂度使注意力路线在长序列上不可持续，Transformer 页认为平方开销
   在典型长度下不构成瓶颈
+
+## 参考来源 / Sources
+
+- [raw/articles/mamba.md](../../raw/articles/mamba.md)

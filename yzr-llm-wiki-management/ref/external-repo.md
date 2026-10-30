@@ -2,7 +2,7 @@
 
 外部仓以 symlink + anchor 接入，不做仓库拷贝。anchor、symlink 与异常修法以
 `llmw wiki external --help` 和 `llmw wiki lint --explain=all` 输出为准；删除动作先经
-用户确认。target 仓的读写边界以 wiki 根 `AGENTS.md` 的 `raw/external/` 节为准。
+用户确认。target 仓的读写边界以 wiki 根 `AGENTS.md` 的 `raw/external/` 边界表行为准。
 
 ## 接入
 
@@ -16,9 +16,20 @@ external-* finding 已消除。
 - target 仓在 ingest / query / lint / upgrade 中只读；只有用户明确要求修改代码时才写入
 - 把 target 内容落成资料页走 ingest 流程，source 页字段见
   [章节](page-templates.md#source资料页)
+- 整仓摄取须先与用户确认范围（子树 / 文件清单 / 符号域），不机械完整读取大型仓
 
 ## 重建与刷新
 
 - 换主机或 target 移动后，按 `llmw wiki external rebuild --help` 重建，再跑 lint 复核
+- rebuild 的 `clone_relink` 动作会向 wiki 根外 `git clone` + `checkout`；执行前须
+  向用户展示计划并获得明确同意（`--yes` 对应用户对越目录写入的许可，不只是对
+  relink 的许可）
 - 用户对 target 仓 `git pull` 不触发自动刷新；摘要是否过期由用户判断，需要时对相关
   source 页重新 ingest，anchor target 不动
+
+## 解除接入
+
+- remove 前先列出引用该 `raw/external/<name>` 的 source 页（grep `wiki/sources/`），
+  呈用户裁定：改源 / 归档 / 保留断链
+- remove 后跑 `llmw wiki lint`，确认 `sources-external-*` / `sources-missing` finding
+  已按用户裁定处理

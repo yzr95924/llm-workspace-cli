@@ -36,6 +36,7 @@ from llmw.content.log_format import (
 )
 from llmw.content.page_types import (
     REQUIRED_FRONTMATTER_FIELDS,
+    TYPE_TO_DIR,
     TYPE_TO_SECTION,
     VALID_TYPES,
     WIKI_SUBDIRS,
@@ -283,6 +284,17 @@ def check_external_symlinks(wiki_root: Path) -> List[str]:
     return findings
 
 
+def _lexical_parts(s: str) -> Optional[List[str]]:
+    """路径字符串 → 词法段列表（去 `.`；含 `..` / 绝对路径返 None）。"""
+    if not s or s.startswith("/"):
+        return None
+    p = Path(s)
+    if p.is_absolute() or ".." in p.parts:
+        return None
+    parts = [x for x in p.parts if x != "."]
+    return parts if parts else None
+
+
 def _check_source_element(wiki_root: Path, rel: str, s) -> Optional[str]:
     """source 页单个 sources 元素 → finding 或 None（每元素至多一条，不重复报）。"""
     if not isinstance(s, str):
@@ -295,23 +307,43 @@ def _check_source_element(wiki_root: Path, rel: str, s) -> Optional[str]:
             f"raw/external/<source-name>/...）（解释见 "
             f"llmw wiki lint --explain=sources-absolute-path）"
         )
+    # 词法归一化（不 resolve symlink）：防 raw/../discussions/、raw/./discussions/ 等绕行
+    parts = _lexical_parts(s)
+    if parts is None:
+        return f"sources-out-of-root: {rel} sources='{s}' 含 `..` 或绝对路径，不在 wiki 根下"
+    lexical = "/".join(parts)
+
     # discussions/ 禁止作 source——协作草稿层不是"用户掌控的真相源"，
     # 放开口子 = provenance 后门（LLM 自产内容被当 raw 真相 ingest 回 wiki）；
     # 旧 raw/discussions/ 一并拦截，防未手动迁移的实例走旧路径绕过
-    if s.startswith(DISCUSSIONS_DIR + "/") or s.startswith("raw/" + DISCUSSIONS_DIR + "/"):
+    if (
+        lexical == DISCUSSIONS_DIR
+        or lexical.startswith(DISCUSSIONS_DIR + "/")
+        or lexical.startswith("raw/" + DISCUSSIONS_DIR + "/")
+    ):
         return (
             f"source-in-discussions: {rel} sources='{s}' 指向 "
             f"{DISCUSSIONS_DIR}/（含旧路径 raw/{DISCUSSIONS_DIR}/）——discussions/ "
             f"是协作草稿层，不可作 source 真相源；先 mv 到 raw/articles "
             f"等正式子树再 ingest"
         )
-    # raw/external/<symlink>/...：.resolve() 会落到 wiki 根外，不该判 sources-out-of-root
-    if s.startswith("raw/external/"):
-        parts = Path(s).parts
-        # 路径段应为 [raw, external, <symlink>, ...]；< 3 视为语法错
-        if len(parts) < 3:
+    # source 页必须指向 raw/ 子树（AGENTS 边界表 + page-templates 契约）
+    if not lexical.startswith("raw/"):
+        return (
+            f"sources-not-raw: {rel} sources='{s}' 不在 raw/ 下——source 页只能引用 raw/ 现存文件或 raw/external/ 路径"
+        )
+
+    # raw/external/<symlink>/...：symlink resolve 后在 wiki 根外是合法（不判 out-of-root）
+    if lexical.startswith("raw/external/"):
+        lp = [x for x in parts if x not in ("raw", "external")]
+        if not lp:
             return f"sources-malformed: {rel} sources='{s}' raw/external/ 路径需 <symlink>/<path-under-target>"
-        sl_name = parts[2]
+        sl_name = lp[0]
+        if not SOURCE_NAME_RE.match(sl_name):
+            return (
+                f"sources-malformed: {rel} sources='{s}' external symlink 名 '{sl_name}' "
+                f"不合 kebab-case（^[a-z0-9][a-z0-9-]*$）"
+            )
         anchor = wiki_root / "raw" / EXTERNAL_SUBDIR / ANCHOR_FILENAME
         if not anchor.is_file():
             return (
@@ -321,12 +353,13 @@ def _check_source_element(wiki_root: Path, rel: str, s) -> Optional[str]:
         sl_path = wiki_root / "raw" / EXTERNAL_SUBDIR / sl_name
         if not sl_path.is_symlink() and not sl_path.exists():
             return f"sources-external-symlink-missing: {rel} sources='{s}' symlink {sl_name} 不存在"
-        # 跟随 symlink 后可访问——不 .resolve() 避免相对 wiki 根判定；文件或目录皆可
-        # （external repo 本身是 git 仓即目录，sources 可指向整个仓作语料）
+        # 跟随 symlink 后可访问——文件或目录皆可（external repo 本身是 git 仓即目录）
         if not (wiki_root / s).exists():
             return f"sources-missing: {rel} sources='{s}' 路径不可访问"
         return None
-    sp = (wiki_root / s).resolve()
+
+    # 普通 raw/ 路径：resolve 后须在 wiki 根内（防 raw/../../outside）
+    sp = (wiki_root / lexical).resolve()
     try:
         sp.relative_to(wiki_root.resolve())
     except ValueError:
@@ -336,25 +369,50 @@ def _check_source_element(wiki_root: Path, rel: str, s) -> Optional[str]:
     return None
 
 
+def _check_synthesis_source_element(wiki_root: Path, rel: str, s) -> Optional[str]:
+    """synthesis 页单个 sources 元素 → finding 或 None；须指向 wiki 内容页。"""
+    if not isinstance(s, str):
+        return None
+    if _is_absolute_path(s):
+        return f"sources-absolute-path: {rel} sources 含绝对路径 '{s}'"
+    parts = _lexical_parts(s)
+    if parts is None:
+        return f"sources-out-of-root: {rel} sources='{s}' 含 `..` 或绝对路径"
+    lexical = "/".join(parts)
+    if (
+        lexical.startswith("raw/")
+        or lexical.startswith(DISCUSSIONS_DIR + "/")
+        or lexical.startswith("raw/" + DISCUSSIONS_DIR + "/")
+    ):
+        return (
+            f"sources-not-wiki-page: {rel} sources='{s}' 指向 raw/ 或 discussions/——"
+            f"synthesis 页只能引用 wiki/ 内内容页，不直接引 raw 或讨论稿"
+        )
+    target = wiki_root / "wiki" / lexical
+    if not target.is_file():
+        return f"sources-missing: {rel} sources='{s}' 按内容根 wiki/ 解析不存在"
+    return None
+
+
 def _check_sources_field(wiki_root: Path, rel: str, t: str, srcs) -> List[str]:
-    """source / synthesis 页的 sources 字段校验（必填非空；source 页逐元素查现存）。"""
+    """source / synthesis 页的 sources 字段校验（必填非空；逐元素查现存）。"""
     if not isinstance(srcs, list) or not srcs:
         return [f"missing-sources: {rel} type={t} 缺 'sources' 字段或为空"]
-    if t != "source":
-        return []
     findings = []  # type: List[str]
+    check = _check_source_element if t == "source" else _check_synthesis_source_element
     for s in srcs:
-        finding = _check_source_element(wiki_root, rel, s)
+        finding = check(wiki_root, rel, s)
         if finding:
             findings.append(finding)
     return findings
 
 
 def check_frontmatter(wiki_root: Path) -> List[str]:
-    """frontmatter 完整性 + source/synthesis 的 sources 字段
+    """frontmatter 完整性 + 类型专属必填字段 + sources 校验
 
     校验口径（canonical = finding 注册表 llmw.content.findings）：
-    - wiki 内容页：必填 frontmatter 字段 + 推荐 description
+    - wiki 内容页：必填 frontmatter 字段 + type↔目录一致性 + 日期格式
+    - type 专属必填：source/synthesis 的 sources；comparison 的 compared；synthesis 的 threads
     """
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
@@ -372,11 +430,27 @@ def check_frontmatter(wiki_root: Path) -> List[str]:
             t = fm.get("type")
             if t is not None and t not in VALID_TYPES:
                 findings.append(f"invalid-type: {rel} type='{t}' 非法；应为 {sorted(VALID_TYPES)} 之一")
+            # type 与所在子目录须一致（page_types SSOT）
+            if t in VALID_TYPES and sub != TYPE_TO_DIR[t]:
+                findings.append(f"type-dir-mismatch: {rel} type={t} 但位于 wiki/{sub}/——应放 wiki/{TYPE_TO_DIR[t]}/")
             # tags 若取则必须是 list（否则 tag taxonomy 静默跳过该页解析）
             if "tags" in fm and not isinstance(fm["tags"], list):
                 findings.append(f"invalid-tags: {rel} tags 应为 list，当前类型不符")
+            # 日期字段格式（无效值会让 stale / reviewed-stale 静默跳过）
+            for field in ("created", "updated"):
+                val = fm.get(field)
+                if isinstance(val, str) and val.strip() and parse_date_or_datetime(val) is None:
+                    findings.append(f"invalid-date: {rel} {field}='{val}' 不是有效 YYYY-MM-DD 或 YYYY-MM-DD HH:MM[:SS]")
             if t in ("source", "synthesis"):
                 findings.extend(_check_sources_field(wiki_root, rel, t, fm.get("sources", [])))
+            if t == "comparison":
+                compared = fm.get("compared", [])
+                if not isinstance(compared, list) or not compared:
+                    findings.append(f"missing-compared: {rel} type=comparison 缺 'compared' 字段或为空")
+            if t == "synthesis":
+                threads = fm.get("threads", [])
+                if not isinstance(threads, list) or not threads:
+                    findings.append(f"missing-threads: {rel} type=synthesis 缺 'threads' 字段或为空")
     return findings
 
 
@@ -611,11 +685,29 @@ def _parse_tag_bullets(text: str) -> Set[str]:
     """裸 bullet 文本 → kebab-case tag 集合。
 
     支持 `- category：tag1 / tag2`（中英文分隔符）与 `- tag`；跳过注释 / fence / 空行。
+    fence 状态跟踪：开 fence 后所有行（含 fence 内 bullet）不入白名单，关 fence 才恢复。
     """
     tags = set()  # type: Set[str]
+    in_fence = False  # type: bool
+    in_comment = False  # type: bool
     for line in text.splitlines():
         stripped = line.strip()
-        if not stripped or stripped.startswith("<!--") or stripped.startswith("```"):
+        if not stripped:
+            continue
+        # fence 开关（``` 或 ~~~）
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        # HTML 注释块（多行：<!-- ... --> 跨行时中间行全跳）
+        if in_comment:
+            if "-->" in stripped:
+                in_comment = False
+            continue
+        if stripped.startswith("<!--"):
+            if "-->" not in stripped:
+                in_comment = True
             continue
         m = TAXONOMY_BULLET_RE.match(stripped)
         if not m:
@@ -938,14 +1030,134 @@ def check_related_links(wiki_root: Path) -> List[str]:
                     continue
                 if is_external_url(item):
                     continue
+                # 路径准入：须为内容根相对（不含 .. / 绝对路径 / raw/ / discussions/ 前缀）
+                lp = _lexical_parts(item)
+                if lp is None:
+                    findings.append(
+                        f"related-broken-link: {rel} {field_name}[{idx}]='{item}' "
+                        f"含 `..` 或绝对路径，不在内容根 wiki/ 下"
+                    )
+                    continue
+                lexical = "/".join(lp)
+                if lexical.startswith("raw/") or lexical.startswith(DISCUSSIONS_DIR + "/"):
+                    findings.append(
+                        f"related-broken-link: {rel} {field_name}[{idx}]='{item}' "
+                        f"指向 raw/ 或 discussions/——应引用 wiki/ 内内容页"
+                    )
+                    continue
                 # 补 wiki/ 段（内容根相对，非最外层根相对）；不 .resolve()——
                 # is_file() 判定已够，跟随不存在路径反而吞错
-                target = wiki_root / "wiki" / item
+                target = wiki_root / "wiki" / lexical
                 if not target.is_file():
                     findings.append(
                         f"related-broken-link: {rel} {field_name}[{idx}]='{item}' "
                         f"按内容根 wiki/ 相对解析为 wiki/{item}，但文件不存在"
                     )
+    return findings
+
+
+def check_archived_in_index(wiki_root: Path) -> List[str]:
+    """归档页不得留在 wiki/index.md（query 检索时不应返回退役结论）。"""
+    findings = []
+    index_path = wiki_root / "wiki" / "index.md"
+    if not index_path.is_file():
+        return findings
+    index_text = index_path.read_text(encoding="utf-8", errors="replace")
+    for m in _INDEX_ENTRY_RE.finditer(strip_code_regions(index_text)):
+        link = m.group(2).strip()
+        target = resolve_link(index_path, link)
+        if target is None:
+            continue
+        try:
+            target.relative_to(wiki_root.resolve())
+        except ValueError:
+            continue
+        if not target.is_file():
+            continue
+        fm = parse_frontmatter_simple(target.read_text(encoding="utf-8", errors="replace"))
+        if str(fm.get("archived", "")).strip() == "true":
+            rel = target.relative_to(wiki_root).as_posix()
+            findings.append(
+                f"archived-in-index: {rel} archived=true 但仍在 wiki/index.md——"
+                f"归档页须退 index（`llmw wiki write index remove <page>`）"
+            )
+    return findings
+
+
+def check_index_entry_drift(wiki_root: Path) -> List[str]:
+    """index.md 条目与被链页 frontmatter 的 title/description 漂移。"""
+    findings = []
+    index_path = wiki_root / "wiki" / "index.md"
+    if not index_path.is_file():
+        return findings
+    index_text = index_path.read_text(encoding="utf-8", errors="replace")
+    wiki_root_resolved = wiki_root.resolve()
+    for m in _INDEX_ENTRY_RE.finditer(strip_code_regions(index_text)):
+        path = m.group(2).strip()
+        rest = m.group(3)
+        if is_external_url(path) or path.startswith("#"):
+            continue
+        target = (index_path.parent / path).resolve()
+        try:
+            target.relative_to(wiki_root_resolved)
+        except ValueError:
+            continue
+        if not target.is_file():
+            continue
+        target_text = target.read_text(encoding="utf-8", errors="replace")
+        target_fm = parse_frontmatter_simple(target_text)
+        expected_title = str(target_fm.get("title", "")).strip()
+        expected_desc = str(target_fm.get("description", "")).strip()
+        title_match = re.match(r"\s*-\s*\[([^\]]+)\]", m.group(0))
+        actual_title = title_match.group(1).strip() if title_match else ""
+        # description 在 ` — ` 后（不含 reviewed badge）
+        desc_part = rest.split(" ✓ ")[0].split(" ✗ ")[0].strip()
+        if desc_part.startswith("— ") or desc_part.startswith("—"):
+            actual_desc = desc_part.lstrip("—").strip()
+        else:
+            actual_desc = ""
+        if expected_title and actual_title != expected_title:
+            rel = target.relative_to(wiki_root).as_posix()
+            findings.append(
+                f"index-entry-drift: wiki/index.md 条目 title='{actual_title}' "
+                f"但 {rel} frontmatter title='{expected_title}'——"
+                f"用 `llmw wiki write index add` 刷新"
+            )
+        elif expected_desc and actual_desc != expected_desc:
+            rel = target.relative_to(wiki_root).as_posix()
+            findings.append(
+                f"index-entry-drift: wiki/index.md 条目 description='{actual_desc[:50]}' "
+                f"但 {rel} frontmatter description='{expected_desc[:50]}'——"
+                f"用 `llmw wiki write index add` 刷新"
+            )
+    return findings
+
+
+def check_index_duplicates(wiki_root: Path) -> List[str]:
+    """index.md 同一链接出现多条（含等价路径归一化后比对）。"""
+    findings = []
+    index_path = wiki_root / "wiki" / "index.md"
+    if not index_path.is_file():
+        return findings
+    index_text = index_path.read_text(encoding="utf-8", errors="replace")
+    wiki_root_resolved = wiki_root.resolve()
+    link_count = {}  # type: Dict[str, int]
+    for m in _INDEX_ENTRY_RE.finditer(strip_code_regions(index_text)):
+        path = m.group(2).strip()
+        target = resolve_link(index_path, path)
+        if target is None:
+            continue
+        try:
+            rel = target.relative_to(wiki_root_resolved).as_posix()
+        except ValueError:
+            continue
+        link_count[rel] = link_count.get(rel, 0) + 1
+    for rel, count in sorted(link_count.items()):
+        if count > 1:
+            findings.append(
+                f"index-duplicate-entry: wiki/index.md 有 {count} 条指向 {rel}——"
+                f"保留信息最完整的一条（`llmw wiki write index add` 可刷新去重）"
+            )
     return findings
 
 
@@ -1011,13 +1223,27 @@ def check_format_version(wiki_root: Path) -> List[str]:
 
 
 def _run_fixtures_check(wiki_root: Path) -> Dict[str, object]:
-    """直调 wiki_fixtures.run_checks；异常兜底返 skipped（不阻 lint 主流程）。"""
+    """直调 wiki_fixtures.run_checks；异常返 error 状态（fail-closed，不伪装健康）。"""
     try:
         from llmw.content.wiki_fixtures import run_checks
 
         return run_checks(wiki_root, CURRENT_WIKI_FORMAT)
     except Exception as e:  # noqa: BLE001
-        return {"skipped": True, "reason": f"fixtures check exec failed: {e}"}
+        return {
+            "checks": [
+                {
+                    "id": "wiki-lint-internal-error",
+                    "file": "(internal)",
+                    "severity": "error",
+                    "passed": False,
+                    "expected": "fixtures check 可执行",
+                    "actual": f"fixtures check exec failed: {e}",
+                    "rule_ref": "llmw wiki check-fixtures（CLI 自检）",
+                }
+            ],
+            "summary": {"error": 1, "warn": 0, "pass": 0, "skip": 0},
+            "error": str(e),
+        }
 
 
 # fixtures-check 失败项 → (type, to_action) 表；新增 check 加一行即可，骨架类后缀自动命中
@@ -1321,6 +1547,25 @@ def run(
     all_findings.extend(check_page_size(wiki_root))
     all_findings.extend(check_quality_signals(wiki_root))
     all_findings.extend(check_related_links(wiki_root))
+
+    # fixtures 检查纳入常规 lint（防 AGENTS 手改 / 骨架漂移在普通 lint 不可见）
+    fixtures_check = _run_fixtures_check(wiki_root)
+    for fc in fixtures_check.get("checks", []):  # type: ignore
+        if fc.get("passed") is False:  # type: ignore
+            sev = fc.get("severity", "error")  # type: ignore
+            cid = fc.get("id", "unknown")  # type: ignore
+            fpath = fc.get("file", "")  # type: ignore
+            actual = fc.get("actual", "")  # type: ignore
+            all_findings.append(f"{cid}: {fpath} {actual}（severity={sev}）")
+
+    # 归档页仍在 index 检查（find_md_files 排除了归档页，index 条目仍在）
+    all_findings.extend(check_archived_in_index(wiki_root))
+
+    # index title/description 漂移检查
+    all_findings.extend(check_index_entry_drift(wiki_root))
+
+    # index 重复条目检查
+    all_findings.extend(check_index_duplicates(wiki_root))
 
     if severity != "all":
         threshold = SEV_RANK[severity]

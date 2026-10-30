@@ -71,11 +71,16 @@ def _record_agents_md_fingerprint(wiki_root: Path) -> None:
 
 
 def _split_growth(text: str):
-    """标准 growth 文件解析：frontmatter + intro（到首个 ## 前）+ {## 段名: 段体行}。"""
+    """标准 growth 文件解析：frontmatter + intro + 段列表（保留重复 H2 供检测）。
+
+    返 (fm, intro, [(h2, body_lines), ...])：段用列表不用 dict——同名 H2 多次出现
+    时全部保留，调用方可检测重复并阻断（旧实现 dict 覆盖会静默丢前段）。
+    """
     fm = None  # type: Optional[str]
     intro = []  # type: List[str]
-    sections = {}  # type: Dict[str, List[str]]
+    sections = []  # type: List[Tuple[str, List[str]]]
     cur_h2 = None  # type: Optional[str]
+    cur_body = []  # type: List[str]
     lines = text.splitlines(keepends=True)
     i = 0
     # Frontmatter (可选)
@@ -94,22 +99,34 @@ def _split_growth(text: str):
     while i < len(lines):
         m = re.match(r"^## (.+)$", lines[i].rstrip())
         if m:
+            if cur_h2 is not None:
+                sections.append((cur_h2, cur_body))
             cur_h2 = m.group(1).strip()
-            sections[cur_h2] = []
+            cur_body = []
             i += 1
             while i < len(lines) and not lines[i].startswith("## "):
-                sections[cur_h2].append(lines[i])
+                cur_body.append(lines[i])
                 i += 1
         else:
             i += 1
+    if cur_h2 is not None:
+        sections.append((cur_h2, cur_body))
     return fm, intro, sections
+
+
+def _duplicate_h2_names(sections) -> List[str]:
+    """重复 H2 段名（升级会丢前段——须阻断而非静默合并）。"""
+    seen = {}  # type: Dict[str, int]
+    for h2, _ in sections:
+        seen[h2] = seen.get(h2, 0) + 1
+    return sorted(h for h, c in seen.items() if c > 1)
 
 
 def _render_growth_headers(*, old_text: str, fixture_text: str, rel_path: str) -> str:
     """growth 文件换头 + 按段嫁接：新 frontmatter / 说明块 / ## 段头 + 旧段条目。
 
-    三支：标准段文件（同名段填旧条目；旧独有段丢弃并记 residue）/ log.md（append-only，
-    只换头）/ tags.md（只换注释行前头部）。解析失败 → 返空串（caller 判 blocked，不静默丢条目）。
+    重复 H2 / 无法安全保留的旧独有段 → 返空串（caller 判 growth-graft-error，阻断不丢）。
+    log.md / tags.md 走各自特例（append-only / 只换头部）。
     """
     # log.md 特例：append-only，所有 ## 条目保留
     if rel_path.endswith("log.md"):
@@ -122,17 +139,26 @@ def _render_growth_headers(*, old_text: str, fixture_text: str, rel_path: str) -
     old_fm, old_intro, old_sections = _split_growth(old_text)
     new_fm, new_intro, new_sections = _split_growth(fixture_text)
 
+    # 重复 H2 = 数据丢失路径（dict 化合并会丢前段）——阻断，交人工合并
+    dup = _duplicate_h2_names(old_sections)
+    if dup:
+        return ""
+
+    # 旧段名 → 段体（首份；无重复保证唯一）
+    old_map = {h2: body for h2, body in old_sections}
+    new_map = {h2: body for h2, body in new_sections}
+
     out = []
     if new_fm is not None:
         out.append(new_fm)
     out.extend(new_intro)
-    for h2, new_body in new_sections.items():
+    for h2, _ in new_sections:
         out.append(f"## {h2}\n")
-        old_body = old_sections.get(h2)
-        # Growth 判据：旧段条目非空 / 非占位符（纯空白 + `_（暂无...）_` / HTML 注释）
-        if old_body and _has_growth(old_body):
+        old_body = old_map.get(h2)
+        if old_body is not None and _has_growth(old_body):
             out.extend(old_body)
         else:
+            new_body = new_map[h2]
             out.extend(new_body)
     return "".join(out)
 
@@ -182,16 +208,14 @@ def _graft_tags(old_text: str, fixture_text: str) -> str:
 
 
 def _has_growth(lines: List[str]) -> bool:
-    """段体行是否含真实 growth 内容（非空 / 非占位符 / 非注释）。"""
+    """段体行是否含真实 growth 内容（非空 / 非占位符；HTML 注释视为内容须保留）。"""
     for ln in lines:
         s = ln.strip()
         if not s:
             continue
-        if s.startswith("<!--"):
-            continue
         if re.match(r"^_\([^)]+\)_$", s):
             continue  # `_（暂无内容）_` 等占位符
-        return True
+        return True  # HTML 注释（<!-- agent: TODO ... -->）也算 growth——不能静默丢
     return False
 
 
@@ -199,7 +223,8 @@ def _dropped_h2_sections(old_text: str, fixture_text: str) -> List[str]:
     """旧文件有、fixture 没有且含真实内容的段名（占位段不记）——caller 记 residue。"""
     _, _, old_sections = _split_growth(old_text)
     _, _, new_sections = _split_growth(fixture_text)
-    return [h2 for h2, body in old_sections.items() if h2 not in new_sections and _has_growth(body)]
+    new_names = {h2 for h2, _ in new_sections}
+    return [h2 for h2, body in old_sections if h2 not in new_names and _has_growth(body)]
 
 
 GROWTH_FILES = {
@@ -450,8 +475,11 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
     pristine = _agents_md_pristine(wiki_root, meta["agents_md_sha256"])
 
     # 2. preflight: 判断 blocked_drift（非 dry-run 未 --yes 时）
-    # 注：growth-graft 保留条目不算 drift，但其 dropped_sections 是数据丢失路径，同样需 --yes
-    has_diff = any(item.get("diff") for item in plan if item.get("action") in ("render", "gitignore-block"))
+    # 注：所有 diff（含 growth-graft）与 dropped_sections 都须 --yes——growth 变更
+    # 可能改 frontmatter / 合并段 / 丢注释，不能因"只换头"就跳过确认
+    has_diff = any(
+        item.get("diff") for item in plan if item.get("action") in ("render", "gitignore-block", "growth-graft")
+    )
     has_drops = any(item.get("dropped_sections") for item in plan)
     if (has_diff or has_drops) and not dry_run and not yes:
         changed_out = []  # type: List[Dict[str, object]]

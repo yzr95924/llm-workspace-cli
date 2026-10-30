@@ -84,7 +84,7 @@ CHECK_REGISTRY = [
         "id": "symlink-anchor-toml-symlink-matches",
         "severity": "error",
         "file": "raw/external/",
-        "rule_ref": "<wiki-root>/AGENTS.md 的 `raw/external/` 节（顶层 symlink + anchor 布局）",
+        "rule_ref": "<wiki-root>/AGENTS.md 的 raw/external/ 边界表行（顶层 symlink + anchor 布局）",
         "desc": "anchor 每个 [[entry]].symlink 对应 external/ 顶层同名 symlink；anchor 无对应 symlink / orphan symlink 一并检查",
     },
     {
@@ -140,13 +140,15 @@ def _skill_format_version() -> Optional[str]:
 def _parse_anchor_minimal(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
     """最小 TOML 解析（[[entry]] + 双引号标量）；captured_at 空串过滤（比 external_anchor.load 严）。
 
-    返回 List[Dict] 或 None（缺失 / 解析失败 / 无有效 entry）。
+    schema_version 非空且 ≠ 1 → 返 None（schema 漂移，交上层报错）。
+    返回 List[Dict] 或 None（缺失 / 解析失败 / 无有效 entry / schema 不匹配）。
     """
     text = _read_text(anchor_path)
     if text is None:
         return None
     entries = []  # type: List[Dict[str, str]]
     current = None  # type: Optional[Dict[str, str]]
+    schema_version = None  # type: Optional[str]
     for raw_line in text.splitlines():
         if "#" in raw_line:
             in_str = False
@@ -185,14 +187,20 @@ def _parse_anchor_minimal(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
             if current is not None:
                 current[key] = val
             continue
-        # 顶层标量（schema_version = 1 等）跳过
+        # 顶层标量
         m = re.match(r"^([a-z_]+)\s*=\s*([0-9]+|true|false)\s*$", stripped)
         if m:
+            if m.group(1) == "schema_version":
+                schema_version = m.group(2)
             continue
         # 未知行 silent 跳过——返回上层按"无有效 entry"判定
 
     if current is not None:
         entries.append(current)
+
+    # schema_version 显式存在且非 1 → schema 漂移
+    if schema_version is not None and schema_version != "1":
+        return None
 
     valid = [
         e

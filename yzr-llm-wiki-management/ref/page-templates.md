@@ -17,6 +17,8 @@ frontmatter 只支持单行 `key: value`、inline 数组 `[a, b]`、`- item` 列
 - `contested` / `contradictions`：未裁定矛盾信号；字段语义见[章节](#矛盾处理)
 - `related` / `compared`：按 `wiki/` 内容根解析（如 `concepts/a.md`）
 - `contradictions`：按本页所在目录解析，与正文链接同基准
+- `threads`：synthesis 专属，必填；文本线索列表（每条为一行主题描述，如
+  `threads: [注意力效率, 状态空间可并行性]`），按需拆线索节
 
 ## 页面规格
 
@@ -48,15 +50,15 @@ frontmatter 只支持单行 `key: value`、inline 数组 `[a, b]`、`- item` 列
 ### comparison（对比页）
 
 - 路径：`wiki/comparisons/<slug>.md`
-- 字段：`compared` 必填，列出被对比的 wiki 页
+- 字段：`compared` 必填，列出被对比的 wiki 页（按 `wiki/` 内容根相对路径）
 - 固定节：对比对象、维度对比、适用场景、参考来源
 - 按需节：其它能突出决策差异的材料
 
 ### synthesis（综合页）
 
 - 路径：`wiki/syntheses/<slug>.md`
-- 字段：`threads` 与 `sources` 必填；`sources` 只列 wiki 内页，不指 raw/ 或
-  discussions/
+- 字段：`threads` 与 `sources` 必填；`sources` 只列 wiki 内页（按 `wiki/` 内容根
+  相对路径），不指 raw/ 或 discussions/
 - 固定节：主线、交叉与综合、观察 / 待研究、参考来源
 - 按需节：按 `threads` 拆分的线索节
 
@@ -70,7 +72,7 @@ frontmatter 只支持单行 `key: value`、inline 数组 `[a, b]`、`- item` 列
 - 改主张必同步改图；关键结论在图外保留文字，页面不靠图也能读
 - 引用可变上游时不锚易漂移位置：代码用符号名或 commit SHA，PDF 用章节标题，网页内容
   记值并写 `截至 YYYY-MM-DD`
-- 瞬态数值记值加日期，或不录值只引来源；“最新版支持 X”写死起始版本
+- 瞬态数值记值加日期，或不录值只引来源；最新版支持 X 时写死起始版本
 - 完整枚举不复制进 wiki，给代表性例子并指向来源
 
 ### 矛盾处理
@@ -81,7 +83,10 @@ frontmatter 只支持单行 `key: value`、inline 数组 `[a, b]`、`- item` 列
 2. 版本演进按新旧版本记录；日期只识别版本演进，不裁决同一条件下的冲突
 3. 真矛盾时并列写出双方主张、来源和日期；需取舍时交用户裁定。承载主张的页设
    `contested: true`，双方用 `contradictions` 互指；纯转述的 source 页不打标
-4. 用户裁定后移除 `contested`；改过正文的生命周期同[章节](#生命周期与归档)
+4. 用户裁定后同时移除双方 `contested` 与 `contradictions`（矛盾已裁定，不应保留
+   未裁定矛盾元数据）；改过正文的生命周期同[章节](#生命周期与归档)
+5. raw 与 wiki 摘要矛盾不是两说并列场景：以 raw 为准，修正摘要并重新审核
+
 
 ## 生命周期与归档
 
@@ -89,7 +94,7 @@ frontmatter 只支持单行 `key: value`、inline 数组 `[a, b]`、`- item` 列
 - 改过正文就跑 `llmw wiki write touch <page>`；这会更新 `updated` 并清除过期的
   `reviewed` 信号
 - 人工复审在最后一次正文修改之后：用户通读页面、核对关键 raw 与交叉引用后，才写
-  `reviewed: true` 与当天 `reviewed_at`
+  `reviewed: true` 与当天 `reviewed_at`（手动 Edit，不跑 touch）
 - 新建 entity / concept 页：同一对象在 ≥ 2 个 source 页出现，或是某 source 页的中心
   主题；路过提及不建页
 - 追加已有页：source 提到已覆盖对象时，只往参考来源段追加条目，不重写该页

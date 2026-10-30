@@ -3,7 +3,8 @@
 CLI `llmw wiki upgrade`：修骨架（四类所有权以 wiki 根 `AGENTS.md` 为准）与 legacy
 paths；lint plan 只生成方案不落盘；agent 负责 drift 裁定、fixtures 修复与语义合并。
 机械动作以 CLI 输出为准，本文只保留裁定规则。升级期不调用 `llmw wiki write`、不追加
-log，也不删除 wiki 内容。
+log，也不删除内容页（`wiki/` 下 entity/concept/source/comparison/synthesis 页）；
+index / log / tags / SCRIPTS.md 的骨架段变化经 `--yes` 确认后可丢弃。
 
 ## 流程
 
@@ -15,7 +16,7 @@ log，也不删除 wiki 内容。
    ```
 
    先看 `plan[].dropped_sections` 与 diff，再决定是否 apply
-3. 有 `render` / `gitignore-block` diff 或 `dropped_sections` 时，`--apply` 不加
+3. 有 diff（含 growth-graft）或 `dropped_sections` 时，`--apply` 不加
    `--yes` 会停在 `blocked_drift`。仅当三条同时成立才可直接 `--apply --yes`：
    - `dropped_sections` 为空
    - `agents_md_pristine` 为 `true`；`false` 呈用户裁定，`null` 问用户
@@ -30,14 +31,21 @@ log，也不删除 wiki 内容。
    llmw wiki --path="$LLM_WIKI_ROOT" lint --check-version
    ```
 
-6. 按终态收口：`done` 且 `needs_upgrade` 为 false 即完成；`blocked_drift` 回第 3 步；
-   `done_with_residue` 逐项读 `residue[].note` 与用户裁定；`verify_failed` 按
-   `verified.failures` 修完重跑；lint 仍有 fixtures 不合规则报告并转人工
+6. 按终态收口：
+   - `done` 且 `needs_upgrade` 为 `false`：完成
+   - `blocked_drift`：回第 3 步
+   - `done_with_residue`：逐项读 `residue[].note`，用户裁定后修完回第 5 步复跑
+   - `verify_failed`：按 `verified.failures` 修完重跑第 5 步
+   - `error`：读 `error` 与 `hint`；metadata 缺字段须修复，版本领先须更新 CLI；
+     无法处理时报告用户，不 apply
+7. 重复 H2 段（如 index 有两个 `## Concepts`）会以 `growth-graft-error` 阻断；
+   须先人工合并段再 upgrade
 
 ## 手工迁移
 
-旧实例的 `raw/discussions/` 不自动迁移：目标不存在时由用户执行
-`mv raw/discussions discussions`；目标已存在时先合并内容再删旧目录。
+旧实例的 `raw/discussions/` 不自动迁移：由用户执行（目标不存在时 `mv raw/discussions
+discussions`；目标已存在时由用户合并内容后删旧目录）。合并后跑
+`llmw wiki --path="$LLM_WIKI_ROOT" lint` 确认 `source-in-discussions` 消失。
 
 ## 语义合并
 

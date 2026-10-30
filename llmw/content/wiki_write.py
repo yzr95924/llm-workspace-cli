@@ -18,6 +18,7 @@ from llmw.content.page_types import (
     CONTENT_TYPES,
     TYPE_TO_DIR,
     TYPE_TO_SECTION,
+    WIKI_SUBDIRS,
 )
 from llmw.content.wiki_lint import (
     CURRENT_WIKI_FORMAT,
@@ -98,6 +99,17 @@ def _validate_raw_args(wiki_root, args):
     return norms, None
 
 
+def _validate_log_title(title):
+    """log 标题准入：非空 / 单行 / 不含 `|`（防标题伪造第三段 raw 路径）。"""
+    if not title.strip():
+        return "log 标题必须非空"
+    if "\n" in title:
+        return "log 标题必须单行"
+    if "|" in title:
+        return f"log 标题不能含 `|`（会伪造 raw 段）：{title}"
+    return None
+
+
 def cmd_log(wiki_root, args):
     log_path = Path(wiki_root) / "wiki" / "log.md"
     if not log_path.is_file():
@@ -108,13 +120,17 @@ def cmd_log(wiki_root, args):
     if args.bulk:
         if not args.topic or args.count is None:
             return "log --bulk 需 --topic 与 --count", 1
+        topic_err = _validate_log_title(args.topic)
+        if topic_err:
+            return f"log --topic {topic_err}", 1
         lines = [f"## [{_now()}] {args.op} | Bulk: {args.topic} ({args.count} sources)"]
     else:
         if not args.title:
             return "log 需至少一个 --title（或 --bulk）", 1
-        bad = [t for t in args.title if not t.strip() or "\n" in t]
-        if bad:
-            return "log 标题必须非空且单行", 1
+        for t in args.title:
+            err = _validate_log_title(t)
+            if err:
+                return err, 1
         lines = [
             f"## [{_now()}] {args.op} | {t.strip()}" + (f" | {raws[i]}" if raws else "")
             for i, t in enumerate(args.title)
@@ -150,7 +166,11 @@ def cmd_log(wiki_root, args):
 
 
 def _index_page_paths(wiki_root, page_arg):
-    """index add/remove 的页面参数 → wiki 根相对 posix 路径（基准 = wiki 根；绝对路径也收）。"""
+    """index add/remove 的页面参数 → wiki/ 内容子目录下的 .md 页（路径准入闸门）。
+
+    只接受 wiki/<content-subdir>/<file>.md 形态：首段必须是 wiki/，
+    第二段必须是内容子目录（entities/concepts/sources/comparisons/syntheses）。
+    """
     p = Path(page_arg)
     if not p.is_absolute():
         p = Path(wiki_root) / p
@@ -158,7 +178,10 @@ def _index_page_paths(wiki_root, page_arg):
         rel = p.resolve().relative_to(Path(wiki_root).resolve()).as_posix()
     except ValueError:
         return None
-    if not rel.endswith(".md") or "/" not in rel:
+    parts = rel.split("/")
+    if len(parts) != 3 or parts[0] != "wiki" or parts[1] not in WIKI_SUBDIRS or parts[2] == "":
+        return None
+    if not rel.endswith(".md"):
         return None
     return rel
 
@@ -307,7 +330,27 @@ def cmd_index(wiki_root, args):
 # ---------- touch ----------
 
 
+def _validate_content_page_path(wiki_root, page_arg):
+    """touch 目标页路径准入：wiki/<content-subdir>/<file>.md；返错误串或 None。"""
+    p = Path(page_arg)
+    if not p.is_absolute():
+        p = Path(wiki_root) / p
+    try:
+        rel = p.resolve().relative_to(Path(wiki_root).resolve()).as_posix()
+    except ValueError:
+        return f"touch 目标页须在 wiki 根内：{page_arg}"
+    parts = rel.split("/")
+    if len(parts) != 3 or parts[0] != "wiki" or parts[1] not in WIKI_SUBDIRS:
+        return f"touch 目标页须为 wiki/<内容子目录>/<file>.md（当前: {rel}）"
+    if not rel.endswith(".md"):
+        return f"touch 目标页须为 .md 文件（当前: {rel}）"
+    return None
+
+
 def cmd_touch(wiki_root, args):
+    path_err = _validate_content_page_path(wiki_root, args.page)
+    if path_err:
+        return path_err, 1
     page_path = Path(wiki_root) / args.page
     if not page_path.is_file():
         return f"touch 目标页不存在：{args.page}", 1
@@ -356,28 +399,62 @@ def cmd_touch(wiki_root, args):
 # ---------- new ----------
 
 
+def _yaml_escape(value):
+    """YAML 双引号标量转义：`\\` 与 `"`；换行 / `|` 直接拒绝（改由调用方校验）。"""
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _validate_new_string(value, field_name):
+    """new 命令的 title / description 准入：非空 / 单行 / 不含 `|`。"""
+    if not value or not value.strip():
+        return f"new --{field_name} 必须非空"
+    if "\n" in value:
+        return f"new --{field_name} 必须单行"
+    if "|" in value:
+        return f"new --{field_name} 不能含 `|`：{value}"
+    return None
+
+
+def _validate_tag(tag):
+    """tag 准入：kebab-case（tags.md 契约）。"""
+    import re as _re
+
+    if not _re.match(r"^[a-z0-9][a-z0-9-]*$", tag):
+        return f"tag '{tag}' 不合 kebab-case（^[a-z0-9][a-z0-9-]*$）"
+    return None
+
+
 def cmd_new(wiki_root, args):
     if args.type not in CONTENT_TYPES:
         return "new --type 必须是内容页类型之一（{}）".format(", ".join(sorted(CONTENT_TYPES))), 1
     if not SOURCE_NAME_RE.match(args.slug):
         return f"new --slug 必须是小写 kebab-case（^[a-z0-9][a-z0-9-]*$）：{args.slug}", 1
-    if not args.title.strip():
-        return "new --title 必须非空", 1
+    title_err = _validate_new_string(args.title, "title")
+    if title_err:
+        return title_err, 1
+    if args.description:
+        desc_err = _validate_new_string(args.description, "description")
+        if desc_err:
+            return desc_err, 1
+    tags = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else []
+    for tag in tags:
+        tag_err = _validate_tag(tag)
+        if tag_err:
+            return f"new --tags {tag_err}", 1
     page_path = Path(wiki_root) / "wiki" / TYPE_TO_DIR[args.type] / (args.slug + ".md")
     if page_path.is_file():
         return f"new 目标页已存在（如需更新用 Edit）：{page_path}", 1
     if args.type == "source" and not args.sources:
         return (
-            "new --type source 必须提供 --sources（缺失会被 lint 报 sources-missing；解释见 llmw wiki lint --explain=sources-missing）",
+            "new --type source 必须提供 --sources（缺失会被 lint 报 missing-sources；解释见 llmw wiki lint --explain=missing-sources）",
             1,
         )
 
     now = _now()
-    fm_lines = ["---", f'title: "{args.title}"']
+    fm_lines = ["---", f'title: "{_yaml_escape(args.title)}"']
     if args.description:
-        fm_lines.append(f'description: "{args.description}"')
+        fm_lines.append(f'description: "{_yaml_escape(args.description)}"')
     fm_lines.append(f"type: {args.type}")
-    tags = [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else []
     fm_lines.append("tags: [{}]".format(", ".join(tags)))
     fm_lines.append(f"created: {now}")
     fm_lines.append(f"updated: {now}")

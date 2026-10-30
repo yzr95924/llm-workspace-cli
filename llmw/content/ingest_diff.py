@@ -10,7 +10,7 @@ stdout 保持纯路径（--json / --relative 可换格式）；计数总结走 s
 import json
 import re
 import sys
-from datetime import date
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
@@ -163,8 +163,18 @@ def collect_ingested_from_log(log_path: Path) -> Tuple[Set[str], Set[str]]:
     return titles, raw_paths
 
 
+def _normalize_raw_path(raw: str) -> str:
+    """raw 路径词法归一化（去 `.` / 双斜杠 / `..` 拒绝）；返归一化 POSIX 路径或原串。"""
+    if not raw or raw.startswith("/"):
+        return raw
+    parts = [x for x in Path(raw).parts if x != "."]
+    if ".." in parts:
+        return raw  # 保留原串让上游报错
+    return "/".join(parts) if parts else raw
+
+
 def collect_ingested_sources_map(wiki_root: Path) -> Dict[str, List[Path]]:
-    """frontmatter.sources → raw 相对路径（POSIX）到引用页列表的映射。"""
+    """frontmatter.sources → raw 相对路径（POSIX，词法归一化后）到引用页列表的映射。"""
     mapping = {}  # type: Dict[str, List[Path]]
     sources_dir = wiki_root / "wiki" / "sources"
     if not sources_dir.is_dir():
@@ -176,12 +186,15 @@ def collect_ingested_sources_map(wiki_root: Path) -> Dict[str, List[Path]]:
         if isinstance(srcs, list):
             for s in srcs:
                 if isinstance(s, str):
-                    mapping.setdefault(s.strip(), []).append(p)
+                    mapping.setdefault(_normalize_raw_path(s.strip()), []).append(p)
     return mapping
 
 
 def raw_newer_than_source(raw_path: Path, source_page: Path) -> bool:
-    """raw mtime 日期是否晚于未归档 source 页 updated；archived 页不算 stale。"""
+    """raw mtime 是否晚于未归档 source 页 updated（datetime 精度，非仅日期比较）。
+
+    同日不同时刻的更新也能正确检出（源 updated 有 HH:MM 精度，raw mtime 有秒精度）。
+    """
     text = source_page.read_text(encoding="utf-8", errors="replace")
     fm = parse_frontmatter_simple(text)
     if str(fm.get("archived", "")).strip() == "true":
@@ -191,10 +204,15 @@ def raw_newer_than_source(raw_path: Path, source_page: Path) -> bool:
     if upd_date is None:
         return False
     try:
-        raw_date = date.fromtimestamp(raw_path.stat().st_mtime)
+        raw_time = datetime.fromtimestamp(raw_path.stat().st_mtime)
     except OSError:
         return False
-    return raw_date > upd_date
+    # 同日用时间比较，不同日用日期比较（updated 只有 date 时同日也保守不报）
+    if str(updated).strip() == str(upd_date):
+        return False  # updated 只有日期（无时间），无法区分同日先后
+    return raw_time.date() > upd_date or (
+        raw_time.date() == upd_date and raw_time > datetime.combine(upd_date, datetime.min.time())
+    )
 
 
 def run(wiki_root: Path, *, as_json: bool = False, relative: bool = False, check_stale: bool = False) -> int:

@@ -13,7 +13,7 @@
         "以 `llmw wiki write log --op=ingest` 记一条 ingest 条目，含 `--raw=raw/articles/attention.md` 且 title 对应 source 页",
         "Transformer 页不整页覆盖：往 Sources 段追加条目并补交叉引用，改动正文后跑 `llmw wiki write touch`",
         "新建 `wiki/concepts/self-attention.md`：走 write new，正文含定义与缩放点积 / 多头要点，经 index add 入 index，并与 attention source 页、Transformer 页互链",
-        "attention raw 与既有 Mamba 立场的冲突不静默覆盖：两说并列并各带来源，或给承载主张的页面设 contested + contradictions 互指",
+        "attention raw 与既有 Mamba 立场的冲突不静默覆盖：给承载主张的页面设 contested + contradictions 互指（两说并列只写正文不落元数据不达标）",
         "不给任何新页落 reviewed: true",
         "不为同一 raw 写第二个 source 页",
         "raw/ 下文件字节与 mtime 不变",

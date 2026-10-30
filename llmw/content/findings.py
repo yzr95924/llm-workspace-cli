@@ -19,10 +19,55 @@ class FindingSpec(NamedTuple):
 
 FINDINGS = {
     # --- error：结构 / 纪律违规，必须修 ---
+    "archived-in-index": FindingSpec(
+        "error",
+        "归档页（archived=true）仍留在 wiki/index.md——query 检索不应返回退役结论",
+        "`llmw wiki write index remove <page>` 从 index 移除；文件本身保留",
+    ),
     "broken-link": FindingSpec(
         "error",
         "wiki/**/*.md 正文 Markdown 链接 / 图片的相对路径不指向现存文件（外部 URL 跳过）",
         "修正链接目标，或补齐被引文件",
+    ),
+    "invalid-date": FindingSpec(
+        "error",
+        "frontmatter `created` / `updated` 不是有效 YYYY-MM-DD 或 YYYY-MM-DD HH:MM[:SS]",
+        "改为有效日期格式（stale / reviewed-stale 判定依赖此字段）",
+    ),
+    "index-duplicate-entry": FindingSpec(
+        "warn",
+        "wiki/index.md 同一页面出现多条条目（含等价路径归一化）",
+        "保留信息最完整的一条；`llmw wiki write index add` 可刷新去重",
+    ),
+    "index-entry-drift": FindingSpec(
+        "warn",
+        "wiki/index.md 条目 title/description 与被链页 frontmatter 不一致",
+        "`llmw wiki write index add <page>` 刷新条目",
+    ),
+    "missing-compared": FindingSpec(
+        "error",
+        "未归档 comparison 页缺 `compared` 字段或为空",
+        "补 `compared:`（按 wiki/ 内容根相对路径列出被对比页，如 concepts/a.md）",
+    ),
+    "missing-threads": FindingSpec(
+        "error",
+        "未归档 synthesis 页缺 `threads` 字段或为空",
+        "补 `threads:`（文本线索列表，每条为一行主题描述，按需拆线索节）",
+    ),
+    "sources-not-raw": FindingSpec(
+        "error",
+        "source 页 sources 元素不在 raw/ 子树——source 页只能引用 raw/ 现存文件",
+        "改为 raw/ 起头的 wiki 根相对路径",
+    ),
+    "sources-not-wiki-page": FindingSpec(
+        "error",
+        "synthesis 页 sources 元素指向 raw/ 或 discussions/——synthesis 只引用 wiki 内页",
+        "改为 wiki/ 内容根相对路径（如 sources/foo.md）",
+    ),
+    "type-dir-mismatch": FindingSpec(
+        "error",
+        "页面 type 与所在子目录不匹配（如 type=source 但文件在 wiki/concepts/）",
+        "把文件移到与 type 对应的子目录（`git mv` 或 `mv`），再更新引用与 index",
     ),
     "wikilink-used": FindingSpec(
         "error",
@@ -193,7 +238,7 @@ FINDINGS = {
     "log-format": FindingSpec(
         "warn",
         'log.md 行不符格式约定（破坏 `grep "^## \\[" log.md` 可用性；canonical 见 fixture 头部）',
-        "正路 `llmw wiki write log` 重写；带外手改则修正该行",
+        "手动 Edit 修正该行（`llmw wiki write log` 只追加新条目，不改既有行）",
     ),
     "log-truncation-recommended": FindingSpec(
         "warn",
@@ -213,7 +258,7 @@ FINDINGS = {
     "reviewed-at-missing": FindingSpec(
         "warn",
         "`reviewed: true` 但缺 `reviewed_at`",
-        "补 `reviewed_at`（正路 `llmw wiki write touch`）",
+        "手动 Edit 补 `reviewed_at: YYYY-MM-DD`（不能跑 touch——touch 会清除 reviewed 字段）",
     ),
     "reviewed-at-orphan": FindingSpec(
         "warn",
@@ -223,7 +268,7 @@ FINDINGS = {
     "reviewed-stale": FindingSpec(
         "warn",
         "`reviewed: true` 但 `updated` 的日期晚于 `reviewed_at`（LLM 修改后漏清戳）",
-        "重新审核并 `llmw wiki write touch`；或不审则删两字段回未审核态",
+        "删 `reviewed` / `reviewed_at` 回未审核态；用户复审后手动写回两字段（不能跑 touch——touch 只清不补）",
     ),
     "stale-summary": FindingSpec(
         "warn",
@@ -243,13 +288,13 @@ FINDINGS = {
     "wiki-format-version-unparsed": FindingSpec(
         "warn",
         "AGENTS.md 末尾当前配置表的 `Wiki Format 版本` 行无法解析",
-        "跑 `llmw wiki lint --check-version` 诊断，或按模板形态修表格行",
+        "AGENTS.md 是 byte-owned 禁手改——跑 `llmw wiki upgrade --apply` 重渲染（有 drift 先经用户裁定）",
     ),
     # --- info：提示 / 审计循环，不强制 ---
     "pending-review": FindingSpec(
         "info",
         "未归档内容页未含 `reviewed: true`（仅提示）",
-        "人工审核后 `llmw wiki write touch` 落戳；不审则忽略",
+        "用户复审后手动写 `reviewed: true` 与 `reviewed_at: YYYY-MM-DD`（不能跑 touch——touch 会清除 reviewed 字段）；不审则忽略",
     ),
     "tag-not-in-taxonomy": FindingSpec(
         "info",

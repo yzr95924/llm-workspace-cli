@@ -10,7 +10,10 @@ from typing import Dict, List, NamedTuple, Optional
 
 from llmw import WIKI_FORMAT_VERSION
 from llmw.config import wiki_templates_dir
+from llmw.content._check_common import compare_semver
 from llmw.content.render import read_template, render_wiki_agents_md
+from llmw.content.wiki_lint import parse_format_version
+from llmw.errors import SetupFailed
 from llmw.fsutil import sha256_file
 
 _TOPIC_PH = "{{TOPIC_NAME}}"
@@ -44,8 +47,25 @@ def plan_skeleton_sync(wiki_dir: Path, old_topic: str, new_topic: str, meta) -> 
     meta 为 wiki_store.WikiMetadata（消费 agents_md_sha256）。
     活文件严格 utf-8 读（异于 checker 侧 errors="replace" 的宽松读）：计划字节会被
     原样写回，宽松读会把损坏字节替换成 U+FFFD 再落盘，等于借 rename 固化损坏。
-    Raises: SetupFailed（包内 fixture 模板缺失）。
+    Raises: SetupFailed（模板缺失 / format 版本不对齐——rename 不是隐式升级入口）。
     """
+    # rename 不做隐式 format 升级 / 降级——须先 upgrade 对齐
+    current_format = parse_format_version(wiki_dir)
+    if current_format is not None:
+        cmp = compare_semver(current_format, WIKI_FORMAT_VERSION)
+        if cmp == "older":
+            raise SetupFailed(
+                f"wiki format {current_format} 落后 CLI {WIKI_FORMAT_VERSION}——"
+                f"rename 不做隐式升级；先跑 `llmw wiki upgrade --apply` 完成升级再 rename",
+                hint="版本对齐后 rename 才能安全重渲染 AGENTS.md",
+            )
+        if cmp == "newer":
+            raise SetupFailed(
+                f"wiki format {current_format} 领先 CLI {WIKI_FORMAT_VERSION}——"
+                f"rename 会降级骨架；更新 llmw 后再 rename",
+                hint="拒绝降级（upgrade 同口径）",
+            )
+
     writes = {}  # type: Dict[str, str]
     backups = {}  # type: Dict[str, str]
     warnings = []  # type: List[str]

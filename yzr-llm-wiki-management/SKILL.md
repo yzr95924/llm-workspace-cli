@@ -11,10 +11,13 @@ description: |
 
 ## 输入与输出
 
-- **输入**：wiki 根 = session cwd；不在根内时读 `$LLM_WIKI_ROOT`；仍定不了就问用户。
+- **输入**：wiki 根 = session cwd；cwd 是 wiki 子目录时向上找 `AGENTS.md` +
+  `wiki_metadata.toml` 确认根。cwd 不在 wiki 内时读 `$LLM_WIKI_ROOT`；cwd 与 env
+  指向不同 wiki 时停下问用户。仍定不了就问用户。
   wiki 根须含 `AGENTS.md` 与 `wiki_metadata.toml`，否则本 skill 不适用并告知用户。
   llmw 内容命令只认 `--path=<wiki 根>`、`--name` 或 `$LLM_WIKI_ROOT`，不按 cwd 推断；
-  根未注入 env 时，把示例中的 `--path="$LLM_WIKI_ROOT"` 换成解析出的根路径
+  以下所有命令均须带 `--path="<解析出的根>"`（环境变量已注入时可写
+  `--path="$LLM_WIKI_ROOT"`）
 - **输出**：写操作更新 wiki/ 内容页，并按 wiki 根 `AGENTS.md` 的写入纪律同步
   index / log / tags；查询答案与 lint 报告在会话内交付
 

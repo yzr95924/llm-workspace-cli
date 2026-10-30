@@ -28,7 +28,8 @@
   - `log.md`：仅记三类操作：`ingest` = raw 消化落盘；`query` = 结论归档，未归档
     问答不记；`lint` = 常规 lint 运行，无 finding 也记，升级中的 `--check-version`
     不记；格式见文件头说明块
-  - 其余写入不更新 index / log
+  - `tags.md`：新页选 tag 或新增 tag 时，同步更新 `wiki/tags.md` 白名单
+  - 其余写入不更新 index / log / tags
 - git 写操作只在用户要求后执行；只读命令可直接执行，是否用 git 管理 wiki 由用户决定
 
 ## 模板与升级
