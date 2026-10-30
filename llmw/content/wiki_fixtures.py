@@ -63,7 +63,7 @@ CHECK_REGISTRY = [
         "id": "template-no-outbound-refs",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "<wiki-root>/AGENTS.md：本文件本身的纪律",
+        "rule_ref": "<wiki-root>/AGENTS.md：模板与升级",
         "desc": "模板零出边引用——不得含 page-templates/lint-workflow/SKILL.md/ref/yzr-llm-wiki-management/OKF/阿拉伯数字 §节号（wiki 侧读不到 skill 目录，指针全是死引用）",
     },
     {
