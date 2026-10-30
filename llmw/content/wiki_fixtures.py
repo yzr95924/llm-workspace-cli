@@ -49,14 +49,14 @@ CHECK_REGISTRY = [
         "id": "agents-version-is-current",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "lint-workflow.md#调用方式（--check-version wiki-format-version）",
+        "rule_ref": "lint-workflow.md#流程（--check-version wiki-format-version）",
         "desc": "AGENTS.md 末尾当前配置表的 Wiki Format 版本行需与 --target-format 一致",
     },
     {
         "id": "agents-md-template-sync",
         "severity": "error",
         "file": "AGENTS.md",
-        "rule_ref": "upgrade-workflow.md#职责切分关键三方分工（agents-md-template-sync 修复走 upgrade --apply）",
+        "rule_ref": "upgrade-workflow.md#流程（agents-md-template-sync 修复走 upgrade --apply）",
         "desc": "AGENTS.md 与包内 agents-md-template.md 渲染稿字节一致（渲染变量替换后）；定制纪律应沉淀到 MEMORY/",
     },
     {
@@ -77,7 +77,7 @@ CHECK_REGISTRY = [
         "id": "symlink-anchor-toml-schema",
         "severity": "error",
         "file": "raw/external/.symlink-anchor.toml",
-        "rule_ref": "external-repo.md#首次接入",
+        "rule_ref": "external-repo.md#接入",
         "desc": "raw/external/.symlink-anchor.toml（若存在）：合法 TOML + [[entry]] 数组 + 必填字段齐 + git 身份字段可选（schema 归 CLI 持有，`llmw wiki external` 子命令维护）",
     },
     {
@@ -119,7 +119,7 @@ CHECK_REGISTRY = [
         "id": "wiki-metadata-reads-satisfied",
         "severity": "error",
         "file": "wiki_metadata.toml",
-        "rule_ref": "lint-workflow.md#lint-的边界（fixtures 边界，check 清单由 CLI 注册表承载）",
+        "rule_ref": "lint-workflow.md#流程（fixtures 边界，check 清单由 CLI 注册表承载）",
         "desc": "wiki_metadata.toml 含 SKILL scan 读取的 6 字段：name / topic / display_name / description / tags / created_at",
     },
 ]

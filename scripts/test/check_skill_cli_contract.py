@@ -101,7 +101,7 @@ WIKI_TEMPLATE_LANDMARKS = [
     "Wiki Format 版本",
     "@MEMORY/MEMORY.md",
     "@scripts/SCRIPTS.md",
-    "raw/discussions/",
+    "### `discussions/`",
     "写后必同步",
     "骨架所有权",
 ]

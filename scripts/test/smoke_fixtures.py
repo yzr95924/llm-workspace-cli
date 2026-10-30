@@ -112,8 +112,14 @@ def main():
         )
 
         # wiki 探测器（走 llmw.content 命令面，--path 直传 wiki 根）
+        wiki_root = ws / "w"
+        if not (wiki_root / "discussions" / ".gitkeep").is_file():
+            raise SystemExit("FAIL: 新 wiki 缺 discussions/.gitkeep（出生布局漂移）")
+        if (wiki_root / "raw" / "discussions").exists():
+            raise SystemExit("FAIL: 新 wiki 不应创建 raw/discussions/（旧布局）")
+        print("[OK] wiki 出生布局：discussions/ 位于 wiki 根")
         wiki_data = _assert_all_error_pass(
-            ["wiki", "--path=" + str(ws / "w"), "check-fixtures", "--json"], "wiki"
+            ["wiki", "--path=" + str(wiki_root), "check-fixtures", "--json"], "wiki"
         )
 
         # 显式确认读取契约 check（E2）落地且 pass——SKILL 读取契约自洽对接

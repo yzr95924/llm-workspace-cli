@@ -175,5 +175,31 @@ class LogOnlyClassificationTests(unittest.TestCase):
         assert rc == 0
 
 
+class DiscussionsScopeTest(unittest.TestCase):
+    """根级 discussions/ 与旧 raw/discussions/ 都不进 ingest 扫描。"""
+
+    def test_only_formal_raw_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for rel in ("raw/articles", "raw/discussions", "discussions", "wiki"):
+                (root / rel).mkdir(parents=True)
+            (root / "raw" / "articles" / "paper.md").write_text("raw", encoding="utf-8")
+            (root / "raw" / "discussions" / "legacy.md").write_text(
+                "draft", encoding="utf-8"
+            )
+            (root / "discussions" / "draft.md").write_text("draft", encoding="utf-8")
+            (root / "wiki" / "log.md").write_text("", encoding="utf-8")
+
+            from llmw.content.ingest_diff import run
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = run(root, as_json=True)
+
+        rows = json.loads(buf.getvalue())
+        assert [row["path"] for row in rows] == ["articles/paper.md"]
+        assert rc == 1
+
+
 if __name__ == "__main__":
     unittest.main()

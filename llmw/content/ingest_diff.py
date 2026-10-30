@@ -98,17 +98,17 @@ REASONS = (REASON_UNTRACKED, REASON_STALE_RAW, REASON_LOG_ONLY_NO_SOURCE_PAGE)
 
 
 def collect_raw_files(raw_root: Path) -> List[Path]:
-    """递归收集 raw/ 下可摄取的文本素材（排除 assets/ 与 discussions/ 子树、隐藏 / 系统文件）。
+    """递归收集 raw/ 下可摄取的文本素材（排除 assets/ 与旧 raw/discussions/ 子树等）。
 
-    assets/ 是图片 / 附件终态（不该被当 untracked 信号）；discussions/ 是协作草稿层，
-    列出来会诱导 LLM 把自己写的草稿当 raw 真相 ingest（provenance 后门）——转正先 mv 到
-    raw/articles 等子树。
+    assets/ 是图片 / 附件终态（不该被当 untracked 信号）；raw/discussions/ 是旧布局的
+    协作草稿层，列出来会诱导 LLM 把自己写的草稿当 raw 真相 ingest（provenance 后门）——
+    根级 discussions/ 不在 raw/ 扫描域，旧路径保留排除防未迁移实例误 ingest。
     """
     if not raw_root.is_dir():
         return []
     files = []  # type: List[Path]
     seen = set()  # type: Set[str]
-    # assets/ + discussions/ 子树整体跳过（rglob 会先遍历到，命中后按祖先过滤）
+    # assets/ + 旧 raw/discussions/ 子树整体跳过（rglob 会先遍历到，命中后按祖先过滤）
     skip_dirs = {raw_root / "assets", raw_root / "discussions"}
     for pattern in INGEST_GLOBS:
         for p in raw_root.rglob(pattern):

@@ -10,8 +10,7 @@
 
 ### `raw/`（agent 只读，用户可改）
 
-- agent 不在 `raw/` 下创建、修改、删除或移动文件；例外只有 `raw/external/` 与
-  `raw/discussions/` 两处，不适用于 `raw/` 其他子树
+- agent 不在 `raw/` 下创建、修改、删除或移动文件；例外只有 `raw/external/`
 - 用户可随时新增或更新 `raw/` 文件（重新剪藏、重存 PDF 都算），agent 不视之为违规
 - raw 文件更新（同路径新内容）后重新执行 ingest；待重摄文件用
   `llmw wiki ingest-diff --check-stale` 发现
@@ -32,11 +31,11 @@
   才写入，不在摄取流程中顺带改代码
 - 改过 target 代码后，经用户确认再对受影响的 source 页重新执行 ingest
 
-### `raw/discussions/`（协作草稿，用户与 agent 均可写）
+### `discussions/`（协作草稿，用户与 agent 均可写）
 
-- 本目录存放用户与 agent 的临时草稿（讨论稿、设计草稿、待整理笔记），可创建、编辑、删除，
-  不要求 frontmatter
-- source 页的 `sources:` 不得指向 `raw/discussions/`
+- 本目录与 `raw/`、`wiki/` 同级，存放用户与 agent 的临时草稿（讨论稿、设计草稿、
+  待整理笔记），可创建、编辑、删除，不要求 frontmatter
+- source 页的 `sources:` 不得指向 `discussions/`
 - 草稿只有经用户明确要求时才 `mv` 到 `raw/articles/` 或其他正式子树，之后按标准 ingest
   处理；迁入后 agent 不再修改
 - 未经用户要求，agent 不读取本目录内容来生成 `wiki/` 页面
@@ -61,7 +60,7 @@
     表示最近巡检时间；format 升级中的 `--check-version` 不记）。条目写法见
     `wiki/log.md` 头部说明块
   - 除此之外不更新 `index.md` / `log.md`：纯读取、只改正文且不涉及上述 index 字段的
-    编辑、`wiki/` 之外的任何写入（`raw/` 各子树含 `raw/discussions/` 草稿与 external
+    编辑、`wiki/` 之外的任何写入（`raw/` 各子树、`discussions/` 草稿与 external
     target 仓、`scripts/`、仓外路径）
 - 重写页面时保留 frontmatter，不丢失 `type` / `tags` / `sources` 字段
 - 交叉引用用相对路径（如 `[link](../concepts/transformer.md)`），不用 wikilink

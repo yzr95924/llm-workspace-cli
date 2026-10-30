@@ -150,10 +150,24 @@ class RelatedLinksResolutionTest(unittest.TestCase):
 
 
 class DiscussionsSourceGuardTest(unittest.TestCase):
-    """`type: source` 页 `sources:` 不得指向 `raw/discussions/`。"""
+    """`type: source` 页 `sources:` 不得指向 `discussions/` 或旧 `raw/discussions/`。"""
 
-    def test_source_pointing_at_discussions_is_reported(self):
-        """source 页 sources 指向 raw/discussions/ → 报 source-in-discussions（error）。"""
+    def test_source_pointing_at_root_discussions_is_reported(self):
+        """source 页 sources 指向 discussions/ → 报 source-in-discussions（error）。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = build_minimal_wiki(tmp)
+            (root / "wiki" / "sources").mkdir(parents=True, exist_ok=True)
+            (root / "wiki" / "sources" / "draft.md").write_text(
+                _page("Draft", "source", extra="sources: [discussions/foo.md]\n"),
+                encoding="utf-8",
+            )
+            _, stdout = run_lint(root)
+        self.assertIn(
+            "source-in-discussions", stdout, "指向 discussions/ 应被报出：\n" + stdout
+        )
+
+    def test_source_pointing_at_legacy_raw_discussions_is_reported(self):
+        """source 页 sources 指向旧 raw/discussions/ → 仍报 source-in-discussions。"""
         with tempfile.TemporaryDirectory() as tmp:
             root = build_minimal_wiki(tmp)
             (root / "wiki" / "sources").mkdir(parents=True, exist_ok=True)
@@ -162,9 +176,7 @@ class DiscussionsSourceGuardTest(unittest.TestCase):
                 encoding="utf-8",
             )
             _, stdout = run_lint(root)
-        self.assertIn(
-            "source-in-discussions", stdout, "指向 discussions/ 应被报出：\n" + stdout
-        )
+        self.assertIn("source-in-discussions", stdout, "旧路径应被报出：\n" + stdout)
 
     def test_source_pointing_at_articles_not_reported(self):
         """正常 raw/articles/ source 不触发 source-in-discussions（防 over-fire 回归）。"""
@@ -218,47 +230,6 @@ class ReviewedStaleDateTest(unittest.TestCase):
             )
             _, stdout = run_lint(root)
         self.assertIn("reviewed-stale", stdout, f"次日更新应报：\n{stdout}")
-
-
-class GitPorcelainPathsTest(unittest.TestCase):
-    """`_git_porcelain_paths`——raw-modified 排除 discussions/ 的解析基础。"""
-
-    def setUp(self):
-        # 直接 import 模块（与 subprocess 端到端测试互补——本 helper 是纯函数）
-        from llmw.content import wiki_lint
-
-        self.lint_wiki = wiki_lint
-
-    def test_plain_path(self):
-        paths = self.lint_wiki._git_porcelain_paths
-        self.assertEqual(paths(" M raw/articles/foo.md"), ["raw/articles/foo.md"])
-        self.assertEqual(
-            paths("?? raw/discussions/draft.md"), ["raw/discussions/draft.md"]
-        )
-        self.assertEqual(paths("?? raw/discussions/"), ["raw/discussions/"])
-
-    def test_rename_returns_both_sides(self):
-        """rename `R <old> -> <new>`（git 实测 old 在前、new 在后）返回 [old, new]——
-        两侧都判，覆盖 archive mv（discussions/ → articles/）跨边界场景。"""
-        paths = self.lint_wiki._git_porcelain_paths
-        self.assertEqual(
-            paths("R  raw/old.md -> raw/new.md"), ["raw/old.md", "raw/new.md"]
-        )
-        # archive mv：discussions/ 迁出到 articles/，old 侧命中 discussions 前缀也要排除
-        self.assertEqual(
-            paths("R  raw/discussions/x.md -> raw/articles/x.md"),
-            ["raw/discussions/x.md", "raw/articles/x.md"],
-        )
-
-    def test_quoted_path(self):
-        paths = self.lint_wiki._git_porcelain_paths
-        # 含空格的路径被双引号包裹
-        self.assertEqual(
-            paths('?? "raw/discussions/my draft.md"'), ["raw/discussions/my draft.md"]
-        )
-
-    def test_too_short_line(self):
-        self.assertEqual(self.lint_wiki._git_porcelain_paths("XY"), [])
 
 
 class SeverityOfTest(unittest.TestCase):

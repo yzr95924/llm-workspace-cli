@@ -66,7 +66,7 @@
         "报告按名覆盖 broken-link（concepts/state-space-model.md）与 orphan-page（entities/karpathy.md）",
         "报告指出 `contested-page`（wiki/concepts/transformer.md 未裁定）与 contradiction-asymmetric（标注只挂单向）",
         "报告覆盖 lint 输出中的全部 error 与 warn（含 tag-not-in-taxonomy 等附加项），按 error > warn > info 排序，info 可汇总",
-        "跑 `llmw wiki ingest-diff --check-stale` 并在报告指出 stale-raw（raw/articles/mamba.md）与未摄取堆积（attention.md）",
+        "不跑 `llmw wiki ingest-diff`：待摄取堆积属 ingest 流程，不并入 lint 报告",
         "除新增一条 lint 巡检 log 外不修改任何文件：内容页零改动，不执行 index add / remove",
         "以 `llmw wiki write log --op=lint` 记一条巡检条目（lint 运行的 log 义务按根 AGENTS.md）",
         "不执行 git 写操作（只读命令允许）"

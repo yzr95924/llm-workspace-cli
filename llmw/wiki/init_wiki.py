@@ -22,12 +22,14 @@ from llmw.fsutil import atomic_write
 _CONTENT_SUBDIRS = sorted(WIKI_SUBDIRS)
 # raw/ 默认子目录；external/ 不预建——.gitignore 的 `raw/external/*` 会吃掉 .gitkeep，
 # 预建对 git 不可见（接入外部仓时按需建）
-_RAW_SUBDIRS = ["articles", "assets", "discussions"]
+_RAW_SUBDIRS = ["articles", "assets"]
 
 # 需 .gitkeep 占位的空目录（scripts/ 有真实索引文件，不需要占位）
-_GITKEEP_DIRS = [Path("wiki") / d for d in _CONTENT_SUBDIRS] + [
-    Path("raw") / d for d in _RAW_SUBDIRS
-]
+_GITKEEP_DIRS = (
+    [Path("wiki") / d for d in _CONTENT_SUBDIRS]
+    + [Path("raw") / d for d in _RAW_SUBDIRS]
+    + [Path("discussions")]
+)
 
 
 def check_not_initialized(wiki_dir: Path) -> None:
@@ -90,7 +92,7 @@ def render_and_write(
     for d in (
         [wiki_dir / "raw" / x for x in _RAW_SUBDIRS]
         + [wiki_dir / "wiki" / x for x in _CONTENT_SUBDIRS]
-        + [wiki_dir / "scripts", wiki_dir / "MEMORY"]
+        + [wiki_dir / "discussions", wiki_dir / "scripts", wiki_dir / "MEMORY"]
     ):
         d.mkdir(parents=True, exist_ok=True)
 

@@ -41,7 +41,7 @@ from llmw.content.page_types import (
     WIKI_SUBDIRS,
 )
 
-DISCUSSIONS_SUBDIR = "discussions"  # raw/ 下用户 + LLM 协作草稿层；与 external/ 并列的 raw/ 写权限例外
+DISCUSSIONS_DIR = "discussions"  # 根级用户 + LLM 协作草稿层；不可作 source 真相源
 MD_LINK_RE = re.compile(r"!?\[([^\]]*)\]\(([^)]+)\)")
 WIKILINK_RE = re.compile(r"\[\[[^\]\n]+\]\]")
 EXTERNAL_URL_RE = re.compile(r"^(https?:|mailto:|//)")
@@ -143,21 +143,6 @@ def is_git_repo(path: Path) -> bool:
         cur = parent
 
 
-def _git_porcelain_paths(line: str) -> List[str]:
-    """porcelain v1 一行 → path 列表（rename/copy 行返 [old, new]）。
-
-    前 2 字符 = XY 状态、第 3 字符 = 空格；含特殊字符的 path 被双引号包裹。
-    """
-    if len(line) < 4:
-        return []
-    rest = line[3:]
-    if " -> " in rest:
-        paths = rest.split(" -> ", 1)
-    else:
-        paths = [rest]
-    return [p.strip().strip('"') for p in paths]
-
-
 def check_raw_immutable(wiki_root: Path, use_git: bool) -> List[str]:
     """raw/ 是否有未提交改动（非 git 仓 / raw 未跟踪 → 跳过）。
 
@@ -183,11 +168,6 @@ def check_raw_immutable(wiki_root: Path, use_git: bool) -> List[str]:
     if result.returncode != 0:
         return ([], "raw-immutable-skipped: raw/ 未纳入 git 跟踪，跳过 raw/ 不可变性检查")
     lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
-    # discussions/ 是协作草稿层、双方可写，未提交改动不算 raw 违规；external/ 的
-    # symlink 被 .gitignore 排除不进 status。rename 行任一侧命中 discussions 也排除
-    # （归档 mv 跨边界：discussions/ → articles/ 属合法）
-    discussions_prefix = "raw/" + DISCUSSIONS_SUBDIR + "/"
-    lines = [ln for ln in lines if not any(p.startswith(discussions_prefix) for p in _git_porcelain_paths(ln))]
     if not lines:
         return ([], "")
     findings = [f"raw-modified: raw/ 有 {len(lines)} 处未提交改动：{lines[0]}{' ...' if len(lines) > 1 else ''}"]
@@ -315,14 +295,14 @@ def _check_source_element(wiki_root: Path, rel: str, s) -> Optional[str]:
             f"raw/external/<source-name>/...）（解释见 "
             f"llmw wiki lint --explain=sources-absolute-path）"
         )
-    # raw/discussions/ 禁止作 source——协作草稿层不是"用户掌控的真相源"，
+    # discussions/ 禁止作 source——协作草稿层不是"用户掌控的真相源"，
     # 放开口子 = provenance 后门（LLM 自产内容被当 raw 真相 ingest 回 wiki）；
-    # 先 mv 到 raw/articles 等正式子树再走标准 ingest
-    if s.startswith("raw/" + DISCUSSIONS_SUBDIR + "/"):
+    # 旧 raw/discussions/ 一并拦截，防未手动迁移的实例走旧路径绕过
+    if s.startswith(DISCUSSIONS_DIR + "/") or s.startswith("raw/" + DISCUSSIONS_DIR + "/"):
         return (
             f"source-in-discussions: {rel} sources='{s}' 指向 "
-            f"raw/{DISCUSSIONS_SUBDIR}/——discussions/ 是协作草稿层"
-            f"，不可作 source 真相源；先 mv 到 raw/articles "
+            f"{DISCUSSIONS_DIR}/（含旧路径 raw/{DISCUSSIONS_DIR}/）——discussions/ "
+            f"是协作草稿层，不可作 source 真相源；先 mv 到 raw/articles "
             f"等正式子树再 ingest"
         )
     # raw/external/<symlink>/...：.resolve() 会落到 wiki 根外，不该判 sources-out-of-root
@@ -758,7 +738,7 @@ def check_page_size(wiki_root, threshold=PAGE_SIZE_THRESHOLD):
                 rel = p.relative_to(wiki_root).as_posix()
                 findings.append(
                     f"oversized-page: {rel} 正文 {n} 行（非空），超过 {threshold} 阈值——"
-                    f"建议拆成子主题页 + cross-link（page-templates.md#建页--追加--归档阈值page-thresholds）"
+                    f"建议拆成子主题页 + cross-link（page-templates.md#生命周期与归档）"
                 )
     return findings
 
@@ -1073,7 +1053,7 @@ _FIXTURES_ACTION_TABLE: Dict[str, Tuple[str, Callable[[Dict[str, object]], str]]
             "raw/external/.symlink-anchor.toml 损坏：CLI add 拒绝覆盖损坏文件"
             "（保护手工修复现场）——备份后删除，或手工改对 TOML，再用"
             " `llmw wiki external add <target> --name=<n>` 重建 entries。"
-            "字段语义见 external-repo.md#首次接入；schema 归 CLI 持有"
+            "字段语义见 external-repo.md#接入；schema 归 CLI 持有"
             "（`llmw wiki external` 子命令）"
         ),
     ),
@@ -1180,7 +1160,7 @@ def build_upgrade_plan(
             "fixtures-fix-strip-frontmatter 仅删首部 frontmatter 块，保留全文正文一字不动",
             "fixtures-fix-skeleton：按 expected（缺失骨架信号清单）补 frontmatter 键 / H1 / 说明块 / 段标题 / .gitignore 段，单 Edit 可落；成长型内容（index 类别 / log 历史 / tag bullet）不动",
             "fixtures-fix-agents-md-resync / -agents-version：跑 `llmw wiki upgrade --apply`（CLI 重渲染 byte-owned）；本地定制先按 blocked_drift 与用户裁定搬 MEMORY/ 或丢弃",
-            "fixtures 改造配合 upgrade-workflow.md#语义合并规则——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按该节判断",
+            "fixtures 改造配合 upgrade-workflow.md#语义合并——结构性合规由 fixtures-fix-* 完成，跨条目语义合并由 LLM 按该节判断",
         ],
     }  # type: Dict[str, object]
     return plan

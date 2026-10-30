@@ -106,7 +106,7 @@ FINDINGS = {
     ),
     "source-in-discussions": FindingSpec(
         "error",
-        "source 页的 sources 指向 raw/discussions/（provenance 后门）",
+        "source 页的 sources 指向 discussions/ 或旧 raw/discussions/（provenance 后门）",
         "经用户确认后 `mv` 到 raw/articles 等正式子树，再走标准 ingest",
     ),
     "sources-absolute-path": FindingSpec(
