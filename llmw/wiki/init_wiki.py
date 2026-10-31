@@ -33,12 +33,16 @@ _GITKEEP_DIRS = (
 
 
 def check_not_initialized(wiki_dir: Path) -> None:
-    """4 份产物任一已存在 → 拒绝覆盖（须在 mkdir 前调用，避免半成品目录）。"""
+    """任一出生产物已存在 → 拒绝覆盖（须在 mkdir 前调用，避免半成品目录）。"""
     files = [
+        wiki_dir / "wiki_metadata.toml",
         wiki_dir / "AGENTS.md",
+        wiki_dir / ".gitignore",
         wiki_dir / "wiki" / "index.md",
+        wiki_dir / "wiki" / "log.md",
         wiki_dir / "wiki" / "tags.md",
         wiki_dir / "scripts" / "SCRIPTS.md",
+        wiki_dir / "MEMORY" / "MEMORY.md",
     ]
     for f in files:
         if f.exists():
@@ -71,7 +75,6 @@ def render_and_write(
             hint="检查 llmw/content/templates/wiki/fixtures/ 是否完整",
         )
 
-    # 渲染 3 份有占位符的文件（走 llmw.content.render 单一入口）
     agents_md = render_wiki_agents_md(
         topic=topic,
         format_version=format_version,

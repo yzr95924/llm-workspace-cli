@@ -54,9 +54,6 @@ def read_template(path: Path) -> str:
         ) from e
 
 
-# ===== wiki side =====
-
-
 def render_wiki_agents_md(*, topic: str, format_version: str) -> str:
     """渲染 <wiki-root>/AGENTS.md。"""
     refs = wiki_templates_dir()

@@ -37,10 +37,3 @@ def sha256_file(path: Path) -> Optional[str]:
         return hashlib.sha256(path.read_bytes()).hexdigest()
     except OSError:
         return None
-
-
-def safe_rmtree(path: Path) -> None:
-    """rm -rf 包装；失败异常交调用方处理。"""
-    import shutil
-
-    shutil.rmtree(path)

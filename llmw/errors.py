@@ -15,9 +15,6 @@ class LlmwError(Exception):
         super().__init__(self.message)
 
 
-# ===== 用户错误 (exit_code = 1) =====
-
-
 class WorkspaceNotFound(LlmwError):
     exit_code = 1
     user_message = "未找到 workspace 根"
@@ -95,6 +92,20 @@ class WikiMetadataCorrupt(LlmwError):
     user_message = "wiki_metadata.toml 损坏或不完整"
 
 
+class WorkspaceMetadataCorrupt(LlmwError):
+    """workspace.toml 结构不符 schema（wikis 表项缺 path 等）——exit 1 用户可修，不归内部错误。"""
+
+    exit_code = 1
+    user_message = "workspace.toml 损坏或不完整"
+
+
+class LegacyTableCorrupt(LlmwError):
+    """包内 legacy_paths.toml 损坏——升级不能静默跳过迁移。"""
+
+    exit_code = 2
+    user_message = "legacy_paths.toml 损坏"
+
+
 class InvalidWikiName(LlmwError):
     exit_code = 1
     user_message = "wiki 名格式非法"
@@ -154,7 +165,11 @@ class InvalidTagValue(LlmwError):
     user_message = "tag 值非法"
 
 
-# ===== 环境错误 (exit_code = 2) =====
+class InvalidTopicValue(LlmwError):
+    """topic 含双引号 / 反斜杠 / 控制字符时无法安全写入 quoted TOML 模板。"""
+
+    exit_code = 1
+    user_message = "topic 值非法"
 
 
 class SkillMissing(LlmwError):
@@ -189,9 +204,6 @@ class ByobuNotFound(LlmwError):
 class ByobuCommandFailed(LlmwError):
     exit_code = 2
     user_message = "byobu/tmux 命令执行失败"
-
-
-# ===== 内部错误 (exit_code = 3) =====
 
 
 class InternalError(LlmwError):

@@ -37,9 +37,7 @@ def _no_real_tmux(monkeypatch):
 def full_workspace_with_wiki(tmp_path: Path) -> Path:
     """全骨架 wiki（init_wiki.render_and_write 出生 + 指纹回填），供骨架同步断言。"""
     ws = ws_store.create_skeleton(tmp_path)
-    ws.wikis["foo"] = ws_store.WikiEntry(
-        name="foo", path="foo", created_at="2026-01-01T00:00:00Z"
-    )
+    ws.wikis["foo"] = ws_store.WikiEntry(path="foo", created_at="2026-01-01T00:00:00Z")
     ws_store.save(tmp_path, ws)
     foo = tmp_path / "foo"
     foo.mkdir()

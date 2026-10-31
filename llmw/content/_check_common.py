@@ -13,6 +13,57 @@ SEMVER_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 # 模板零出边引用：§节号引用（如 `§6`；文件级 pattern 清单由各 check 文件自持）
 TEMPLATE_OUTBOUND_SECTION_RE = re.compile(r"§[0-9]")
 
+_ANCHOR_TABLE_RE = re.compile(r"^\[\[(\w+)\]\]\s*$")
+_ANCHOR_STRING_RE = re.compile(r'^([a-z_]+)\s*=\s*"((?:[^"\\]|\\.)*)"\s*$')
+_ANCHOR_SCALAR_RE = re.compile(r"^([a-z_]+)\s*=\s*([0-9]+|true|false)\s*$")
+_ANCHOR_ESCAPES = {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\"}
+
+
+def parse_anchor_entries(text: str) -> Tuple[List[Dict[str, str]], Optional[str]]:
+    """anchor TOML 词法解析（[[entry]] + 双引号标量）；不校验字段，schema_version 单独返回。"""
+    entries = []  # type: List[Dict[str, str]]
+    current = None  # type: Optional[Dict[str, str]]
+    schema_version = None  # type: Optional[str]
+    for raw_line in text.splitlines():
+        # 行内注释：仅在引号外剥离（anchor 实际写出字符串不含 #）
+        if "#" in raw_line:
+            in_str = False
+            cut = -1
+            for i, ch in enumerate(raw_line):
+                if ch == '"':
+                    in_str = not in_str
+                elif ch == "#" and not in_str:
+                    cut = i
+                    break
+            if cut >= 0:
+                raw_line = raw_line[:cut]
+        stripped = raw_line.rstrip().strip()
+        if not stripped:
+            continue
+        m = _ANCHOR_TABLE_RE.match(stripped)
+        if m:
+            if current is not None:
+                entries.append(current)
+            current = {}
+            continue
+        m = _ANCHOR_STRING_RE.match(stripped)
+        if m:
+            key, raw_val = m.group(1), m.group(2)
+            val = re.sub(
+                r"\\(.)",
+                lambda mo: _ANCHOR_ESCAPES.get(mo.group(1), mo.group(1)),
+                raw_val,
+            )
+            if current is not None:
+                current[key] = val
+            continue
+        m = _ANCHOR_SCALAR_RE.match(stripped)
+        if m and m.group(1) == "schema_version":
+            schema_version = m.group(2)
+    if current is not None:
+        entries.append(current)
+    return entries, schema_version
+
 
 def read_text(path: Path) -> Optional[str]:
     """读文件文本；失败返 None（不抛异常；fixture-check 静默容错）。"""

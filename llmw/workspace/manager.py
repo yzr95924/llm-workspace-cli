@@ -11,6 +11,7 @@ from llmw.errors import (
     InvalidConfigKey,
     KeyNotUnsettable,
     SchemaVersionUnsupported,
+    WikiMetadataCorrupt,
     WorkspaceExists,
 )
 from llmw.workspace import store as ws_store
@@ -41,9 +42,6 @@ def _check_enter_cli(value: str) -> None:
         )
 
 
-# ===== init =====
-
-
 def _is_effectively_empty(path: Path) -> bool:
     """目录是否视为空（忽略 .git / .gitignore，允许 git 空仓直接 init）。
 
@@ -57,6 +55,11 @@ def init(path: Path) -> Path:
     """初始化 workspace 根；git 由用户自理（CLI 不碰 git；git 空仓允许直接 init）。"""
     path = path.resolve()
     if path.exists():
+        if not path.is_dir():
+            raise WorkspaceExists(
+                f"目标路径已存在且不是目录: {path}",
+                hint="init 需要 workspace 根目录，请换 --path 或先移走该文件",
+            )
         if not _is_effectively_empty(path):
             raise WorkspaceExists(
                 f"路径已存在且非空: {path}",
@@ -76,9 +79,6 @@ def init(path: Path) -> Path:
         file=sys.stdout,
     )
     return path
-
-
-# ===== config =====
 
 
 def _check_key(key: str) -> tuple:
@@ -193,10 +193,13 @@ def config_interactive(workspace_root: Path) -> None:
             return
         try:
             idx = int(choice) - 1
-            key = keys[idx]
-        except (ValueError, IndexError):
+        except ValueError:
             print("[llmw] 输入无效，重试")
             continue
+        if not 0 <= idx < len(keys):
+            print("[llmw] 输入无效，重试")
+            continue
+        key = keys[idx]
 
         can_set, _, _ = CONFIG_KEYS[key]
         if not can_set:
@@ -232,9 +235,6 @@ def config_interactive(workspace_root: Path) -> None:
             return
 
 
-# ===== list =====
-
-
 def _gather_wiki_rows(
     workspace_root: Path, ws, tag_filter: Optional[List[str]]
 ) -> List[dict]:
@@ -255,7 +255,12 @@ def _gather_wiki_rows(
 
                 try:
                     meta = wiki_load(wiki_path)
-                except (OSError, TOMLDecodeError, SchemaVersionUnsupported) as e:
+                except (
+                    OSError,
+                    TOMLDecodeError,
+                    SchemaVersionUnsupported,
+                    WikiMetadataCorrupt,
+                ) as e:
                     print(
                         f"[llmw] warning: 无法读取 {name} 的 wiki_metadata.toml: "
                         f"{type(e).__name__}: {e}",

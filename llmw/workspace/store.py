@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict
 
 from llmw._compat import toml_loads, toml_dump
-from llmw.errors import SchemaVersionUnsupported
+from llmw.errors import SchemaVersionUnsupported, WorkspaceMetadataCorrupt
 from llmw.fsutil import atomic_write, now_iso8601
 
 SCHEMA_VERSION_SUPPORTED = 2
@@ -17,9 +17,8 @@ SCHEMA_VERSION_SUPPORTED = 2
 
 @dataclass
 class WikiEntry:
-    """workspace.toml [wikis.<name>] 表项"""
+    """workspace.toml [wikis.<name>] 表项（名称即注册表键）"""
 
-    name: str
     path: str
     created_at: str
 
@@ -31,6 +30,39 @@ class WorkspaceToml:
     schema_version: int
     created_at: str
     wikis: Dict[str, WikiEntry] = field(default_factory=dict)
+
+
+def _parse_wiki_entries(raw, toml_path):
+    """workspace.toml [wikis] 表 → WikiEntry 注册表；结构损坏抛 WorkspaceMetadataCorrupt。"""
+    wikis_raw = raw.get("wikis", {})
+    if not isinstance(wikis_raw, dict):
+        raise WorkspaceMetadataCorrupt(
+            f"{toml_path}: 'wikis' 必须是表",
+            hint="修复 workspace.toml 的 [wikis] 结构",
+        )
+
+    wikis: Dict[str, WikiEntry] = {}
+    for name, info in wikis_raw.items():
+        if (
+            not isinstance(info, dict)
+            or not isinstance(info.get("path"), str)
+            or not info.get("path")
+        ):
+            raise WorkspaceMetadataCorrupt(
+                f"{toml_path}: [wikis.{name}] 缺 path 或类型错误",
+                hint="每个 wiki 表项必须有非空字符串 path",
+            )
+        created_at = info.get("created_at")
+        if not isinstance(created_at, str):
+            raise WorkspaceMetadataCorrupt(
+                f"{toml_path}: [wikis.{name}] created_at 缺失或类型错误",
+                hint="每个 wiki 表项必须有字符串 created_at",
+            )
+        wikis[name] = WikiEntry(
+            path=info["path"],
+            created_at=created_at,
+        )
+    return wikis
 
 
 def load(workspace_root: Path) -> WorkspaceToml:
@@ -47,17 +79,17 @@ def load(workspace_root: Path) -> WorkspaceToml:
             hint="升级 CLI 或手动迁移 schema_version",
         )
 
-    wikis: Dict[str, WikiEntry] = {}
-    for name, info in raw.get("wikis", {}).items():
-        wikis[name] = WikiEntry(
-            name=name,
-            path=info["path"],
-            created_at=info.get("created_at", ""),
+    wikis = _parse_wiki_entries(raw, toml_path)
+    created_at = raw.get("created_at")
+    if not isinstance(created_at, str):
+        raise WorkspaceMetadataCorrupt(
+            f"{toml_path}: created_at 缺失或类型错误",
+            hint="workspace.toml 必须有字符串 created_at",
         )
 
     return WorkspaceToml(
         schema_version=sv,
-        created_at=raw.get("created_at", ""),
+        created_at=created_at,
         wikis=wikis,
     )
 

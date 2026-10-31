@@ -61,7 +61,6 @@ def parse_frontmatter_simple(text: str) -> Dict:
             result[pending_key] = ""
             pending_key = None
         _flush_list()
-        # 新 key: value
         kv_match = re.match(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$", line)
         if not kv_match:
             continue
@@ -72,7 +71,6 @@ def parse_frontmatter_simple(text: str) -> Dict:
         elif val == "[]":
             result[key] = []
         elif val.startswith("[") and val.endswith("]"):
-            # inline 数组
             inner = val[1:-1].strip()
             if not inner:
                 result[key] = []
@@ -80,9 +78,7 @@ def parse_frontmatter_simple(text: str) -> Dict:
                 items = [x.strip().strip("\"'") for x in inner.split(",")]
                 result[key] = items
         else:
-            # 普通字符串（去引号）
             result[key] = val.strip("\"'")
-    # 收尾
     if pending_key is not None:
         result[pending_key] = ""
     _flush_list()

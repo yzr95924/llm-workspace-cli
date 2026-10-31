@@ -606,7 +606,6 @@ def check_index_section_placement(wiki_root: Path) -> List[str]:
 
 
 def check_log_format(wiki_root: Path) -> List[str]:
-    """log.md 格式"""
     findings = []  # type: List[str]
     log_path = wiki_root / "wiki" / "log.md"
     if not log_path.is_file():
@@ -765,7 +764,6 @@ def check_tag_taxonomy(wiki_root: Path) -> List[str]:
 
 
 def check_filename_kebab(wiki_root: Path) -> List[str]:
-    """文件名 kebab-case。"""
     findings = []  # type: List[str]
     pages = find_md_files(wiki_root)
     for sub in PAGE_BUCKETS:
@@ -780,7 +778,6 @@ def check_filename_kebab(wiki_root: Path) -> List[str]:
 
 
 def check_duplicate_titles(wiki_root: Path) -> List[str]:
-    """同一 title 出现在多页。"""
     findings = []  # type: List[str]
     title_to_files = {}  # type: Dict[str, List[str]]
     pages = find_md_files(wiki_root)
@@ -928,6 +925,20 @@ _INDEX_ENTRY_RE = re.compile(
 _REVIEWED_BADGE_RE = re.compile(r"✓\s+reviewed\s+(\d{4}-\d{2}-\d{2})\b|✗\s+pending\s+review\b")
 
 
+def _iter_index_targets(wiki_root: Path, index_path: Path, index_text: str):
+    """遍历 index 条目并解析 wiki 根内目标；yield (match, target)。"""
+    wiki_root_resolved = wiki_root.resolve()
+    for m in _INDEX_ENTRY_RE.finditer(index_text):
+        target = resolve_link(index_path, m.group(1).strip())
+        if target is None:
+            continue
+        try:
+            target.relative_to(wiki_root_resolved)
+        except ValueError:
+            continue
+        yield m, target
+
+
 def _raw_field_value(text: str, key: str):
     """取 frontmatter key 的原始字面值（不剥引号）；None = key 不存在，"" = 存在但空。
 
@@ -951,17 +962,8 @@ def _check_index_review_badges(wiki_root):
     if not index_path.is_file():
         return findings
     text = index_path.read_text(encoding="utf-8", errors="replace")
-    wiki_root_resolved = wiki_root.resolve()
-    for m in _INDEX_ENTRY_RE.finditer(text):
-        path = m.group(1).strip()
+    for m, target in _iter_index_targets(wiki_root, index_path, text):
         rest = m.group(2)
-        if is_external_url(path) or path.startswith("#"):
-            continue
-        target = (index_path.parent / path).resolve()
-        try:
-            target.relative_to(wiki_root_resolved)
-        except ValueError:
-            continue
         if not target.is_file():
             continue
         target_text = target.read_text(encoding="utf-8", errors="replace")
@@ -972,7 +974,7 @@ def _check_index_review_badges(wiki_root):
         reviewed_at_s = str(reviewed_at).strip() if reviewed_at is not None else ""
         badge_match = _REVIEWED_BADGE_RE.search(rest)
         title_match = re.match(r"\s*-\s*\[([^\]]+)\]", m.group(0))
-        title = title_match.group(1) if title_match else path
+        title = title_match.group(1) if title_match else m.group(1).strip()
 
         if is_reviewed and reviewed_at_s:
             if badge_match is None:
@@ -1063,15 +1065,7 @@ def check_archived_in_index(wiki_root: Path) -> List[str]:
     if not index_path.is_file():
         return findings
     index_text = index_path.read_text(encoding="utf-8", errors="replace")
-    for m in _INDEX_ENTRY_RE.finditer(strip_code_regions(index_text)):
-        link = m.group(1).strip()
-        target = resolve_link(index_path, link)
-        if target is None:
-            continue
-        try:
-            target.relative_to(wiki_root.resolve())
-        except ValueError:
-            continue
+    for _, target in _iter_index_targets(wiki_root, index_path, strip_code_regions(index_text)):
         if not target.is_file():
             continue
         fm = parse_frontmatter_simple(target.read_text(encoding="utf-8", errors="replace"))
@@ -1091,17 +1085,8 @@ def check_index_entry_drift(wiki_root: Path) -> List[str]:
     if not index_path.is_file():
         return findings
     index_text = index_path.read_text(encoding="utf-8", errors="replace")
-    wiki_root_resolved = wiki_root.resolve()
-    for m in _INDEX_ENTRY_RE.finditer(strip_code_regions(index_text)):
-        path = m.group(1).strip()
+    for m, target in _iter_index_targets(wiki_root, index_path, strip_code_regions(index_text)):
         rest = m.group(2)
-        if is_external_url(path) or path.startswith("#"):
-            continue
-        target = (index_path.parent / path).resolve()
-        try:
-            target.relative_to(wiki_root_resolved)
-        except ValueError:
-            continue
         if not target.is_file():
             continue
         target_text = target.read_text(encoding="utf-8", errors="replace")
@@ -1142,15 +1127,8 @@ def check_index_duplicates(wiki_root: Path) -> List[str]:
     index_text = index_path.read_text(encoding="utf-8", errors="replace")
     wiki_root_resolved = wiki_root.resolve()
     link_count = {}  # type: Dict[str, int]
-    for m in _INDEX_ENTRY_RE.finditer(strip_code_regions(index_text)):
-        path = m.group(1).strip()
-        target = resolve_link(index_path, path)
-        if target is None:
-            continue
-        try:
-            rel = target.relative_to(wiki_root_resolved).as_posix()
-        except ValueError:
-            continue
+    for _, target in _iter_index_targets(wiki_root, index_path, strip_code_regions(index_text)):
+        rel = target.relative_to(wiki_root_resolved).as_posix()
         link_count[rel] = link_count.get(rel, 0) + 1
     for rel, count in sorted(link_count.items()):
         if count > 1:

@@ -2,6 +2,7 @@
 
 import errno
 import json
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,7 +18,6 @@ from llmw.errors import (
     ByobuNotFound,
     InvalidConfigKey,
     InvalidWikiName,
-    KeyNotUnsettable,
     MissingRequiredFlag,
     MultipleRunningSessions,
     NoRunningSession,
@@ -27,10 +27,11 @@ from llmw.errors import (
     StopRequiresConfirmation,
     WikiDirMissing,
     WikiExists,
+    WikiMetadataCorrupt,
     WikiNotFound,
     WikiSessionActive,
 )
-from llmw.fsutil import atomic_write, now_iso8601, safe_rmtree, sha256_file
+from llmw.fsutil import atomic_write, now_iso8601, sha256_file
 from llmw.wiki import byobu, init_wiki
 from llmw.wiki import store as wiki_store
 from llmw.workspace import store as ws_store
@@ -137,6 +138,9 @@ def add(
     tags: Optional[List[str]] = None,
 ) -> Path:
     wiki_store.validate_name(name)
+    if tags:
+        for tag in tags:
+            wiki_store.validate_tag(tag)
 
     ws = ws_store.load(workspace_root)
     if name in ws.wikis:
@@ -162,6 +166,7 @@ def add(
 
     if topic is None:
         topic = name
+    wiki_store.validate_topic(topic)
 
     # 空目录可已存在；覆盖场景已由 check_not_initialized 阻断
     wiki_dir.mkdir(parents=False, exist_ok=True)
@@ -184,7 +189,7 @@ def add(
             _interactive_fill_metadata(wiki_dir, meta)
         except (EOFError, KeyboardInterrupt):
             print("\n[llmw] 跳过剩余 metadata", file=sys.stderr)
-        meta = wiki_store.load(wiki_dir)  # reload
+        meta = wiki_store.load(wiki_dir)
     else:
         if display_name is not None:
             meta.display_name = display_name
@@ -196,7 +201,6 @@ def add(
         wiki_store.save(wiki_dir, meta)
 
     ws.wikis[name] = ws_store.WikiEntry(
-        name=name,
         path=name,
         created_at=now_iso8601(),
     )
@@ -229,7 +233,7 @@ def _purge_with_backup(
         )
 
     if no_backup:
-        safe_rmtree(wiki_path)
+        shutil.rmtree(wiki_path)
         print(f"[llmw] --no-backup: 直接删除 {wiki_path}", file=sys.stdout)
         return
 
@@ -297,12 +301,11 @@ def remove(
             print("[llmw] 取消")
             return
 
+    if purge and wiki_path.is_dir():
+        _purge_with_backup(workspace_root, wiki_path, name, no_backup=no_backup)
+
     del ws.wikis[name]
     ws_store.save(workspace_root, ws)
-
-    if purge:
-        if wiki_path.is_dir():
-            _purge_with_backup(workspace_root, wiki_path, name, no_backup=no_backup)
 
     suffix = " 并删除子目录" if purge else ""
     print(f"[llmw] wiki '{name}' 已取消注册{suffix}", file=sys.stdout)
@@ -531,13 +534,11 @@ def rename(
             hint=f"registry 仍登记 '{old}', 但磁盘目录不完整; 检查是否被手动移走",
         )
 
-    # ===== 预检: 活跃窗口硬阻断 =====
     _ensure_no_active_windows(old)
 
     # created_at 跨 rename 保留,维持时间锚点
     created_at = ws.wikis[old].created_at
 
-    # ===== 预检: 骨架同步计划 (纯内存读取; 手改偏差在任何写盘前即被 --yes 绊住) =====
     # topic_changed 与 plan 同源判定一次: 空 plan 的 writes/backups 为空, 落盘与回滚天然跳过
     meta = wiki_store.load(old_path)  # SchemaVersionUnsupported / TOMLDecodeError 透传
     old_topic = meta.topic
@@ -545,7 +546,6 @@ def rename(
     topic_changed = old_topic == old
     plan = _plan_skeleton_sync(old_path, old, new, meta, yes)
 
-    # ===== Phase 1: 原地改 old_path 的 metadata (name→new, topic/指纹随骨架同步) =====
     # wiki_store.save 走 atomic_write (tmp + rename), 失败不留半成品 → old_path 完全不动。
     # 目录名此刻仍为 old, 与 metadata.name=new 短暂不一致, Phase 3 原子 rename 后即对齐。
     meta.name = new
@@ -556,7 +556,6 @@ def rename(
     meta.bump()
     wiki_store.save(old_path, meta)
 
-    # ===== Phase 2: 骨架落盘 (AGENTS.md 重渲染 + index/log 头部 topic) =====
     # 此刻目录名仍为 old, 写入落在 old_path; Phase 3 目录 rename 一并带走。
     try:
         for rel, text in plan.writes.items():
@@ -565,7 +564,6 @@ def rename(
         _rollback_rename(meta, old, old_topic, old_sha256, plan, old_path)
         raise
 
-    # ===== Phase 3: 原子重命名 old_path → new_path (O(1), 同 FS) =====
     # POSIX rename 同 FS 下只改目录项, 不动 inode 数据 / symlink → raw/ 下大量文件零拷贝。
     # 跨 FS 抛 EXDEV (workspace 目录应同 FS; NFS 不安全, 见 AGENTS.md)。
     try:
@@ -581,9 +579,8 @@ def rename(
             )
         raise
 
-    # ===== Phase 4: 切换 workspace.toml (del old / add new) =====
     try:
-        ws.wikis[new] = ws_store.WikiEntry(name=new, path=new, created_at=created_at)
+        ws.wikis[new] = ws_store.WikiEntry(path=new, created_at=created_at)
         del ws.wikis[old]
         ws_store.save(workspace_root, ws)
     except (OSError, TOMLDecodeError):
@@ -619,10 +616,16 @@ def rename(
 def _show_collect(workspace_root: Path, name: str) -> Dict:
     wiki_path = resolve_wiki_path(workspace_root, name)
     meta = None
-    if (wiki_path / "wiki_metadata.toml").is_file():
+    metadata_exists = (wiki_path / "wiki_metadata.toml").is_file()
+    if metadata_exists:
         try:
             meta = wiki_store.load(wiki_path)
-        except (OSError, TOMLDecodeError, SchemaVersionUnsupported) as e:
+        except (
+            OSError,
+            TOMLDecodeError,
+            SchemaVersionUnsupported,
+            WikiMetadataCorrupt,
+        ) as e:
             print(
                 f"[llmw] warning: 无法读取 wiki_metadata.toml: {type(e).__name__}: {e}",
                 file=sys.stderr,
@@ -651,6 +654,7 @@ def _show_collect(workspace_root: Path, name: str) -> Dict:
         "name": name,
         "path": str(wiki_path),
         "meta": meta,
+        "metadata_exists": metadata_exists,
         "agents_md_exists": agents_md_exists,
         "raw_p": raw_p,
         "wiki_sub_p": wiki_sub_p,
@@ -679,7 +683,7 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
             "last_activity": last_activity,
             "existence": {
                 "agents_md": d["agents_md_exists"],
-                "wiki_metadata_toml": meta is not None,
+                "wiki_metadata_toml": d["metadata_exists"],
                 "raw_dir": d["raw_p"].is_dir(),
                 "wiki_dir": d["wiki_sub_p"].is_dir(),
             },
@@ -692,6 +696,9 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         return
 
     created_line = meta.created_at if meta else "-"
+    metadata_state = (
+        "✓ found" if meta else ("✗ unreadable" if d["metadata_exists"] else "✗ missing")
+    )
     rows = [
         ("NAME", d["name"]),
         ("PATH", wiki_path),
@@ -702,7 +709,7 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         ("CREATED_AT", created_line),
         ("LAST_ACTIVITY", last_activity or "-"),
         ("AGENTS_MD", "✓ found" if d["agents_md_exists"] else "✗ missing"),
-        ("WIKI_METADATA", "✓ found" if meta else "✗ missing"),
+        ("WIKI_METADATA", metadata_state),
         (
             "RAW_DIR",
             f"{'✓ found' if d['raw_p'].is_dir() else '✗ missing'} ({d['raw_count']} files)",
@@ -717,13 +724,8 @@ def show(workspace_root: Path, name: str, as_json: bool = False) -> None:
         print(f"{label.ljust(label_w)}  {value}")
 
 
-# wiki config KEY 白名单: name -> (can_set, can_unset)
-WIKI_CONFIG_KEYS = {
-    "display_name": (True, True),
-    "description": (True, True),
-    "tags": (True, True),
-    # name / topic / schema_version / created_at / updated_at 全部只读
-}
+# wiki config KEY 白名单（name / topic / schema_version / created_at / updated_at 等只读字段不进）
+WIKI_CONFIG_KEYS = ("display_name", "description", "tags")
 
 
 def wiki_config_get(workspace_root: Path, name: str, key: Optional[str]) -> None:
@@ -738,7 +740,7 @@ def wiki_config_get(workspace_root: Path, name: str, key: Optional[str]) -> None
     if key not in WIKI_CONFIG_KEYS:
         raise InvalidConfigKey(
             f"KEY '{key}' 不在 wiki 白名单",
-            hint=f"可用 KEY: {', '.join(WIKI_CONFIG_KEYS.keys())}",
+            hint=f"可用 KEY: {', '.join(WIKI_CONFIG_KEYS)}",
         )
     val = getattr(meta, key)
     if val is None or val == "" or val == []:
@@ -750,9 +752,6 @@ def wiki_config_get(workspace_root: Path, name: str, key: Optional[str]) -> None
 def wiki_config_set(workspace_root: Path, name: str, key: str, value: str) -> None:
     if key not in WIKI_CONFIG_KEYS:
         raise InvalidConfigKey(f"KEY '{key}' 不在 wiki 白名单")
-    can_set, _ = WIKI_CONFIG_KEYS[key]
-    if not can_set:
-        raise InvalidConfigKey(f"KEY '{key}' 不可 set（只读）")
     if not value:
         # 空值语义与 unset 冲突（set 的 "" 若落盘为 None 会写出非法 TOML）——拒绝并指路
         raise InvalidConfigKey(
@@ -776,9 +775,6 @@ def wiki_config_set(workspace_root: Path, name: str, key: str, value: str) -> No
 def wiki_config_unset(workspace_root: Path, name: str, key: str) -> None:
     if key not in WIKI_CONFIG_KEYS:
         raise InvalidConfigKey(f"KEY '{key}' 不在 wiki 白名单")
-    can_set, can_unset = WIKI_CONFIG_KEYS[key]
-    if not can_unset:
-        raise KeyNotUnsettable(f"KEY '{key}' 不可 unset")
     wiki_dir = resolve_wiki_path(workspace_root, name)
     meta = wiki_store.load(wiki_dir)
     if key == "tags":
@@ -794,7 +790,7 @@ def wiki_config_interactive(workspace_root: Path, name: str) -> None:
     """wiki config 无参数: 默认就是交互模式（不要求 TTY）"""
     wiki_dir = resolve_wiki_path(workspace_root, name)
     meta = wiki_store.load(wiki_dir)
-    keys = list(WIKI_CONFIG_KEYS.keys())
+    keys = list(WIKI_CONFIG_KEYS)
     while True:
         print(f'\nwiki "{name}" 配置项 ({wiki_dir}/wiki_metadata.toml):')
         for i, key in enumerate(keys, 1):
@@ -810,10 +806,13 @@ def wiki_config_interactive(workspace_root: Path, name: str) -> None:
             return
         try:
             idx = int(choice) - 1
-            key = keys[idx]
-        except (ValueError, IndexError):
+        except ValueError:
             print("[llmw] 输入无效，重试")
             continue
+        if not 0 <= idx < len(keys):
+            print("[llmw] 输入无效，重试")
+            continue
+        key = keys[idx]
 
         if key == "tags":
             # 子菜单与 add 交互共用（_tags_submenu），一处实现两处行为

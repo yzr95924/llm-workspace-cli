@@ -9,6 +9,7 @@ from llmw._compat import toml_loads, toml_dump
 from llmw.config import metadata_templates_dir
 from llmw.errors import (
     InvalidTagValue,
+    InvalidTopicValue,
     InvalidWikiName,
     SchemaVersionUnsupported,
     WikiMetadataCorrupt,
@@ -52,6 +53,14 @@ def validate_tag(tag: str) -> None:
         )
 
 
+def validate_topic(topic: str) -> None:
+    if '"' in topic or "\\" in topic or any(ord(ch) < 0x20 for ch in topic):
+        raise InvalidTopicValue(
+            "topic 不能含双引号 / 反斜杠 / 控制字符（会破坏 quoted TOML）",
+            hint="更换 topic 或去掉这些字符后重试",
+        )
+
+
 def load(wiki_dir: Path) -> WikiMetadata:
     """从 <wiki_dir>/wiki_metadata.toml 加载并校验"""
     toml_path = wiki_dir / "wiki_metadata.toml"
@@ -71,6 +80,18 @@ def load(wiki_dir: Path) -> WikiMetadata:
             f"wiki_metadata.toml 缺必填字段: {', '.join(missing)}",
             hint="手动补字段，或重新 `llmw wiki --name=<name> add`（备份后）",
         )
+    tags_raw = raw.get("tags", [])
+    if not isinstance(tags_raw, list) or any(not isinstance(t, str) for t in tags_raw):
+        raise WikiMetadataCorrupt(
+            "wiki_metadata.toml tags 必须是字符串数组",
+            hint="修正 tags 字段类型后重试",
+        )
+    for tag in tags_raw:
+        if not TAG_RE.match(tag):
+            raise WikiMetadataCorrupt(
+                f"wiki_metadata.toml tag '{tag}' 非法: 仅允许小写字母 / 数字 / '-' / '_'，长度 1-32",
+                hint="修正 tags 后重试",
+            )
     return WikiMetadata(
         schema_version=sv,
         name=raw["name"],
@@ -79,7 +100,7 @@ def load(wiki_dir: Path) -> WikiMetadata:
         updated_at=raw["updated_at"],
         display_name=raw.get("display_name", ""),
         description=raw.get("description", ""),
-        tags=list(raw.get("tags", [])),
+        tags=list(tags_raw),
         agents_md_sha256=raw.get("agents_md_sha256", ""),
     )
 
@@ -107,7 +128,7 @@ def save(wiki_dir: Path, meta: WikiMetadata) -> None:
 
 
 def create_skeleton(wiki_dir: Path, name: str, topic: str) -> WikiMetadata:
-    """add 时调用：从 templates/wiki_metadata.toml.template 拷出实例"""
+    """add 时调用：从 templates/wiki_metadata.toml.template 拷出实例（topic 已由调用方校验）"""
     template_path = metadata_templates_dir() / "wiki_metadata.toml.template"
     template = template_path.read_text(encoding="utf-8")
     now = now_iso8601()

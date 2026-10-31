@@ -19,11 +19,13 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from llmw import WIKI_FORMAT_VERSION
+from llmw._compat import TOMLDecodeError
 from llmw.content import render as _render
 from llmw.content import wiki_fixtures
 from llmw.content._check_common import compare_semver as _compare_semver
 from llmw.content._check_common import read_text as _read_text
 from llmw.content.wiki_lint import parse_format_version as _parse_format_version
+from llmw.errors import LegacyTableCorrupt
 from llmw.fsutil import atomic_write, sha256_file
 from llmw.wiki import store as wiki_store
 from llmw.workspace.gitignore import (
@@ -83,7 +85,6 @@ def _split_growth(text: str):
     cur_body = []  # type: List[str]
     lines = text.splitlines(keepends=True)
     i = 0
-    # Frontmatter (可选)
     if lines and lines[0].rstrip() == "---":
         j = 1
         while j < len(lines) and lines[j].rstrip() != "---":
@@ -91,11 +92,9 @@ def _split_growth(text: str):
         if j < len(lines):
             fm = "".join(lines[: j + 1])
             i = j + 1
-    # Intro (frontmatter 后到第一个 ## 之间)
     while i < len(lines) and not lines[i].startswith("## "):
         intro.append(lines[i])
         i += 1
-    # Sections (## 起)
     while i < len(lines):
         m = re.match(r"^## (.+)$", lines[i].rstrip())
         if m:
@@ -259,13 +258,20 @@ def _apply_substitute(text: str, *, topic: str, setup_date: str) -> str:
     return _render._substitute(text, {"TOPIC_NAME": topic, "SETUP_DATE": setup_date, **_render.wiki_constant_mapping()})
 
 
+def _diff_text(old_text: str, new_text: str, rel_path: str) -> str:
+    return "\n".join(
+        difflib.unified_diff(
+            old_text.splitlines(), new_text.splitlines(), lineterm="", n=0, fromfile=rel_path, tofile=rel_path
+        )
+    )
+
+
 def plan_resync(wiki_root: Path, *, meta: Dict[str, str]) -> List[Dict[str, object]]:
     """计算 resync 计划（不写盘）。"""
     plan = []  # type: List[Dict[str, object]]
     topic = meta["topic"]
     setup_date = _render.setup_date(meta["created_at"])
 
-    # byte-owned
     byte_rendered = _render_byte_owned(topic=topic)
     for rel, new_text in byte_rendered.items():
         old_text = _read_text(wiki_root / rel)
@@ -274,15 +280,16 @@ def plan_resync(wiki_root: Path, *, meta: Dict[str, str]) -> List[Dict[str, obje
             action = "create"
             plan.append({"rel_path": rel, "action": action, "new": new_text})
         elif old_text != new_text:
-            diff = list(
-                difflib.unified_diff(
-                    old_text.splitlines(), new_text.splitlines(), lineterm="", n=0, fromfile=rel, tofile=rel
-                )
+            plan.append(
+                {
+                    "rel_path": rel,
+                    "action": action,
+                    "old": old_text,
+                    "new": new_text,
+                    "diff": _diff_text(old_text, new_text, rel),
+                }
             )
-            plan.append({"rel_path": rel, "action": action, "old": old_text, "new": new_text, "diff": "\n".join(diff)})
-        # else: already up-to-date, no action
 
-    # growth files
     for rel, fixture_name in GROWTH_FILES.items():
         fixture_text = _render_fixture(fixture_name)
         fixture_text = _apply_substitute(fixture_text, topic=topic, setup_date=setup_date)
@@ -301,17 +308,12 @@ def plan_resync(wiki_root: Path, *, meta: Dict[str, str]) -> List[Dict[str, obje
             else []
         )
         if old_text != new_text or dropped:
-            diff = list(
-                difflib.unified_diff(
-                    old_text.splitlines(), new_text.splitlines(), lineterm="", n=0, fromfile=rel, tofile=rel
-                )
-            )
             item = {
                 "rel_path": rel,
                 "action": "growth-graft",
                 "old": old_text,
                 "new": new_text,
-                "diff": "\n".join(diff) if old_text != new_text else None,
+                "diff": _diff_text(old_text, new_text, rel) if old_text != new_text else None,
             }
             if dropped:
                 item["dropped_sections"] = dropped
@@ -329,23 +331,13 @@ def plan_resync(wiki_root: Path, *, meta: Dict[str, str]) -> List[Dict[str, obje
         m = pat.search(old_gi)
         if m and m.group(0) != new_block:
             new_gi = pat.sub(new_block, old_gi)
-            diff = list(
-                difflib.unified_diff(
-                    old_gi.splitlines(),
-                    new_gi.splitlines(),
-                    lineterm="",
-                    n=0,
-                    fromfile=GITIGNORE_REL,
-                    tofile=GITIGNORE_REL,
-                )
-            )
             plan.append(
                 {
                     "rel_path": GITIGNORE_REL,
                     "action": "gitignore-block",
                     "old": old_gi,
                     "new": new_gi,
-                    "diff": "\n".join(diff),
+                    "diff": _diff_text(old_gi, new_gi, GITIGNORE_REL),
                 }
             )
 
@@ -382,15 +374,24 @@ def _load_legacy_table() -> List[Dict[str, str]]:
         import tomli as tomllib  # type: ignore
     try:
         data = tomllib.loads(toml_path.read_text(encoding="utf-8"))
-    except Exception:
-        return []
-    return data.get("legacy", []) or []
+    except (OSError, UnicodeDecodeError, TOMLDecodeError) as e:
+        raise LegacyTableCorrupt(
+            f"legacy_paths.toml 读取/解析失败: {e}",
+            hint="修复或重装 llmw（包内文件损坏），不要静默跳过 legacy 迁移",
+        ) from e
+    legacy = data.get("legacy", [])
+    if not isinstance(legacy, list) or any(not isinstance(entry, dict) for entry in legacy):
+        raise LegacyTableCorrupt(
+            f"{toml_path}: 'legacy' 必须是表数组",
+            hint="修复或重装 llmw（包内文件损坏），不要静默跳过 legacy 迁移",
+        )
+    return legacy
 
 
-def apply_legacy_paths(wiki_root: Path) -> List[Dict[str, str]]:
+def apply_legacy_paths(wiki_root: Path, legacy_table: List[Dict[str, str]]) -> List[Dict[str, str]]:
     """执行 legacy_paths.toml 表内移动/删除；返 changed[]。"""
     changed = []  # type: List[Dict[str, str]]
-    for entry in _load_legacy_table():
+    for entry in legacy_table:
         kind = entry.get("kind", "")
         old_rel = entry.get("old", "")
         new_rel = entry.get("new", "")
@@ -470,12 +471,11 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
             print(f"[llmw] hint: {result['hint']}", file=sys.stderr)
         return 2
 
-    # 1. plan resync
     plan = plan_resync(wiki_root, meta=meta)
 
     pristine = _agents_md_pristine(wiki_root, meta["agents_md_sha256"])
 
-    # 2. preflight: 判断 blocked_drift（非 dry-run 未 --yes 时）
+    # preflight: 判断 blocked_drift（非 dry-run 未 --yes 时）
     # 注：所有 diff（含 growth-graft）与 dropped_sections 都须 --yes——growth 变更
     # 可能改 frontmatter / 合并段 / 丢注释，不能因"只换头"就跳过确认
     has_diff = any(
@@ -520,7 +520,7 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
             print(f"\n[llmw] hint: {result['hint']}", file=sys.stderr)
         return 1
 
-    # 3. dry-run: 输出 plan 不写盘（dropped_sections 前置可见——唯一数据丢失路径）
+    # dry-run: 输出 plan 不写盘（dropped_sections 前置可见——唯一数据丢失路径）
     if dry_run:
         plan_out = []  # type: List[Dict[str, object]]
         for item in plan:
@@ -555,15 +555,30 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
                 print(line)
         return 0
 
-    # 4. apply resync
+    try:
+        legacy_table = _load_legacy_table()
+    except LegacyTableCorrupt as e:
+        result = {
+            "status": "error",
+            "current_format": current_format,
+            "target_format": WIKI_FORMAT_VERSION,
+            "error": str(e),
+            "hint": e.hint,
+        }
+        if as_json:
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+        else:
+            print(f"[llmw] error: {result['error']}", file=sys.stderr)
+            if result.get("hint"):
+                print(f"[llmw] hint: {result['hint']}", file=sys.stderr)
+        return e.exit_code
+
     changed = apply_resync(wiki_root, plan)
     _record_agents_md_fingerprint(wiki_root)
-
-    # 5. legacy paths
-    legacy_changed = apply_legacy_paths(wiki_root)
+    legacy_changed = apply_legacy_paths(wiki_root, legacy_table)
     changed.extend(legacy_changed)
 
-    # 6. residue 汇总（growth-graft-error / dropped_sections 可见化，不静默）
+    # residue 汇总（growth-graft-error / dropped_sections 可见化，不静默）
     residue = []  # type: List[Dict[str, str]]
     for item in plan:
         if item.get("action") == "growth-graft-error":
@@ -582,7 +597,6 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
                 }
             )
 
-    # 7. self-verify
     verified = self_verify(wiki_root)
     if verified.get("error", 0) > 0:
         result = {
@@ -605,7 +619,6 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
             print("[llmw] hint: 坏项期望/实际详情跑 llmw wiki check-fixtures", file=sys.stderr)
         return 2
 
-    # 8. final status
     status = "done" if not residue else "done_with_residue"
     result = {
         "status": status,

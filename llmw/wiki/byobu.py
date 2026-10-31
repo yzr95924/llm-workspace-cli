@@ -132,27 +132,24 @@ def _window_id(p: "subprocess.CompletedProcess[str]") -> Optional[str]:
     return p.stdout.strip() or None
 
 
+def _new_window_id(
+    prefix: List[str], window_name: str, cwd: str, shell_cmd: str
+) -> Optional[str]:
+    return _window_id(
+        _run(
+            prefix
+            + ["-P", "-F", "#{window_id}", "-n", window_name, "-c", cwd]
+            + [shell_cmd]
+        )
+    )
+
+
 def new_session(
     session: str, window_name: str, cwd: str, shell_cmd: str
 ) -> Optional[str]:
     """一步建成 session + 首窗口（避免留裸 shell 窗口）；失败 → None。"""
-    return _window_id(
-        _run(
-            [
-                "new-session",
-                "-d",
-                "-s",
-                session,
-                "-P",
-                "-F",
-                "#{window_id}",
-                "-n",
-                window_name,
-                "-c",
-                cwd,
-            ]
-            + [shell_cmd]
-        )
+    return _new_window_id(
+        ["new-session", "-d", "-s", session], window_name, cwd, shell_cmd
     )
 
 
@@ -163,22 +160,8 @@ def new_window(
 
     必须 `-t <session>:` 带冒号：无冒号时数字 session 名会被窗口 index 匹配抢先报 in use。
     """
-    return _window_id(
-        _run(
-            [
-                "new-window",
-                "-t",
-                f"{session}:",
-                "-P",
-                "-F",
-                "#{window_id}",
-                "-n",
-                window_name,
-                "-c",
-                cwd,
-            ]
-            + [shell_cmd]
-        )
+    return _new_window_id(
+        ["new-window", "-t", f"{session}:"], window_name, cwd, shell_cmd
     )
 
 
@@ -313,11 +296,27 @@ def spawn_window(spec: SpawnSpec) -> Tuple[bool, str, bool]:
         if dead:
             # 收尸：dead pane 无活进程，无需确认；收尸后新开，保持
             # "1 个 <wiki>-<suffix> 至多 1 个窗口"不变量
-            kill_window(wid)
+            if (
+                not kill_window(wid)
+                and find_tagged_window(session, window_name, wiki, backend) is not None
+            ):
+                raise ByobuCommandFailed(
+                    f"清理 dead 窗口失败 (window={window_name}, id={wid})",
+                    hint="旧窗口仍在，拒绝新建同名窗口；可手动 byobu-tmux kill-window -t "
+                    f"{wid} 后重试"
+                    + (f"（tmux: {_LAST_STDERR}）" if _LAST_STDERR else ""),
+                )
             collected = True
         elif backend_ok:
             if select_window(wid):
                 return False, wid, False
+            if find_tagged_window(session, window_name, wiki, backend) is not None:
+                raise ByobuCommandFailed(
+                    f"复用窗口失败 (window={window_name}, id={wid})",
+                    hint="旧窗口仍在，拒绝新建同名窗口；可手动 byobu-tmux select-window -t "
+                    f"{wid} 诊断"
+                    + (f"（tmux: {_LAST_STDERR}）" if _LAST_STDERR else ""),
+                )
         else:
             # 拒绝：带标活窗但 backend 不符（或老窗口无 @llmw_backend 标）——
             # 复用会吞掉"切换 agent"的意图；不自动开同名第二窗口（唯一性不变量）

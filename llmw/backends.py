@@ -1,9 +1,10 @@
-"""backend 单一真源：agent CLI 名集合 + status STATE 模式注册表（新增 agent 只改本文件）。
+"""backend 单一真源：agent CLI 名集合 + 启动 argv 模板 + STATE 模式注册表（新增 agent 只改本文件）。
 
 STATE_PATTERNS：backend → 屏幕尾部文本判据（opencode 实测；qodercli 暂无，
 降级 unknown）。模式随 CLI 版本漂移，匹配不上即降级。
 """
 
+from pathlib import Path
 from typing import Dict, NamedTuple, Optional, Tuple
 
 
@@ -15,7 +16,18 @@ class StatePatterns(NamedTuple):
     spinner: str = ""
 
 
-KNOWN_BACKENDS = frozenset({"qodercli", "opencode"})
+# backend → agent 启动 argv 模板；{wiki} 由调用方替换为 wiki 根路径
+BACKEND_ARGV = {
+    "qodercli": ("qodercli", "--add-dir", "{wiki}"),
+    "opencode": ("opencode", "{wiki}"),
+}
+KNOWN_BACKENDS = frozenset(BACKEND_ARGV)
+
+
+def build_backend_argv(backend: str, wiki_path: Path):
+    """backend 启动命令（backend 须已在 BACKEND_ARGV 注册）。"""
+    return [part.format(wiki=str(wiki_path)) for part in BACKEND_ARGV[backend]]
+
 
 # 默认 backend 唯一真源（落盘判定 / config 文案 / enter 回退均引此）
 DEFAULT_BACKEND = "opencode"

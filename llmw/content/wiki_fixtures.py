@@ -17,10 +17,10 @@ from typing import Callable, Dict, List, Optional
 from llmw import WIKI_FORMAT_VERSION
 from llmw.config import wiki_templates_dir
 from llmw.content._check_common import (
-    SEMVER_RE,
+    compare_semver as _compare_semver,
 )
 from llmw.content._check_common import (
-    compare_semver as _compare_semver,
+    parse_anchor_entries,
 )
 from llmw.content._check_common import (
     print_rules as _print_rules,
@@ -38,6 +38,7 @@ from llmw.content.render import render_wiki_agents_md
 from llmw.content.wiki_lint import (
     ANCHOR_FILENAME,
     EXTERNAL_SUBDIR,
+    parse_format_version,
 )
 from llmw.errors import WikiMetadataCorrupt
 from llmw.wiki import store as wiki_store
@@ -125,7 +126,6 @@ CHECK_REGISTRY = [
 ]
 
 # -- 解析用正则 --
-AGENTS_FORMAT_ROW_RE = re.compile(r"^\s*\|\s*Wiki Format 版本\s*\|\s*([^|]+?)\s*\|")
 INDEX_CATEGORY_RE = re.compile(r"^## (.+)$")
 GITIGNORE_TRACK_TOML_RE = re.compile(r"^!\s*raw/external/\.symlink-anchor\.toml\s*(#.*)?$")
 GITIGNORE_EXCLUDE_EXTERNAL_RE = re.compile(r"^\s*raw/external/?\*?\s*(#.*)?$")
@@ -138,67 +138,14 @@ def _skill_format_version() -> Optional[str]:
 
 
 def _parse_anchor_minimal(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
-    """最小 TOML 解析（[[entry]] + 双引号标量）；captured_at 空串过滤（比 external_anchor.load 严）。
+    """fixtures 侧 anchor 解析：schema 必须为 1，captured_at 空串过滤（比 external_anchor.load 严）。
 
-    schema_version 非空且 ≠ 1 → 返 None（schema 漂移，交上层报错）。
     返回 List[Dict] 或 None（缺失 / 解析失败 / 无有效 entry / schema 不匹配）。
     """
     text = _read_text(anchor_path)
     if text is None:
         return None
-    entries = []  # type: List[Dict[str, str]]
-    current = None  # type: Optional[Dict[str, str]]
-    schema_version = None  # type: Optional[str]
-    for raw_line in text.splitlines():
-        if "#" in raw_line:
-            in_str = False
-            cut = -1
-            for i, ch in enumerate(raw_line):
-                if ch == '"':
-                    in_str = not in_str
-                elif ch == "#" and not in_str:
-                    cut = i
-                    break
-            if cut >= 0:
-                raw_line = raw_line[:cut]
-        stripped = raw_line.rstrip().strip()
-        if not stripped:
-            continue
-        m = re.match(r"^\[\[(\w+)\]\]\s*$", stripped)
-        if m:
-            if current is not None:
-                entries.append(current)
-            current = {}
-            continue
-        m = re.match(r'^([a-z_]+)\s*=\s*"((?:[^"\\]|\\.)*)"\s*$', stripped)
-        if m:
-            key, raw_val = m.group(1), m.group(2)
-            val = re.sub(
-                r"\\(.)",
-                lambda mo: {
-                    "n": "\n",
-                    "t": "\t",
-                    "r": "\r",
-                    '"': '"',
-                    "\\": "\\",
-                }.get(mo.group(1), mo.group(1)),
-                raw_val,
-            )
-            if current is not None:
-                current[key] = val
-            continue
-        # 顶层标量
-        m = re.match(r"^([a-z_]+)\s*=\s*([0-9]+|true|false)\s*$", stripped)
-        if m:
-            if m.group(1) == "schema_version":
-                schema_version = m.group(2)
-            continue
-        # 未知行 silent 跳过——返回上层按"无有效 entry"判定
-
-    if current is not None:
-        entries.append(current)
-
-    # schema_version 显式存在且非 1 → schema 漂移
+    entries, schema_version = parse_anchor_entries(text)
     if schema_version is not None and schema_version != "1":
         return None
 
@@ -225,18 +172,7 @@ def check_agents_version(wiki_root: Path, info: Dict[str, str]) -> Dict[str, obj
         out["skipped"] = "--target-format 未提供；跳过版本对齐检查"
         return out
 
-    found_version = None
-    text = _read_text(wiki_root / "AGENTS.md")
-    if text is not None:
-        for line in text.splitlines():
-            m = AGENTS_FORMAT_ROW_RE.match(line)
-            if not m:
-                continue
-            cell = m.group(1).strip()
-            semver = SEMVER_RE.search(cell)
-            if semver:
-                found_version = semver.group(0)
-            break
+    found_version = parse_format_version(wiki_root)
     if found_version is None:
         out["passed"] = False  # type: ignore
         out["actual"] = "(无法解析末尾当前配置表的 `Wiki Format 版本` 字段)"
@@ -754,8 +690,6 @@ CHECK_REGISTRY.extend(
     for s in SKELETON_REGISTRY
 )
 
-
-# ===== 调度 =====
 
 CHECK_FUNCTIONS = [
     ("agents-version-is-current", check_agents_version),

@@ -21,9 +21,7 @@ def workspace_with_wiki(tmp_path: Path) -> Path:
         tmp_path: 既是 workspace 根,也是 wiki ``foo`` 父目录
     """
     ws = ws_store.create_skeleton(tmp_path)
-    ws.wikis["foo"] = ws_store.WikiEntry(
-        name="foo", path="foo", created_at="2026-01-01T00:00:00Z"
-    )
+    ws.wikis["foo"] = ws_store.WikiEntry(path="foo", created_at="2026-01-01T00:00:00Z")
     ws_store.save(tmp_path, ws)
 
     # foo/wiki_metadata.toml (topic=foo 模拟 add 默认行为)
@@ -42,7 +40,7 @@ def workspace_with_two_wikis(tmp_path: Path) -> Path:
     """workspace + 两个 wiki (foo / bar),用于冲突测试。"""
     ws = ws_store.create_skeleton(tmp_path)
     for name, ca in [("foo", "2026-01-01T00:00:00Z"), ("bar", "2026-02-01T00:00:00Z")]:
-        ws.wikis[name] = ws_store.WikiEntry(name=name, path=name, created_at=ca)
+        ws.wikis[name] = ws_store.WikiEntry(path=name, created_at=ca)
     ws_store.save(tmp_path, ws)
     for name in ("foo", "bar"):
         d = tmp_path / name

@@ -147,7 +147,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
 
-    # ===== workspace 级 =====
     p_init = sub.add_parser("init", help="初始化 workspace", parents=[common])
     p_init.add_argument("--path", metavar="PATH", default=None)
 
@@ -182,7 +181,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="输出单行 ●N（运行中窗口数），存在 dead 窗口时后缀 ✗M；供 byobu 状态条集成",
     )
 
-    # ===== wiki 级 =====
     # --name 不 required（rename 走 --old/--new）；其余子命令在 dispatch 时校验 args.name
     p_wiki = sub.add_parser("wiki", help="wiki 子命令", parents=[common])
     p_wiki.add_argument("--name", metavar="NAME", help="目标 wiki 名")

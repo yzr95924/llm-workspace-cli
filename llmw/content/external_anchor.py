@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from llmw._compat import toml_dump
+from llmw.content._check_common import parse_anchor_entries
 from llmw.fsutil import atomic_write
 
 SOURCE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -46,48 +47,7 @@ def load(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
     except OSError:
         return None
 
-    entries = []  # type: List[Dict[str, str]]
-    current = None  # type: Optional[Dict[str, str]]
-    for raw_line in text.splitlines():
-        # 行内注释：仅在引号外剥离（anchor 实际写出字符串不含 #）
-        if "#" in raw_line:
-            in_str = False
-            cut = -1
-            for i, ch in enumerate(raw_line):
-                if ch == '"':
-                    in_str = not in_str
-                elif ch == "#" and not in_str:
-                    cut = i
-                    break
-            if cut >= 0:
-                raw_line = raw_line[:cut]
-        line = raw_line.rstrip()
-        stripped = line.strip()
-        if not stripped:
-            continue
-        m = re.match(r"^\[\[(\w+)\]\]\s*$", stripped)
-        if m:
-            if current is not None:
-                entries.append(current)
-            current = {}
-            continue
-        m = re.match(r'^([a-z_]+)\s*=\s*"((?:[^"\\]|\\.)*)"\s*$', stripped)
-        if m:
-            key, raw_val = m.group(1), m.group(2)
-            val = re.sub(
-                r"\\(.)",
-                lambda mo: {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\"}.get(mo.group(1), mo.group(1)),
-                raw_val,
-            )
-            if current is not None:
-                current[key] = val
-            continue
-        m = re.match(r"^([a-z_]+)\s*=\s*([0-9]+|true|false)\s*$", stripped)
-        if m:
-            continue
-
-    if current is not None:
-        entries.append(current)
+    entries, _ = parse_anchor_entries(text)
     if not entries:
         return None
 
@@ -111,36 +71,30 @@ def load(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
     return valid if valid else None
 
 
-def _validate_entry(entry: Dict) -> Tuple[Optional[str], int]:
-    """save 路径的严格校验；返回 (error_msg_or_None, exit_code)。"""
+def _validate_entry(entry: Dict) -> Optional[str]:
+    """save 路径的严格校验；返回错误信息或 None。"""
     if not isinstance(entry, dict):
-        return ("entry 必须是 dict", 3)
+        return "entry 必须是 dict"
     missing = [f for f in _REQUIRED_FIELDS if f not in entry or not entry[f]]
     if missing:
-        return ("entry 缺必填字段: {}".format(", ".join(missing)), 1)
+        return "entry 缺必填字段: {}".format(", ".join(missing))
     symlink = str(entry["symlink"])
     if not SOURCE_NAME_RE.match(symlink):
-        return (
-            f"entry symlink '{symlink}' 不合 ^[a-z0-9][a-z0-9-]*$（kebab-case 短名）",
-            1,
-        )
+        return f"entry symlink '{symlink}' 不合 ^[a-z0-9][a-z0-9-]*$（kebab-case 短名）"
     if entry.get("kind") != _VALID_KIND:
-        return (f"entry kind 必须是 '{_VALID_KIND}'（当前唯一支持）", 1)
-    return (None, 0)
+        return f"entry kind 必须是 '{_VALID_KIND}'（当前唯一支持）"
+    return None
 
 
 def save(anchor_path: Path, entries: List[Dict]) -> None:
     """严格校验 + 原子写；空列表 → 删 anchor 文件并顺手清空 external_dir。"""
     for entry in entries:
-        err, code = _validate_entry(entry)
+        err = _validate_entry(entry)
         if err:
-            raise ValueError(f"[{code}] {err}")
+            raise ValueError(err)
     if not entries:
         if anchor_path.is_file():
-            try:
-                anchor_path.unlink()
-            except OSError:
-                pass
+            anchor_path.unlink()
         # 若 external_dir 空（无 symlink 也没 anchor），顺手清掉避免 lint 误判
         ext_dir = anchor_path.parent
         try:
@@ -336,6 +290,8 @@ def cmd_remove(wiki_root: Path, args) -> Tuple[Optional[str], int]:
         save(anchor_path, new)
     except ValueError as e:
         return (str(e), 1)
+    except OSError as e:
+        return (f"anchor 删除失败: {anchor_path}: {e}", 2)
     print(f"[llmw] 已删除 entry '{name}' + symlink {sl_path}", file=sys.stderr)
     return (None, 0)
 

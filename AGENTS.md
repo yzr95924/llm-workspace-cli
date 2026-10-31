@@ -35,7 +35,7 @@ python3 -m llmw --help                            # 免安装直接跑 CLI
   `completions/` 三件套**（bash / fish / zsh，`tests/test_completions_sync.py` 守护，
   历史漂移过数月）。
 - 带值 flag 一律 `--flag=VALUE` 等号形式（CLI 全局拒绝空格分隔；文档中的示例同样要求）。
-- 新增 agent backend 只改 `llmw/backends.py`（`KNOWN_BACKENDS` + `STATE_PATTERNS`）。
+- 新增 agent backend 只改 `llmw/backends.py`（`BACKEND_ARGV` + `STATE_PATTERNS`；`KNOWN_BACKENDS` 由 `BACKEND_ARGV` 派生）。
 - finding 口径唯一入口 = `llmw wiki lint --explain`（注册表 `llmw/content/findings.py`）；skill prose 不得镜像 severity 清单。
 - **运行时输出 = 契约面**：`--help` / stderr / findings `to_action` / plan 字段被 skill prose 信赖为自明（prose 不复述）；
   改这些文案 = 改契约，须同步 grep skill 侧"自明 / 按输出行动"依赖句。

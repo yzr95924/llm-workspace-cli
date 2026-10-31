@@ -56,9 +56,6 @@ def _log_body_start(text):
     return 0
 
 
-# ---------- log ----------
-
-
 def _validate_raw_arg(wiki_root, raw):
     """log --raw 校验：wiki 根相对 + raw/ 前缀 + 无 | 换行/绝对路径/.. + 文件存在；返错误串或 None。"""
     if raw != raw.strip() or not raw:
@@ -160,9 +157,6 @@ def cmd_log(wiki_root, args):
     atomic_write(log_path, text)
     print(f"已追加 {len(lines)} 条 log 条目到 wiki/log.md", file=sys.stderr)
     return None, 0
-
-
-# ---------- index ----------
 
 
 def _index_page_paths(wiki_root, page_arg):
@@ -327,9 +321,6 @@ def cmd_index(wiki_root, args):
     return None, 0
 
 
-# ---------- touch ----------
-
-
 def _validate_content_page_path(wiki_root, page_arg):
     """touch 目标页路径准入：wiki/<content-subdir>/<file>.md；返错误串或 None。"""
     p = Path(page_arg)
@@ -394,9 +385,6 @@ def cmd_touch(wiki_root, args):
     atomic_write(page_path, "".join(lines[:1] + new_lines + lines[close_idx:]))
     print("touch {}：{}".format(args.page, "；".join(changed) if changed else "无改动"), file=sys.stderr)
     return None, 0
-
-
-# ---------- new ----------
 
 
 def _yaml_escape(value):
@@ -466,9 +454,6 @@ def cmd_new(wiki_root, args):
     atomic_write(page_path, "\n".join(fm_lines) + body)
     print(f"已创建 {page_path}（正文待 agent 按 page-templates.md 填充）", file=sys.stderr)
     return None, 0
-
-
-# ---------- main ----------
 
 
 def build_subparsers(sub) -> None:

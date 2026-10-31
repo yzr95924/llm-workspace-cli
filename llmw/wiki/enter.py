@@ -12,20 +12,11 @@ import sys
 from pathlib import Path
 from typing import List, NamedTuple, Optional, Tuple
 
-from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
+from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS, build_backend_argv
 from llmw.errors import AgentNotFound, ByobuNotFound, WikiDirMissing
 from llmw.wiki import byobu
 from llmw.wiki.manager import resolve_wiki_path
 from llmw.workspace import local_store
-
-
-def _build_cmd_qodercli(wiki_path: Path) -> List[str]:
-    return ["qodercli", "--add-dir", str(wiki_path)]
-
-
-def _build_cmd_opencode(wiki_path: Path) -> List[str]:
-    """opencode argv：位置参数 project dir（启动后自读 AGENTS.md；模型 session 内切换）。"""
-    return ["opencode", str(wiki_path)]
 
 
 class _TargetSession(NamedTuple):
@@ -220,11 +211,7 @@ def enter(
     backend, explicit = _resolve_backend(workspace_root)
     _check_enter_env(backend, dry_run)  # backend 值即 agent 二进制名
 
-    cmd = (
-        _build_cmd_qodercli(wiki_path)
-        if backend == "qodercli"
-        else _build_cmd_opencode(wiki_path)
-    )
+    cmd = build_backend_argv(backend, wiki_path)
 
     if dry_run:
         # backend 既可能是默认也可能是显式配置——suffix 据 explicit 如实标注来源
