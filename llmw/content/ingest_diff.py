@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
 # log 行格式正则 + created/updated 时间解析 SSOT 来自 log_format 模块
-from llmw.content.log_format import LOG_INGEST_RE, parse_date_or_datetime
+from llmw.content.log_format import LOG_INGEST_RE, parse_date_or_datetime, parse_datetime
 
 # 简易 YAML frontmatter 解析（不依赖 pyyaml，避免 setup 阶段的依赖膨胀）
 # 支持最常见的 key: value 形式（含数组、字符串）
@@ -187,28 +187,27 @@ def collect_ingested_sources_map(wiki_root: Path) -> Dict[str, List[Path]]:
 
 
 def raw_newer_than_source(raw_path: Path, source_page: Path) -> bool:
-    """raw mtime 是否晚于未归档 source 页 updated（datetime 精度，非仅日期比较）。
+    """raw mtime 是否晚于未归档 source 页 updated。
 
-    同日不同时刻的更新也能正确检出（源 updated 有 HH:MM 精度，raw mtime 有秒精度）。
+    updated 带 HH:MM[:SS] → 按时刻比较（同日不同时刻可分先后）；
+    只有日期 → 跨日报 stale、同日保守不报（分不出先后）。
     """
     text = source_page.read_text(encoding="utf-8", errors="replace")
     fm = parse_frontmatter_simple(text)
     if str(fm.get("archived", "")).strip() == "true":
         return False
     updated = fm.get("updated")
-    upd_date = parse_date_or_datetime(updated)
-    if upd_date is None:
-        return False
     try:
         raw_time = datetime.fromtimestamp(raw_path.stat().st_mtime)
     except OSError:
         return False
-    # 同日用时间比较，不同日用日期比较（updated 只有 date 时同日也保守不报）
-    if str(updated).strip() == str(upd_date):
-        return False  # updated 只有日期（无时间），无法区分同日先后
-    return raw_time.date() > upd_date or (
-        raw_time.date() == upd_date and raw_time > datetime.combine(upd_date, datetime.min.time())
-    )
+    upd_dt = parse_datetime(updated)
+    if upd_dt is not None:
+        return raw_time > upd_dt
+    upd_date = parse_date_or_datetime(updated)
+    if upd_date is None:
+        return False
+    return raw_time.date() > upd_date
 
 
 def run(wiki_root: Path, *, as_json: bool = False, relative: bool = False, check_stale: bool = False) -> int:

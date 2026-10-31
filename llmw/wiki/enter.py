@@ -3,7 +3,7 @@
 两 backend 均裸启动只传目录；AGENTS.md（含 @import 展开）由 agent 原生加载。
 
 窗口开在当前 tmux session；tmux 外按可见 session 数选路（0/≥2 兜底 llm_workspace + attach）。
-fire-and-forget：建成返回 0；窗口原语见 byobu.py。
+fire-and-forget：建成返回 0（tmux 外 attach 失败除外）；窗口原语见 byobu.py。
 """
 
 import shlex
@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import List, NamedTuple, Optional, Tuple
 
 from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS, build_backend_argv
-from llmw.errors import AgentNotFound, ByobuNotFound, WikiDirMissing
+from llmw.errors import AgentNotFound, ByobuCommandFailed, ByobuNotFound, WikiDirMissing
 from llmw.wiki import byobu
 from llmw.wiki.manager import resolve_wiki_path
 from llmw.workspace import local_store
@@ -72,7 +72,8 @@ def _print_dry_run_spawn(
     print(
         f"  byobu-tmux set-option -w -t @N @llmw_wiki {name} "
         f"&& set-option -w -t @N @llmw_started $(date +%s) "
-        f"&& set-option -w -t @N @llmw_backend {backend}",
+        f"&& set-option -w -t @N @llmw_backend {backend} "
+        f"&& set-option -w -t @N @llmw_wiki_root {wiki_path}",
         file=sys.stdout,
     )
     print("[llmw] --dry-run: 未执行", file=sys.stdout)
@@ -137,7 +138,12 @@ def _spawn(
     if target.outside:
         # 非 TTY（脚本）只建不 attach，打印 hint
         if sys.stdout.isatty():
-            byobu.attach_session(target.session)
+            if not byobu.attach_session(target.session):
+                raise ByobuCommandFailed(
+                    f"attach session '{target.session}' 失败（窗口已创建）",
+                    hint=f"手动 `byobu attach -t {target.session}` 查看；"
+                    "窗口状态可用 `llmw status` 检查",
+                )
         else:
             print(
                 f"[llmw] 查看窗口: byobu attach -t {target.session}",

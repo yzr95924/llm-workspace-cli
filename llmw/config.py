@@ -18,9 +18,9 @@ def resolve_workspace_root(
     校验存在 / 是目录 / 含 workspace.toml，失败 WorkspaceNotFound。
     """
     if explicit:
-        root = Path(explicit).resolve()
+        root = Path(explicit).expanduser().resolve()
     elif os.environ.get("LLMW_WORKSPACE"):
-        root = Path(os.environ["LLMW_WORKSPACE"]).resolve()
+        root = Path(os.environ["LLMW_WORKSPACE"]).expanduser().resolve()
     else:
         root = DEFAULT_WORKSPACE.resolve()
 

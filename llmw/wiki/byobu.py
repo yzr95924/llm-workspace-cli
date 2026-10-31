@@ -38,7 +38,7 @@ _OSC_RE = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")
 _LIST_FORMAT = (
     "#{session_name}\t#{window_id}\t#{window_name}\t#{window_activity}\t"
     "#{pane_dead}\t#{pane_dead_time}\t#{@llmw_wiki}\t#{@llmw_started}\t"
-    "#{@llmw_backend}\t#{pane_current_command}"
+    "#{@llmw_backend}\t#{pane_current_command}\t#{@llmw_wiki_root}"
 )
 
 
@@ -55,6 +55,8 @@ class WindowRow(NamedTuple):
     started: str
     backend: str
     pcmd: str
+    # 旧版 CLI 开的窗口无 @llmw_wiki_root → 空；status_orphan 对空值不自动清理
+    wiki_root: str = ""
 
 
 class SpawnSpec(NamedTuple):
@@ -203,14 +205,15 @@ def select_window(window_id: str) -> bool:
     return _run(["select-window", "-t", window_id]).returncode == 0
 
 
-def tag_window(window_id: str, wiki: str, backend: str) -> None:
+def tag_window(window_id: str, wiki: str, backend: str, wiki_root: str) -> None:
     """新开窗口打标；@llmw_started = 起算时刻（复用不刷新）。"""
     p1 = _run(["set-option", "-w", "-t", window_id, "@llmw_wiki", wiki])
     p2 = _run(
         ["set-option", "-w", "-t", window_id, "@llmw_started", str(int(time.time()))]
     )
     p3 = _run(["set-option", "-w", "-t", window_id, "@llmw_backend", backend])
-    if p1.returncode != 0 or p2.returncode != 0 or p3.returncode != 0:
+    p4 = _run(["set-option", "-w", "-t", window_id, "@llmw_wiki_root", wiki_root])
+    if any(p.returncode != 0 for p in (p1, p2, p3, p4)):
         raise ByobuCommandFailed(
             f"窗口打标失败 (window={window_id}, wiki={wiki})",
             hint="打标失败 = 窗口对 status 不可见；可手动 kill-window 清理后重试"
@@ -285,7 +288,7 @@ def spawn_window(spec: SpawnSpec) -> Tuple[bool, str, bool]:
     if spec.ensure and not has_session(session):
         wid = new_session(session, window_name, cwd, shell_cmd)
         if wid is not None:
-            tag_window(wid, wiki, backend)
+            tag_window(wid, wiki, backend, cwd)
             return True, wid, False
         # 并发下另一个 enter 抢先建了 session → 落入窗口级路径
 
@@ -337,5 +340,5 @@ def spawn_window(spec: SpawnSpec) -> Tuple[bool, str, bool]:
             "可手动 `byobu-tmux has-session -t "
             f"{session}` 诊断" + (f"（tmux: {_LAST_STDERR}）" if _LAST_STDERR else ""),
         )
-    tag_window(wid, wiki, backend)
+    tag_window(wid, wiki, backend, cwd)
     return True, wid, collected

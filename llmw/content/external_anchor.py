@@ -41,6 +41,9 @@ def load(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
     """解析 anchor（lenient）：有效 entry 列表，或 None（损坏 / 无有效 entry）。
 
     与 wiki_fixtures._parse_anchor_minimal 的差别：captured_at 空串此版保留。
+    symlink 不合 SOURCE_NAME_RE 时整体判 None：消费端一律按 external_dir/<symlink>
+    定位，越界名会让 rebuild/remove 写到 external/ 之外（具体违规 entry 由 lint 的
+    symlink-anchor-toml-schema finding 指出）。
     """
     try:
         text = anchor_path.read_text(encoding="utf-8", errors="replace")
@@ -61,6 +64,8 @@ def load(anchor_path: Path) -> Optional[List[Dict[str, str]]]:
         kind = entry.get("kind")
         if not isinstance(symlink, str) or not symlink:
             continue
+        if not SOURCE_NAME_RE.match(symlink):
+            return None
         if not isinstance(target, str) or not target:
             continue
         if not isinstance(captured_at, str):

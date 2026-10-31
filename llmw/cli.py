@@ -388,7 +388,7 @@ def _cmd_status(args) -> int:
     except WorkspaceNotFound as e:
         explicit = _flag(args, "workspace") or os.environ.get("LLMW_WORKSPACE")
         if explicit:
-            if not Path(explicit).exists():
+            if not Path(explicit).expanduser().exists():
                 e.hint = (e.hint or "") + (
                     "；若 workspace 已删除，不带 --workspace 运行 `llmw status`"
                     " 可交互清理 tmux 残留 session"
@@ -513,8 +513,8 @@ def main(argv=None) -> int:
             from llmw.config import DEFAULT_WORKSPACE
             from llmw.workspace.manager import init as ws_init
 
-            target = Path(args.path) if args.path else DEFAULT_WORKSPACE
-            ws_init(Path(target))
+            target = Path(args.path).expanduser() if args.path else DEFAULT_WORKSPACE
+            ws_init(target)
             return 0
 
         if args.command == "status":

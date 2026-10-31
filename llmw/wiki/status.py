@@ -17,7 +17,7 @@ from llmw.wiki import byobu
 
 # 孤儿清理模式的指引（非 TTY / --json / --tmux 只指不动手）
 _ORPHAN_CLEAN_HINT = (
-    "[llmw] hint: TTY 下运行 `llmw status` 可交互清理以上残留窗口，"
+    "[llmw] hint: TTY 下运行 `llmw status` 可交互清理缺失 workspace 下的残留窗口，"
     "或手动 `byobu-tmux kill-window -t @N`"
 )
 
@@ -91,6 +91,7 @@ def _row_to_dict(row: byobu.WindowRow, now: float) -> Optional[Dict]:
     pcmd = _pcmd_basename(row.pcmd)
     out = {
         "wiki": wiki,
+        "wiki_root": row.wiki_root,
         "window": row.window_name,
         "window_id": row.window_id,
         "session": row.session,
@@ -221,6 +222,14 @@ def status(
     return 0
 
 
+def _is_under(path_str: str, root: Path) -> bool:
+    try:
+        Path(path_str).relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
 def status_orphan(
     ws_path: Path,
     err: LlmwError,
@@ -229,7 +238,8 @@ def status_orphan(
 ) -> int:
     """workspace 缺失时的降级路径（仅隐式默认路径解析失败时；显式路径仍硬报错）。
 
-    非 TTY / --json / --tmux 只打 hint；TTY 确认后逐窗 kill。
+    枚举是全 server 的，但只自动清理 @llmw_wiki_root 落在缺失 workspace 下的窗口；
+    其他 workspace 的窗口与无标记的旧窗口只报告不动手（带标才能定归属）。
     """
     if not byobu.byobu_available():
         raise err
@@ -245,6 +255,11 @@ def status_orphan(
         file=sys.stderr,
     )
 
+    in_scope = [
+        d for d in dicts if d.get("wiki_root") and _is_under(d["wiki_root"], ws_path)
+    ]
+    skipped = len(dicts) - len(in_scope)
+
     if tmux_line:
         _render_tmux_line(dicts)
         print(_ORPHAN_CLEAN_HINT, file=sys.stderr)
@@ -255,15 +270,26 @@ def status_orphan(
         return 0
 
     _render_table(_state_sorted(dicts))
+    if skipped:
+        print(
+            f"[llmw] {skipped} 个窗口不属于缺失的 workspace（其他 workspace / 旧版未打标），"
+            "不自动清理",
+            file=sys.stderr,
+        )
+    if not in_scope:
+        print("[llmw] 无缺失 workspace 下的窗口可清理", file=sys.stderr)
+        return 0
     if not sys.stdin.isatty():
         print(_ORPHAN_CLEAN_HINT, file=sys.stderr)
         return 0
 
+    running_scope = sum(1 for d in in_scope if not d["dead"])
     try:
         ans = (
             input(
-                f"将清理全部 {len(dicts)} 个窗口"
-                f"（{running} 个运行中 agent 将被终止 / {dead} 个已退出残留），"
+                f"将清理缺失 workspace 下的 {len(in_scope)} 个窗口"
+                f"（{running_scope} 个运行中 agent 将被终止 / "
+                f"{len(in_scope) - running_scope} 个已退出残留），"
                 "确认？[y/N]: "
             )
             .strip()
@@ -277,7 +303,7 @@ def status_orphan(
         return 0
 
     killed = 0
-    for d in dicts:
+    for d in in_scope:
         if byobu.kill_window(d["window_id"]):
             killed += 1
         else:
@@ -285,5 +311,5 @@ def status_orphan(
                 f"[llmw] warning: kill-window 失败 ({d['window_id']} {d['window']})",
                 file=sys.stderr,
             )
-    print(f"[llmw] ✓ 已清理 {killed}/{len(dicts)} 个残留窗口", file=sys.stdout)
+    print(f"[llmw] ✓ 已清理 {killed}/{len(in_scope)} 个残留窗口", file=sys.stdout)
     return 0

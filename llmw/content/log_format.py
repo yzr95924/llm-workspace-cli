@@ -25,6 +25,18 @@ def parse_date_or_datetime(s):
     return None
 
 
+def parse_datetime(s):
+    """`YYYY-MM-DD HH:MM[:SS]` → datetime（保留时刻）；date-only / 失败返 None。"""
+    if not isinstance(s, str):
+        return None
+    for fmt in (_DATETIME_MINUTE, _DATETIME_SECOND):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    return None
+
+
 # 合法 op 集合（SSOT）——LOG_LINE_RE 与 CLI 的 --op choices 共用，新增 op 只改这里
 LOG_OPS = ("ingest", "query", "lint", "setup")
 
