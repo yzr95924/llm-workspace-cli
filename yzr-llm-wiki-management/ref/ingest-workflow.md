@@ -33,7 +33,7 @@ source 页，跨主题才拆。
    参考来源就不新建，建页与追加阈值见
    [章节](page-templates.md#生命周期与归档)
 6. 新建 entity / concept 页后回看既有 source 页，补上应指向新页的交叉引用
-7. **所有正文编辑（含第 6 步的交叉引用追加）全部完成后**，对本批改过正文的每页跑
+7. **所有正文编辑（含交叉引用追加）全部完成后**，对本批改过正文的每页跑
    `llmw wiki --path="$LLM_WIKI_ROOT" write touch <page>`
 8. 逐页跑 `llmw wiki --path="$LLM_WIKI_ROOT" write index add <page>`
 9. 写 log：单份用 `llmw wiki --path="$LLM_WIKI_ROOT" write log --op=ingest --title="<title>" --raw="raw/<path>"`；

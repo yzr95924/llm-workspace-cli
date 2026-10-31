@@ -426,6 +426,7 @@ def self_verify(wiki_root: Path) -> Dict[str, object]:
     # 只保留 failed 的 check（error / warn 级）供诊断；pass/skip 不列出节省噪声
     failures = [c for c in report["checks"] if c.get("passed") is False]  # type: ignore
     return {
+        "scope": "fixtures",
         "error": summary.get("error", 0),  # type: ignore
         "warn": summary.get("warn", 0),  # type: ignore
         "pass": summary.get("pass", 0),  # type: ignore
@@ -498,7 +499,7 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
             "current_format": current_format,
             "target_format": WIKI_FORMAT_VERSION,
             "agents_md_pristine": pristine,
-            "changed": changed_out,
+            "planned": changed_out,
             "residue": [],
             "verified": {"error": 0, "warn": 0, "pass": 0, "skip": 0},
             "hint": "有 diff 或将丢弃自定义段，需 --yes 确认（要保留的内容先搬 MEMORY/ 或固定段，然后重跑）",
@@ -625,6 +626,7 @@ def run_upgrade(wiki_root: Path, *, dry_run: bool = True, yes: bool = False, as_
             for r in residue:
                 print(f"  - [{r.get('type')}] {r.get('note')}")
         print(
-            f"verified: error={verified.get('error', 0)} warn={verified.get('warn', 0)} pass={verified.get('pass', 0)}"
+            f"verified (fixtures only): error={verified.get('error', 0)} "
+            f"warn={verified.get('warn', 0)} pass={verified.get('pass', 0)}"
         )
     return 0

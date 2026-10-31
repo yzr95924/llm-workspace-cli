@@ -164,8 +164,8 @@ class ApplySafetyGateTest(unittest.TestCase):
             self.assertEqual(rc, 1, err)
             self.assertEqual(report["status"], "blocked_drift", report)
             self.assertTrue(
-                [c for c in report["changed"] if c.get("dropped_sections")],
-                report["changed"],
+                [c for c in report["planned"] if c.get("dropped_sections")],
+                report["planned"],
             )
             self.assertIn(
                 "## MyCategory",

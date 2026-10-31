@@ -33,9 +33,9 @@ index / log / tags / SCRIPTS.md 的骨架段变化经 `--yes` 确认后可丢弃
 
 6. 按终态收口：
    - `done` 且 `needs_upgrade` 为 `false`：完成
-   - `blocked_drift`：回第 3 步
-   - `done_with_residue`：逐项读 `residue[].note`，用户裁定后修完回第 5 步复跑
-   - `verify_failed`：按 `verified.failures` 修完重跑第 5 步
+   - `blocked_drift`：按上述三条判据重新裁定
+   - `done_with_residue`：逐项读 `residue[].note`，用户裁定后修完复跑
+   - `verify_failed`：按 `verified.failures` 修完复跑
    - `error`：读 `error` 与 `hint`；metadata 缺字段须修复，版本领先须更新 CLI；
      无法处理时报告用户，不 apply
 7. 重复 H2 段（如 index 有两个 `## Concepts`）会以 `growth-graft-error` 阻断；
@@ -45,7 +45,9 @@ index / log / tags / SCRIPTS.md 的骨架段变化经 `--yes` 确认后可丢弃
 
 旧实例的 `raw/discussions/` 不自动迁移：由用户执行（目标不存在时 `mv raw/discussions
 discussions`；目标已存在时由用户合并内容后删旧目录）。合并后跑
-`llmw wiki --path="$LLM_WIKI_ROOT" lint` 确认 `source-in-discussions` 消失。
+`llmw wiki --path="$LLM_WIKI_ROOT" lint` 确认 `source-in-discussions` 消失，再
+`grep -rn "raw/discussions" wiki/` 找出正文与 frontmatter 残留引用逐处更新或删除——
+正文旧路径引用不在 lint 覆盖内，不能以 lint 绿灯为验收依据。
 
 ## 语义合并
 

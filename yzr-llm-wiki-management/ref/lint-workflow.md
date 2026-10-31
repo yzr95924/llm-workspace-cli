@@ -25,12 +25,11 @@ llmw wiki --path="$LLM_WIKI_ROOT" lint --explain=all
 4. 报告按 error > warn > info 排列；问用户先修哪些，确认后补读 `wiki/log.md` 近 30 行
    再动手
 5. 修复分支：用户选定的项修完重跑 `llmw wiki --path="$LLM_WIKI_ROOT" lint`，确认
-   selected 项消失即通过（不要求全 zero；info 级 pending-review / tag-not-in-taxonomy
-   是常态提示）。报告或修复均按 wiki 根 `AGENTS.md` 的写后同步条记
+   选定项消失即通过（不要求全 zero）。报告或修复均按 wiki 根 `AGENTS.md` 的写后同步条记
    `llmw wiki --path="$LLM_WIKI_ROOT" write log --op=lint --title="<巡检摘要>"`
 6. report-only 分支（用户要求只报告）：报告后直接记 log（无 finding 也记），不修改
    任何内容页 / index / tags
-7. `--check-version` 的 fixtures 修复走[章节](upgrade-workflow.md#流程）
+7. `--check-version` 的 fixtures 修复走[章节](upgrade-workflow.md#流程)
 
 ## 完成口径
 

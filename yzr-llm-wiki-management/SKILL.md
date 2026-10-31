@@ -3,8 +3,8 @@ name: yzr-llm-wiki-management
 description: |
   维护本地 markdown 个人 wiki（raw/ 原始资料 + agent 维护的 wiki/ 内容页）。
   当用户要求摄取 / 重摄取论文、剪藏、笔记等资料，接入外部代码仓，
-  查询 / 总结 / 对比 / 综合 wiki 内容，归档结论，lint 体检或 format 升级时使用；
-  在 wiki 根内收到这类消化 / 总结 / 体检请求，即使没提 skill 名也应使用本 skill。
+  查询 / 总结 / 对比 / 综合 wiki 内容，归档结论，或对 wiki 做 lint 体检、format 升级时使用。
+  在当前 wiki 内收到资料消化、内容总结或体检请求时主动使用。
   不适用：云端或团队 wiki（Notion / Confluence / Outline 等）；wiki 注册 / 元数据配置 /
   增删 wiki、session 启停及跨 wiki / workspace 层操作；MEMORY/ 的写入与治理。
 ---
@@ -15,15 +15,14 @@ description: |
   `wiki_metadata.toml` 确认根。cwd 不在 wiki 内时读 `$LLM_WIKI_ROOT`；cwd 与 env
   指向不同 wiki 时停下问用户。仍定不了就问用户。
   wiki 根须含 `AGENTS.md` 与 `wiki_metadata.toml`，否则本 skill 不适用并告知用户。
-  llmw 内容命令只认 `--path=<wiki 根>`、`--name` 或 `$LLM_WIKI_ROOT`，不按 cwd 推断；
-  以下所有命令均须带 `--path="<解析出的根>"`（环境变量已注入时可写
-  `--path="$LLM_WIKI_ROOT"`）
 - **输出**：写操作更新 wiki/ 内容页，并按 wiki 根 `AGENTS.md` 的写入纪律同步
   index / log / tags；查询答案与 lint 报告在会话内交付
 
 ## 执行原则
 
 - **机械操作走 CLI**：内容页、index / log 的常规写操作走 `llmw wiki write` 系列，格式与滚动窗口截断由 `write` 保证，lint 只兜底带外手改；
+  所有 `llmw` 内容命令显式带 `--path=<解析出的 wiki 根>`（环境变量已注入时可写
+  `--path="$LLM_WIKI_ROOT"`），不按 cwd 推断；
   `write` 覆盖不了的形态直接编辑文件（anchor 等 CLI 专属对象仍走各自子命令）。建不建页、
   怎么综合、矛盾怎么记，由 agent 判断；裁定归用户
 - **不跨 wiki**：wiki 根确定后，不读取、搜索或写入其他 wiki；一个 wiki 一个主题，

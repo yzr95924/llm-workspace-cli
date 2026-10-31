@@ -21,7 +21,7 @@
      以 raw 为准并在交付说明提醒用户修正摘要
    - 引 raw、外部仓或网络事实时用稳定锚点（代码符号 / PDF 章节 / 网页记值加日期）
 4. 答案本质是对比 / 综合 / 新联系、超过 200 字或涉及 3 个以上 source 页时，提议归档为
-   comparison 或 synthesis；用户明示同意前不建页、不改 index、不记 log
+   comparison 或 synthesis（附类型、标题与目标路径）；用户明示同意前不建页、不改 index、不记 log
 5. 同意归档后先读 `wiki/log.md` 最近约 30 行与 `wiki/tags.md`，再建页。
    命令模板（synthesis 同理）：
 

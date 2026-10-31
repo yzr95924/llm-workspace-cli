@@ -1064,7 +1064,7 @@ def check_archived_in_index(wiki_root: Path) -> List[str]:
         return findings
     index_text = index_path.read_text(encoding="utf-8", errors="replace")
     for m in _INDEX_ENTRY_RE.finditer(strip_code_regions(index_text)):
-        link = m.group(2).strip()
+        link = m.group(1).strip()
         target = resolve_link(index_path, link)
         if target is None:
             continue
@@ -1093,8 +1093,8 @@ def check_index_entry_drift(wiki_root: Path) -> List[str]:
     index_text = index_path.read_text(encoding="utf-8", errors="replace")
     wiki_root_resolved = wiki_root.resolve()
     for m in _INDEX_ENTRY_RE.finditer(strip_code_regions(index_text)):
-        path = m.group(2).strip()
-        rest = m.group(3)
+        path = m.group(1).strip()
+        rest = m.group(2)
         if is_external_url(path) or path.startswith("#"):
             continue
         target = (index_path.parent / path).resolve()
@@ -1143,7 +1143,7 @@ def check_index_duplicates(wiki_root: Path) -> List[str]:
     wiki_root_resolved = wiki_root.resolve()
     link_count = {}  # type: Dict[str, int]
     for m in _INDEX_ENTRY_RE.finditer(strip_code_regions(index_text)):
-        path = m.group(2).strip()
+        path = m.group(1).strip()
         target = resolve_link(index_path, path)
         if target is None:
             continue
