@@ -120,23 +120,20 @@ def _convert_pdf(pdf_path: Path, markdown_path: Path) -> str:
 def _render_markdown(
     body: str,
     *,
-    source_url: str | None,
+    source: str,
+    is_url: bool,
     imported_at: str,
     original_sha256: str,
-    converter_version: str,
 ) -> str:
-    lines = ["---", "original_format: pdf"]
-    if source_url:
-        lines.append(f"source_url: {json.dumps(source_url, ensure_ascii=False)}")
-    lines.extend(
-        [
-            f"imported_at: {imported_at}",
-            f"original_sha256: {original_sha256}",
-            f"converter: {CONVERTER_NAME}",
-            f'converter_version: "{converter_version}"',
-            "---",
-        ]
-    )
+    source_key = "source_url" if is_url else "source_path"
+    lines = [
+        "---",
+        "original_format: pdf",
+        f"{source_key}: {json.dumps(source, ensure_ascii=False)}",
+        f"imported_at: {imported_at}",
+        f"original_sha256: {original_sha256}",
+        "---",
+    ]
     content = "\n".join(lines) + "\n\n" + body
     return content if content.endswith("\n") else content + "\n"
 
@@ -181,7 +178,8 @@ def _convert_and_write_article(
     pdf_path: Path,
     work_dir: Path,
     *,
-    source_url: str | None,
+    source: str,
+    is_url: bool,
     original_sha256: str,
 ) -> str:
     converter_version = _docling_version()
@@ -190,10 +188,10 @@ def _convert_and_write_article(
         article_path,
         _render_markdown(
             body,
-            source_url=source_url,
+            source=source,
+            is_url=is_url,
             imported_at=date.today().isoformat(),
             original_sha256=original_sha256,
-            converter_version=converter_version,
         ),
     )
     return converter_version
@@ -228,11 +226,13 @@ def run(
         if original_sha256 is None:
             raise PdfImportFailed(f"无法计算 PDF SHA-256: {pdf_path}")
 
+        provenance_source = source if is_url else str(Path(source).expanduser().absolute())
         converter_version = _convert_and_write_article(
             article_path,
             pdf_path,
             work_dir,
-            source_url=source if is_url else None,
+            source=provenance_source,
+            is_url=is_url,
             original_sha256=original_sha256,
         )
 
