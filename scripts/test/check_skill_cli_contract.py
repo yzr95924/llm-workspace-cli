@@ -4,7 +4,7 @@
 各检查面的清单、扫描域与豁免理由以文内 "# --- N" 节标签与常量注释为 canonical，
 此处不重复（顶层重复 = 第二份真相）。
 
-standalone，Python 3.7+（与项目最低支持版本对齐），stdlib only。
+standalone，Python 3.12+（与项目最低支持版本对齐），stdlib only。
 用法：``python3 scripts/test/check_skill_cli_contract.py``
 """
 
@@ -156,19 +156,15 @@ AGENT_TEXT_BAN_RE = re.compile(
 
 
 def _str_const(node):
-    """取字符串字面量；3.7（ast.Str）与 3.8+（ast.Constant）双兼容，非字符串返 None。"""
+    """取字符串字面量；非字符串返 None。"""
     if isinstance(node, ast.Constant):
         return node.value if isinstance(node.value, str) else None
-    s = getattr(node, "s", None)  # Python 3.7 的 ast.Str（3.8+ 已并入 Constant）
-    return s if isinstance(s, str) else None
+    return None
 
 
 def _subscript_key(node):
-    """取 `x["key"] = ...` 的字符串键；兼容 py<=3.8 的 ast.Index 包装。"""
-    sl = node.slice
-    if sl.__class__.__name__ == "Index":  # pragma: no cover - Python <= 3.8
-        sl = sl.value
-    return _str_const(sl)
+    """取 `x["key"] = ...` 的字符串键。"""
+    return _str_const(node.slice)
 
 
 def _iter_agent_texts(tree):

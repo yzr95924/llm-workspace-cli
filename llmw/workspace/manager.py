@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from llmw._compat import TOMLDecodeError
+from llmw.toml_io import TOMLDecodeError
 from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
 from llmw.errors import (
     InvalidConfigKey,

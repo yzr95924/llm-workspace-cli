@@ -1,20 +1,26 @@
-"""Python 版本兼容层 — TOML 解析优先用 stdlib tomllib，回退 tomli"""
+"""TOML 读写：stdlib tomllib + 手写 dump。
+
+Python 基线升至 3.12 后不再需要 tomli 回退；dump 仍由本模块统一实现
+（tomllib 只有 loads / loads，没有 dump）。
+"""
 
 import io
-import sys
+from tomllib import TOMLDecodeError, loads as toml_loads
+
+__all__ = ["TOMLDecodeError", "toml_loads", "toml_dump"]
 
 
-def _toml_dumps(data):
+def _toml_dumps(data: dict) -> str:
     # 简单实现：仅处理本项目使用的 dict[str, scalar | list | dict]
     buf = io.StringIO()
     _dump_section(buf, data, prefix="")
     return buf.getvalue()
 
 
-def _dump_section(buf, data, prefix):
-    scalars = {}
-    arrays = []
-    tables = {}
+def _dump_section(buf: io.StringIO, data: dict, prefix: str) -> None:
+    scalars: dict[str, object] = {}
+    arrays: list[tuple[str, list[dict]]] = []
+    tables: dict[str, dict] = {}
     for k, v in data.items():
         if isinstance(v, dict):
             tables[k] = v
@@ -48,7 +54,8 @@ _BASIC_ESCAPES = {
 
 def _toml_escape_str(s: str) -> str:
     """转义为合法 TOML basic string 内容（不含两侧双引号）。
-    逐字符处理, 天然避免二次转义; 其余控制字符 (U+0000..U+001F 除已列举) 用 \\uXXXX。
+
+    逐字符处理， 天然避免二次转义；其余控制字符 (U+0000..U+001F 除已列举) 用 \\uXXXX。
     """
     out = []
     for ch in s:
@@ -61,7 +68,7 @@ def _toml_escape_str(s: str) -> str:
     return "".join(out)
 
 
-def _dump_kv(buf, items):
+def _dump_kv(buf: io.StringIO, items) -> None:
     for k, v in items:
         if isinstance(v, str):
             buf.write(f'{k} = "{_toml_escape_str(v)}"\n')
@@ -79,22 +86,6 @@ def _dump_kv(buf, items):
             buf.write(f"{k} = {v}\n")
 
 
-def _toml_dump(data, fp):
-    """统一手写 dump 实现（stdlib tomllib 和 tomli 都没有 dump）"""
+def toml_dump(data: dict, fp) -> None:
+    """统一手写 dump 实现（stdlib tomllib 没有 dump）。"""
     fp.write(_toml_dumps(data))
-
-
-if sys.version_info >= (3, 11):
-    import tomllib  # noqa: F401  stdlib
-    from tomllib import loads as toml_loads  # noqa: F401
-    from tomllib import TOMLDecodeError  # noqa: F401
-
-    toml_dump = _toml_dump  # noqa: F401
-else:
-    try:
-        import tomli as tomllib  # noqa: F401
-        from tomli import loads as toml_loads  # noqa: F401
-        from tomli import TOMLDecodeError  # noqa: F401
-    except ImportError as e:  # pragma: no cover
-        raise ImportError("Python <3.11 需要 tomli 包: pip install 'tomli>=1.1'") from e
-    toml_dump = _toml_dump  # noqa: F401

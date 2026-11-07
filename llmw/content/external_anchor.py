@@ -17,9 +17,9 @@ from datetime import date
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from llmw._compat import toml_dump
 from llmw.content._check_common import parse_anchor_entries
 from llmw.fsutil import atomic_write
+from llmw.toml_io import toml_dump
 
 SOURCE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 EXTERNAL_SUBDIR = "external"

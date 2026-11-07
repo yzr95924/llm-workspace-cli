@@ -7,7 +7,7 @@
 断言策略：探测器所有 error 级 check passed=True（允许 skipped/null）。
 另守护默认 workspace 路径抄写 slip（DEFAULT_WORKSPACE == ~/yzr-llm-wiki-workspace）。
 
-standalone，Python 3.7+（与项目最低支持版本对齐）。用法：``python3 scripts/test/smoke_fixtures.py``
+standalone，Python 3.12+（与项目最低支持版本对齐）。用法：``python3 scripts/test/smoke_fixtures.py``
 """
 
 # pylint: disable=missing-docstring

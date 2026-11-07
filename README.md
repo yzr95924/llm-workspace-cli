@@ -16,7 +16,8 @@ cd llm-workspace-cli
 
 生成 `~/.local/bin/llmw`（wrapper 内嵌本仓库路径，用 `PYTHONPATH` 解析 `llmw` 包，**无需 pip/venv**）。
 同时注册 PATH / completion（bash/fish/zsh 三套）与 SKILL 的 symlink；装完 source 对应 shell rc 即可。
-Python 3.11+ 零第三方依赖；<3.11 需 `pip install 'tomli>=1.1'`。
+Python 3.12+ 零第三方依赖。PDF 转 Markdown 依赖外部 Docling 命令，一次性安装：
+`uv tool install --python 3.12 docling`；不装也不影响 `llmw` 其余功能。
 
 卸载（删 wrapper + PATH marker + completion + skill symlink，**不删仓库、不删 workspace 数据**）：
 
@@ -66,6 +67,7 @@ llmw wiki --name=llm-systems remove --purge --yes
 | `llmw wiki --name=NAME config [get\|set\|unset] [KEY] [VALUE]` | 读写 `wiki_metadata.toml`；无参数进交互模式 |
 | `llmw wiki --name=NAME enter [--dry-run] [--window-suffix=SUFFIX]` | 启动 agent session（backend 见下；当前 tmux session 开窗，不在 tmux 内 → 兜底 attach） |
 | `llmw wiki --name=NAME stop [--window-suffix=SUFFIX] [--yes\|-y]` | 终止该 wiki 的 agent 窗口 |
+| `llmw wiki --path=DIR import-pdf --source=PATH_OR_URL [--slug=SLUG]` | PDF 转纯文本 Markdown 导入 `raw/articles/`（图片只留占位符）；原 PDF 不入 wiki |
 
 ### agent CLI 切换（`wiki enter` 的 backend）
 
@@ -110,4 +112,4 @@ llmw config set enter_cli qodercli   # 切换；llmw config unset enter_cli 回�
   lint/write/upgrade 等内容层命令实现；可执行入口 = install.sh wrapper 或 `python -m llmw`）
 - `scripts/` — install / uninstall 脚本及其集成测试
 - `yzr-llm-wiki-management/` — SKILL（纯 markdown：SKILL.md + ref/；运行期模板与探测器已内建 `llmw/content/`，随仓分发）
-- `doc/` / `tests/` — 设计文档 / pytest（CI 跑 ruff + pytest，py3.7 / py3.11）
+- `doc/` / `tests/` — 设计文档 / pytest（CI 跑 ruff + pytest，py3.12 / py3.14）

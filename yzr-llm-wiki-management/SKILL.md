@@ -34,7 +34,7 @@ description: |
 
 按操作类型选择对应文档，读全文后执行
 
-- 摄取 / 重摄取资料：`ref/ingest-workflow.md`；外部代码仓接入：`ref/external-repo.md`
+- 摄取 / 重摄取资料（含 PDF 转 Markdown 导入）：`ref/ingest-workflow.md`；外部代码仓接入：`ref/external-repo.md`
 - 查询 / 总结 / 对比 / 综合 / 归档结论：`ref/query-workflow.md`
 - lint 体检：`ref/lint-workflow.md`
 - format 升级：`ref/upgrade-workflow.md`；lint 报 `wiki-format-version-stale` /

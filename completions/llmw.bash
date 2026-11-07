@@ -15,7 +15,7 @@ _llmw() {
     # = 后，COMP_WORDS[COMP_CWORD] 是 "="）。规范化 cur 回 `--flag=` 形式以复用下方 --flag=*
     # 分支（返回裸 value，readline 自动附加到 = 后）。仅对带值 flag 触发，避免误伤 bool flag。
     case "$prev" in
-        --name|--workspace|--path|--topic|--display-name|--description|--tag|--tags|--window-suffix|--target-format|--target|--op|--title|--slug|--count|--severity|--explain|--notes|--sources|--raw|--old|--new)
+        --name|--workspace|--path|--topic|--display-name|--description|--tag|--tags|--window-suffix|--target-format|--target|--op|--title|--slug|--count|--severity|--explain|--notes|--sources|--raw|--old|--new|--source)
             case "$cur" in
                 "=") cur="${prev}=" ;;
                 =*)  cur="${prev}${cur}" ;;
@@ -67,7 +67,7 @@ _llmw() {
 
     local COMMON="--workspace= --json --debug --quiet -q"
     local TOP="init config list status wiki"
-    local WIKI_ACTS="add remove rename show config enter stop lint check-fixtures upgrade ingest-diff write external"
+    local WIKI_ACTS="add remove rename show config enter stop lint check-fixtures upgrade ingest-diff write external import-pdf"
     local WIKI_WRITE_ACTS="log index touch new"
     local WIKI_EXTERNAL_ACTS="add remove list rebuild"
     local WIKI_LINT_SEVERITY="error warn info all"
@@ -101,7 +101,7 @@ _llmw() {
             COMPREPLY=($(compgen -d -- "${cur#*=}"))
             return 0
             ;;
-        --topic=*|--display-name=*|--description=*|--tag=*|--tags=*|--new=*|--window-suffix=*|--target-format=*|--target=*|--op=*|--title=*|--slug=*|--count=*|--severity=*|--explain=*|--notes=*|--sources=*|--raw=*)
+        --topic=*|--display-name=*|--description=*|--tag=*|--tags=*|--new=*|--window-suffix=*|--target-format=*|--target=*|--op=*|--title=*|--slug=*|--count=*|--severity=*|--explain=*|--notes=*|--sources=*|--raw=*|--source=*)
             # 带值 flag 但值是 free-form；无候选
             COMPREPLY=()
             return 0
@@ -224,6 +224,9 @@ _llmw() {
                         ;;
                     ingest-diff)
                         COMPREPLY=($(compgen -W "--relative --check-stale $COMMON" -- "$cur"))
+                        ;;
+                    import-pdf)
+                        COMPREPLY=($(compgen -W "--source= --slug= $COMMON" -- "$cur"))
                         ;;
                     write)
                         # 三段式：write <act> [flags...] 收集第三个位置参数

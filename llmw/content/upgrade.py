@@ -15,11 +15,11 @@ import difflib
 import json
 import re
 import sys
+import tomllib
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from llmw import WIKI_FORMAT_VERSION
-from llmw._compat import TOMLDecodeError
 from llmw.content import render as _render
 from llmw.content import wiki_fixtures
 from llmw.content._check_common import compare_semver as _compare_semver
@@ -27,6 +27,7 @@ from llmw.content._check_common import read_text as _read_text
 from llmw.content.wiki_lint import parse_format_version as _parse_format_version
 from llmw.errors import LegacyTableCorrupt
 from llmw.fsutil import atomic_write, sha256_file
+from llmw.toml_io import TOMLDecodeError
 from llmw.wiki import store as wiki_store
 from llmw.workspace.gitignore import (
     GITIGNORE_LINES,
@@ -368,10 +369,6 @@ def _load_legacy_table() -> List[Dict[str, str]]:
     toml_path = here / "legacy_paths.toml"
     if not toml_path.is_file():
         return []
-    try:
-        from llmw._compat import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore
     try:
         data = tomllib.loads(toml_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, TOMLDecodeError) as e:

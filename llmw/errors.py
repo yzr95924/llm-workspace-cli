@@ -206,6 +206,20 @@ class ByobuCommandFailed(LlmwError):
     user_message = "byobu/tmux 命令执行失败"
 
 
+class PdfDependencyMissing(LlmwError):
+    """外部 docling 命令不可用——PDF 导入命令不可用，其余 CLI 功能不受影响。"""
+
+    exit_code = 2
+    user_message = "PDF 导入外部工具不可用"
+
+
+class PdfImportFailed(LlmwError):
+    """PDF 下载或 Docling 转换失败——不落半成品 raw 文件。"""
+
+    exit_code = 2
+    user_message = "PDF 导入失败"
+
+
 class InternalError(LlmwError):
     exit_code = 3
     user_message = "未预期的内部错误"

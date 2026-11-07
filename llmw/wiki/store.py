@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 
-from llmw._compat import toml_loads, toml_dump
+from llmw.toml_io import toml_loads, toml_dump
 from llmw.config import metadata_templates_dir
 from llmw.errors import (
     InvalidTagValue,

@@ -11,7 +11,7 @@
 
 | 目录 | 写权限 | 关键约束 |
 | --- | --- | --- |
-| `raw/` | agent 只读，用户可改 | 同路径更新后重新 ingest；路径被 `sources` 引用，改名断链；与摘要矛盾以 raw 为准 |
+| `raw/` | agent 只读，用户可改 | 同路径更新后重新 ingest；路径被 `sources` 引用，改名断链；与摘要矛盾以 raw 为准；PDF 转 Markdown 只经 `llmw wiki import-pdf` 写入 |
 | `raw/external/` | 只经 `llmw wiki external` 维护 | 顶层 symlink + 同一 anchor；target 仓只读，用户明确要求才写，改后确认重摄 |
 | `discussions/` | 用户与 agent 均可写 | 临时草稿；不得作 `sources`；转正须用户明确要求；未经用户要求不读取生成 wiki 页 |
 | `wiki/` | agent 维护 | 内容页带 frontmatter；未归档页必须入 index；归档页退 index、保留文件 |

@@ -219,3 +219,4 @@ __marimo__/
 
 # Eval workspaces (skill qualitative-loop, see yzr-skill-management)
 *-workspace/
+uv.lock

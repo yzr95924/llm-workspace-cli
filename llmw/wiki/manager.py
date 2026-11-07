@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from llmw import WIKI_FORMAT_VERSION
-from llmw._compat import TOMLDecodeError
+from llmw.toml_io import TOMLDecodeError
 from llmw.content import skeleton_sync
 from llmw.content.render import setup_date as render_setup_date
 from llmw.errors import (

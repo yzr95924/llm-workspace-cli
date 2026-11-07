@@ -7,12 +7,26 @@ source 页，跨主题才拆。
 
 1. 读 wiki 根 `AGENTS.md`、`wiki/index.md`、`wiki/log.md` 最近约 30 行、`wiki/tags.md`
 2. 跑 `llmw wiki --path="$LLM_WIKI_ROOT" ingest-diff --check-stale --json`，按
-   `untracked` / `stale-raw` / `log-only-no-source-page` 逐项处理；PDF、图片等非文本素材
-   只有用户点名或另有清单时才逐个处理
+   `untracked` / `stale-raw` / `log-only-no-source-page` 逐项处理；raw/ 下既有
+   PDF、图片等非文本素材只有用户点名或另有清单时才逐个处理（新 PDF 走下方
+   PDF 转 Markdown 导入）
 3. 少于 3 份逐份处理；3 份及以上批处理；超过 20 份先按主题聚类，问用户先处理哪一簇
 4. 单篇或少量文件且用户未给方向时，先确认主题、重点 entity 和须保留的要点；用户已给
    方向则直接执行
 5. 新建页时先读 `wiki/tags.md` 选择既有 tag 或新增；新 tag 直接追加白名单，无需询问
+
+## PDF 转 Markdown
+
+1. 用户给出 PDF URL / 本地路径时，先导入为 raw Markdown：
+
+   ```bash
+   llmw wiki --path="$LLM_WIKI_ROOT" import-pdf --source=<PATH_OR_URL> [--slug=<slug>]
+   ```
+
+2. 产物为 `raw/articles/<slug>.md` 纯文本 Markdown，图片只留占位符；原 PDF 不进
+   wiki，来源与哈希记录在 frontmatter，导入后按普通 raw Markdown 走本流程
+3. 转换失败时保留现场并交付原因；不手工补写或改写转换正文，复杂 / 扫描 PDF 是否
+   保留原件由用户裁定
 
 ## 处理
 

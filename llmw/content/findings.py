@@ -353,7 +353,7 @@ def explain(name: Optional[str] = None, as_json: bool = False) -> int:
         return 0
 
     print(f"lint finding 清单（{len(FINDINGS)} 条；severity: error / warn / info）")
-    for sev, names in zip(("error", "warn", "info"), _grouped()):
+    for sev, names in zip(("error", "warn", "info"), _grouped(), strict=True):
         if not names:
             continue
         print(f"\n[{sev.upper()}] ({len(names)})")

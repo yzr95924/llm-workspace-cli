@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict
 
-from llmw._compat import toml_loads, toml_dump
+from llmw.toml_io import toml_loads, toml_dump
 from llmw.errors import SchemaVersionUnsupported, WorkspaceMetadataCorrupt
 from llmw.fsutil import atomic_write, now_iso8601
 

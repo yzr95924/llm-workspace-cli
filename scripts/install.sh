@@ -151,13 +151,13 @@ _install_skill_links() {
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 
 if ! command -v python3 >/dev/null 2>&1; then
-  echo "install.sh: 未找到 python3（需要 Python 3.7+）。请先安装 python3 再重试。" >&2
+  echo "install.sh: 未找到 python3（需要 Python 3.12+）。请先安装 python3 再重试。" >&2
   exit 1
 fi
 
-# Python < 3.11 运行时需要 tomli；只提示，不自动安装
-if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)' >/dev/null 2>&1; then
-  echo "install.sh: 注意 Python < 3.11，运行时可能需要 tomli（pip install 'tomli>=1.1'）。继续安装。" >&2
+if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3,12) else 1)' >/dev/null 2>&1; then
+  echo "install.sh: 需要 Python 3.12+（当前 $(python3 --version 2>&1)）。请升级 Python 后重试。" >&2
+  exit 1
 fi
 
 bin_dir="$HOME/.local/bin"

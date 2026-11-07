@@ -94,7 +94,7 @@ complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_sub
 complete -c llmw -n "__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from wiki; and __fish_seen_subcommand_from set"       -f -a "enter_cli"        -d 'agent CLI (qodercli|opencode)'
 
 # ===== wiki 子命令 =====
-set -l WIKI_ACTS add remove rename show config enter stop lint check-fixtures upgrade ingest-diff write external
+set -l WIKI_ACTS add remove rename show config enter stop lint check-fixtures upgrade ingest-diff write external import-pdf
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "add"             -d '新建 wiki'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "remove"          -d '移除 wiki'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "rename"          -d '重命名 wiki (目录 + 索引 + metadata)'
@@ -108,6 +108,7 @@ complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subco
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "ingest-diff"     -d '列出未摄取 raw 文件'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "write"           -d 'wiki 内容写入编排'
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "external"        -d 'raw/external 接入 / 重建编排'
+complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -f -a "import-pdf"     -d 'PDF 转 Markdown 导入 raw/'
 
 # wiki --name / --path（wiki 但未选 action 时；--name 有动态值 → A 类，无 -r；--path 目录补全）
 complete -c llmw -n "__fish_seen_subcommand_from wiki; and not __fish_seen_subcommand_from $WIKI_ACTS" -l name -f -a "(__llmw_wikis)" -d '目标 wiki 名'
@@ -173,6 +174,10 @@ complete -c llmw -n "__llmw_subact wiki upgrade" -l yes -s y -d '跳过 TTY 二�
 # wiki ingest-diff（--relative / --check-stale bool）
 complete -c llmw -n "__llmw_subact wiki ingest-diff" -l relative     -d '输出相对 wiki 根而非 raw/'
 complete -c llmw -n "__llmw_subact wiki ingest-diff" -l check-stale  -d '额外检查 source 页 updated 早于 raw mtime'
+
+# wiki import-pdf（source/slug free-form → B 类）
+complete -c llmw -n "__llmw_subact wiki import-pdf" -a "--source=" -f -d 'PDF 本地路径或 http(s) URL'
+complete -c llmw -n "__llmw_subact wiki import-pdf" -a "--slug="   -f -d 'raw Markdown 文件名（缺省从 source 推导）'
 
 # ===== wiki write 子命令 =====
 set -l WIKI_WRITE_ACTS log index touch new

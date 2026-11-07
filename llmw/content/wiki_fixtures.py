@@ -474,7 +474,7 @@ def check_wiki_metadata_reads_satisfied(wiki_root: Path, info: Dict[str, str]) -
     """wiki_metadata.toml 含 SKILL scan 读取的 6 字段（读取契约自洽）。
 
     CLI `wiki add` 必落盘 wiki_metadata.toml；缺失即产物不完整 → fail（不 skip）。
-    复用 minimal TOML key=value 风格解析，不引入 tomli。
+    复用 minimal TOML key=value 风格解析，不引入 TOML 解析器。
     """
     out = {"passed": True, "file": "wiki_metadata.toml"}  # type: Dict[str, object]
     text = _read_text(wiki_root / "wiki_metadata.toml")

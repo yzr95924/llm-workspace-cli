@@ -94,11 +94,8 @@ class _EqualsStyleArgumentParser(argparse.ArgumentParser):
 
 
 # wiki 内容层子命令：须在 workspace 解析前分派（--path 直传时不依赖 workspace）。
-# main() 的提前分派判定与 _cmd_wiki_content 的处理器集合共用此常量（单一真源，
-# 新增内容子命令只改这里 + 加一个处理器分支）。
-_WIKI_CONTENT_ACTIONS = frozenset(
-    {"lint", "check-fixtures", "ingest-diff", "upgrade", "write", "external"}
-)
+# main() 的提前分派判定与 _cmd_wiki_content 的处理器集合共用
+# _WIKI_CONTENT_ACTIONS（定义见内容 handler 表）。
 
 
 def _common_flags() -> argparse.ArgumentParser:
@@ -347,6 +344,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="额外检查已摄取文件：raw mtime 晚于 source 页 updated → 标记 stale-raw",
     )
 
+    pw_pdf = wiki_sub.add_parser(
+        "import-pdf",
+        help="PDF 转 Markdown 导入 raw/（需要外部 docling 命令；原 PDF 不入 wiki）",
+        parents=[common],
+    )
+    pw_pdf.add_argument(
+        "--source",
+        required=True,
+        metavar="PATH_OR_URL",
+        help="PDF 本地路径或 http(s) URL",
+    )
+    pw_pdf.add_argument(
+        "--slug",
+        default=None,
+        help="raw Markdown 文件名（缺省从 source 文件名推导；kebab-case）",
+    )
+
     pw_write = wiki_sub.add_parser(
         "write",
         help="机械字节写操作（log / index / touch / new）",
@@ -437,12 +451,81 @@ def _resolve_content_root(args) -> Path:
     )
 
 
+def _run_wiki_lint(root: Path, args) -> int:
+    from llmw.content import wiki_lint
+
+    return wiki_lint.run(
+        root,
+        severity=args.severity,
+        no_git=args.no_git,
+        check_version=args.check_version,
+        apply=args.apply,
+        json_mode=_flag(args, "json"),
+    )
+
+
+def _run_wiki_check_fixtures(root: Path, args) -> int:
+    from llmw.content import wiki_fixtures
+
+    return wiki_fixtures.run(
+        root,
+        as_json=_flag(args, "json"),
+        target_format=args.target_format,
+    )
+
+
+def _run_wiki_ingest_diff(root: Path, args) -> int:
+    from llmw.content import ingest_diff
+
+    return ingest_diff.run(
+        root,
+        as_json=_flag(args, "json"),
+        relative=args.relative,
+        check_stale=args.check_stale,
+    )
+
+
+def _run_wiki_import_pdf(root: Path, args) -> int:
+    from llmw.content import pdf_import
+
+    return pdf_import.run(
+        root,
+        source=args.source,
+        slug=args.slug,
+        as_json=_flag(args, "json"),
+    )
+
+
+def _run_wiki_upgrade(root: Path, args) -> int:
+    from llmw.content import upgrade
+
+    dry_run = not _flag(args, "apply")  # --apply 显式写盘，默认 dry-run
+    return upgrade.run_upgrade(
+        root,
+        dry_run=dry_run,
+        yes=_flag(args, "yes"),
+        as_json=_flag(args, "json"),
+    )
+
+
+def _run_wiki_write(root: Path, args) -> int:
+    from llmw.content import wiki_write
+
+    return wiki_write.dispatch(root, args)
+
+
+def _run_wiki_external(root: Path, args) -> int:
+    from llmw.content import external_anchor
+
+    return external_anchor.dispatch(root, args)
+
+
 def _cmd_wiki_content(args) -> int:
     """wiki 内容层子命令分派（先于 workspace 解析——--path 直传不依赖 workspace）。"""
-    from llmw.content import ingest_diff, wiki_fixtures, wiki_lint, wiki_write
-
     # --list-rules / --explain 自包含：不扫描文件，不需要 root
     if args.wiki_action == "check-fixtures" and _flag(args, "list_rules"):
+        from llmw.content import wiki_fixtures
+
         return wiki_fixtures.list_rules(as_json=_flag(args, "json"))
 
     if args.wiki_action == "lint" and args.explain is not None:
@@ -451,55 +534,25 @@ def _cmd_wiki_content(args) -> int:
         return findings.explain(args.explain, as_json=_flag(args, "json"))
 
     root = _resolve_content_root(args)
-    wa = args.wiki_action
+    handler = _WIKI_CONTENT_HANDLERS.get(args.wiki_action)
+    if handler is None:
+        # 不可达（main 的提前分派以 _WIKI_CONTENT_ACTIONS 为准）；防名单漂移后
+        # 静默落到 `return None`（exit 0）——失败要响
+        raise InternalError(f"未处理的内容子命令: {args.wiki_action}")
+    return handler(root, args)
 
-    if wa == "lint":
-        return wiki_lint.run(
-            root,
-            severity=args.severity,
-            no_git=args.no_git,
-            check_version=args.check_version,
-            apply=args.apply,
-            json_mode=_flag(args, "json"),
-        )
 
-    if wa == "check-fixtures":
-        return wiki_fixtures.run(
-            root,
-            as_json=_flag(args, "json"),
-            target_format=args.target_format,
-        )
-
-    if wa == "ingest-diff":
-        return ingest_diff.run(
-            root,
-            as_json=_flag(args, "json"),
-            relative=args.relative,
-            check_stale=args.check_stale,
-        )
-
-    if wa == "upgrade":
-        from llmw.content import upgrade
-
-        dry_run = not _flag(args, "apply")  # --apply 显式写盘，默认 dry-run
-        return upgrade.run_upgrade(
-            root,
-            dry_run=dry_run,
-            yes=_flag(args, "yes"),
-            as_json=_flag(args, "json"),
-        )
-
-    if wa == "write":
-        return wiki_write.dispatch(root, args)
-
-    if wa == "external":
-        from llmw.content import external_anchor
-
-        return external_anchor.dispatch(root, args)
-
-    # 不可达（main 的提前分派以 _WIKI_CONTENT_ACTIONS 为准）；防两处名单漂移后
-    # 静默落到 `return None`（exit 0）——失败要响
-    raise InternalError(f"未处理的内容子命令: {wa}")
+# 内容 action SSOT：handler 键同时供 main 提前分派与 _cmd_wiki_content 使用。
+_WIKI_CONTENT_HANDLERS = {
+    "lint": _run_wiki_lint,
+    "check-fixtures": _run_wiki_check_fixtures,
+    "ingest-diff": _run_wiki_ingest_diff,
+    "import-pdf": _run_wiki_import_pdf,
+    "upgrade": _run_wiki_upgrade,
+    "write": _run_wiki_write,
+    "external": _run_wiki_external,
+}
+_WIKI_CONTENT_ACTIONS = frozenset(_WIKI_CONTENT_HANDLERS)
 
 
 def main(argv=None) -> int:

@@ -63,12 +63,14 @@ python3 -m llmw --help                            # 免安装直接跑 CLI
 
 ## 工具链硬约束
 
-- **Python 3.7 兼容是硬约束**：CI 矩阵 py3.7 + py3.11（官方容器）+ 全子模块 import smoke。
-  勿用 3.8+ 语法（walrus、import 期求值的 `dict[str, str]` 注解等）；pytest 钉 `<8`
-  （pytest 8 要求 py≥3.8）。
-- ruff 双配置并存是刻意的：根 = 默认规则（E4/E7/E9/F）+ target py37；
+- **Python 3.12 / 3.14 兼容是硬约束**：CI 矩阵 py3.12 + py3.14（官方容器）+ 全子模块
+  import smoke。pytest 钉 `>=8,<9`。
+- PDF 转 Markdown 走外部 `docling` 命令（用户一次性
+  `uv tool install --python 3.12 docling`）；`llmw` 环境零第三方依赖，CI 不安装 Docling。
+- ruff 双配置并存是刻意的：根 = 默认规则（E4/E7/E9/F）+ target py312；
   `llmw/content/ruff.toml` 局部覆盖 = 120 行宽 + E/W/F/I/B/UP（约 6500 行既有代码，
-  不 reflow）。`ruff format .` 会按文件就近选配置，别用手动根配置格式化 content 包。
+  不 reflow；typing.List/Dict/Optional 旧风格保留，见该文件 ignore 注释）。
+  `ruff format .` 会按文件就近选配置，别用手动根配置格式化 content 包。
 - Markdown 行宽 ≤ 120（`.markdownlint.jsonc` MD013；表格 / 代码块豁免）。
 - skill 目录（`yzr-llm-*/`）禁 `.py` 文件（CI find 判红）；确定性代码全归 `llmw/content/`。
 

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from llmw._compat import toml_loads, toml_dump
+from llmw.toml_io import toml_loads, toml_dump
 from llmw.backends import DEFAULT_BACKEND
 from llmw.errors import SchemaVersionUnsupported
 from llmw.fsutil import atomic_write, now_iso8601

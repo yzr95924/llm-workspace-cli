@@ -172,6 +172,7 @@ _llmw_wiki() {
         'ingest-diff:列出未摄取 raw 文件'
         'write:wiki 内容写入编排'
         'external:raw/external 接入 / 重建编排'
+        'import-pdf:PDF 转 Markdown 导入 raw/'
     )
     local state ret=1
     _arguments -C \
@@ -301,6 +302,12 @@ _llmw_wiki() {
                     _arguments \
                         '--relative[输出相对 wiki 根而非 raw/]' \
                         '--check-stale[额外检查 source 页 updated 早于 raw mtime]' \
+                        "${COMMON_OPTS[@]}" && ret=0
+                    ;;
+                import-pdf)
+                    _arguments \
+                        '--source=[PDF 本地路径或 http(s) URL]:source:' \
+                        '--slug=[raw Markdown 文件名（缺省从 source 推导）]:slug:' \
                         "${COMMON_OPTS[@]}" && ret=0
                     ;;
                 write)
