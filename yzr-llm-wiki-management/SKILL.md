@@ -22,7 +22,8 @@ description: |
 
 - **机械操作走 CLI**：内容页、index / log 的常规写操作走 `llmw wiki write` 系列，格式与滚动窗口截断由 `write` 保证，lint 只兜底带外手改；
   所有 `llmw` 内容命令显式带 `--path=<解析出的 wiki 根>`（环境变量已注入时可写
-  `--path="$LLM_WIKI_ROOT"`），不按 cwd 推断；
+  `--path="$LLM_WIKI_ROOT"`），不按 cwd 推断；`<page>` 用相对 wiki 根的路径，须带
+  `wiki/` 前缀，如 `wiki/concepts/foo.md`；
   `write` 覆盖不了的形态直接编辑文件（anchor 等 CLI 专属对象仍走各自子命令）。建不建页、
   怎么综合、矛盾怎么记，由 agent 判断；裁定归用户
 - **不跨 wiki**：wiki 根确定后，不读取、搜索或写入其他 wiki；一个 wiki 一个主题，
