@@ -3,8 +3,9 @@
 一个 workspace = 一个 git 仓，含多个 wiki 子目录。llmw 负责 wiki 创建、元数据与 session 启动；
 wiki 内容（ingest / lint / query）由
 [`yzr-llm-wiki-management`](https://github.com/yzr95924/llm-workspace-cli/tree/master/yzr-llm-wiki-management)
-skill 在 session 内负责；跨 wiki / workspace 内容操作已退役（无宪法、无 skill）；
-workspace 仅是 wiki 的 git 仓容器。SKILL 与 CLI **同仓**。
+skill 在 session 内负责；跨 wiki / workspace 内容操作已退役（无宪法、无 skill）；workspace 根
+`AGENTS.md` 只引入跨 wiki 共享 `MEMORY/`，不承载内容工作流；workspace 仅是 wiki 的 git 仓容器。
+SKILL 与 CLI **同仓**。
 
 ## 安装
 
@@ -51,7 +52,7 @@ llmw wiki --name=llm-systems remove --purge --yes
 
 | 命令 | 作用 |
 | --- | --- |
-| `llmw init [--path=PATH]` | 初始化 workspace；默认 `~/yzr-llm-wiki-workspace` |
+| `llmw init [--path=PATH]` | 初始化 workspace；默认 `~/yzr-llm-wiki-workspace`。已有 workspace 重跑只补缺失的共享记忆文件，不覆盖既有内容 |
 | `llmw config [get\|set\|unset] [KEY] [VALUE]` | 读写 `workspace.toml` / `workspace_local.toml`；无参数 + TTY 进交互模式，非 TTY 打印字段列表 |
 | `llmw list [--tag=TAG]...` | 列出 wiki（`--tag` 可重复，AND 关系） |
 | `llmw status [--json] [--tmux]` | 一屏查看所有运行中的 session（STATE/UPTIME/IDLE 列；workspace 被删 → 孤儿清理模式） |

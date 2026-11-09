@@ -3,17 +3,22 @@
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional
+from typing import List, NamedTuple, Optional
 
 from llmw.toml_io import TOMLDecodeError
 from llmw.backends import DEFAULT_BACKEND, KNOWN_BACKENDS
+from llmw.config import workspace_templates_dir
+from llmw.content.render import read_template
 from llmw.errors import (
     InvalidConfigKey,
     KeyNotUnsettable,
     SchemaVersionUnsupported,
+    SetupFailed,
     WikiMetadataCorrupt,
     WorkspaceExists,
+    WorkspaceMetadataCorrupt,
 )
+from llmw.fsutil import atomic_write
 from llmw.workspace import store as ws_store
 from llmw.workspace.gitignore import ensure_workspace_gitignore
 
@@ -28,6 +33,8 @@ CONFIG_KEYS = {
 # 不再存于 workspace.toml (结构数据)；config get/set/unset 据 LOCAL_KEYS 决定落点。
 # (enter_byobu 已删除——窗口路径全环境成立。)
 LOCAL_KEYS = frozenset({"enter_cli"})
+
+_SHARED_MEMORY_IMPORT = "@MEMORY/MEMORY.md"
 
 
 def _check_enter_cli(value: str) -> None:
@@ -51,16 +58,118 @@ def _is_effectively_empty(path: Path) -> bool:
     return all(entry.name in ignored for entry in path.iterdir())
 
 
+class _SharedMemoryLoaderStatus(NamedTuple):
+    created_agents: bool
+    created_memory: bool
+    agents_missing_import: bool
+
+    @property
+    def complete(self) -> bool:
+        return not (
+            self.created_agents or self.created_memory or self.agents_missing_import
+        )
+
+
+def _has_non_file_entry(path: Path) -> bool:
+    """路径上有目录 / 悬空 symlink 等非常规文件实体。"""
+    return (path.exists() or path.is_symlink()) and not path.is_file()
+
+
+def _ensure_shared_memory_loader(workspace_root: Path) -> _SharedMemoryLoaderStatus:
+    """确保根 AGENTS.md 与 MEMORY/MEMORY.md 存在；已有文件一律不覆盖。"""
+    agents_md = workspace_root / "AGENTS.md"
+    memory_md = workspace_root / "MEMORY" / "MEMORY.md"
+    targets = (("AGENTS.md", agents_md), ("MEMORY/MEMORY.md", memory_md))
+
+    for rel, target in targets:
+        if _has_non_file_entry(target):
+            raise SetupFailed(
+                f"{rel} 已存在且不是常规文件: {target}",
+                hint="移走同名目录或悬空链接后重跑 llmw init",
+            )
+
+    created_agents = not agents_md.is_file()
+    created_memory = not memory_md.is_file()
+    agents_missing_import = False
+
+    try:
+        if created_agents:
+            template = read_template(
+                workspace_templates_dir() / "agents-md-template.md"
+            )
+            atomic_write(agents_md, template)
+        else:
+            agents_text = agents_md.read_text(encoding="utf-8")
+            agents_missing_import = not any(
+                line.strip() == _SHARED_MEMORY_IMPORT
+                for line in agents_text.splitlines()
+            )
+
+        # MEMORY.md 出生为空：格式与内容归 yzr-memory-management，不预写骨架
+        if created_memory:
+            atomic_write(memory_md, "")
+    except OSError as e:
+        raise SetupFailed(
+            f"写入 workspace 共享记忆文件失败: {e.filename or e.strerror}",
+            hint="检查磁盘空间 + 目录权限",
+        ) from e
+
+    return _SharedMemoryLoaderStatus(
+        created_agents=created_agents,
+        created_memory=created_memory,
+        agents_missing_import=agents_missing_import,
+    )
+
+
+def _validate_existing_workspace(path: Path) -> None:
+    """校验已有 workspace.toml；损坏时按 init 的用户错误报告。"""
+    try:
+        ws_store.load(path)
+    except (
+        OSError,
+        TOMLDecodeError,
+        SchemaVersionUnsupported,
+        WorkspaceMetadataCorrupt,
+    ) as e:
+        raise WorkspaceExists(
+            f"路径已是 workspace 但 workspace.toml 无法读取: {type(e).__name__}: {e}",
+            hint="修复 workspace.toml 后重跑 llmw init",
+        ) from e
+
+
+def _refill_existing_workspace(path: Path) -> Path:
+    """已有 workspace 补缺失的共享记忆文件并报告结果。"""
+    status = _ensure_shared_memory_loader(path)
+    print(f"[llmw] workspace 已存在: {path}", file=sys.stdout)
+    if status.created_agents:
+        print("[llmw] ✓ 已创建共享记忆入口 AGENTS.md", file=sys.stdout)
+    if status.created_memory:
+        print("[llmw] ✓ 已创建空 MEMORY/MEMORY.md", file=sys.stdout)
+    if status.complete:
+        print("[llmw] 共享记忆文件已齐备，未修改", file=sys.stdout)
+    if status.agents_missing_import:
+        print(
+            f"[llmw] warning: AGENTS.md 已存在但缺少 {_SHARED_MEMORY_IMPORT} 引用，"
+            "请手动添加该行",
+            file=sys.stderr,
+        )
+    return path
+
+
 def init(path: Path) -> Path:
-    """初始化 workspace 根；git 由用户自理（CLI 不碰 git；git 空仓允许直接 init）。"""
+    """初始化 workspace 根；已有 workspace 重跑时只补共享记忆缺失文件。"""
     path = path.resolve()
+    existing_workspace = False
     if path.exists():
         if not path.is_dir():
             raise WorkspaceExists(
                 f"目标路径已存在且不是目录: {path}",
                 hint="init 需要 workspace 根目录，请换 --path 或先移走该文件",
             )
-        if not _is_effectively_empty(path):
+        if (path / "workspace.toml").is_file():
+            _validate_existing_workspace(path)
+            existing_workspace = True
+        elif not _is_effectively_empty(path):
             raise WorkspaceExists(
                 f"路径已存在且非空: {path}",
                 hint="指定空目录或先备份内容（仅含 .git / .gitignore 的 git 空仓可直接 init）",
@@ -68,10 +177,14 @@ def init(path: Path) -> Path:
     else:
         path.mkdir(parents=True)
 
+    if existing_workspace:
+        return _refill_existing_workspace(path)
+
     ws_store.create_skeleton(path)
 
     # .gitignore 无条件生成（便于后续补 git）
     ensure_workspace_gitignore(path)
+    _ensure_shared_memory_loader(path)
 
     print(f"[llmw] workspace 已初始化于 {path}", file=sys.stdout)
     print(

@@ -39,6 +39,58 @@ def _check_default_workspace():
     print("[OK] 默认 workspace：DEFAULT_WORKSPACE == ~/yzr-llm-wiki-workspace")
 
 
+def _check_shared_memory_loader(ws: Path):
+    """workspace 出生共享记忆加载器：AGENTS.md 字节等于模板，MEMORY.md 为空。"""
+    sys.path.insert(0, str(REPO))
+    from llmw.config import workspace_templates_dir
+
+    agents_md = ws / "AGENTS.md"
+    memory_md = ws / "MEMORY" / "MEMORY.md"
+    if not agents_md.is_file() or not memory_md.is_file():
+        raise SystemExit("FAIL: 新 workspace 缺 AGENTS.md 或 MEMORY/MEMORY.md")
+    template = (workspace_templates_dir() / "agents-md-template.md").read_text(
+        encoding="utf-8"
+    )
+    if agents_md.read_text(encoding="utf-8") != template:
+        raise SystemExit("FAIL: workspace AGENTS.md 与模板字节不一致")
+    if memory_md.read_text(encoding="utf-8") != "":
+        raise SystemExit("FAIL: workspace MEMORY/MEMORY.md 出生应为空文件")
+    print("[OK] workspace 共享记忆加载器：AGENTS.md = 模板，MEMORY.md 为空")
+
+
+def _check_init_refill_and_preserve(ws: Path):
+    """已有 workspace 重跑 init：幂等、缺失补齐、已有内容不覆盖。"""
+    tracked = {
+        rel: (ws / rel).read_bytes()
+        for rel in ("workspace.toml", "AGENTS.md", "MEMORY/MEMORY.md")
+    }
+    _llmw(["init", "--path=" + str(ws)])
+    for rel, before in tracked.items():
+        if (ws / rel).read_bytes() != before:
+            raise SystemExit(f"FAIL: 重跑 init 修改了既有文件: {rel}")
+
+    (ws / "AGENTS.md").unlink()
+    (ws / "MEMORY" / "MEMORY.md").unlink()
+    _llmw(["init", "--path=" + str(ws)])
+    _check_shared_memory_loader(ws)
+
+    custom_agents = "custom agents <!-- @MEMORY/MEMORY.md -->\n"
+    (ws / "AGENTS.md").write_text(custom_agents, encoding="utf-8")
+    (ws / "MEMORY" / "MEMORY.md").write_text("custom memory\n", encoding="utf-8")
+    proc = _llmw(["init", "--path=" + str(ws)])
+    if "@MEMORY/MEMORY.md" not in proc.stderr:
+        raise SystemExit("FAIL: 自定义 AGENTS.md 缺引用时未输出 warning")
+    if (ws / "AGENTS.md").read_text(encoding="utf-8") != custom_agents:
+        raise SystemExit("FAIL: 重跑 init 覆盖了自定义 AGENTS.md")
+    if (ws / "MEMORY" / "MEMORY.md").read_text(encoding="utf-8") != "custom memory\n":
+        raise SystemExit("FAIL: 重跑 init 覆盖了自定义 MEMORY/MEMORY.md")
+
+    (ws / "AGENTS.md").unlink()
+    (ws / "MEMORY" / "MEMORY.md").unlink()
+    _llmw(["init", "--path=" + str(ws)])
+    print("[OK] workspace init 幂等：缺失补齐，自定义文件不覆盖")
+
+
 def _llmw(args):
     """跑 ``python -m llmw <args>``，失败即抛（gate 红）。"""
     env = dict(os.environ, PYTHONPATH=str(REPO))
@@ -98,6 +150,8 @@ def main():
         ws = Path(tmp) / "ws"
 
         _llmw(["init", "--path=" + str(ws)])
+        _check_shared_memory_loader(ws)
+        _check_init_refill_and_preserve(ws)
         _llmw(
             [
                 "--workspace=" + str(ws),
