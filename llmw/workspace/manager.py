@@ -355,6 +355,8 @@ def _gather_wiki_rows(
 
     单 wiki 元数据损坏 → warning + 降级空值（列表不整体失败）。
     """
+    from llmw.content.wiki_lint import parse_format_version
+
     rows = []
     for name in sorted(ws.wikis.keys()):
         entry = ws.wikis[name]
@@ -395,6 +397,8 @@ def _gather_wiki_rows(
                     log_md_p.stat().st_mtime, tz=timezone.utc
                 ).isoformat()
 
+        format_version = parse_format_version(wiki_path)
+
         rows.append(
             {
                 "name": name,
@@ -402,6 +406,7 @@ def _gather_wiki_rows(
                 "exists": exists,
                 "display_name": meta.display_name if meta else "",
                 "tags": list(meta.tags) if meta else [],
+                "format_version": format_version,
                 "created_at": meta.created_at if meta else None,
                 "last_activity": last_activity,
             }
@@ -418,6 +423,7 @@ def _render_list_json(rows: List[dict]) -> None:
             "path": r["path"],
             "display_name": r["display_name"] or None,
             "tags": r["tags"],
+            "format_version": r["format_version"],
             "wiki_dir_exists": r["exists"],
             "last_activity": r["last_activity"],
         }
@@ -466,20 +472,26 @@ def _render_list_table(rows: List[dict]) -> None:
     """
     created_cells = [_short_time(r["created_at"]) for r in rows]
     last_activity_cells = [_short_time(r["last_activity"]) for r in rows]
+    format_cells = [r["format_version"] or "-" for r in rows]
     name_w = max(_disp_width(r["name"]) for r in rows + [{"name": "NAME"}])
+    format_w = max(_disp_width(c) for c in format_cells + ["FORMAT"])
     created_w = max(_disp_width(c) for c in created_cells + ["CREATED"])
     last_activity_w = max(
         _disp_width(c) for c in last_activity_cells + ["LAST_ACTIVITY"]
     )
     print(
         f"  {_disp_pad('NAME', name_w)}  "
+        f"{_disp_pad('FORMAT', format_w)}  "
         f"{_disp_pad('CREATED', created_w)}  "
         f"{_disp_pad('LAST_ACTIVITY', last_activity_w)}"
     )
-    for r, created, last_act in zip(rows, created_cells, last_activity_cells):
+    for r, created, last_act, fmt in zip(
+        rows, created_cells, last_activity_cells, format_cells
+    ):
         prefix = "⚠ " if not r["exists"] else "  "
         print(
             f"{prefix}{_disp_pad(r['name'], name_w)}  "
+            f"{_disp_pad(fmt, format_w)}  "
             f"{_disp_pad(created, created_w)}  "
             f"{_disp_pad(last_act, last_activity_w)}"
         )
