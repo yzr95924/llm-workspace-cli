@@ -144,6 +144,25 @@ def is_git_repo(path: Path) -> bool:
         cur = parent
 
 
+def git_dirty_state(wiki_root: Path) -> Optional[bool]:
+    """wiki 目录工作区是否有未提交改动：True / False；无法判定（非 git 仓 / git CLI 缺失 / git 命令失败）→ None。"""
+    if not wiki_root.is_dir() or not is_git_repo(wiki_root):
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "."],
+            cwd=str(wiki_root),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+        )
+    except FileNotFoundError:
+        return None
+    if result.returncode != 0:
+        return None
+    return bool(result.stdout.strip())
+
+
 def check_raw_immutable(wiki_root: Path, use_git: bool) -> List[str]:
     """raw/ 是否有未提交改动（非 git 仓 / raw 未跟踪 → 跳过）。
 

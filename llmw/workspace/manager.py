@@ -355,7 +355,7 @@ def _gather_wiki_rows(
 
     单 wiki 元数据损坏 → warning + 降级空值（列表不整体失败）。
     """
-    from llmw.content.wiki_lint import parse_format_version
+    from llmw.content.wiki_lint import git_dirty_state, parse_format_version
 
     rows = []
     for name in sorted(ws.wikis.keys()):
@@ -398,6 +398,7 @@ def _gather_wiki_rows(
                 ).isoformat()
 
         format_version = parse_format_version(wiki_path)
+        git_dirty = git_dirty_state(wiki_path)
 
         rows.append(
             {
@@ -409,6 +410,7 @@ def _gather_wiki_rows(
                 "format_version": format_version,
                 "created_at": meta.created_at if meta else None,
                 "last_activity": last_activity,
+                "git_dirty": git_dirty,
             }
         )
     return rows
@@ -426,6 +428,7 @@ def _render_list_json(rows: List[dict]) -> None:
             "format_version": r["format_version"],
             "wiki_dir_exists": r["exists"],
             "last_activity": r["last_activity"],
+            "git_dirty": r["git_dirty"],
         }
         for r in rows
     ]
@@ -465,6 +468,12 @@ def _disp_pad(text, width):
     return text + " " * max(0, width - _disp_width(text))
 
 
+def _git_cell(dirty):
+    if dirty is None:
+        return "-"
+    return "dirty" if dirty else "clean"
+
+
 def _render_list_table(rows: List[dict]) -> None:
     """精简单行表格（时间列短格式，完整时间戳走 --json）。
 
@@ -473,27 +482,31 @@ def _render_list_table(rows: List[dict]) -> None:
     created_cells = [_short_time(r["created_at"]) for r in rows]
     last_activity_cells = [_short_time(r["last_activity"]) for r in rows]
     format_cells = [r["format_version"] or "-" for r in rows]
+    git_cells = [_git_cell(r["git_dirty"]) for r in rows]
     name_w = max(_disp_width(r["name"]) for r in rows + [{"name": "NAME"}])
     format_w = max(_disp_width(c) for c in format_cells + ["FORMAT"])
     created_w = max(_disp_width(c) for c in created_cells + ["CREATED"])
     last_activity_w = max(
         _disp_width(c) for c in last_activity_cells + ["LAST_ACTIVITY"]
     )
+    git_w = max(_disp_width(c) for c in git_cells + ["GIT"])
     print(
         f"  {_disp_pad('NAME', name_w)}  "
         f"{_disp_pad('FORMAT', format_w)}  "
         f"{_disp_pad('CREATED', created_w)}  "
-        f"{_disp_pad('LAST_ACTIVITY', last_activity_w)}"
+        f"{_disp_pad('LAST_ACTIVITY', last_activity_w)}  "
+        f"{_disp_pad('GIT', git_w)}"
     )
-    for r, created, last_act, fmt in zip(
-        rows, created_cells, last_activity_cells, format_cells
+    for r, created, last_act, fmt, git in zip(
+        rows, created_cells, last_activity_cells, format_cells, git_cells
     ):
         prefix = "⚠ " if not r["exists"] else "  "
         print(
             f"{prefix}{_disp_pad(r['name'], name_w)}  "
             f"{_disp_pad(fmt, format_w)}  "
             f"{_disp_pad(created, created_w)}  "
-            f"{_disp_pad(last_act, last_activity_w)}"
+            f"{_disp_pad(last_act, last_activity_w)}  "
+            f"{_disp_pad(git, git_w)}"
         )
 
 
